@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.8.1)
+// @name         Video_Control (v31.8.2)
 // @namespace    https://github.com/moamoa7
-// @version      31.8.1
-// @description  v31.8.1: 자동저장 제거, 라디오 모드, CLAMP 누락 수정
+// @version      31.8.2
+// @description  v31.8.2: 라디오 모드 visibility→opacity 폴백, 오디오 실패 경고 표시
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -29,7 +29,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.8.1';
+  const VSC_VERSION = '31.8.2';
   const DEBUG = false;
 
   const log = {
@@ -300,7 +300,7 @@ const MANUAL_PRESETS = [
       const onLoadedMetadata = () => { cancelRVFC(); if (!_rvfcPaused) startRVFC(); req(); };
       const onPause = () => { cancelRVFC(); };
       const onResize = req;
-      const onLoadstart = () => {
+            const onLoadstart = () => {
         cancelRVFC();
         delete el.dataset.vscDrm; delete el.dataset.vscPbFail; delete el.dataset.vscPbRetry; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail;
         if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
@@ -590,7 +590,7 @@ const MANUAL_PRESETS = [
     }
     function exitBypass() { if (!bypassMode) return; bypassMode = false; }
 
-        function connectViaCaptureStream(video) {
+    function connectViaCaptureStream(video) {
       if (!ctx || video.dataset.vscAudioCorsFail === "1") return null;
       let s = streamMap.get(video);
       if (s) { if (s.context === ctx) return s; if (currentSrc === s) { currentSrc = null; currentMode = 'none'; } try { s.disconnect(); } catch (_) {} if (s.__vsc_captureStream) { s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); } streamMap.delete(video); }
@@ -919,6 +919,7 @@ const MANUAL_PRESETS = [
     const overlays = new WeakMap();
     let active = false;
     let timeUpdateHandler = null;
+    let _hideMethod = 'opacity';  // ◀ 패치: visibility → opacity 기본 사용
 
     function formatTime(sec) {
       if (!sec || !isFinite(sec)) return '--:--';
@@ -950,7 +951,6 @@ const MANUAL_PRESETS = [
         transition:opacity 0.4s ease!important; opacity:0!important;
       `;
 
-      // 라디오 아이콘 (CSS 전용 펄스)
       const iconWrap = document.createElement('div');
       iconWrap.style.cssText = 'position:relative!important;width:64px!important;height:64px!important;display:flex!important;align-items:center!important;justify-content:center!important;';
 
@@ -981,13 +981,18 @@ const MANUAL_PRESETS = [
       `;
       timeEl.textContent = '--:-- / --:--';
 
+      // ◀ 패치: 안내 문구 수정 (디코딩 유지 안내)
       const hint = document.createElement('div');
-      hint.textContent = '영상의 화면만 검게 차단합니다';
+      hint.textContent = '화면 렌더링 OFF · 비디오 디코딩은 유지됩니다';
       hint.style.cssText = 'font-size:11px!important;color:rgba(255,255,255,0.25)!important;';
 
-      overlay.append(iconWrap, label, timeEl, hint);
+      // ◀ 패치: 오디오 상태 경고 영역
+      const audioWarn = document.createElement('div');
+      audioWarn.style.cssText = 'font-size:11px!important;color:rgba(255,190,70,0.8)!important;margin-top:4px!important;display:none!important;';
+      audioWarn.setAttribute('data-vsc-radio-warn', '1');
 
-      // CSS 애니메이션 주입
+      overlay.append(iconWrap, label, timeEl, hint, audioWarn);
+
       if (!document.getElementById('vsc-radio-css')) {
         const style = document.createElement('style');
         style.id = 'vsc-radio-css';
@@ -1001,15 +1006,14 @@ const MANUAL_PRESETS = [
         (document.head || document.documentElement).appendChild(style);
       }
 
-      // position: relative 보장
       const pos = getComputedStyle(container).position;
       if (pos === 'static') container.style.position = 'relative';
 
       container.appendChild(overlay);
       requestAnimationFrame(() => { overlay.style.opacity = '1'; });
 
-      overlays.set(video, { overlay, timeEl });
-      return { overlay, timeEl };
+      overlays.set(video, { overlay, timeEl, audioWarn });
+      return { overlay, timeEl, audioWarn };
     }
 
     function removeOverlay(video) {
@@ -1026,27 +1030,71 @@ const MANUAL_PRESETS = [
       data.timeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
     }
 
+    // ◀ 패치: 오디오 경고 표시/숨김
+    function showAudioWarning(video, msg) {
+      const data = overlays.get(video);
+      if (!data) return;
+      if (msg) {
+        data.audioWarn.textContent = msg;
+        data.audioWarn.style.display = 'block';
+      } else {
+        data.audioWarn.style.display = 'none';
+      }
+    }
+
+    // ◀ 패치: 비디오 숨김 (opacity 기본, visibility 폴백)
+    function hideVideo(video) {
+      if (_hideMethod === 'opacity') {
+        video.style.setProperty('opacity', '0', 'important');
+        video.style.setProperty('pointer-events', 'none', 'important');
+      } else {
+        video.style.setProperty('visibility', 'hidden', 'important');
+      }
+    }
+
+    // ◀ 패치: 비디오 복원
+    function showVideo(video) {
+      video.style.removeProperty('opacity');
+      video.style.removeProperty('pointer-events');
+      video.style.removeProperty('visibility');
+    }
+
     function engage(video) {
       if (!video?.isConnected) return;
 
-      // 1) SVG 필터 해제 → GPU 셰이더 패스 제거
+      // 1) SVG 필터 해제
       Filters.clear(video);
 
-      // 2) visibility: hidden → 컴포지팅 스킵 힌트
-      video.style.setProperty('visibility', 'hidden', 'important');
+      // 2) 비디오 숨김 (opacity 방식)
+      hideVideo(video);
 
-      // 3) rVFC 중단 → 프레임 콜백 오버헤드 제거
+      // 3) rVFC 중단
       Registry.pauseAllRvfc();
 
       // 4) 오버레이 표시
       createOverlay(video);
       updateTime(video);
 
-      // 5) 시간 업데이트 (1초 간격 — rAF 대신 setInterval로 최소 부하)
+      // ◀ 패치: 오디오 CORS 실패 감지 → 경고 표시
+      if (video.dataset.vscAudioCorsFail === "1" || video.dataset.vscMesFail === "1") {
+        showAudioWarning(video, '⚠ 오디오 연결 실패 — 원본 오디오 출력 중');
+      } else {
+        showAudioWarning(video, null);
+      }
+
+      // 5) 시간 업데이트
       if (timeUpdateHandler) clearInterval(timeUpdateHandler);
       timeUpdateHandler = setInterval(() => {
         const v = __internal._activeVideo;
-        if (v?.isConnected && active) updateTime(v);
+        if (v?.isConnected && active) {
+          updateTime(v);
+          // ◀ 패치: 주기적으로 오디오 상태 재확인
+          if (v.dataset.vscAudioCorsFail === "1" || v.dataset.vscMesFail === "1") {
+            showAudioWarning(v, '⚠ 오디오 연결 실패 — 원본 오디오 출력 중');
+          } else {
+            showAudioWarning(v, null);
+          }
+        }
       }, 1000);
     }
 
@@ -1054,20 +1102,16 @@ const MANUAL_PRESETS = [
       if (timeUpdateHandler) { clearInterval(timeUpdateHandler); timeUpdateHandler = null; }
 
       if (video) {
-        video.style.removeProperty('visibility');
+        showVideo(video);
         removeOverlay(video);
       }
 
-      // 모든 비디오에서 오버레이/visibility 정리
       for (const v of Registry.videos) {
         if (overlays.has(v)) removeOverlay(v);
-        v.style.removeProperty('visibility');
+        showVideo(v);
       }
 
-      // rVFC 재개
       Registry.resumeAllRvfc();
-
-      // 필터 재적용 트리거
       Scheduler.request();
     }
 
@@ -1087,13 +1131,13 @@ const MANUAL_PRESETS = [
     function onTargetChange(newVideo, oldVideo) {
       if (!active) return;
       if (oldVideo) {
-        oldVideo.style.removeProperty('visibility');
+        showVideo(oldVideo);
         removeOverlay(oldVideo);
       }
       if (newVideo) engage(newVideo);
     }
 
-    return { setActive, isActive: () => active, onTargetChange, updateTime };
+    return { setActive, isActive: () => active, onTargetChange, updateTime, showAudioWarning };
   }
 
   function createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio) {
@@ -1357,7 +1401,7 @@ const MANUAL_PRESETS = [
 
       const info = h('div', { class: 'radio-info' },
         h('div', { class: 'radio-title' }, '라디오 모드'),
-        h('div', { class: 'radio-desc' }, '화면만 검게 차단')
+        h('div', { class: 'radio-desc' }, '화면 렌더링 OFF → GPU 필터·합성 절약. 비디오 디코딩은 유지됩니다.')
       );
 
       const badge = h('div', { class: 'radio-badge' }, 'OFF');
@@ -1484,7 +1528,6 @@ const MANUAL_PRESETS = [
       mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
       mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); }); bar.append(mainBtn); _qbarShadow.appendChild(bar); getMountTarget().appendChild(quickBarHost);
 
-      // 라디오 모드 시 기어 버튼 시각 피드백
       const syncRadioBadge = () => {
         mainBtn.classList.toggle('radio-active', Radio.isActive());
       };
@@ -1555,7 +1598,6 @@ const MANUAL_PRESETS = [
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
 
-    // 라디오 모드 토글
     Store.sub(P.RADIO_EN, (on) => {
       Radio.setActive(on);
       OSD.show(on ? '📻 라디오 모드 ON' : '📻 라디오 모드 OFF', 1200);
@@ -1573,7 +1615,6 @@ const MANUAL_PRESETS = [
       const prevTarget = __internal._activeVideo;
       __internal._activeVideo = target || null;
 
-      // 라디오 모드: 타겟 변경 알림
       if (target !== prevTarget) {
         Radio.onTargetChange(target, prevTarget);
       }
@@ -1592,7 +1633,6 @@ const MANUAL_PRESETS = [
         Audio.setTarget(null);
       }
 
-      // 라디오 모드 활성 시 필터 스킵
       const radioOn = Radio.isActive();
 
       for (const v of Registry.videos) {
@@ -1600,7 +1640,6 @@ const MANUAL_PRESETS = [
         if (v !== target) { Filters.clear(v); continue; }
 
         if (radioOn) {
-          // 라디오 모드: 필터 적용 안 함, visibility hidden 유지
           Filters.clear(v);
           continue;
         }
