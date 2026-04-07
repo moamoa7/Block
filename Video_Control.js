@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.7.6)
+// @name         Video_Control (v31.7.7)
 // @namespace    https://github.com/moamoa7
-// @version      31.7.6
-// @description  v31.7.6: 수동 조정 파라미터 재조정 (2/3) toe / mid / shoulder / gamma / contrast
+// @version      31.7.7
+// @description  v31.7.7: bugfix — temp/tint 할당, gamma 역수 이중적용, hash preGain 누락, preGain GPU 이중패스
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.7.6';
+  const VSC_VERSION = '31.7.7';
   const DEBUG = false;
 
   const log = {
@@ -51,16 +51,15 @@
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
-  // (1) getSharpProfile - autoBase 하향 & cap 하향
-function getSharpProfile(nW) {
-    if (nW > 2560) return { cap: 0.20, diagRatio: 0.60, autoBase: 0.12 };  // cap 0.25→0.20
-    if (nW > 1920) return { cap: 0.18, diagRatio: 0.65, autoBase: 0.10 };  // cap 0.22→0.18
-    const autoBase = nW <= 640 ? 0.14    // 0.18→0.14
-                   : nW <= 960 ? 0.12    // 0.14→0.12
-                   : nW <= 1280 ? 0.12   // 0.13→0.12 (통일)
+  function getSharpProfile(nW) {
+    if (nW > 2560) return { cap: 0.20, diagRatio: 0.60, autoBase: 0.12 };
+    if (nW > 1920) return { cap: 0.18, diagRatio: 0.65, autoBase: 0.10 };
+    const autoBase = nW <= 640 ? 0.14
+                   : nW <= 960 ? 0.12
+                   : nW <= 1280 ? 0.12
                    : 0.12;
-    return { cap: 0.16, diagRatio: 0.707, autoBase };  // cap 0.18→0.16
-}
+    return { cap: 0.16, diagRatio: 0.707, autoBase };
+  }
   const SHARP_CAP_DEFAULT = 0.16;
 
   function onFsChange(fn) {
@@ -105,8 +104,8 @@ function getSharpProfile(nW) {
       off:  { label: 'AUTO' },
       S:    { sharpAdd: 4,  sharp2Add: 2,  clarityAdd: 2,  label: '1단' },
       M:    { sharpAdd: 7,  sharp2Add: 4,  clarityAdd: 4,  label: '2단' },
-      L:  { sharpAdd: 8,  sharp2Add: 4,  clarityAdd: 4,  label: '3단' },  // 10→8
-      XL: { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 4,  label: '4단' },  // 12→10, 5→4
+      L:  { sharpAdd: 8,  sharp2Add: 4,  clarityAdd: 4,  label: '3단' },
+      XL: { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 4,  label: '4단' },
     }
   });
   const _PRESET_SHARP_LUT = {};
@@ -752,7 +751,8 @@ const MANUAL_PRESETS = [
         toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean),
         tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B,
         fSat,
-        st: { toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '', _h1: -1, _h2: -1, _h3: -1, _h4: -1, _h5: -1, _h6: -1, _h7: -1, _h8: -1, _h9: -1, _h10: -1, _h11: -1 }
+        // [패치 #3] _h12 추가
+        st: { toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '', _h1: -1, _h2: -1, _h3: -1, _h4: -1, _h5: -1, _h6: -1, _h7: -1, _h8: -1, _h9: -1, _h10: -1, _h11: -1, _h12: -1 }
       };
     }
 
@@ -765,13 +765,15 @@ const MANUAL_PRESETS = [
       const rn = video?.getRootNode?.();
       const root = (rn instanceof ShadowRoot) ? rn : (video?.ownerDocument || document);
 
+      // [패치 #4] preGain을 CSS brightness()로 분리하지 않고 SVG gain에 통합
+      // non-SVG 경로에서만 CSS brightness 사용
       const preGainSlope = s._preGain || 1;
-      const preGainCss = (Math.abs(preGainSlope - 1) > 0.001) ? `brightness(${preGainSlope.toFixed(3)})` : '';
 
       if (!s._needsSvg) {
         if (video && ctxMap.has(root)) purge(root);
         const parts = [];
-        if (preGainCss) parts.push(preGainCss);
+        // non-SVG: preGain은 CSS brightness로 적용 (SVG 파이프라인 없으므로 단일 패스)
+        if (Math.abs(preGainSlope - 1) > 0.001) parts.push(`brightness(${preGainSlope.toFixed(3)})`);
         if (Math.abs(s._cssBr - 1) > 0.001) parts.push(`brightness(${s._cssBr.toFixed(4)})`);
         if (Math.abs(s._cssCt - 1) > 0.001) parts.push(`contrast(${s._cssCt.toFixed(4)})`);
         if (Math.abs(s._cssSat - 1) > 0.001) parts.push(`saturate(${s._cssSat.toFixed(4)})`);
@@ -787,24 +789,32 @@ const MANUAL_PRESETS = [
       const h3 = Math.round((s.toe || 0) * 1000);
       const h4 = Math.round((s.mid || 0) * 1000);
       const h5 = Math.round((s.shoulder || 0) * 1000);
-      const h6 = Math.round((s.gain || 1) * 1000);
+      // [패치 #4] hash용 gain에 preGain 통합 반영
+      const effectiveGain = (s.gain || 1) * preGainSlope;
+      const h6 = Math.round(effectiveGain * 1000);
       const h7 = Math.round((s.gamma || 1) * 1000);
       const h8 = Math.round((s.contrast || 1) * 1000);
       const h9 = s.temp | 0;
       const h10 = s.tint | 0;
       const h11 = Math.round((s._cssSat || 1) * 1000);
+      // [패치 #3] preGain을 별도 hash 슬롯으로도 보존 (effectiveGain과 별개로 preGain 단독 변경 감지)
+      const h12 = Math.round(preGainSlope * 1000);
 
       if (st._h1 === h1 && st._h2 === h2 && st._h3 === h3 && st._h4 === h4 &&
           st._h5 === h5 && st._h6 === h6 && st._h7 === h7 && st._h8 === h8 &&
-          st._h9 === h9 && st._h10 === h10 && st._h11 === h11) {
-        return preGainCss ? `${preGainCss} url(#${ctx.fid})` : `url(#${ctx.fid})`;
+          st._h9 === h9 && st._h10 === h10 && st._h11 === h11 && st._h12 === h12) {
+        // [패치 #4] SVG 경로: CSS brightness 없이 url()만 반환
+        return `url(#${ctx.fid})`;
       }
       st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
-      st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11;
+      st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11; st._h12 = h12;
 
       if (video) appliedFilter.delete(video);
 
-      const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
+      // [패치 #2] gamma 역수 제거 — getToneTable이 직접 Math.pow(x, gamma)로 적용
+      // gamma < 1 → 밝아짐(슬라이더 +), gamma > 1 → 어두워짐(슬라이더 -)
+      // [패치 #4] gain에 preGain을 곱하여 SVG 톤커브 내부에서 일괄 처리 → GPU 단일 패스
+      const toneTable = getToneTable(256, effectiveGain, s.contrast || 1, CLAMP(s.gamma || 1, 0.2, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
       if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
 
       const tempTintKey = `${s.temp}|${s.tint}`;
@@ -823,7 +833,8 @@ const MANUAL_PRESETS = [
       const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
       if (st.satKey !== satVal) { st.satKey = satVal; ctx.fSat.setAttribute('values', satVal); }
 
-      return preGainCss ? `${preGainCss} url(#${ctx.fid})` : `url(#${ctx.fid})`;
+      // [패치 #4] SVG 경로: url()만 반환, CSS brightness 체이닝 제거
+      return `url(#${ctx.fid})`;
     }
 
     return {
@@ -834,7 +845,6 @@ const MANUAL_PRESETS = [
     };
   }
 
-  // ⭐ 수정 부분 1: createVideoParams에서 배수 조정
   function createVideoParams(Store) {
     const cache = new WeakMap();
     function computeSharpMul(video) {
@@ -879,14 +889,17 @@ const MANUAL_PRESETS = [
         const mGain = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
         const mPreGain = CLAMP(Number(Store.get(P.V_MAN_PREGAIN) ?? 100), 10, 200);
 
-        // ▼ 권장 (원래의 약 2/3 수준 — 체감 가능하면서 과하지 않은 선)
-        out.toe      = mShad * 0.0027;          // 0~100 → 0~0.27
-        out.mid      = mRec  * 0.0024;          // 0~100 → 0~0.24
-        out.shoulder = mBrt  * 0.0030;          // 0~100 → 0~0.30
-        out.gamma    = 1 + mGamma * (-0.0055);  // ±30 → 0.835~1.165
-        out.contrast = 1 + mCon   *  0.0055;   // ±30 → 0.835~1.165
+        out.toe      = mShad * 0.0027;
+        out.mid      = mRec  * 0.0024;
+        out.shoulder = mBrt  * 0.0030;
+        out.gamma    = 1 + mGamma * (-0.0055);
+        out.contrast = 1 + mCon   *  0.0055;
         out.gain = Math.pow(2, mGain * 0.03);
         out._preGain = mPreGain / 100;
+
+        // [패치 #1] temp/tint 할당 — 누락 수정
+        out.temp = mTemp;
+        out.tint = mTint;
 
         out._needsSvg = checkNeedsSvg(out);
         if (out._needsSvg) { out._cssBr = 1.0; out._cssCt = 1.0; }
@@ -1043,7 +1056,6 @@ const MANUAL_PRESETS = [
       tabFns.push(sync); sync(); return el;
     }
 
-    // ⭐ 수정 부분 2: mkSliderWithFine에서 step: 0.5로 변경
     function mkSliderWithFine(label, path, min, max, step, fineStep) {
       const [slider, valEl] = mkSlider(path, min, max, step);
       const mkFine = (d, t) => { const b = h('button', { class: 'fine-btn', style: 'font-size:11px' }, t); b.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path) || 0) + d) * 100) / 100, min, max)); }); return b; };
@@ -1184,12 +1196,10 @@ const MANUAL_PRESETS = [
         { type: 'widget', build: buildPreGainButtons },
         { type: 'sep' },
         { type: 'sectionLabel', text: '수동 조정' },
-        // ⭐ step: 0.5로 변경 (암부 부스트, 디테일 복원, 노출 보정, 노출 게인)
         { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 0.5, fine: 0.5 },
         { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 0.5, fine: 0.5 },
         { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 0.5, fine: 0.5 },
         { type: 'fineSlider', label: '노출 게인', path: P.V_MAN_GAIN, min: -30, max: 30, step: 0.5, fine: 0.5 },
-        // ⭐ step: 0.5로 변경 (감마, 콘트라스트)
         { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 0.5, fine: 0.5 },
         { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 0.5, fine: 0.5 },
         { type: 'sep' },
