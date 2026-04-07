@@ -162,8 +162,6 @@ www.youtube.com#@#.ytd-yoodle-renderer
 ! - - - 오른쪽 쇼츠 영상 안보이는거 해결 (Cosmetic Combined Filterlist )
 !www.youtube.com#@##shorts-container
 
-
-
 !
 !
 ! wikipedia.org
@@ -1275,6 +1273,7 @@ poooo.ml#@#.ad
 !##[class="banner2"]
 !##.banner2
 ##[id="bannerList"]
+! - 배너 공백 없애기
 ![$domain=/^tvwiki\d+.com/]###bannerList
 !###bannerList
 ! - - - 아래 출처대로 바꿔도 동일
@@ -1286,6 +1285,8 @@ poooo.ml#@#.ad
 !##[class="row-banner"]
 ##.row-banner
 ![$domain=/^tvmon\d+.org/]###banner-row-1
+! - - - 배너 공간 없애기
+tvmon.site##:matches-path(/\/(movie|drama|kor_movie|ent|sisa|world|ott_ent|ani_movie|animation|old_ent|old_drama)/) #content_wrap:style(margin-top: -875px !important; padding-top: 0 !important;)
 ! - - - 티비핫 (주소 바뀌므로 나중에 수동으로 수정해야 함)
 ! - - - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
 !##[class="object-cover"]
