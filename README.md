@@ -100,19 +100,10 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 # 사용중인 Filter 목록
 
 ※ uBlock filters
-https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
+https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssetsCDN@main/filters/filters.min.txt
 
 ※ Block third party font
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
-
-※  Cosmetic Combined Filterlist
-https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/cosmetic_combined_filterlist.txt
-
-※  Blocklist Combined Filterlist
-https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/blocklist_combined_filterlist.txt
-
-※  HaGeZi's Pop-Up Ads DNS Blocklist
-https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/popupads.txt
 
 
 (언어) 필터
@@ -134,7 +125,7 @@ https://filters.adtidy.org/extension/ublock/filters/7.txt
 ※ 필터 주소 목록 모음
 
 ```
-https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
+https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssetsCDN@main/filters/filters.min.txt
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
 https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/popupads.txt
 https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt
