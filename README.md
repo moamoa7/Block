@@ -116,7 +116,7 @@ https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGua
 * (uBlock Origin)
 https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt
 
-※ List-KR for uBlock Origin
+※ List-KR for uBlock Origin (백업)
 https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
 
 ※ AdGuard Japanese filter
