@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.8.2)
+// @name         Video_Control (v31.9.0)
 // @namespace    https://github.com/moamoa7
-// @version      31.8.2
-// @description  v31.8.2: 라디오 모드 visibility→opacity 폴백, 오디오 실패 경고 표시
+// @version      31.9.0
+// @description  v31.9.0: 사이트별 설정 저장/복원 기능 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -15,6 +15,8 @@
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @allFrames    true
 // ==/UserScript==
 
@@ -29,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.8.2';
+  const VSC_VERSION = '31.9.0';
   const DEBUG = false;
 
   const log = {
@@ -119,15 +121,15 @@ const MANUAL_PRESETS = [
   { n: '보정', v: [ 0,  0,  5,  0,  0,  0,   0,  10,   5] },
   { n: '밝음', v: [ 0,  0,  5,  0,  0, 0, 10,  20,  5] },
   { n: '짱짱', v: [ 0,  0, 0,  0,  0,  0,  -30,  30,  30] },
-  { n: '야외', v: [ 0,  0,  0,  -3,  0,  -15,  -15,  30,   0] },
+  { n: '야외', v: [ 0,  0,  0,  0,  0,  0,  -15,  25,   0] },
   { n: '역광', v: [ 0,  0,  0,  0,  0,  0,  -30,   0,   -30] },
   { n: '필름', v: [14,  0,  4,  8, -2, -12,  8,   4,   3] },
   { n: '블버(일반)', v: [ 0,  0,  8, -4,  2, -6,  3,  12,   6] },
   { n: '블버(다크)', v: [ 0,  0,  10, -15,  2, -6,  3,  12,   15] },
   { n: '애니', v: [ 0,  0,  6,  0,  0,  6,  4,   6,   3] },
   { n: '뽀샤시/복구', v: [45, 30,  15,  0,  0,  0,  15,  15,  15] },
-  { n: '모바일1', v: [ 0,  0,  10,  0,  0,  0,   -10,  0,  0] },
-  { n: '모바일2', v: [ 0,  0,  10,  0,  0,  0,   0,  0,  10] },
+  { n: '모바일', v: [ 0,  0,  10,  0,  0,  0,   0,  0,  10] },
+
 ];
 
   const DEFAULTS = {
@@ -155,6 +157,200 @@ const MANUAL_PRESETS = [
 
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
+
+  /* ── Persistence (사이트별 설정 저장/복원) ── */
+  const SAVE_CATEGORIES = ['video', 'audio', 'playback', 'radio'];
+  const STORAGE_PREFIX = 'vsc_site_';
+  const GLOBAL_KEY = 'vsc_global';
+  const MAX_SITES = 200;
+
+  function getSiteKey() {
+    try {
+      const h = location.hostname.replace(/^www\./, '');
+      return h || '_local_';
+    } catch (_) { return '_local_'; }
+  }
+
+  function createPersistence() {
+    const siteKey = getSiteKey();
+    let saveTimer = 0;
+    let _store = null;
+    let _suppressSave = false;
+
+    function getAllSiteKeys() {
+      try {
+        const index = GM_getValue('vsc_site_index', []);
+        return Array.isArray(index) ? index : [];
+      } catch (_) { return []; }
+    }
+
+    function setAllSiteKeys(keys) {
+      try { GM_setValue('vsc_site_index', keys); } catch (_) {}
+    }
+
+    function addSiteToIndex(key) {
+      const keys = getAllSiteKeys();
+      if (!keys.includes(key)) {
+        keys.push(key);
+        if (keys.length > MAX_SITES) {
+          const removed = keys.splice(0, keys.length - MAX_SITES);
+          for (const rk of removed) {
+            try { GM_setValue(STORAGE_PREFIX + rk, undefined); } catch (_) {}
+          }
+        }
+        setAllSiteKeys(keys);
+      }
+    }
+
+    function removeSiteFromIndex(key) {
+      const keys = getAllSiteKeys().filter(k => k !== key);
+      setAllSiteKeys(keys);
+    }
+
+    function loadSiteData(key) {
+      try {
+        const raw = GM_getValue(STORAGE_PREFIX + key, null);
+        if (raw && typeof raw === 'object') return raw;
+      } catch (_) {}
+      return null;
+    }
+
+    function saveSiteData(key, data) {
+      try {
+        GM_setValue(STORAGE_PREFIX + key, data);
+        addSiteToIndex(key);
+      } catch (_) {}
+    }
+
+    function deleteSiteData(key) {
+      try {
+        GM_setValue(STORAGE_PREFIX + key, undefined);
+        removeSiteFromIndex(key);
+      } catch (_) {}
+    }
+
+    function loadGlobal() {
+      try {
+        const raw = GM_getValue(GLOBAL_KEY, null);
+        if (raw && typeof raw === 'object') return raw;
+      } catch (_) {}
+      return null;
+    }
+
+    function saveGlobal(data) {
+      try { GM_setValue(GLOBAL_KEY, data); } catch (_) {}
+    }
+
+    function extractSaveable(store) {
+      const out = {};
+      for (const cat of SAVE_CATEGORIES) {
+        out[cat] = JSON.parse(JSON.stringify(store.state[cat]));
+      }
+      return out;
+    }
+
+    function applySaved(store, data) {
+      if (!data || typeof data !== 'object') return false;
+      _suppressSave = true;
+      let applied = false;
+      for (const cat of SAVE_CATEGORIES) {
+        if (data[cat] && typeof data[cat] === 'object') {
+          const merged = {};
+          const defaults = DEFAULTS[cat] || {};
+          for (const [k, v] of Object.entries(defaults)) {
+            merged[k] = (data[cat][k] !== undefined) ? data[cat][k] : v;
+          }
+          store.batch(cat, merged);
+          applied = true;
+        }
+      }
+      _suppressSave = false;
+      return applied;
+    }
+
+    function scheduleSave() {
+      if (_suppressSave) return;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        if (!_store) return;
+        const data = extractSaveable(_store);
+        saveSiteData(siteKey, data);
+      }, 800);
+    }
+
+    function init(store) {
+      _store = store;
+
+      // 1) 사이트별 데이터 로드 시도
+      const siteData = loadSiteData(siteKey);
+      if (siteData) {
+        applySaved(store, siteData);
+        log.info(`[Persist] 사이트 설정 로드: ${siteKey}`);
+      } else {
+        // 2) 글로벌 기본값 로드 시도
+        const globalData = loadGlobal();
+        if (globalData) {
+          applySaved(store, globalData);
+          log.info('[Persist] 글로벌 기본 설정 로드');
+        }
+      }
+
+      // 변경 시 자동 저장
+      for (const cat of SAVE_CATEGORIES) {
+        const catDefaults = DEFAULTS[cat];
+        if (!catDefaults) continue;
+        for (const k of Object.keys(catDefaults)) {
+          store.sub(`${cat}.${k}`, () => scheduleSave());
+        }
+      }
+    }
+
+    return {
+      init,
+      siteKey,
+      hasSiteData: () => !!loadSiteData(siteKey),
+      saveNow: () => {
+        if (!_store) return;
+        const data = extractSaveable(_store);
+        saveSiteData(siteKey, data);
+      },
+      saveAsGlobal: () => {
+        if (!_store) return;
+        const data = extractSaveable(_store);
+        saveGlobal(data);
+      },
+      resetSite: (store) => {
+        _suppressSave = true;
+        deleteSiteData(siteKey);
+        // 글로벌 기본값이 있으면 그것으로, 없으면 DEFAULTS로 복원
+        const globalData = loadGlobal();
+        if (globalData) {
+          applySaved(store, globalData);
+        } else {
+          for (const cat of SAVE_CATEGORIES) {
+            store.batch(cat, JSON.parse(JSON.stringify(DEFAULTS[cat])));
+          }
+        }
+        _suppressSave = false;
+      },
+      resetAll: (store) => {
+        _suppressSave = true;
+        // 모든 사이트 데이터 삭제
+        const keys = getAllSiteKeys();
+        for (const k of keys) {
+          try { GM_setValue(STORAGE_PREFIX + k, undefined); } catch (_) {}
+        }
+        setAllSiteKeys([]);
+        try { GM_setValue(GLOBAL_KEY, undefined); } catch (_) {}
+        // DEFAULTS로 복원
+        for (const cat of SAVE_CATEGORIES) {
+          store.batch(cat, JSON.parse(JSON.stringify(DEFAULTS[cat])));
+        }
+        _suppressSave = false;
+      },
+      getSavedSiteCount: () => getAllSiteKeys().length,
+    };
+  }
 
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
@@ -303,7 +499,7 @@ const MANUAL_PRESETS = [
       const onLoadedMetadata = () => { cancelRVFC(); if (!_rvfcPaused) startRVFC(); req(); };
       const onPause = () => { cancelRVFC(); };
       const onResize = req;
-            const onLoadstart = () => {
+      const onLoadstart = () => {
         cancelRVFC();
         delete el.dataset.vscDrm; delete el.dataset.vscPbFail; delete el.dataset.vscPbRetry; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail;
         if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
@@ -777,10 +973,10 @@ const MANUAL_PRESETS = [
         if (Math.abs(s._cssSat - 1) > 0.001) parts.push(`saturate(${s._cssSat.toFixed(4)})`);
         return parts.length > 0 ? parts.join(' ') : 'none';
       }
-      let ctx = ctxMap.get(root);
-      if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
-      else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
-      const st = ctx.st;
+      let ctx2 = ctxMap.get(root);
+      if (!ctx2) { ctx2 = buildSvg(root); ctxMap.set(root, ctx2); }
+      else if (!ctx2.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx2.svg); }
+      const st = ctx2.st;
 
       const h1 = Math.round((s.sharp || 0) * 1000);
       const h2 = Math.round((s._diagRatio || 0.707) * 1000);
@@ -799,7 +995,7 @@ const MANUAL_PRESETS = [
       if (st._h1 === h1 && st._h2 === h2 && st._h3 === h3 && st._h4 === h4 &&
           st._h5 === h5 && st._h6 === h6 && st._h7 === h7 && st._h8 === h8 &&
           st._h9 === h9 && st._h10 === h10 && st._h11 === h11 && st._h12 === h12) {
-        return `url(#${ctx.fid})`;
+        return `url(#${ctx2.fid})`;
       }
       st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
       st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11; st._h12 = h12;
@@ -807,25 +1003,25 @@ const MANUAL_PRESETS = [
       if (video) appliedFilter.delete(video);
 
       const toneTable = getToneTable(256, effectiveGain, s.contrast || 1, CLAMP(s.gamma || 1, 0.2, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
-      if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
+      if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx2.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
 
       const tempTintKey = `${s.temp}|${s.tint}`;
-      if (st.tempKey !== tempTintKey) { st.tempKey = tempTintKey; const colorGain = tempTintToRgbGain(s.temp, s.tint); ctx.tempFuncR.setAttribute('slope', colorGain.rs); ctx.tempFuncG.setAttribute('slope', colorGain.gs); ctx.tempFuncB.setAttribute('slope', colorGain.bs); }
+      if (st.tempKey !== tempTintKey) { st.tempKey = tempTintKey; const colorGain = tempTintToRgbGain(s.temp, s.tint); ctx2.tempFuncR.setAttribute('slope', colorGain.rs); ctx2.tempFuncG.setAttribute('slope', colorGain.gs); ctx2.tempFuncB.setAttribute('slope', colorGain.bs); }
 
       const sharpCap = s._sharpCap || SHARP_CAP_DEFAULT; const diagRatio = s._diagRatio || 0.707;
       const totalS = CLAMP(Number(s.sharp || 0), 0, sharpCap);
       let kernelStr = '0,0,0, 0,1,0, 0,0,0';
       if (totalS >= 0.005) { const edge = -totalS; const diag = edge * diagRatio; const center = 1 - 4 * edge - 4 * diag; kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`; }
-      if (st.sharpKey !== kernelStr) { st.sharpKey = kernelStr; ctx.fConv.setAttribute('kernelMatrix', kernelStr); }
+      if (st.sharpKey !== kernelStr) { st.sharpKey = kernelStr; ctx2.fConv.setAttribute('kernelMatrix', kernelStr); }
 
       const satInput = totalS >= 0.005 ? 'conv' : 'tmp';
-      if (st.satInputKey !== satInput) { st.satInputKey = satInput; ctx.fSat.setAttribute('in', satInput); }
+      if (st.satInputKey !== satInput) { st.satInputKey = satInput; ctx2.fSat.setAttribute('in', satInput); }
 
       const desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
       const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
-      if (st.satKey !== satVal) { st.satKey = satVal; ctx.fSat.setAttribute('values', satVal); }
+      if (st.satKey !== satVal) { st.satKey = satVal; ctx2.fSat.setAttribute('values', satVal); }
 
-      return `url(#${ctx.fid})`;
+      return `url(#${ctx2.fid})`;
     }
 
     return {
@@ -922,7 +1118,7 @@ const MANUAL_PRESETS = [
     const overlays = new WeakMap();
     let active = false;
     let timeUpdateHandler = null;
-    let _hideMethod = 'opacity';  // ◀ 패치: visibility → opacity 기본 사용
+    let _hideMethod = 'opacity';
 
     function formatTime(sec) {
       if (!sec || !isFinite(sec)) return '--:--';
@@ -984,12 +1180,10 @@ const MANUAL_PRESETS = [
       `;
       timeEl.textContent = '--:-- / --:--';
 
-      // ◀ 패치: 안내 문구 수정 (디코딩 유지 안내)
       const hint = document.createElement('div');
       hint.textContent = '영상 화면만 검게 표시';
       hint.style.cssText = 'font-size:11px!important;color:rgba(255,255,255,0.25)!important;';
 
-      // ◀ 패치: 오디오 상태 경고 영역
       const audioWarn = document.createElement('div');
       audioWarn.style.cssText = 'font-size:11px!important;color:rgba(255,190,70,0.8)!important;margin-top:4px!important;display:none!important;';
       audioWarn.setAttribute('data-vsc-radio-warn', '1');
@@ -1033,7 +1227,6 @@ const MANUAL_PRESETS = [
       data.timeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
     }
 
-    // ◀ 패치: 오디오 경고 표시/숨김
     function showAudioWarning(video, msg) {
       const data = overlays.get(video);
       if (!data) return;
@@ -1045,7 +1238,6 @@ const MANUAL_PRESETS = [
       }
     }
 
-    // ◀ 패치: 비디오 숨김 (opacity 기본, visibility 폴백)
     function hideVideo(video) {
       if (_hideMethod === 'opacity') {
         video.style.setProperty('opacity', '0', 'important');
@@ -1055,7 +1247,6 @@ const MANUAL_PRESETS = [
       }
     }
 
-    // ◀ 패치: 비디오 복원
     function showVideo(video) {
       video.style.removeProperty('opacity');
       video.style.removeProperty('pointer-events');
@@ -1064,34 +1255,23 @@ const MANUAL_PRESETS = [
 
     function engage(video) {
       if (!video?.isConnected) return;
-
-      // 1) SVG 필터 해제
       Filters.clear(video);
-
-      // 2) 비디오 숨김 (opacity 방식)
       hideVideo(video);
-
-      // 3) rVFC 중단
       Registry.pauseAllRvfc();
-
-      // 4) 오버레이 표시
       createOverlay(video);
       updateTime(video);
 
-      // ◀ 패치: 오디오 CORS 실패 감지 → 경고 표시
       if (video.dataset.vscAudioCorsFail === "1" || video.dataset.vscMesFail === "1") {
         showAudioWarning(video, '⚠ 오디오 연결 실패 — 원본 오디오 출력 중');
       } else {
         showAudioWarning(video, null);
       }
 
-      // 5) 시간 업데이트
       if (timeUpdateHandler) clearInterval(timeUpdateHandler);
       timeUpdateHandler = setInterval(() => {
         const v = __internal._activeVideo;
         if (v?.isConnected && active) {
           updateTime(v);
-          // ◀ 패치: 주기적으로 오디오 상태 재확인
           if (v.dataset.vscAudioCorsFail === "1" || v.dataset.vscMesFail === "1") {
             showAudioWarning(v, '⚠ 오디오 연결 실패 — 원본 오디오 출력 중');
           } else {
@@ -1143,7 +1323,7 @@ const MANUAL_PRESETS = [
     return { setActive, isActive: () => active, onTargetChange, updateTime, showAudioWarning };
   }
 
-  function createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio) {
+  function createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio, Persist) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
     let _shadow = null, _qbarShadow = null;
@@ -1154,9 +1334,10 @@ const MANUAL_PRESETS = [
     const TAB_ICONS = {
       video: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, h('rect', { ns: 'svg', x: 2, y: 4, width: 16, height: 16, rx: 2 }), h('path', { ns: 'svg', d: 'M22 7l-6 4 6 4z' })),
       audio: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, h('path', { ns: 'svg', d: 'M11 5L6 9H2v6h4l5 4V5z' }), h('path', { ns: 'svg', d: 'M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07' })),
-      playback: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '10' }), h('polygon', { ns: 'svg', points: '10 8 16 12 10 16' }))
+      playback: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '10' }), h('polygon', { ns: 'svg', points: '10 8 16 12 10 16' })),
+      settings: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, h('path', { ns: 'svg', d: 'M4 6h16M4 12h16M4 18h16' }))
     };
-    const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생' };
+    const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생', settings: '저장' };
 
     const CSS_VARS = `
     :host { position: fixed !important; contain: none !important; overflow: visible !important; isolation: isolate; z-index: 2147483647 !important;
@@ -1233,6 +1414,16 @@ const MANUAL_PRESETS = [
     .radio-card.on .radio-desc { color:rgba(0,229,255,0.5); }
     .radio-badge { font-family:var(--vsc-font-mono); font-size:10px; padding:2px 8px; border-radius:var(--vsc-radius-pill); background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.4); font-weight:600; flex-shrink:0; }
     .radio-card.on .radio-badge { background:rgba(0,229,255,0.15); color:var(--vsc-neon); }
+    .save-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:var(--vsc-radius-md); padding:14px; margin:6px 0; }
+    .save-card .save-title { font-size:13px; font-weight:700; color:rgba(255,255,255,0.9); margin-bottom:4px; }
+    .save-card .save-desc { font-size:10px; color:rgba(255,255,255,0.4); line-height:1.4; margin-bottom:10px; }
+    .save-card .save-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .save-card .save-btn { padding:6px 14px; min-height:32px; border-radius:var(--vsc-radius-sm); border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.7); font-size:11px; font-weight:600; cursor:pointer; transition:all 0.15s var(--vsc-ease-out); flex:1; text-align:center; }
+    .save-card .save-btn:hover { background:rgba(0,229,255,0.08); border-color:var(--vsc-neon-border); color:var(--vsc-neon); }
+    .save-card .save-btn.primary { background:rgba(0,229,255,0.1); border-color:rgba(0,229,255,0.25); color:var(--vsc-neon); }
+    .save-card .save-btn.danger { border-color:rgba(255,100,100,0.2); color:rgba(255,100,100,0.7); }
+    .save-card .save-btn.danger:hover { background:rgba(255,100,100,0.1); border-color:rgba(255,100,100,0.4); color:rgba(255,100,100,0.9); }
+    .save-status { font-family:var(--vsc-font-mono); font-size:11px; padding:8px 12px; border-radius:var(--vsc-radius-sm); background:rgba(0,229,255,0.04); border:1px solid rgba(0,229,255,0.1); color:rgba(0,229,255,0.7); margin:6px 0; line-height:1.5; }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
@@ -1262,7 +1453,7 @@ const MANUAL_PRESETS = [
       if (has && !_qbarHasVideo) { _qbarHasVideo = true; quickBarHost.style.removeProperty('display'); }
       else if (!has && _qbarHasVideo) { _qbarHasVideo = false; quickBarHost.style.setProperty('display', 'none', 'important'); if (panelOpen) togglePanel(false); }
     }
-    function updateTabIndicator(tabBar, tabName) { if (!tabBar) return; const tabs = tabBar.querySelectorAll('.tab'); const idx = ['video','audio','playback'].indexOf(tabName); if (idx < 0) return; const tabEl = tabs[idx]; if (!tabEl) return; requestAnimationFrame(() => { const barRect = tabBar.getBoundingClientRect(); const tabRect = tabEl.getBoundingClientRect(); tabBar.style.setProperty('--tab-indicator-left', `${tabRect.left - barRect.left}px`); tabBar.style.setProperty('--tab-indicator-width', `${tabRect.width}px`); tabs.forEach(t => t.classList.toggle('on', t.dataset.t === tabName)); }); }
+    function updateTabIndicator(tabBar, tabName) { if (!tabBar) return; const tabs = tabBar.querySelectorAll('.tab'); const idx = ['video','audio','playback','settings'].indexOf(tabName); if (idx < 0) return; const tabEl = tabs[idx]; if (!tabEl) return; requestAnimationFrame(() => { const barRect = tabBar.getBoundingClientRect(); const tabRect = tabEl.getBoundingClientRect(); tabBar.style.setProperty('--tab-indicator-left', `${tabRect.left - barRect.left}px`); tabBar.style.setProperty('--tab-indicator-width', `${tabRect.width}px`); tabs.forEach(t => t.classList.toggle('on', t.dataset.t === tabName)); }); }
 
     function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
     function mkSep() { return h('div', { class: 'sep' }); }
@@ -1444,6 +1635,91 @@ const MANUAL_PRESETS = [
       tabFns.push(update); return el;
     }
 
+    /* ── 저장 탭 빌더 ── */
+    function buildSettingsTab() {
+      const wrap = h('div', {});
+
+      // 현재 사이트 상태
+      const statusEl = h('div', { class: 'save-status' });
+      const updateStatus = () => {
+        const hasSite = Persist.hasSiteData();
+        const count = Persist.getSavedSiteCount();
+        statusEl.textContent = `현재 사이트: ${Persist.siteKey}\n저장 상태: ${hasSite ? '✓ 저장됨 (자동)' : '— 미저장 (글로벌/기본값 사용 중)'}\n저장된 사이트 수: ${count}`;
+      };
+      tabFns.push(updateStatus);
+      updateStatus();
+      wrap.append(statusEl);
+
+      // 사이트별 저장 카드
+      const siteCard = h('div', { class: 'save-card' });
+      siteCard.append(
+        h('div', { class: 'save-title' }, '사이트별 설정'),
+        h('div', { class: 'save-desc' }, '현재 설정은 이 사이트에 자동으로 저장됩니다. 설정을 변경하면 0.8초 후 자동 저장됩니다.')
+      );
+      const siteActions = h('div', { class: 'save-actions' });
+
+      const saveNowBtn = h('button', { class: 'save-btn primary' }, '즉시 저장');
+      saveNowBtn.addEventListener('click', () => {
+        Persist.saveNow();
+        OSD.show('💾 사이트 설정 저장 완료', 1000);
+        updateStatus();
+      });
+
+      const resetSiteBtn = h('button', { class: 'save-btn danger' }, '이 사이트 초기화');
+      resetSiteBtn.addEventListener('click', () => {
+        Persist.resetSite(Store);
+        OSD.show('🗑 사이트 설정 초기화', 1000);
+        updateStatus();
+        Scheduler.request();
+      });
+
+      siteActions.append(saveNowBtn, resetSiteBtn);
+      siteCard.append(siteActions);
+      wrap.append(siteCard);
+
+      // 글로벌 기본값 카드
+      const globalCard = h('div', { class: 'save-card' });
+      globalCard.append(
+        h('div', { class: 'save-title' }, '글로벌 기본값'),
+        h('div', { class: 'save-desc' }, '현재 설정을 글로벌 기본값으로 저장합니다. 사이트별 설정이 없는 모든 사이트에 적용됩니다.')
+      );
+      const globalActions = h('div', { class: 'save-actions' });
+
+      const saveGlobalBtn = h('button', { class: 'save-btn primary' }, '글로벌 기본값으로 저장');
+      saveGlobalBtn.addEventListener('click', () => {
+        Persist.saveAsGlobal();
+        OSD.show('🌐 글로벌 기본값 저장 완료', 1000);
+      });
+
+      globalActions.append(saveGlobalBtn);
+      globalCard.append(globalActions);
+      wrap.append(globalCard);
+
+      // 전체 초기화 카드
+      const dangerCard = h('div', { class: 'save-card', style: 'border-color:rgba(255,100,100,0.15)' });
+      dangerCard.append(
+        h('div', { class: 'save-title', style: 'color:rgba(255,100,100,0.8)' }, '전체 초기화'),
+        h('div', { class: 'save-desc' }, '모든 사이트 설정과 글로벌 기본값을 삭제하고 공장 초기값으로 복원합니다.')
+      );
+      const dangerActions = h('div', { class: 'save-actions' });
+
+      const resetAllBtn = h('button', { class: 'save-btn danger' }, '모든 설정 초기화');
+      resetAllBtn.addEventListener('click', () => {
+        Persist.resetAll(Store);
+        OSD.show('⚠ 모든 설정 초기화 완료', 1500);
+        updateStatus();
+        Scheduler.request();
+      });
+
+      dangerActions.append(resetAllBtn);
+      dangerCard.append(dangerActions);
+      wrap.append(dangerCard);
+
+      wrap.append(h('div', { class: 'hint' }, `VSC v${VSC_VERSION} │ 설정은 사이트 호스트네임 기준으로 저장됩니다. 최대 ${MAX_SITES}개 사이트까지 저장 가능합니다.`));
+
+      return wrap;
+    }
+
     function buildVideoSchema() {
       return [
         { type: 'widget', build: buildInfoBar },
@@ -1500,7 +1776,8 @@ const MANUAL_PRESETS = [
         { type: 'chips', path: P.PB_RATE, onSelect: v => { Store.batch('playback', { rate: v, enabled: true }); }, items: [0.25,0.5,1.0,1.25,1.5,2.0,3.0,5.0].map(p => ({ v: p, l: `${p}×` })) },
         { type: 'fineButtons', path: P.PB_RATE, steps: [-0.25,-0.05,0.05,0.25], min: 0.07, max: 5 },
         { type: 'slider', label: '속도 슬라이더', path: P.PB_RATE, min: 0.07, max: 5, step: 0.01, onChange: () => Store.set(P.PB_EN, true) },
-      ]
+      ],
+      settings: [] // 위젯으로 직접 빌드
     };
 
     function renderSchema(schema, container) {
@@ -1552,7 +1829,7 @@ const MANUAL_PRESETS = [
       closeBtn.addEventListener('click', () => togglePanel(false));
       panelEl.appendChild(h('div', { class: 'hdr' }, h('span', { class: 'tl' }, 'VSC'), closeBtn));
       const tabBar = h('div', { class: 'tabs' });
-      ['video','audio','playback'].forEach(t => { const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t }); tab.append(TAB_ICONS[t]?.() || '', h('span', {}, TAB_LABELS[t])); tab.addEventListener('click', () => { activeTab = t; renderTab(); }); tabBar.appendChild(tab); });
+      ['video','audio','playback','settings'].forEach(t => { const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t }); tab.append(TAB_ICONS[t]?.() || '', h('span', {}, TAB_LABELS[t])); tab.addEventListener('click', () => { activeTab = t; renderTab(); }); tabBar.appendChild(tab); });
       panelEl.appendChild(tabBar);
       const bodyEl = h('div', { class: 'body' }); bodyEl.style.overscrollBehavior = 'none'; panelEl.appendChild(bodyEl);
       _shadow.appendChild(panelEl); getMountTarget().appendChild(panelHost);
@@ -1561,7 +1838,13 @@ const MANUAL_PRESETS = [
     function renderTab() {
       const body = _shadow?.querySelector('.body'); if (!body) return;
       body.textContent = ''; tabSignalCleanups.forEach(c => c()); tabSignalCleanups.length = 0; tabFns.length = 0;
-      const schema = TAB_SCHEMA[activeTab]; if (schema) renderSchema(schema, body);
+
+      if (activeTab === 'settings') {
+        body.appendChild(buildSettingsTab());
+      } else {
+        const schema = TAB_SCHEMA[activeTab]; if (schema) renderSchema(schema, body);
+      }
+
       tabFns.forEach(f => f()); updateTabIndicator(_shadow.querySelector('.tabs'), activeTab);
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) tabFns.forEach(f => f()); }));
     }
@@ -1584,6 +1867,7 @@ const MANUAL_PRESETS = [
   function bootstrap() {
     const Scheduler = createScheduler();
     const Store = createLocalStore(DEFAULTS, Scheduler);
+    const Persist = createPersistence();
     const Registry = createRegistry(Scheduler);
     const Targeting = createTargeting();
     const Audio = createAudio(Store, Scheduler);
@@ -1591,6 +1875,9 @@ const MANUAL_PRESETS = [
     const Params = createVideoParams(Store);
     const Filters = createFilters();
     const Radio = createRadioMode(Store, Registry, Scheduler, Filters);
+
+    // 저장된 설정 로드 (Store 생성 직후)
+    Persist.init(Store);
 
     Registry.setPurgeCallback((root) => Filters.purge(root));
     Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
@@ -1657,11 +1944,14 @@ const MANUAL_PRESETS = [
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
 
-    createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio);
+    createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio, Persist);
     __internal.Store = Store; __internal._activeVideo = null;
     try {
       GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); });
       GM_registerMenuCommand('📻 라디오 모드 토글', () => { const current = Store.get(P.RADIO_EN); Store.set(P.RADIO_EN, !current); });
+      GM_registerMenuCommand('💾 현재 설정 즉시 저장', () => { Persist.saveNow(); OSD.show('💾 사이트 설정 저장 완료', 1000); });
+      GM_registerMenuCommand('🌐 글로벌 기본값으로 저장', () => { Persist.saveAsGlobal(); OSD.show('🌐 글로벌 기본값 저장 완료', 1000); });
+      GM_registerMenuCommand('🗑 이 사이트 설정 초기화', () => { Persist.resetSite(Store); OSD.show('🗑 사이트 설정 초기화', 1000); Scheduler.request(); });
     } catch (_) {}
     Registry.rescanAll(); apply();
     log.info(`[VSC] v${VSC_VERSION} booted.`);
