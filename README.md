@@ -120,24 +120,14 @@ https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/popupads.txt
 ※ List-KR
 
 * (AdGuard)
-https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
+https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt
 
 * (uBlock Origin)
+https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt
 https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
 
 ※ AdGuard Japanese filter
-https://filters.adtidy.org/extension/chromium/filters/7.txt
-
-※ AdGuard Chinese filter
-https://filters.adtidy.org/extension/chromium/filters/224.txt
-
-※ AdGuard Russian filter
-
-* (AdGuard)
-https://filters.adtidy.org/extension/chromium/filters/1.txt
-
-* (uBlock Origin)
-https://raw.githubusercontent.com/dimisa-RUAdList/RUAdListCDN/main/lists/ruadlist.ubo.min.txt
+https://filters.adtidy.org/extension/ublock/filters/7.txt
 
 <br/>
 
@@ -146,15 +136,11 @@ https://raw.githubusercontent.com/dimisa-RUAdList/RUAdListCDN/main/lists/ruadlis
 ```
 https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
-https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/cosmetic_combined_filterlist.txt
-https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/blocklist_combined_filterlist.txt
 https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/popupads.txt
-https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
+https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt
+https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt
 https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
-https://filters.adtidy.org/extension/chromium/filters/7.txt
-https://filters.adtidy.org/extension/chromium/filters/224.txt
-https://filters.adtidy.org/extension/chromium/filters/1.txt
-
+https://filters.adtidy.org/extension/ublock/filters/7.txt
 ```
 
 
