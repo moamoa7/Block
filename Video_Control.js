@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.9.0)
+// @name         Video_Control (v31.9.1)
 // @namespace    https://github.com/moamoa7
-// @version      31.9.0
-// @description  v31.9.0: 사이트별 설정 저장/복원 기능 추가
+// @version      31.9.1
+// @description  v31.9.1: Trusted HTML 오류 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.9.0';
+  const VSC_VERSION = '31.9.1';
   const DEBUG = false;
 
   const log = {
@@ -1162,8 +1162,17 @@ const MANUAL_PRESETS = [
       `;
 
       const icon = document.createElement('div');
-      icon.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(0,229,255,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/></svg>`;
-      icon.style.cssText = 'position:relative!important;z-index:1!important;display:flex!important;';
+icon.style.cssText = 'position:relative!important;z-index:1!important;display:flex!important;';
+icon.appendChild(
+  h('svg', { ns: 'svg', width: '32', height: '32', viewBox: '0 0 24 24', fill: 'none', stroke: 'rgba(0,229,255,0.9)', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    h('path', { ns: 'svg', d: 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' }),
+    h('path', { ns: 'svg', d: 'M16.24 7.76a6 6 0 0 1 0 8.49' }),
+    h('path', { ns: 'svg', d: 'M7.76 16.24a6 6 0 0 1 0-8.49' }),
+    h('path', { ns: 'svg', d: 'M19.07 4.93a10 10 0 0 1 0 14.14' }),
+    h('path', { ns: 'svg', d: 'M4.93 19.07a10 10 0 0 1 0-14.14' })
+  )
+);
+
 
       iconWrap.append(pulse, icon);
 
@@ -1592,7 +1601,14 @@ const MANUAL_PRESETS = [
       const card = h('div', { class: 'radio-card' });
 
       const iconWrap = h('div', { class: 'radio-icon' });
-      iconWrap.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>`;
+iconWrap.appendChild(
+  h('svg', { ns: 'svg', width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+    h('path', { ns: 'svg', d: 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' }),
+    h('path', { ns: 'svg', d: 'M16.24 7.76a6 6 0 0 1 0 8.49' }),
+    h('path', { ns: 'svg', d: 'M7.76 16.24a6 6 0 0 1 0-8.49' })
+  )
+);
+
 
       const info = h('div', { class: 'radio-info' },
         h('div', { class: 'radio-title' }, '라디오 모드'),
