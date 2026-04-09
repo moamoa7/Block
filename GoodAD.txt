@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260409
+! Version: 20260410
 !
 !
 !
@@ -366,6 +366,9 @@ twitch.tv##.video-player__inactive
 ! 광고 차단
 ||*banner*$css
 ||*banner*$script
+! - - - 예외
+! ~ - - - https://www.11st.co.kr/ - 사이트 초기 구동 안됨
+@@||*banner*$script,domain=www.11st.co.kr
 !
 !
 !
@@ -6118,5 +6121,5 @@ trand.co.kr#@#[id][style*="background"][style]
 
 ##a[href][target]:has(img)
 ! - 북마크 열때 지정안된 사이트에서는 아이콘이 안보여서 포기
-namu.wiki,trand.co.kr,sooplive.com,www.naver.com,tv.naver.com,www.nate.com,www.google.com,www.etoland.co.kr,poong.today,www.inven.co.kr,mlbpark.donga.com#@#a[href][target]:has(img)
+namu.wiki,trand.co.kr,sooplive.com,www.naver.com,tv.naver.com,www.nate.com,www.google.com,etoland.co.kr,poong.today,www.inven.co.kr,mlbpark.donga.com#@#a[href][target]:has(img)
 
