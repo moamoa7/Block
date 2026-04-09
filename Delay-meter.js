@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      16.1.4
-// @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
+// @version      16.2.0
+// @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화, 절충 트리거)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
 // @match        *://*.chzzk.naver.com/*
@@ -45,7 +45,7 @@
   const PD = PLATFORM_DEFAULTS[PLATFORM] || PLATFORM_DEFAULTS.default;
   const { target: DEF_TARGET, min: MIN_TARGET, max: MAX_TARGET, barMax: BAR_MAX } = PD;
 
-  /* ── [FIX 1] 플랫폼별 기어·쿨다운 ── */
+  /* ── 플랫폼별 기어·쿨다운 ── */
   const STALL_COOLDOWN = IS_SOOP ? 4000 : 8000;
   const WARMUP_MS = 4000;
   const GEAR_HOLD_MS = 3000;
@@ -318,16 +318,19 @@
   };
 
   /* ================================================================
-   *  §7. 제어 엔진
+   *  §7. 제어 엔진 (절충 트리거)
    * ================================================================
-   *  [FIX 2] 긴급 감속(HIGH/MED→NORM)은 GEAR_HOLD_MS 무시
+   *  변경: 트리거 임계값을 느슨하게 조정
+   *    - MED:  초과분 > target × 0.7  (기존 0.4)
+   *    - HIGH: 초과분 > target × 1.2  (기존 0.8)
+   *  감속(HIGH/MED→NORM)은 GEAR_HOLD_MS 무시 (즉시)
    */
 
   const computeDesiredGear = buf => {
     const ex = buf - target;
     const hyst = getHyst();
-    if (ex > target * 0.8) return R_HIGH;
-    if (ex > target * 0.4) return R_MED;
+    if (ex > target * 1.2) return R_HIGH;
+    if (ex > target * 0.7) return R_MED;
     if (ex < -hyst)        return R_NORM;
     if (ex < hyst)         return control.gear;
     return control.gear;
@@ -335,7 +338,7 @@
 
   const applyGear = (vid, desired, now) => {
     if (desired === control.gear) return;
-    /* [FIX 2] 감속은 즉시, 가속만 홀드 적용 */
+    /* 감속은 즉시, 가속만 홀드 적용 */
     const isSlowdown = desired < control.gear;
     if (!isSlowdown && now - control.lastGearChange < GEAR_HOLD_MS) return;
     control.gear = desired;
@@ -600,7 +603,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v15.0.2' }),
+      el('span', { className: 'dm-ver', textContent: 'v16.2.0' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -760,7 +763,7 @@
     const vid = getVid();
     const buf = vid ? getBuf(vid) : -1;
     const gl = control.gear > 1.2 ? 'HIGH' : control.gear > 1 ? 'MED' : 'NORM';
-    const txt = `[${PLATFORM}] t=${target}s hyst=${getHyst().toFixed(2)} rM=${R_MED} rH=${R_HIGH} stall=${STALL_COOLDOWN}ms | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
+    const txt = `[${PLATFORM}] t=${target}s hyst=${getHyst().toFixed(2)} rM=${R_MED} rH=${R_HIGH} stall=${STALL_COOLDOWN}ms trig=0.7/1.2 | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
     const toast = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 5000);
