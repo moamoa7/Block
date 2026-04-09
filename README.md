@@ -100,10 +100,10 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 # 사용중인 Filter 목록
 
 ※ uBlock filters
-https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
+https://ublockorigin.github.io/uAssets/filters/filters.txt
 
 ※ Easy List
-https://ublockorigin.pages.dev/thirdparties/easylist.txt
+https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt
 
 ※ AdGuard Base filter
 https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
@@ -136,8 +136,8 @@ https://filters.adtidy.org/extension/ublock/filters/7.txt
 ※ 필터 주소 목록 모음
 
 ```
-https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
-https://easylist.to/easylist/easylist.txt
+https://ublockorigin.github.io/uAssets/filters/filters.txt
+https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt
 https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
 https://filters.adtidy.org/extension/ublock/filters/11.txt
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
