@@ -136,7 +136,6 @@ https://filters.adtidy.org/extension/ublock/filters/7.txt
 https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 https://easylist.to/easylist/easylist.txt
 https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
-https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
 https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt
 https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt
