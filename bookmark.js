@@ -708,9 +708,15 @@
                                     const img = $('img', { loading: 'lazy', src: icon });
                                     img.onerror = () => { img.onerror = null; img.src = FALLBACK_ICON; img.style.opacity = '0.3'; };
                                     return $('a', {
-                                        cls: 'bm-wrap', href: r.url, target: '_blank',
-                                        title: `${r.pn} > ${r.gn}`
-                                    }, [$('div', { cls: 'bm-item' }, [img, $('span', { text: r.name })])]);
+    cls: 'bm-wrap', href: r.url,
+    title: `${r.pn} > ${r.gn}`,
+    onclick: e => {
+        if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            window.open(r.url, '_blank');
+        }
+    }
+}, [$('div', { cls: 'bm-item' }, [img, $('span', { text: r.name })])]);
                                 })
                             )
                         ]));
@@ -838,9 +844,15 @@
             for (let idx = 0; idx < items.length; idx++) {
                 const it = items[idx];
                 const w = $('a', {
-                    cls: 'bm-wrap', href: it.url, target: '_blank',
-                    title: it.addedAt ? `추가: ${new Date(it.addedAt).toLocaleDateString()}` : ''
-                });
+    cls: 'bm-wrap', href: it.url,
+    title: it.addedAt ? `추가: ${new Date(it.addedAt).toLocaleDateString()}` : '',
+    onclick: e => {
+        if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            window.open(it.url, '_blank');
+        }
+    }
+});
                 w.oncontextmenu = e => ctxMenu(e, it, gn, idx);
                 bindLP(w, e => ctxMenu(e, it, gn, idx));
 
