@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      66.05.3
+// @version      66.06.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
-// @author       Gemini & 仙
+// @author       Gemini & Claude
 // @license      MIT
 // @match        *://*/*
 // @grant        GM_addStyle
@@ -20,18 +20,45 @@
         progressBarColor: '#FF6699', uiTimeout: 2500, maxScale: 8.0, senseRate: 0.015
     };
 
+    // 더블탭 감지 윈도우(350ms) 이후 브라우저 합성 이벤트(click 등)를 차단하기 위한 보호 기간.
+    // Chrome Android 기준 ~400ms 합성 click 발생을 안전하게 커버.
+    const TAP_PROTECT_DURATION = 500;
+    // 더블탭/핀치 제스처 중 사이트 플레이어가 play/pause를 자체 토글하는 것을 방어하는 기간.
+    // HLS 스트리밍 플레이어의 네트워크 지연까지 고려한 값.
+    const ENFORCE_STATE_DURATION = 800;
+
     let seekSec = GM_getValue('gt_seek_sec', 10);
     let seekMode = GM_getValue('gt_seek_mode', 'sec');
     let fpsMode = GM_getValue('gt_fps', 30);
 
     let state = { isScreenLocked: false, pinchMode: 'speed', scale: 1.0, panX: 0, panY: 0 };
     let startX, startY, initTime, initRate, targetV, targetP, isTouch = false, action = null, lpTimer = null, toastTimer = null, lastTapTime = 0, tapCount = 0, uiTimer = null;
-    let activeSeekSide = null, seekAccumulator = 0, seekSessionTimer = null, wasPlayingBeforeSequence = false;
+    let activeSeekSide = null, seekAccumulator = 0, seekFrameCount = 0, seekSessionTimer = null, wasPlayingBeforeSequence = false;
     let initPinchDist = 0, initScale = 1.0, initPanX = 0, initPanY = 0, initSpeed = 1.0, initCenterX = 0, initCenterY = 0, originDx = 0, originDy = 0;
 
     let blockGestureUntil = 0;
     let enforceStateUntil = 0;
     let enforceTarget = null;
+
+    // --- 헬퍼: orientation lock/unlock ---
+    const lockOrientation = (dir) => {
+        if (screen.orientation?.lock) {
+            screen.orientation.lock(dir).catch(() => {
+                try { window.top.postMessage({ type: 'gt_lock_orientation', dir }, '*'); } catch(e){}
+            });
+        } else {
+            try { window.top.postMessage({ type: 'gt_lock_orientation', dir }, '*'); } catch(e){}
+        }
+    };
+
+    const unlockOrientation = () => {
+        if (screen.orientation?.unlock) screen.orientation.unlock();
+        try { window.top.postMessage({ type: 'gt_unlock_orientation' }, '*'); } catch(e){}
+    };
+
+    const getVideoOrientationDir = (v) => {
+        return (v && v.videoWidth > 0 && v.videoWidth < v.videoHeight) ? 'portrait' : 'landscape';
+    };
 
     window.addEventListener('message', (e) => {
         if (e.data && e.data.type === 'gt_lock_orientation') {
@@ -48,30 +75,42 @@
     const findUp = (el, selector) => { while (el && el !== document.body) { if (el.matches && el.matches(selector)) return el; el = el.parentNode; } return null; };
     const isExcludedZone = (target) => !!findUp(target, IGNORE_TOUCH_SELECTORS);
 
+    // --- SVG 변경 감지 헬퍼 ---
+    const setIconIfChanged = (btn, key) => {
+        if (!btn) return;
+        if (btn.dataset.gtIcon !== key) {
+            btn.innerHTML = key;
+            btn.dataset.gtIcon = key;
+        }
+    };
+
+    // --- Fullscreen API hijack (원본 복원 경로 확보) ---
+    const originalFSMethods = new Map();
+
     const hijackFullscreenAPI = () => {
         const fsMethods = ['requestFullscreen', 'webkitRequestFullscreen', 'mozRequestFullScreen', 'msRequestFullscreen'];
         fsMethods.forEach(method => {
             if (Element.prototype[method]) {
                 const originalMethod = Element.prototype[method];
+                originalFSMethods.set(method, originalMethod);
                 Element.prototype[method] = function(...args) {
-                    let target = this;
-                    if (this.tagName === 'VIDEO') {
-                        const isNaked = !this.parentNode.classList?.contains('gt-video-wrapper') && !findUp(this.parentNode, VIP_SELECTORS.replace(', iframe', ''));
-                        if (isNaked) {
-                            target = this.parentNode;
-                            target.classList.add('gt-fullscreen-active');
+                    try {
+                        let target = this;
+                        if (this.tagName === 'VIDEO') {
+                            const isNaked = !this.parentNode.classList?.contains('gt-video-wrapper') && !findUp(this.parentNode, VIP_SELECTORS.replace(', iframe', ''));
+                            if (isNaked) {
+                                target = this.parentNode;
+                                target.classList.add('gt-fullscreen-active');
+                            }
                         }
-                    }
 
-                    const promise = originalMethod.apply(target, args);
-                    let v = target.tagName === 'VIDEO' ? target : (target.querySelector('video') || document.querySelector('video'));
-                    if (v && screen.orientation && screen.orientation.lock) {
-                        const dir = (v.videoWidth === 0 || v.videoWidth >= v.videoHeight) ? 'landscape' : 'portrait';
-                        screen.orientation.lock(dir).catch(()=>{
-                            try { window.top.postMessage({ type: 'gt_lock_orientation', dir: dir }, '*'); } catch(err){}
-                        });
+                        const promise = originalMethod.apply(target, args);
+                        let v = target.tagName === 'VIDEO' ? target : (target.querySelector('video') || document.querySelector('video'));
+                        if (v) lockOrientation(getVideoOrientationDir(v));
+                        return promise;
+                    } catch (e) {
+                        return originalMethod.apply(this, args);
                     }
-                    return promise;
                 };
             }
         });
@@ -88,20 +127,10 @@
             if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             container.classList.remove('gt-fullscreen-active');
-            if (screen.orientation?.unlock) {
-                screen.orientation.unlock();
-                try { window.top.postMessage({ type: 'gt_unlock_orientation' }, '*'); } catch(e){}
-            }
+            unlockOrientation();
         } else {
             const forceLockLandscape = () => {
-                const dir = (video && video.videoWidth > 0 && video.videoWidth < video.videoHeight) ? 'portrait' : 'landscape';
-                if (screen.orientation?.lock) {
-                    screen.orientation.lock(dir).catch(()=>{
-                        try { window.top.postMessage({ type: 'gt_lock_orientation', dir: dir }, '*'); } catch(err){}
-                    });
-                } else {
-                     try { window.top.postMessage({ type: 'gt_lock_orientation', dir: dir }, '*'); } catch(err){}
-                }
+                lockOrientation(getVideoOrientationDir(video));
             };
 
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
@@ -129,11 +158,7 @@
     const toggleOrientation = () => {
         if (!screen.orientation) return;
         const dir = screen.orientation.type.startsWith('landscape') ? 'portrait' : 'landscape';
-        if (screen.orientation.lock) {
-            screen.orientation.lock(dir).catch(()=>{
-                try { window.top.postMessage({ type: 'gt_lock_orientation', dir: dir }, '*'); } catch(e){}
-            });
-        }
+        lockOrientation(dir);
     };
 
     const TOUCH_LOCK_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, video, .gt-lock-touch';
@@ -257,9 +282,14 @@
     };
 
     const showMsg = (txt) => {
-        let t = document.getElementById('gt-toast'); if (!t) { t = document.createElement('div'); t.id = 'gt-toast'; t.className = 'gt-toast'; }
-        const p = document.fullscreenElement || document.body; if (t.parentNode !== p) p.appendChild(t);
-        t.innerText = txt; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 800);
+        let t = document.getElementById('gt-toast');
+        if (!t) { t = document.createElement('div'); t.id = 'gt-toast'; t.className = 'gt-toast'; }
+        const p = document.fullscreenElement || document.body;
+        if (t.parentNode !== p) {
+            if (t.parentNode) t.parentNode.removeChild(t);
+            p.appendChild(t);
+        }
+        t.textContent = txt; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 800);
     };
 
     let activeUIEl = null;
@@ -269,13 +299,11 @@
         const btnLock = uiLayer.querySelector('.gt-lock-btn'), btnMode = uiLayer.querySelector('.gt-mode-btn'), btnRot = uiLayer.querySelector('.gt-rotate-btn'), btnRst = uiLayer.querySelector('.gt-reset-speed-btn'), btnZoomRst = uiLayer.querySelector('.gt-reset-zoom-btn'), btnSeekMode = uiLayer.querySelector('.gt-seek-mode-btn'), btnSeekVal = uiLayer.querySelector('.gt-seek-val-btn'), btnFit = uiLayer.querySelector('.gt-fit-btn'), btnShot = uiLayer.querySelector('.gt-shot-btn'), btnPip = uiLayer.querySelector('.gt-pip-btn'), shield = uiLayer.querySelector('.gt-lock-shield');
         const isFS = !!getFS() || root.classList.contains('gt-fullscreen-active');
 
-        if(btnLock) btnLock.innerHTML = state.isScreenLocked ? SVG_LOCK : SVG_UNLOCK;
-        if(btnMode) btnMode.innerHTML = state.pinchMode === 'speed' ? SVG_SPEED : SVG_ZOOM;
-        if(btnSeekMode) btnSeekMode.innerHTML = seekMode === 'sec' ? SVG_SEC : SVG_FRAME;
-        if(btnSeekVal) btnSeekVal.innerHTML = `<span>${seekMode === 'sec' ? seekSec + 's' : fpsMode + 'f'}</span>`;
-        if(btnFit) btnFit.innerHTML = SVG_FIT;
-        if(btnShot) btnShot.innerHTML = SVG_SHOT;
-        if(btnPip) btnPip.innerHTML = SVG_PIP;
+        setIconIfChanged(btnLock, state.isScreenLocked ? SVG_LOCK : SVG_UNLOCK);
+        setIconIfChanged(btnMode, state.pinchMode === 'speed' ? SVG_SPEED : SVG_ZOOM);
+        setIconIfChanged(btnSeekMode, seekMode === 'sec' ? SVG_SEC : SVG_FRAME);
+        setIconIfChanged(btnSeekVal, `<span>${seekMode === 'sec' ? seekSec + 's' : fpsMode + 'f'}</span>`);
+        // btnFit, btnShot, btnPip는 정적 아이콘이므로 갱신 불필요 (ensureUIAndWrapper에서 1회 설정)
 
         if (state.isScreenLocked) {
             if(shield) shield.style.display = 'block';
@@ -298,19 +326,37 @@
     };
     const hideUI = (root) => { if (!root) return; const uiLayer = root.querySelector('.gt-ui-layer'); if(uiLayer) { uiLayer.classList.remove('gt-ui-visible'); if (activeUIEl === uiLayer) activeUIEl = null; } if (uiTimer) clearTimeout(uiTimer); };
 
-    const applyTransform = () => {
-        if(!targetV) return;
+    const applyTransform = (video) => {
+        if(!video) return;
         if (state.scale <= 1.05) {
             state.scale = 1.0; state.panX = 0; state.panY = 0;
         } else {
-            const mX = (targetV.clientWidth * state.scale - targetV.clientWidth) / 2, mY = (targetV.clientHeight * state.scale - targetV.clientHeight) / 2;
+            const mX = (video.clientWidth * state.scale - video.clientWidth) / 2, mY = (video.clientHeight * state.scale - video.clientHeight) / 2;
             state.panX = Math.max(-mX, Math.min(mX, state.panX)); state.panY = Math.max(-mY, Math.min(mY, state.panY));
         }
-        targetV.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
+        video.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
     };
 
-    let pendingRate = null; let lastRateUpdateTime = 0;
-    const setRateThrottled = (v, rate) => { pendingRate = rate; const now = Date.now(); if (now - lastRateUpdateTime > 150) { v.playbackRate = pendingRate; lastRateUpdateTime = now; pendingRate = null; } };
+    let pendingRate = null; let lastRateUpdateTime = 0; let rateFlushTimer = null;
+    const setRateThrottled = (v, rate) => {
+        pendingRate = rate;
+        const now = Date.now();
+        if (now - lastRateUpdateTime > 150) {
+            v.playbackRate = pendingRate;
+            lastRateUpdateTime = now;
+            pendingRate = null;
+            if (rateFlushTimer) { clearTimeout(rateFlushTimer); rateFlushTimer = null; }
+        } else if (!rateFlushTimer) {
+            const videoRef = v;
+            rateFlushTimer = setTimeout(() => {
+                if (pendingRate !== null && videoRef) {
+                    try { videoRef.playbackRate = pendingRate; } catch(e){}
+                    pendingRate = null;
+                }
+                rateFlushTimer = null;
+            }, 160);
+        }
+    };
 
     const bindTap = (btn, handler) => {
         let lastExec = 0;
@@ -421,8 +467,21 @@
         }
 
         if (!video.dataset.gtStateLock) {
-            video.addEventListener('pause', () => { if (Date.now() < enforceStateUntil && enforceTarget === 'playing') video.play().catch(()=>{}); });
-            video.addEventListener('play', () => { if (Date.now() < enforceStateUntil && enforceTarget === 'paused') video.pause(); });
+            let enforceDepth = 0;
+            const MAX_ENFORCE_DEPTH = 2;
+            video.addEventListener('pause', () => {
+                if (Date.now() < enforceStateUntil && enforceTarget === 'playing' && enforceDepth < MAX_ENFORCE_DEPTH) {
+                    enforceDepth++;
+                    video.play().catch(()=>{}).finally(() => { setTimeout(() => { enforceDepth = Math.max(0, enforceDepth - 1); }, 100); });
+                }
+            });
+            video.addEventListener('play', () => {
+                if (Date.now() < enforceStateUntil && enforceTarget === 'paused' && enforceDepth < MAX_ENFORCE_DEPTH) {
+                    enforceDepth++;
+                    video.pause();
+                    setTimeout(() => { enforceDepth = Math.max(0, enforceDepth - 1); }, 100);
+                }
+            });
             video.dataset.gtStateLock = 'true';
         }
 
@@ -435,16 +494,46 @@
     };
 
     const handleAccumulatedSeek = (dir, uiLayer, video) => {
-        activeSeekSide = dir; const stepVal = seekMode === 'sec' ? seekSec : (1 / fpsMode); seekAccumulator += stepVal;
+        activeSeekSide = dir;
+        let stepVal, displayText;
+
+        if (seekMode === 'sec') {
+            stepVal = seekSec;
+            seekAccumulator += stepVal;
+            displayText = `${seekAccumulator}초`;
+        } else {
+            stepVal = 1 / fpsMode;
+            seekFrameCount += 1;
+            seekAccumulator = seekFrameCount / fpsMode;
+            displayText = `${seekFrameCount}프레임`;
+        }
+
         video.currentTime = dir === 'left' ? Math.max(0, video.currentTime - stepVal) : Math.min(video.duration || 0, video.currentTime + stepVal);
-        let t = uiLayer.querySelector('#gt-seek-' + dir); if (!t) { t = document.createElement('div'); t.id = 'gt-seek-' + dir; t.className = `gt-seek-msg ${dir}`; uiLayer.appendChild(t); }
-        t.innerHTML = dir === 'left' ? `<div class="gt-arrows"><span>‹</span><span class="gt-arrow-slide-l">‹</span></div><span class="gt-seek-text gt-pop-anim">-${seekMode==='sec'?seekAccumulator:Math.round(seekAccumulator*fpsMode)}${seekMode==='sec'?'초':'프레임'}</span>` : `<span class="gt-seek-text gt-pop-anim">+${seekMode==='sec'?seekAccumulator:Math.round(seekAccumulator*fpsMode)}${seekMode==='sec'?'초':'프레임'}</span><div class="gt-arrows"><span class="gt-arrow-slide-r">›</span><span>›</span></div>`;
+
+        let t = uiLayer.querySelector('#gt-seek-' + dir);
+        if (!t) { t = document.createElement('div'); t.id = 'gt-seek-' + dir; t.className = `gt-seek-msg ${dir}`; uiLayer.appendChild(t); }
+
+        const sign = dir === 'left' ? '-' : '+';
+        const arrowsHtml = dir === 'left'
+            ? `<div class="gt-arrows"><span>‹</span><span class="gt-arrow-slide-l">‹</span></div>`
+            : `<div class="gt-arrows"><span class="gt-arrow-slide-r">›</span><span>›</span></div>`;
+        const textHtml = `<span class="gt-seek-text gt-pop-anim">${sign}${displayText}</span>`;
+        t.innerHTML = dir === 'left' ? arrowsHtml + textHtml : textHtml + arrowsHtml;
+
         t.classList.add('show'); clearTimeout(seekSessionTimer);
-        seekSessionTimer = setTimeout(() => { t.classList.remove('show'); activeSeekSide = null; seekAccumulator = 0; setTimeout(() => { if (t && t.parentNode && !t.classList.contains('show')) t.innerHTML = ''; }, 200); }, 800);
+        seekSessionTimer = setTimeout(() => {
+            t.classList.remove('show'); activeSeekSide = null; seekAccumulator = 0; seekFrameCount = 0;
+            setTimeout(() => { if (t && t.parentNode && !t.classList.contains('show')) t.innerHTML = ''; }, 200);
+        }, 800);
     };
 
     const onStart = (e) => {
-        if (!getFS()) { document.querySelectorAll('.plyr--fullscreen-active, .jw-flag-fullscreen, .gt-fullscreen-active, .gt-ui-visible').forEach(el => { el.classList.remove('plyr--fullscreen-active', 'jw-flag-fullscreen', 'gt-fullscreen-active', 'gt-ui-visible'); el.style.cssText = ''; }); }
+        // gt- 접두사가 붙은 자체 클래스만 정리하고, 서드파티 클래스는 건드리지 않는다.
+        if (!getFS()) {
+            document.querySelectorAll('.gt-fullscreen-active').forEach(el => {
+                el.classList.remove('gt-fullscreen-active');
+            });
+        }
 
         const isEx = isExcludedZone(e.target);
         const isFS = !!getFS() || (targetP && targetP.classList.contains('gt-fullscreen-active'));
@@ -476,24 +565,24 @@
         if (e.touches && e.touches.length > 1) {
             if (e.cancelable) e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
             tapCount = 0;
-            enforceTarget = wasPlayingBeforeSequence ? 'playing' : 'paused'; enforceStateUntil = now + 800;
+            enforceTarget = wasPlayingBeforeSequence ? 'playing' : 'paused'; enforceStateUntil = now + ENFORCE_STATE_DURATION;
             if (enforceTarget === 'playing' && targetV.paused) targetV.play().catch(()=>{});
             else if (enforceTarget === 'paused' && !targetV.paused) targetV.pause();
         }
 
         if (tapCount >= 2) {
-            blockGestureUntil = now + 500;
+            blockGestureUntil = now + TAP_PROTECT_DURATION;
             if (e.cancelable) e.preventDefault();
             e.stopPropagation(); e.stopImmediatePropagation();
 
-            const r = (e.touches ? e.touches[0].clientX : e.clientX) / window.innerWidth;
+            const r = (e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX) / window.innerWidth;
             const uiLayer = targetP.querySelector('.gt-ui-layer') || targetP;
 
             if (r < 0.3) handleAccumulatedSeek('left', uiLayer, targetV);
             else if (r > 0.7) handleAccumulatedSeek('right', uiLayer, targetV);
             else if (tapCount === 2) toggleNativeFullscreen(targetP, targetV);
 
-            enforceTarget = wasPlayingBeforeSequence ? 'playing' : 'paused'; enforceStateUntil = now + 800;
+            enforceTarget = wasPlayingBeforeSequence ? 'playing' : 'paused'; enforceStateUntil = now + ENFORCE_STATE_DURATION;
             if (enforceTarget === 'playing' && targetV.paused) targetV.play().catch(()=>{});
             else if (enforceTarget === 'paused' && !targetV.paused) targetV.pause();
 
@@ -502,6 +591,7 @@
             return;
         }
 
+        if (!e.touches || e.touches.length === 0) { isTouch = false; return; }
         isTouch = true; action = null; startX = e.touches[0].clientX; startY = e.touches[0].clientY;
         initTime = targetV.currentTime; initRate = targetV.playbackRate;
 
@@ -512,7 +602,7 @@
             action = 'pinch'; if (getFS()) hideUI(targetP);
         } else if (e.touches.length === 1 && state.scale === 1.0) {
             lpTimer = setTimeout(() => {
-                if (isTouch) { action = 'rate'; targetV.playbackRate = Math.max(0.1, initRate + CFG.rateBase - 1.0); showMsg(`${targetV.playbackRate.toFixed(1)}x`); if (getFS()) hideUI(targetP); }
+                if (isTouch && targetV) { action = 'rate'; targetV.playbackRate = Math.max(0.1, initRate + CFG.rateBase - 1.0); showMsg(`${targetV.playbackRate.toFixed(1)}x`); if (getFS()) hideUI(targetP); }
             }, CFG.longPress);
         }
     };
@@ -526,17 +616,17 @@
 
         if (!isTouch || !targetV) return;
 
-        if (action === 'pinch' || action === 'rate' || action === 'seek' || action === 'ignore') {
-            if (e.cancelable) e.preventDefault();
-            e.stopPropagation(); e.stopImmediatePropagation();
-        }
+        if (action === 'pinch' || action === 'rate' || action === 'seek') {
+          if (e.cancelable) e.preventDefault();
+          e.stopPropagation(); e.stopImmediatePropagation();
+      }
 
         if (action === 'pinch' && e.touches.length === 2) {
             const p = getPinchData(e.touches);
             if (state.pinchMode === 'zoom') {
                 state.scale = Math.max(1.0, Math.min(CFG.maxScale, initScale * (p.dist/initPinchDist)));
                 if (state.scale > 1.0) { const ds = state.scale/initScale; state.panX = (p.cx-initCenterX)+initPanX*ds+originDx*(1-ds); state.panY = (p.cy-initCenterY)+initPanY*ds+originDy*(1-ds); }
-                else { state.panX = 0; state.panY = 0; } applyTransform();
+                else { state.panX = 0; state.panY = 0; } applyTransform(targetV);
             } else {
                 let s = initSpeed + ((p.dist-initPinchDist) * 0.005);
                 let finalSpeed = s;
@@ -556,10 +646,9 @@
         if (!action) {
             if (Math.abs(dx) > CFG.minDist || Math.abs(dy) > CFG.minDist) {
                 clearTimeout(lpTimer);
-                // 오직 좌우(seek) 드래그만 허용하고 상하 드래그는 무시 처리
                 if (Math.abs(dx) > Math.abs(dy)) {
                     action = 'seek';
-                    enforceTarget = wasPlayingBeforeSequence ? 'playing' : 'paused'; enforceStateUntil = Date.now() + 800;
+                    enforceTarget = wasPlayingBeforeSequence ? 'playing' : 'paused'; enforceStateUntil = Date.now() + ENFORCE_STATE_DURATION;
                     if (enforceTarget === 'playing' && targetV.paused) targetV.play().catch(()=>{});
                     else if (enforceTarget === 'paused' && !targetV.paused) targetV.pause();
                     if (getFS()) hideUI(targetP);
@@ -593,14 +682,25 @@
         if (pendingRate !== null && targetV) { targetV.playbackRate = pendingRate; pendingRate = null; }
 
         clearTimeout(lpTimer);
+
+        // 참조를 클로저로 캡처 (아래에서 null 처리 전)
+        const endVideo = targetV;
+        const endRoot = targetP;
+
         if (action === 'rate' && targetV) { targetV.playbackRate = initRate; showMsg(''); wakeUpUI(targetP, targetV); }
         if ((action === 'pinch' || action === 'pinch_wait' || action === 'pan') && targetV) { wakeUpUI(targetP, targetV); }
 
         if (!action || action === 'ignore') { if (!activeSeekSide) wakeUpUI(targetP, targetV); }
-        else { blockGestureUntil = now + 500; }
+        else { blockGestureUntil = now + TAP_PROTECT_DURATION; }
 
-        setTimeout(() => { if(targetP && !getFS()) targetP.classList.remove('gt-lock-touch'); if(targetV) targetV.classList.remove('gt-lock-touch'); }, 100);
         isTouch = false; targetV = null; action = null;
+
+        if (!getFS()) {
+            setTimeout(() => {
+                if(endRoot) endRoot.classList.remove('gt-lock-touch');
+                if(endVideo) endVideo.classList.remove('gt-lock-touch');
+            }, 100);
+        }
     };
 
     const pOpt = { passive: false, capture: true };
@@ -630,9 +730,20 @@
             if (!fsEl) {
                 hideUI(targetP);
                 document.querySelectorAll('.gt-lock-touch').forEach(el => el.classList.remove('gt-lock-touch'));
-                if (screen.orientation?.unlock) {
-                    screen.orientation.unlock();
-                    try { window.top.postMessage({ type: 'gt_unlock_orientation' }, '*'); } catch(e){}
+                unlockOrientation();
+
+                // 전체화면 해제 시 줌 transform 잔존 방지
+                if (state.scale !== 1.0) {
+                    state.scale = 1.0; state.panX = 0; state.panY = 0;
+                    const v = targetV || document.querySelector('video');
+                    if (v) v.style.transform = '';
+                }
+
+                // 토스트 위치 교정 (fullscreen 내부에 잔존 방지)
+                const toast = document.getElementById('gt-toast');
+                if (toast && toast.parentNode !== document.body) {
+                    if (toast.parentNode) toast.parentNode.removeChild(toast);
+                    document.body.appendChild(toast);
                 }
             } else {
                 setTimeout(() => {
@@ -650,17 +761,8 @@
                         targetP = root;
                     }
 
-                    wakeUpUI(root, v);
-                    if (v) {
-                        const dir = (v.videoWidth > 0 && v.videoWidth < v.videoHeight) ? 'portrait' : 'landscape';
-                        if (screen.orientation?.lock) {
-                            screen.orientation.lock(dir).catch(()=>{
-                                try { window.top.postMessage({ type: 'gt_lock_orientation', dir: dir }, '*'); } catch(err){}
-                            });
-                        } else {
-                            try { window.top.postMessage({ type: 'gt_lock_orientation', dir: dir }, '*'); } catch(err){}
-                        }
-                    }
+                    if (root && v) wakeUpUI(root, v);
+                    if (v) lockOrientation(getVideoOrientationDir(v));
                 }, 200);
             }
         });
