@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      4.0.4
+// @version      4.0.5
 // @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계
 // @match        *://*/*
 // @grant        none
@@ -208,49 +208,84 @@
     reparent();
     setTimeout(reparent, 120);
     setTimeout(() => {
-      if (fab && !fab.isConnected) document.documentElement.appendChild(fab);
-      if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
+        if (fab && !fab.isConnected) document.documentElement.appendChild(fab);
+        if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
     }, 300);
-  }
+
+    // ★ 전체화면 진입 시 분석 시작, 퇴출 시 중지
+    if (isFullscreen()) {
+        const best = pickBestVideo();
+        if (best) startAnalysis(best);
+    } else {
+        stopAnalysis();
+    }
+}
+function onFsChange() {
+    reparent();
+    setTimeout(reparent, 120);
+    setTimeout(() => {
+        if (fab && !fab.isConnected) document.documentElement.appendChild(fab);
+        if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
+    }, 300);
+
+    // ★ 전체화면 진입 시 분석 시작, 퇴출 시 중지
+    if (isFullscreen()) {
+        const best = pickBestVideo();
+        if (best) startAnalysis(best);
+    } else {
+        stopAnalysis();
+    }
+}
+
 
   /* ── tick ─────────────────────────────────────────────── */
-  let shadowRetries = 0;
-  const MAX_SHADOW_RETRIES = 5;
+let shadowRetries = 0;
+const MAX_SHADOW_RETRIES = 5;
 
-  function tick() {
+function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function tick() {
+    // ★ 전체화면이 아니면 분석 건너뜀 (FAB 시계는 계속 작동)
+    if (!isFullscreen()) {
+        updateFabState('idle', 0);
+        return;
+    }
+
     if (!liveVideo || !liveVideo.isConnected) {
-      /* #1: stopAnalysis()로 timerID를 정리하여 좀비 polling 방지 */
-      liveVideo = null; stopAnalysis(); scheduleDetect(); return;
+        liveVideo = null; stopAnalysis(); scheduleDetect(); return;
     }
     let res = sampleRGB(liveVideo);
     if (!res.ok) {
-      const src = liveVideo.currentSrc || liveVideo.src;
-      if (src && !shadowVid && !src.startsWith('blob:')) {
-        if (panelOpen) setStatus('CORS 우회 시도…', false);
-        makeShadow(src, liveVideo.currentTime);
-        shadowRetries = 0;
-      }
-      if (shadowVid && shadowVid.readyState >= 2) { shadowVid.currentTime = liveVideo.currentTime; res = sampleRGB(shadowVid); }
+        const src = liveVideo.currentSrc || liveVideo.src;
+        if (src && !shadowVid && !src.startsWith('blob:')) {
+            if (panelOpen) setStatus('CORS 우회 시도…', false);
+            makeShadow(src, liveVideo.currentTime);
+            shadowRetries = 0;
+        }
+        if (shadowVid && shadowVid.readyState >= 2) { shadowVid.currentTime = liveVideo.currentTime; res = sampleRGB(shadowVid); }
     }
     if (!res.ok && shadowVid) {
-      shadowRetries++;
-      if (shadowRetries > MAX_SHADOW_RETRIES) {
-        killShadow(); shadowRetries = 0;
-        if (panelOpen) showError('CORS 우회 실패 — shadow 포기');
-        updateFabState('error', 0);
-      }
-      return;
+        shadowRetries++;
+        if (shadowRetries > MAX_SHADOW_RETRIES) {
+            killShadow(); shadowRetries = 0;
+            if (panelOpen) showError('CORS 우회 실패 — shadow 포기');
+            updateFabState('error', 0);
+        }
+        return;
     }
     if (!res.ok) {
-      if (panelOpen) showError('이 사이트는 픽셀 읽기가 차단됩니다\n(' + res.error + ')');
-      updateFabState('error', 0); return;
+        if (panelOpen) showError('이 사이트는 픽셀 읽기가 차단됩니다\n(' + res.error + ')');
+        updateFabState('error', 0); return;
     }
     if (panelOpen) clearError();
     shadowRetries = 0;
     history.push(res); if (history.length > CFG.histLen) history.shift();
     updateFabState(res.score > CFG.threshold ? 'warn' : 'ok', res.score);
     if (panelOpen && panel) { renderUI(res); drawGraph(); }
-  }
+}
+
 
   /* ── 패널 UI 업데이트 ────────────────────────────────── */
   function q(id) { return panel?.querySelector('#' + id); }
@@ -351,10 +386,19 @@
     const best = pickBestVideo();
     const hasVid = !!best;
     setFabVisible(hasVid);
+
+    // ★ 전체화면이 아니면 분석 시작하지 않음
+    if (!isFullscreen()) {
+        if (timerID) stopAnalysis();
+        liveVideo = best; // 참조만 유지 (최대화 기능용)
+        return;
+    }
+
     if (hasVid && best !== liveVideo) startAnalysis(best);
     else if (hasVid && !timerID) startAnalysis(best);
     else if (!hasVid && liveVideo) { stopAnalysis(); liveVideo = null; }
-  }
+}
+
 
 
   /* ═════════════════════════════════════════════════════════════════════════
