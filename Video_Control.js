@@ -1829,7 +1829,7 @@ iconWrap.appendChild(
       };
       globalSignalCleanups.push(Scheduler.onSignal(syncRadioBadge));
 
-      if (IS_MOBILE) { let touchRevealTimer = 0; const revealGear = () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500); }; mainBtn.addEventListener('touchstart', () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true }); }
+      if (IS_MOBILE) { let touchRevealTimer = 0; const revealGear = () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500); }; document.addEventListener('touchstart', revealGear, { passive: true }); mainBtn.addEventListener('touchstart', () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true }); }
     }
 
     function buildPanel() {
@@ -1957,7 +1957,7 @@ iconWrap.appendChild(
         Filters.apply(v, filterStr);
       }
     };
-    Scheduler.registerApply(apply);
+    Scheduler.registerApply(IS_MOBILE ? () => {} : apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
 
     createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio, Persist);
