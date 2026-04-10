@@ -1456,6 +1456,13 @@ icon.appendChild(
     function onFullscreenChange() { reparent(); Scheduler.request(); setTimeout(reparent, 80); setTimeout(reparent, 400); if (!document.fullscreenElement && !document.webkitFullscreenElement) { _lastMount = null; _lastIsFs = null; } }
     function updateQuickBarVisibility() {
       if (!quickBarHost) return;
+
+      // ★ 모바일: 전체화면이 아니면 아이콘 숨김
+    if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+        if (_qbarHasVideo) { _qbarHasVideo = false; quickBarHost.style.setProperty('display', 'none', 'important'); if (panelOpen) togglePanel(false); }
+        return;
+    }
+
       let has = Registry.videos.size > 0;
       if (!has) try { has = !!document.querySelector('video'); } catch (_) {}
       if (!has && Registry.shadowRootsLRU) { for (const it of Registry.shadowRootsLRU) { if (it.host?.isConnected && it.root) { try { if (it.root.querySelector('video')) { has = true; break; } } catch (_) {} } } }
