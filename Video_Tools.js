@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      4.0.3
+// @version      4.0.4
 // @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계
 // @match        *://*/*
 // @grant        none
@@ -145,13 +145,19 @@
     killShadow();
     if (!document.body) return null;
     if (src.startsWith('blob:')) return null;
+
+    // 캐시 오염 방지: 원본 URL에 캐시 버스터를 추가하여
+    // 브라우저가 원본 비디오의 캐시를 건드리지 않게 함
+    const bustUrl = src + (src.includes('?') ? '&' : '?') + '__ytd_cb=' + Date.now();
+
     const v = document.createElement('video');
     v.crossOrigin = 'anonymous'; v.muted = true;
     v.style.cssText = 'position:fixed;width:1px;height:1px;opacity:.001;top:0;left:0;pointer-events:none';
     document.body.appendChild(v);
-    v.src = src; v.currentTime = currentTime || 0;
+    v.src = bustUrl; v.currentTime = currentTime || 0;
     v.play().catch(() => {}); shadowVid = v; return v;
-  }
+}
+
   function killShadow() { if (!shadowVid) return; shadowVid.src = ''; shadowVid.remove(); shadowVid = null; }
   function scoreToTemp(score) { return score <= 0 ? 0 : -(Math.floor(score / CFG.tempPerScore)); }
 
