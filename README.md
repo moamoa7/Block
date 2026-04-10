@@ -8,7 +8,8 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 <br>
 
 ※ Video_Control.js
-- 영상 화질 선명하게 보기 / 영상 배속
+- 영상 화질 선명 등 설정 / 영상 배속 / 사운드 증폭 등
+- 모바일은 전체화면에서만 작동 제한
 
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
@@ -24,7 +25,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 <br>
 
 ※ Video_Tools.js
-- 영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계
+- 영상의 노란끼 감지 + 비디오 브라우저 최대화 + 항상 보이는 시계
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 ```
