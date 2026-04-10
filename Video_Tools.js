@@ -191,13 +191,19 @@
 
   function setFabVisible(show) {
     if (!fab) return;
-    if (show) {
+    // 모바일에서 전체화면이 아니면 메인 FAB(분석+시계) 숨김
+    const showMainFab = show && shouldAnalyze();
+    if (showMainFab) {
       if (fab.style.display === 'none') fab.style.display = '';
-      if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
     } else {
       if (fab.style.display !== 'none') fab.style.display = 'none';
-      if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
       if (panelOpen) togglePanel(false);
+    }
+    // 최대화 FAB는 비디오가 있으면 항상 표시
+    if (show) {
+      if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
+    } else {
+      if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
     }
   }
 
@@ -220,9 +226,10 @@
       if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
     }, 300);
 
-    // 모바일: 전체화면 진입 시 분석 시작, 퇴출 시 중지
+    // 전체화면 상태 변경 시 분석 및 FAB 가시성 갱신
+    const best = pickBestVideo();
+    setFabVisible(!!best);
     if (shouldAnalyze()) {
-      const best = pickBestVideo();
       if (best) startAnalysis(best);
     } else {
       stopAnalysis();
@@ -234,7 +241,6 @@
   const MAX_SHADOW_RETRIES = 5;
 
   function tick() {
-    // 모바일에서는 전체화면일 때만 분석
     if (!shouldAnalyze()) {
       updateFabState('idle', 0);
       return;
@@ -370,10 +376,9 @@
     const hasVid = !!best;
     setFabVisible(hasVid);
 
-    // 모바일에서는 전체화면이 아니면 분석 시작하지 않음
     if (!shouldAnalyze()) {
       if (timerID) stopAnalysis();
-      liveVideo = best; // 참조만 유지 (최대화 기능용)
+      liveVideo = best;
       return;
     }
 
