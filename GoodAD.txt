@@ -361,14 +361,6 @@ twitch.tv###twilight-sticky-footer-root
 twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 광고 차단 문구 (터보 사용 권장 문구)
 twitch.tv##.video-player__inactive
-! 광고 차단
-||*banner*$css
-||*banner*$script
-! - - - 예외
-! ~ - - - https://www.11st.co.kr/ - 사이트 초기 구동 안됨
-@@||*banner*$script,domain=www.11st.co.kr
-!
-!
 !
 !
 ! WAVVE (https://www.wavve.com/)
