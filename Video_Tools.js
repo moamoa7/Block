@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      4.1.0
-// @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계
+// @version      4.1.1
+// @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계 (모바일에서는 전체화면에서 분석 및 시계 보임 / 최대화시 일부 화면 짤림 수정)
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -586,10 +586,11 @@
       if (!video) return;
       innerMaxActive = true;
       backupInner(video, {
-        width: '100vw', height: '100vh', 'object-fit': 'contain',
-        position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
-        background: '#000', margin: '0', padding: '0', border: 'none'
-      });
+    width: '100vw', height: '100dvh', 'object-fit': 'contain',
+    position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
+    background: '#000', margin: '0', padding: '0', border: 'none'
+});
+
       let ancestor = video.parentElement;
       while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
         backupInner(ancestor, { overflow: 'visible', position: 'static', transform: 'none', clip: 'auto', 'clip-path': 'none', contain: 'none' });
@@ -701,11 +702,11 @@
       coreStyle = document.createElement('style');
       coreStyle.id = '__ytd3_core_style__';
       coreStyle.textContent = `
-        .ytd-vmax-max{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;}
-        .ytd-vmax-hide{display:none!important;}
-        .ytd-vmax-ancestor{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;}
-        .ytd-vmax-iframe{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;}
-      `;
+  .ytd-vmax-max{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;}
+  .ytd-vmax-hide{display:none!important;}
+  .ytd-vmax-ancestor{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;}
+  .ytd-vmax-iframe{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;}
+`;
       document.documentElement.appendChild(coreStyle);
     }
 
