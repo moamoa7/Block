@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      4.0.1
+// @version      4.0.2
 // @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계
 // @match        *://*/*
 // @grant        none
@@ -75,19 +75,29 @@
   }
 
   /* ── cross-origin 조기 주입 ──────────────────────────── */
-  const injected = new WeakSet();
-  function injectCrossOrigin(v) {
-    if (injected.has(v)) return; injected.add(v);
-    if (!v.src && !v.currentSrc) v.crossOrigin = 'anonymous';
-    else if (v.readyState === 0) v.crossOrigin = 'anonymous';
-  }
-  new MutationObserver(muts => {
+const injected = new WeakSet();
+function injectCrossOrigin(v) {
+    if (injected.has(v)) return;
+    injected.add(v);
+
+    // 파서가 <source> 자식을 아직 붙이지 않았을 수 있으므로
+    // 한 프레임 지연 후 판단
+    requestAnimationFrame(() => {
+        // 이미 소스가 결정된 비디오는 건드리지 않음
+        if (v.querySelector('source')) return;
+        if (v.src || v.currentSrc) return;
+        if (v.readyState > 0) return;
+
+        v.crossOrigin = 'anonymous';
+    });
+}
+new MutationObserver(muts => {
     for (const m of muts)
       for (const n of m.addedNodes) {
         if (n.nodeName === 'VIDEO') injectCrossOrigin(n);
         if (n.querySelectorAll) n.querySelectorAll('video').forEach(injectCrossOrigin);
       }
-  }).observe(document.documentElement, { childList: true, subtree: true });
+}).observe(document.documentElement, { childList: true, subtree: true });
 
   /* ── 영상 탐색 ───────────────────────────────────────── */
   function findVideosInShadowRoots(root, results, depth) {
