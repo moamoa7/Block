@@ -124,10 +124,10 @@ const MANUAL_PRESETS = [
   { n: '야외', v: [ 0,  0,  0,  0,  0,  -10,  -12,  24,   0] },
   { n: '역광', v: [0, 0, 0, 0, 0, 0, -20, 10, -24] },
   { n: '애니', v: [  0,  0,  6,  0,  0,  8,  4,  10,  3] },
-  { n: '게임', v: [ 16,  16,  16,  0,  0,  0,  -8,  8,  8] },
   { n: '필름', v: [14,  0,  4,  8, -2, -12,  8,   4,   3] },
   { n: '블버(일반)', v: [ 0,  0,  8, -4,  0, -6,  4,  12,   6] },
   { n: '블버(다크)', v: [ 0,  0,  10, -5,  0, -5,  10,  10,   10] },
+  { n: '게임', v: [ 16,  16,  16,  0,  0,  0,  -8,  8,  8] },
   { n: '뽀샤시/복구', v: [24, 18,  12,  0,  0,  0,  12,  12,  12] },
 
 ];
@@ -1458,7 +1458,7 @@ icon.appendChild(
       if (!quickBarHost) return;
 
       // ★ 모바일: 전체화면이 아니면 아이콘 숨김
-    if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement || document.querySelector('.ytd-vmax-max, .ytd-vmax-iframe'))) {
+    if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         if (_qbarHasVideo) { _qbarHasVideo = false; quickBarHost.style.setProperty('display', 'none', 'important'); if (panelOpen) togglePanel(false); }
         return;
     }
@@ -1926,7 +1926,7 @@ iconWrap.appendChild(
       }
 
       // ★ 모바일: 전체화면이 아니면 아무것도 안 함
-    if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement || document.querySelector('.ytd-vmax-max, .ytd-vmax-iframe'))) {
+    if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         for (const v of Registry.videos) Filters.clear(v);
         Audio.setTarget(null);
         __internal._activeVideo = null;
