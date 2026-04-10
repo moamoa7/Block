@@ -6091,4 +6091,3 @@ trand.co.kr#@#[id][style*="background"][style]
 namu.wiki,trand.co.kr,sooplive.com,www.naver.com,tv.naver.com,www.nate.com,www.google.com,etoland.co.kr,poong.today,inven.co.kr,mlbpark.donga.com#@#a[href][target]:has(img)
 ! - - - 성인
 twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target]:has(img)
-
