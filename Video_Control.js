@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.9.1)
+// @name         Video_Control (v31.9.2)
 // @namespace    https://github.com/moamoa7
-// @version      31.9.1
-// @description  v31.9.1: Trusted HTML 오류 수정
+// @version      31.9.2
+// @description  v31.9.2: 모바일은 전체화면에서만 작동 가능하게 제한
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.9.1';
+  const VSC_VERSION = '31.9.2';
   const DEBUG = false;
 
   const log = {
@@ -1917,6 +1917,15 @@ iconWrap.appendChild(
         if (Radio.isActive()) Radio.setActive(false);
         return;
       }
+
+      // ★ 모바일: 전체화면이 아니면 아무것도 안 함
+    if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+        for (const v of Registry.videos) Filters.clear(v);
+        Audio.setTarget(null);
+        __internal._activeVideo = null;
+        return;
+    }
+
       const target = Targeting.pick(Registry.videos);
       const prevTarget = __internal._activeVideo;
       __internal._activeVideo = target || null;
@@ -1957,7 +1966,7 @@ iconWrap.appendChild(
         Filters.apply(v, filterStr);
       }
     };
-    Scheduler.registerApply(IS_MOBILE ? () => {} : apply);
+    Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
 
     createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio, Persist);
