@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      66.06.0
+// @version      66.07.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
 // @author       Gemini & Claude
 // @license      MIT
@@ -20,11 +20,7 @@
         progressBarColor: '#FF6699', uiTimeout: 2500, maxScale: 8.0, senseRate: 0.015
     };
 
-    // 더블탭 감지 윈도우(350ms) 이후 브라우저 합성 이벤트(click 등)를 차단하기 위한 보호 기간.
-    // Chrome Android 기준 ~400ms 합성 click 발생을 안전하게 커버.
     const TAP_PROTECT_DURATION = 500;
-    // 더블탭/핀치 제스처 중 사이트 플레이어가 play/pause를 자체 토글하는 것을 방어하는 기간.
-    // HLS 스트리밍 플레이어의 네트워크 지연까지 고려한 값.
     const ENFORCE_STATE_DURATION = 800;
 
     let seekSec = GM_getValue('gt_seek_sec', 10);
@@ -40,7 +36,6 @@
     let enforceStateUntil = 0;
     let enforceTarget = null;
 
-    // --- 헬퍼: orientation lock/unlock ---
     const lockOrientation = (dir) => {
         if (screen.orientation?.lock) {
             screen.orientation.lock(dir).catch(() => {
@@ -75,7 +70,6 @@
     const findUp = (el, selector) => { while (el && el !== document.body) { if (el.matches && el.matches(selector)) return el; el = el.parentNode; } return null; };
     const isExcludedZone = (target) => !!findUp(target, IGNORE_TOUCH_SELECTORS);
 
-    // --- SVG 변경 감지 헬퍼 ---
     const setIconIfChanged = (btn, key) => {
         if (!btn) return;
         if (btn.dataset.gtIcon !== key) {
@@ -84,7 +78,6 @@
         }
     };
 
-    // --- Fullscreen API hijack (원본 복원 경로 확보) ---
     const originalFSMethods = new Map();
 
     const hijackFullscreenAPI = () => {
@@ -103,7 +96,6 @@
                                 target.classList.add('gt-fullscreen-active');
                             }
                         }
-
                         const promise = originalMethod.apply(target, args);
                         let v = target.tagName === 'VIDEO' ? target : (target.querySelector('video') || document.querySelector('video'));
                         if (v) lockOrientation(getVideoOrientationDir(v));
@@ -123,7 +115,6 @@
 
         if (isFS) {
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
-
             if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             container.classList.remove('gt-fullscreen-active');
@@ -132,12 +123,9 @@
             const forceLockLandscape = () => {
                 lockOrientation(getVideoOrientationDir(video));
             };
-
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
-
             container.classList.add('gt-fullscreen-active');
             const reqFs = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen;
-
             if (reqFs) {
                 const p = reqFs.call(container);
                 if (p && p.then) {
@@ -161,10 +149,15 @@
         lockOrientation(dir);
     };
 
-    const TOUCH_LOCK_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, video, .gt-lock-touch';
+    // --- 전체화면 전용 touch-action: none 셀렉터 ---
+    const FS_TOUCH_LOCK_SELECTORS = ':fullscreen, :fullscreen *, .gt-fullscreen-active, .gt-fullscreen-active *, .gt-lock-touch-full';
+
+    // --- 일반 모드: pan-y 허용 (수직 스크롤 가능) ---
+    const NORMAL_TOUCH_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, video';
 
     GM_addStyle(`
-        ${TOUCH_LOCK_SELECTORS} { touch-action: none !important; overscroll-behavior: none !important; }
+        ${NORMAL_TOUCH_SELECTORS} { touch-action: pan-y !important; overscroll-behavior: none !important; }
+        ${FS_TOUCH_LOCK_SELECTORS} { touch-action: none !important; overscroll-behavior: none !important; }
 
         .gt-toast { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.15); color: #fff; padding: 4px 10px; border-radius: 4px; font: 700 14px system-ui; z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.2s; text-shadow: 0 0 2px #000; border: 1px solid rgba(255,255,255,0.05); }
         .gt-toast.show { opacity: 1; }
@@ -303,7 +296,6 @@
         setIconIfChanged(btnMode, state.pinchMode === 'speed' ? SVG_SPEED : SVG_ZOOM);
         setIconIfChanged(btnSeekMode, seekMode === 'sec' ? SVG_SEC : SVG_FRAME);
         setIconIfChanged(btnSeekVal, `<span>${seekMode === 'sec' ? seekSec + 's' : fpsMode + 'f'}</span>`);
-        // btnFit, btnShot, btnPip는 정적 아이콘이므로 갱신 불필요 (ensureUIAndWrapper에서 1회 설정)
 
         if (state.isScreenLocked) {
             if(shield) shield.style.display = 'block';
@@ -372,9 +364,6 @@
 
     const ensureUIAndWrapper = (hit) => {
         let { root, video, isNaked } = hit;
-
-        if (!root.classList.contains('gt-lock-touch')) root.classList.add('gt-lock-touch');
-        if (!video.classList.contains('gt-lock-touch')) video.classList.add('gt-lock-touch');
 
         if (isNaked) {
             video.setAttribute('controlslist', 'nofullscreen');
@@ -527,8 +516,9 @@
         }, 800);
     };
 
+    const isInFullscreen = () => !!getFS() || !!(targetP && targetP.classList.contains('gt-fullscreen-active'));
+
     const onStart = (e) => {
-        // gt- 접두사가 붙은 자체 클래스만 정리하고, 서드파티 클래스는 건드리지 않는다.
         if (!getFS()) {
             document.querySelectorAll('.gt-fullscreen-active').forEach(el => {
                 el.classList.remove('gt-fullscreen-active');
@@ -536,10 +526,10 @@
         }
 
         const isEx = isExcludedZone(e.target);
-        const isFS = !!getFS() || (targetP && targetP.classList.contains('gt-fullscreen-active'));
+        const currentIsFS = isInFullscreen();
 
         if (state.isScreenLocked && !isEx) {
-            if (isFS || (targetP && targetP.contains(e.target))) {
+            if (currentIsFS || (targetP && targetP.contains(e.target))) {
                 if (e.cancelable) e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
                 if (targetP && targetV) wakeUpUI(targetP, targetV); lastTapTime = Date.now(); return;
             }
@@ -549,6 +539,13 @@
 
         let hit = identify(e); if (!hit || !hit.video) return;
         targetP = ensureUIAndWrapper(hit); targetV = hit.video;
+
+        // 전체화면일 때만 touch-action: none 클래스 부여
+        const isFS = !!getFS() || targetP.classList.contains('gt-fullscreen-active');
+        if (isFS) {
+            if (!targetP.classList.contains('gt-lock-touch-full')) targetP.classList.add('gt-lock-touch-full');
+            if (!targetV.classList.contains('gt-lock-touch-full')) targetV.classList.add('gt-lock-touch-full');
+        }
 
         clearTimeout(lpTimer); const now = Date.now();
 
@@ -617,9 +614,9 @@
         if (!isTouch || !targetV) return;
 
         if (action === 'pinch' || action === 'rate' || action === 'seek') {
-          if (e.cancelable) e.preventDefault();
-          e.stopPropagation(); e.stopImmediatePropagation();
-      }
+            if (e.cancelable) e.preventDefault();
+            e.stopPropagation(); e.stopImmediatePropagation();
+        }
 
         if (action === 'pinch' && e.touches.length === 2) {
             const p = getPinchData(e.touches);
@@ -683,7 +680,6 @@
 
         clearTimeout(lpTimer);
 
-        // 참조를 클로저로 캡처 (아래에서 null 처리 전)
         const endVideo = targetV;
         const endRoot = targetP;
 
@@ -695,12 +691,11 @@
 
         isTouch = false; targetV = null; action = null;
 
-        if (!getFS()) {
-            setTimeout(() => {
-                if(endRoot) endRoot.classList.remove('gt-lock-touch');
-                if(endVideo) endVideo.classList.remove('gt-lock-touch');
-            }, 100);
-        }
+        // 전체화면 전용 클래스 정리
+        setTimeout(() => {
+            if(endRoot) endRoot.classList.remove('gt-lock-touch-full');
+            if(endVideo) endVideo.classList.remove('gt-lock-touch-full');
+        }, 100);
     };
 
     const pOpt = { passive: false, capture: true };
@@ -729,17 +724,15 @@
             let fsEl = getFS();
             if (!fsEl) {
                 hideUI(targetP);
-                document.querySelectorAll('.gt-lock-touch').forEach(el => el.classList.remove('gt-lock-touch'));
+                document.querySelectorAll('.gt-lock-touch-full').forEach(el => el.classList.remove('gt-lock-touch-full'));
                 unlockOrientation();
 
-                // 전체화면 해제 시 줌 transform 잔존 방지
                 if (state.scale !== 1.0) {
                     state.scale = 1.0; state.panX = 0; state.panY = 0;
                     const v = targetV || document.querySelector('video');
                     if (v) v.style.transform = '';
                 }
 
-                // 토스트 위치 교정 (fullscreen 내부에 잔존 방지)
                 const toast = document.getElementById('gt-toast');
                 if (toast && toast.parentNode !== document.body) {
                     if (toast.parentNode) toast.parentNode.removeChild(toast);
