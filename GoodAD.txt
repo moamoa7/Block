@@ -95,7 +95,10 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - player.bunny-frame.online - 해제해야 영상 재생 가능
 ! - - - 예외
 @@||gateway.discord.gg$websocket
+! - - - 일반
 @@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|www.tving.com
+! - - - 성인
+@@||*$websocket,domain=chaturbate.com
 ! - - - 아프리카 TV 등 그리드 차단 (AdVoid.Full 필터 목록 해제)
 @@||localhost^$badfilter
 !
@@ -169,11 +172,6 @@ baidu.com###s-hotsearch-wrapper
 ! 네이버 (https://www.naver.com/)
 ! - 배너
 ##[class*="_banner_"]
-! - 차단 사이트
-!||shopsquare.naver.com^
-!||recoshopping.naver.com^
-! - 차단 사이트
-||veta.naver.com^
 ! - 네이버앱 깨지는거 해결 (참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
@@ -397,25 +395,6 @@ daum.net##.wrap_trend
 ! 다음 스포츠 (https://sports.daum.net/)
 ! - ##[class^="ad"] 해제 - 영상 안나옴
 kakaotv.daum.net#@#[class^="ad"]
-!
-!
-! 틱톡 (https://www.tiktok.com/)
-! - 로그인 팝업 차단
-##[class*="Modal"]
-! - - - 예외
-pornhub.com#@#[class*="Modal"]
-www.sooplive.com#@#[class*="Modal"]
-play.sooplive.com#@#[class*="Modal"]
-tiktok.com#@#[class*="Modal"]
-urahame.com#@#[class*="Modal"]
-! - - point.pay.naver.com - 팝업 차단으로 인한 뿌연 화면 발생
-point.pay.naver.com#@#[class*="Modal"]
-! - 뿌연거 해결
-!tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
-! - - - https://www.twitch.tv/ - 영상내 마우스 오버시 번쩍번쩍하면 화면에 아무것도 안보임
-twitch.tv#@#[class*="Modal"]
-! - - - popkontv.com - 로그인 하라는 팝업 차단되서 해제
-popkontv.com#@#[class*="Modal"]
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -647,12 +626,6 @@ inven.co.kr###inventory-skin-800
 ! - 로딩 없애기
 !inven.co.kr##[id="loading"]
 inven.co.kr##[class="modal-fixed"]
-##[class*="modal"]
-! - - - 예외
-! - - - https://www.pornhub.com/ - 18세 이상 안보이고 전체가 까맣게 보임
-pornhub.com#@#[class*="modal"]
-! - - - https://trand.co.kr/ - 위젯 잠금 풀림
-trand.co.kr#@#[class*="modal"]
 ! - ##.ad 예외
 inven.co.kr#@#.ad
 ! - 게시물 전체 배너
@@ -4209,7 +4182,8 @@ thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 ! https://fc-info.com/
 ! - 빈공간
 !##.Venatus_videoContainer__eVrta
-##[class*="videoContainer"]
+! - -- ##[class*="videoContainer"] 광역으로 사용하면 일부 사이트 작동 불가
+fc-info.com##[class*="videoContainer"]
 !
 !
 ! https://www.cnine.kr/
@@ -6121,5 +6095,8 @@ trand.co.kr#@#[id][style*="background"][style]
 
 ##a[href][target]:has(img)
 ! - 북마크 열때 지정안된 사이트에서는 아이콘이 안보여서 포기
+! - - - 일반
 namu.wiki,trand.co.kr,sooplive.com,www.naver.com,tv.naver.com,www.nate.com,www.google.com,etoland.co.kr,poong.today,www.inven.co.kr,mlbpark.donga.com#@#a[href][target]:has(img)
+! - - - 성인
+twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target]:has(img)
 
