@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.9.2)
+// @name         Video_Control (v31.9.1)
 // @namespace    https://github.com/moamoa7
-// @version      31.9.2
-// @description  v31.9.2: 모바일 터치 드래그 시 영상 재생 멈춤 해결
+// @version      31.9.1
+// @description  v31.9.1: Trusted HTML 오류 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.9.2';
+  const VSC_VERSION = '31.9.1';
   const DEBUG = false;
 
   const log = {
@@ -486,7 +486,6 @@ const MANUAL_PRESETS = [
         rvfcHandle = el.requestVideoFrameCallback(vfcTick);
       }
       function startRVFC() {
-        if (IS_MOBILE) return;  // ★ 이 한 줄 추가
         if (rvfcRunning || _rvfcPaused) return;
         rvfcRunning = true; lastFW = 0; lastFH = 0;
         rvfcHandle = el.requestVideoFrameCallback(vfcTick);
@@ -1830,7 +1829,7 @@ iconWrap.appendChild(
       };
       globalSignalCleanups.push(Scheduler.onSignal(syncRadioBadge));
 
-      if (IS_MOBILE) { let touchRevealTimer = 0; const revealGear = () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500); }; document.addEventListener('touchstart', revealGear, { passive: true }); mainBtn.addEventListener('touchstart', () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true }); }
+      if (IS_MOBILE) { let touchRevealTimer = 0; const revealGear = () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500); }; mainBtn.addEventListener('touchstart', () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true }); }
     }
 
     function buildPanel() {
