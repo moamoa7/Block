@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260410
+! Version: 20260411
 !
 !
 !
@@ -3136,12 +3136,13 @@ xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 ![$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(8)
 !
 !
-! 천사티비 (https://1004sweet.com/) (https://1004deep.com/) (https://1004dance.com/)
+! 천사티비 (https://1004sweet.com/) (https://1004deep.com/) (https://1004dance.com/) (https://1004crop.com/)
 ! - 배너
 ! - - - https://minkch.com/
-1004sweet.com,1004deep.com,1004dance.com##.external
+1004crop.com,1004sweet.com,1004deep.com,1004dance.com##.external
+##.no-space
 ! - 영상 상단 텍스트 배너
-1004sweet.com,1004deep.com,1004dance.com##.da-above
+1004crop.com,1004sweet.com,1004deep.com,1004dance.com##.da-above
 ! - 업소추천 글자
 !1004sweet.com,1004deep.com##li:nth-of-type(3)
 ! - 제휴광고 글자
@@ -3149,7 +3150,7 @@ xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 ! - 커뮤니티/메시지/공지사항 공지 및 배너 광고
 !1004sweet.com,1004deep.com##.swip-ticker
 ! - ##[class^="ad"] 해제 - 일부 이미지 안나옴
-1004sweet.com,1004deep.com,1004dance.com#@#[class^="ad"]
+1004crop.com,1004sweet.com,1004deep.com,1004dance.com#@#[class^="ad"]
 !
 !
 ! 조개파티 (https://jogaeparty139.com/)
@@ -4183,9 +4184,9 @@ fc-info.com##[class*="videoContainer"]
 /smartad.$script,from=~smartad.ai,badfilter
 !
 !
-! 야동티비
+! 야동티비 (https://yadongtv86.com/)
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
-##[class*="popup-"]
+[$domain=/^yadongtv\d+.com/]##[class*="popup-"]
 !
 !
 !
@@ -6091,3 +6092,4 @@ trand.co.kr#@#[id][style*="background"][style]
 namu.wiki,trand.co.kr,sooplive.com,www.naver.com,tv.naver.com,www.nate.com,www.google.com,etoland.co.kr,poong.today,inven.co.kr,mlbpark.donga.com#@#a[href][target]:has(img)
 ! - - - 성인
 twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target]:has(img)
+
