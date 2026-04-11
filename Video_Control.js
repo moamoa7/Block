@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.9.2)
+// @name         Video_Control (v31.9.3)
 // @namespace    https://github.com/moamoa7
-// @version      31.9.2
-// @description  v31.9.2: 모바일은 전체화면에서만 작동 가능하게 제한
+// @version      31.9.3
+// @description  v31.9.3: 샤프닝 강도 상향 (cap/AUTO/desatMul 조정)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.9.2';
+  const VSC_VERSION = '31.9.3';
   const DEBUG = false;
 
   const log = {
@@ -43,15 +43,15 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
   function getSharpProfile(nW) {
-    if (nW > 2560) return { cap: 0.20, diagRatio: 0.60, autoBase: 0.12 };
-    if (nW > 1920) return { cap: 0.18, diagRatio: 0.65, autoBase: 0.10 };
+    if (nW > 2560) return { cap: 0.25, diagRatio: 0.60, autoBase: 0.14 };
+    if (nW > 1920) return { cap: 0.22, diagRatio: 0.65, autoBase: 0.12 };
     const autoBase = nW <= 640 ? 0.14
                    : nW <= 960 ? 0.12
                    : nW <= 1280 ? 0.12
                    : 0.12;
-    return { cap: 0.16, diagRatio: 0.707, autoBase };
+    return { cap: 0.20, diagRatio: 0.707, autoBase };
   }
-  const SHARP_CAP_DEFAULT = 0.16;
+  const SHARP_CAP_DEFAULT = 0.20;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -118,7 +118,7 @@
 
 const MANUAL_PRESETS = [
   { n: 'OFF',  v: [ 0,  0,  0,  0,  0,  0,   0,   0,   0] },
-  { n: '보정', v: [  0,  0,  0,  0,  0,  0,  8,  14,  6] },
+  { n: '보정', v: [  0,  0,  6,  0,  0,  0,  6,  0,  6] },
   { n: '광명*', v: [ 0,  0,  0,  0,  0,  0,  -24,  24,  24] },
   { n: '야외(햇빛)', v: [ 0, 0, 0, 0, 0, -12, -8, 24, 0] },
   { n: '역광', v: [40, 0, 15, 0, 0, 0, 12, 8, -8] },
@@ -280,13 +280,11 @@ const MANUAL_PRESETS = [
     function init(store) {
       _store = store;
 
-      // 1) 사이트별 데이터 로드 시도
       const siteData = loadSiteData(siteKey);
       if (siteData) {
         applySaved(store, siteData);
         log.info(`[Persist] 사이트 설정 로드: ${siteKey}`);
       } else {
-        // 2) 글로벌 기본값 로드 시도
         const globalData = loadGlobal();
         if (globalData) {
           applySaved(store, globalData);
@@ -294,7 +292,6 @@ const MANUAL_PRESETS = [
         }
       }
 
-      // 변경 시 자동 저장
       for (const cat of SAVE_CATEGORIES) {
         const catDefaults = DEFAULTS[cat];
         if (!catDefaults) continue;
@@ -321,7 +318,6 @@ const MANUAL_PRESETS = [
       resetSite: (store) => {
         _suppressSave = true;
         deleteSiteData(siteKey);
-        // 글로벌 기본값이 있으면 그것으로, 없으면 DEFAULTS로 복원
         const globalData = loadGlobal();
         if (globalData) {
           applySaved(store, globalData);
@@ -334,14 +330,12 @@ const MANUAL_PRESETS = [
       },
       resetAll: (store) => {
         _suppressSave = true;
-        // 모든 사이트 데이터 삭제
         const keys = getAllSiteKeys();
         for (const k of keys) {
           try { GM_setValue(STORAGE_PREFIX + k, undefined); } catch (_) {}
         }
         setAllSiteKeys([]);
         try { GM_setValue(GLOBAL_KEY, undefined); } catch (_) {}
-        // DEFAULTS로 복원
         for (const cat of SAVE_CATEGORIES) {
           store.batch(cat, JSON.parse(JSON.stringify(DEFAULTS[cat])));
         }
@@ -1016,7 +1010,7 @@ const MANUAL_PRESETS = [
       const satInput = totalS >= 0.005 ? 'conv' : 'tmp';
       if (st.satInputKey !== satInput) { st.satInputKey = satInput; ctx2.fSat.setAttribute('in', satInput); }
 
-      const desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
+      const desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.06, 0.92, 1) : 1;
       const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
       if (st.satKey !== satVal) { st.satKey = satVal; ctx2.fSat.setAttribute('values', satVal); }
 
@@ -1060,7 +1054,7 @@ const MANUAL_PRESETS = [
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
         out._sharpCap = sharpProfile.cap; out._diagRatio = sharpProfile.diagRatio;
 
-        if (presetS === 'off') { out.sharp = autoBase * 0.45 * platformScale; }
+        if (presetS === 'off') { out.sharp = autoBase * 0.55 * platformScale; }
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.25); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
         out.sharp = CLAMP(out.sharp, 0, sharpProfile.cap);
 
@@ -1456,11 +1450,10 @@ icon.appendChild(
     function updateQuickBarVisibility() {
       if (!quickBarHost) return;
 
-      // ★ 모바일: 전체화면이 아니면 아이콘 숨김
-    if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         if (_qbarHasVideo) { _qbarHasVideo = false; quickBarHost.style.setProperty('display', 'none', 'important'); if (panelOpen) togglePanel(false); }
         return;
-    }
+      }
 
       let has = Registry.videos.size > 0;
       if (!has) try { has = !!document.querySelector('video'); } catch (_) {}
@@ -1657,11 +1650,9 @@ iconWrap.appendChild(
       tabFns.push(update); return el;
     }
 
-    /* ── 저장 탭 빌더 ── */
     function buildSettingsTab() {
       const wrap = h('div', {});
 
-      // 현재 사이트 상태
       const statusEl = h('div', { class: 'save-status' });
       const updateStatus = () => {
         const hasSite = Persist.hasSiteData();
@@ -1672,7 +1663,6 @@ iconWrap.appendChild(
       updateStatus();
       wrap.append(statusEl);
 
-      // 사이트별 저장 카드
       const siteCard = h('div', { class: 'save-card' });
       siteCard.append(
         h('div', { class: 'save-title' }, '사이트별 설정'),
@@ -1699,7 +1689,6 @@ iconWrap.appendChild(
       siteCard.append(siteActions);
       wrap.append(siteCard);
 
-      // 글로벌 기본값 카드
       const globalCard = h('div', { class: 'save-card' });
       globalCard.append(
         h('div', { class: 'save-title' }, '글로벌 기본값'),
@@ -1717,7 +1706,6 @@ iconWrap.appendChild(
       globalCard.append(globalActions);
       wrap.append(globalCard);
 
-      // 전체 초기화 카드
       const dangerCard = h('div', { class: 'save-card', style: 'border-color:rgba(255,100,100,0.15)' });
       dangerCard.append(
         h('div', { class: 'save-title', style: 'color:rgba(255,100,100,0.8)' }, '전체 초기화'),
@@ -1799,7 +1787,7 @@ iconWrap.appendChild(
         { type: 'fineButtons', path: P.PB_RATE, steps: [-0.25,-0.05,0.05,0.25], min: 0.07, max: 5 },
         { type: 'slider', label: '속도 슬라이더', path: P.PB_RATE, min: 0.07, max: 5, step: 0.01, onChange: () => Store.set(P.PB_EN, true) },
       ],
-      settings: [] // 위젯으로 직접 빌드
+      settings: []
     };
 
     function renderSchema(schema, container) {
@@ -1898,7 +1886,6 @@ iconWrap.appendChild(
     const Filters = createFilters();
     const Radio = createRadioMode(Store, Registry, Scheduler, Filters);
 
-    // 저장된 설정 로드 (Store 생성 직후)
     Persist.init(Store);
 
     Registry.setPurgeCallback((root) => Filters.purge(root));
@@ -1924,13 +1911,12 @@ iconWrap.appendChild(
         return;
       }
 
-      // ★ 모바일: 전체화면이 아니면 아무것도 안 함
-    if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         for (const v of Registry.videos) Filters.clear(v);
         Audio.setTarget(null);
         __internal._activeVideo = null;
         return;
-    }
+      }
 
       const target = Targeting.pick(Registry.videos);
       const prevTarget = __internal._activeVideo;
