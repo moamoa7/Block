@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260411
+! Version: 20260413
 !
 !
 !
@@ -132,6 +132,8 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !www.youtube.com#@#ytd-guide-entry-renderer:has(yt-formatted-string:has-text(/^Shorts$/i))
 ! - - - 오른쪽 쇼츠 영상 안보이는거 해결 (Cosmetic Combined Filterlist )
 !www.youtube.com#@##shorts-container
+! - 쇼츠 스티커 삭제
+youtube.com##.sticker-layer.ytd-reel-video-renderer
 !
 !
 ! wikipedia.org
@@ -4339,6 +4341,8 @@ fc-info.com##[class*="videoContainer"]
 !||*/*/AD-*/*
 ||*/*/ads/*
 ||*/*/ADS/*
+
+
 ! - 레딧 알부 이미지 안나옴
 !||*/*/ads-*
 
@@ -4378,14 +4382,8 @@ fc-info.com##[class*="videoContainer"]
 !||*/*/BANNERS/*
 !||*/*/popup/*
 !||*/*/popup*
-||*/*/*popup*
-@@/*/*popup*
-! - 에외 (디시인사이드 약간 깨짐) (옥션 주문상세팝업 안뜸)
-@@||*/*/*popup*$css,script
-! - - - 와우 멤버쉽 탈퇴하고자 팝업 눌럿을때 팝업에 아무것도 안나옴
-@@||*/*/*popup*$frame,domain=loyalty.coupang.com|escrow.auction.co.kr
-! - https://www.ips.go.kr/ - 로그인 차단
-@@||*/*/*popup*.hbs
+!||*/*/*popup*
+
 !||*/*/popup*/*
 !||*/*/*popup/*
 
