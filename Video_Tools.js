@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      4.1.1
-// @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계 (모바일에서는 전체화면에서 분석 및 시계 보임 / 최대화시 일부 화면 짤림 수정)
+// @version      6.0.0
+// @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계 + Turn Off the Lights + 좌우 반전
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -25,7 +25,7 @@
   const CFG = { sampleSize: 48, intervalMs: 1000, threshold: 12, histLen: 24, tempPerScore: 5 };
 
   let timerID = null, clockTimer = null, liveVideo = null, shadowVid = null;
-  let history = [], panel = null, fab = null, maxFab = null, fabStyle = null, panelStyle = null;
+  let history = [], panel = null, fab = null, maxFab = null, dimFab = null, mirrorFab = null, fabStyle = null, panelStyle = null;
   let panelOpen = false, lastStatus = 'idle';
   let coreStyle = null;
 
@@ -46,7 +46,6 @@
     return !!(document.fullscreenElement || document.webkitFullscreenElement);
   }
   function shouldAnalyze() {
-    // PC: 항상 분석 | 모바일: 전체화면일 때만 분석
     if (!isMobile()) return true;
     return isFullscreen();
   }
@@ -191,7 +190,6 @@
 
   function setFabVisible(show) {
     if (!fab) return;
-    // 모바일에서 전체화면이 아니면 메인 FAB(분석+시계) 숨김
     const showMainFab = show && shouldAnalyze();
     if (showMainFab) {
       if (fab.style.display === 'none') fab.style.display = '';
@@ -199,11 +197,14 @@
       if (fab.style.display !== 'none') fab.style.display = 'none';
       if (panelOpen) togglePanel(false);
     }
-    // 최대화 FAB는 비디오가 있으면 항상 표시
     if (show) {
       if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
+      if (dimFab && dimFab.style.display === 'none') dimFab.style.display = '';
+      if (mirrorFab && mirrorFab.style.display === 'none') mirrorFab.style.display = '';
     } else {
       if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
+      if (dimFab && dimFab.style.display !== 'none') dimFab.style.display = 'none';
+      if (mirrorFab && mirrorFab.style.display !== 'none') mirrorFab.style.display = 'none';
     }
   }
 
@@ -216,6 +217,8 @@
     const target = getFsRoot();
     if (fab && fab.parentNode !== target) try { target.appendChild(fab); } catch (_) {}
     if (maxFab && maxFab.parentNode !== target) try { target.appendChild(maxFab); } catch (_) {}
+    if (dimFab && dimFab.parentNode !== target) try { target.appendChild(dimFab); } catch (_) {}
+    if (mirrorFab && mirrorFab.parentNode !== target) try { target.appendChild(mirrorFab); } catch (_) {}
     if (panel && panelOpen && panel.parentNode !== target) try { target.appendChild(panel); } catch (_) {}
   }
   function onFsChange() {
@@ -224,15 +227,21 @@
     setTimeout(() => {
       if (fab && !fab.isConnected) document.documentElement.appendChild(fab);
       if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
+      if (dimFab && !dimFab.isConnected) document.documentElement.appendChild(dimFab);
+      if (mirrorFab && !mirrorFab.isConnected) document.documentElement.appendChild(mirrorFab);
     }, 300);
 
-    // 전체화면 상태 변경 시 분석 및 FAB 가시성 갱신
     const best = pickBestVideo();
     setFabVisible(!!best);
     if (shouldAnalyze()) {
       if (best) startAnalysis(best);
     } else {
       stopAnalysis();
+    }
+
+    // 전체화면 진입 시 Dimmer 해제
+    if (isFullscreen() && Dimmer.isActive()) {
+      Dimmer.off();
     }
   }
 
@@ -456,7 +465,8 @@
         if (sib === el || sib.nodeType !== 1) continue;
         if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
         if (sib.id === '__ytd2__' || sib.id === 'ytd-osd' || sib.classList.contains('ytd-fab')) continue;
-        if (sib === fab || sib === maxFab || sib === panel) continue;
+        if (sib === fab || sib === maxFab || sib === dimFab || sib === mirrorFab || sib === panel) continue;
+        if (sib.id === 'ytd-dim-overlay') continue;
         sib.classList.add(HIDE_CLASS);
         hiddenSiblings.push({ el: sib });
       }
@@ -507,13 +517,16 @@
     }
 
     function doMaximizeDirect(video) {
+      // 최대화 시 Dimmer 해제
+      if (Dimmer.isActive()) Dimmer.off();
+
       targetVideo = video;
       isIframeMode = false;
       savedScrollX = window.scrollX;
       savedScrollY = window.scrollY;
       clearAncestorChain(video);
       lockBody();
-      backupAndApplyStyle(video, { transform: 'none' });
+      backupAndApplyStyle(video, { transform: Mirror.isActive() ? 'scaleX(-1)' : 'none' });
       video.classList.add(MAX_CLASS);
       hideSiblings(video);
       window.scrollTo(0, 0);
@@ -524,6 +537,8 @@
     }
 
     function doMaximizeIframe(iframeEl) {
+      if (Dimmer.isActive()) Dimmer.off();
+
       targetIframe = iframeEl;
       isIframeMode = true;
       savedScrollX = window.scrollX;
@@ -586,10 +601,10 @@
       if (!video) return;
       innerMaxActive = true;
       backupInner(video, {
-    width: '100vw', height: '100dvh', 'object-fit': 'contain',
-    position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
-    background: '#000', margin: '0', padding: '0', border: 'none'
-});
+        width: '100vw', height: '100dvh', 'object-fit': 'contain',
+        position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
+        background: '#000', margin: '0', padding: '0', border: 'none'
+      });
 
       let ancestor = video.parentElement;
       while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
@@ -693,7 +708,271 @@
   })();
 
 
-  /* ── FAB 빌드 (2개: Max, Main) ─────────────────────────── */
+  /* ═════════════════════════════════════════════════════════════════════════
+     ★ Turn Off the Lights (Dimmer) 모듈
+  ═════════════════════════════════════════════════════════════════════════ */
+  const Dimmer = (() => {
+    let active = false;
+    let overlay = null;
+    let rafId = null;
+    let dimStyle = null;
+    const OPACITY = 0.88;
+    const PADDING = 6;
+    const BORDER_RADIUS = 8;
+    const TRANSITION_MS = 400;
+
+    function createOverlay() {
+      if (overlay && overlay.isConnected) return;
+
+      if (!dimStyle || !dimStyle.isConnected) {
+        dimStyle?.remove();
+        dimStyle = document.createElement('style');
+        dimStyle.id = '__ytd_dim_style__';
+        dimStyle.textContent = `
+          #ytd-dim-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 2147483640; pointer-events: auto;
+            transition: opacity ${TRANSITION_MS}ms cubic-bezier(.16,1,.3,1);
+            opacity: 0;
+          }
+          #ytd-dim-overlay.ytd-dim-visible { opacity: 1; }
+          #ytd-dim-overlay svg { width: 100%; height: 100%; }
+        `;
+        document.documentElement.appendChild(dimStyle);
+      }
+
+      overlay = document.createElement('div');
+      overlay.id = 'ytd-dim-overlay';
+
+      overlay.addEventListener('click', (e) => {
+        off();
+      });
+
+      document.documentElement.appendChild(overlay);
+    }
+
+    function buildSVG(rect) {
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      const x = Math.max(0, rect.left - PADDING);
+      const y = Math.max(0, rect.top - PADDING);
+      const w = Math.min(W - x, rect.width + PADDING * 2);
+      const h = Math.min(H - y, rect.height + PADDING * 2);
+      const r = BORDER_RADIUS;
+
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <defs>
+          <mask id="ytd-dim-mask">
+            <rect width="100%" height="100%" fill="white"/>
+            <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="black"/>
+          </mask>
+        </defs>
+        <rect width="100%" height="100%" fill="rgba(0,0,0,${OPACITY})" mask="url(#ytd-dim-mask)"/>
+      </svg>`;
+    }
+
+    function updatePosition() {
+      if (!active || !overlay) return;
+
+      const video = pickBestVideo();
+      if (!video || !video.isConnected) {
+        off();
+        return;
+      }
+
+      const rect = video.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) {
+        overlay.innerHTML = safeHTML(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${window.innerWidth} ${window.innerHeight}" preserveAspectRatio="none">
+          <rect width="100%" height="100%" fill="rgba(0,0,0,${OPACITY})"/>
+        </svg>`);
+      } else {
+        overlay.innerHTML = safeHTML(buildSVG(rect));
+      }
+
+      rafId = requestAnimationFrame(updatePosition);
+    }
+
+    function on() {
+      if (active) return;
+
+      const video = pickBestVideo();
+      if (!video) {
+        showOSD('조명 끄기: 비디오를 찾을 수 없습니다.', 1500);
+        return;
+      }
+
+      if (Maximizer.isActive()) {
+        showOSD('최대화 모드에서는 조명 끄기가 불필요합니다.', 1500);
+        return;
+      }
+
+      active = true;
+      createOverlay();
+
+      const rect = video.getBoundingClientRect();
+      overlay.innerHTML = safeHTML(buildSVG(rect));
+
+      requestAnimationFrame(() => {
+        if (overlay) overlay.classList.add('ytd-dim-visible');
+      });
+
+      rafId = requestAnimationFrame(updatePosition);
+
+      syncDimUI();
+      showOSD('조명 OFF (클릭 또는 ESC로 복원)', 1500);
+    }
+
+    function off() {
+      if (!active) return;
+      active = false;
+
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+
+      if (overlay) {
+        overlay.classList.remove('ytd-dim-visible');
+        const ov = overlay;
+        setTimeout(() => { ov.remove(); }, TRANSITION_MS);
+        overlay = null;
+      }
+
+      syncDimUI();
+      showOSD('조명 ON', 800);
+    }
+
+    function toggle() {
+      if (active) off(); else on();
+    }
+
+    function syncDimUI() {
+      if (dimFab) {
+        const isDim = active;
+        dimFab.style.borderColor = isDim ? '#f5c842' : '#2a2d36';
+        const svg = dimFab.querySelector('svg');
+        if (svg) {
+          const paths = svg.querySelectorAll('line, circle, path');
+          paths.forEach(p => p.style.stroke = isDim ? '#f5c842' : '#4a5060');
+        }
+      }
+    }
+
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && active) {
+        off();
+      }
+    }, { capture: true });
+
+    return {
+      toggle,
+      on,
+      off,
+      isActive: () => active
+    };
+  })();
+
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     ★ 좌우 반전 (Mirror) 모듈
+  ═════════════════════════════════════════════════════════════════════════ */
+  const Mirror = (() => {
+    let active = false;
+    let mirrorStyle = null;
+    const MIRROR_CLASS = 'ytd-mirror-flip';
+
+    function ensureStyle() {
+      if (mirrorStyle && mirrorStyle.isConnected) return;
+      mirrorStyle?.remove();
+      mirrorStyle = document.createElement('style');
+      mirrorStyle.id = '__ytd_mirror_style__';
+      mirrorStyle.textContent = `
+        .${MIRROR_CLASS} {
+          transform: scaleX(-1) !important;
+        }
+        /* 최대화 + 반전 동시 적용 시 */
+        .ytd-vmax-max.${MIRROR_CLASS} {
+          transform: scaleX(-1) !important;
+        }
+      `;
+      document.documentElement.appendChild(mirrorStyle);
+    }
+
+    function applyToVideo(video) {
+      if (!video || !video.isConnected) return;
+      ensureStyle();
+      if (!video.classList.contains(MIRROR_CLASS)) {
+        video.classList.add(MIRROR_CLASS);
+      }
+    }
+
+    function removeFromVideo(video) {
+      if (!video) return;
+      video.classList.remove(MIRROR_CLASS);
+    }
+
+    function applyToAll() {
+      const videos = getAllVideos();
+      for (const v of videos) applyToVideo(v);
+    }
+
+    function removeFromAll() {
+      const videos = getAllVideos();
+      for (const v of videos) removeFromVideo(v);
+      // 혹시 연결 끊긴 비디오에도 클래스가 남아있을 수 있으므로 전체 탐색
+      document.querySelectorAll('.' + MIRROR_CLASS).forEach(el => el.classList.remove(MIRROR_CLASS));
+    }
+
+    function on() {
+      if (active) return;
+      active = true;
+      ensureStyle();
+      applyToAll();
+      syncUI();
+      showOSD('좌우 반전 ON', 1200);
+    }
+
+    function off() {
+      if (!active) return;
+      active = false;
+      removeFromAll();
+      syncUI();
+      showOSD('좌우 반전 OFF', 1200);
+    }
+
+    function toggle() {
+      if (active) off(); else on();
+    }
+
+    // 새로운 비디오가 감지될 때 자동으로 반전 적용
+    function onNewVideo(video) {
+      if (active && video) {
+        applyToVideo(video);
+      }
+    }
+
+    function syncUI() {
+      if (mirrorFab) {
+        mirrorFab.style.borderColor = active ? '#00bcd4' : '#2a2d36';
+        const svg = mirrorFab.querySelector('svg');
+        if (svg) {
+          const paths = svg.querySelectorAll('path, polyline, line');
+          paths.forEach(p => p.style.stroke = active ? '#00bcd4' : '#4a5060');
+        }
+      }
+      const btn = document.getElementById('ytd-mirror');
+      if (btn) btn.style.color = active ? '#00bcd4' : '';
+    }
+
+    return {
+      toggle,
+      on,
+      off,
+      isActive: () => active,
+      onNewVideo,
+      syncUI
+    };
+  })();
+
+
+  /* ── FAB 빌드 (4개: Mirror, Dim, Max, Main) ─────────────────────── */
   function buildFab() {
     if (fab) return;
 
@@ -779,22 +1058,85 @@
     maxIconWrap.appendChild(maxSvg);
     maxFab.appendChild(maxIconWrap);
 
-    // DOM에 2개의 FAB 추가
+    // 3. 조명 끄기 (Dimmer) FAB — right: 105px
+    dimFab = document.createElement('div');
+    dimFab.className = 'ytd-fab ytd-fab--idle';
+    dimFab.style.display = 'none';
+    dimFab.style.right = '105px';
+    dimFab.title = "조명 끄기/켜기";
+
+    const dimIconWrap = document.createElement('div'); dimIconWrap.className = 'ytd-fab-icon';
+    const dimSvg = document.createElementNS(svgNS,'svg'); dimSvg.setAttribute('viewBox','0 0 24 24'); dimSvg.setAttribute('fill','none'); dimSvg.setAttribute('stroke-width','2'); dimSvg.setAttribute('stroke-linecap','round'); dimSvg.setAttribute('stroke-linejoin','round');
+    const bulbPath = document.createElementNS(svgNS, 'path');
+    bulbPath.setAttribute('d', 'M9,21h6 M10,17h4 M12,2a7,7 0 0 0-4,12.7V17h8v-2.3A7,7 0 0 0 12,2z');
+    bulbPath.style.stroke = '#4a5060';
+    bulbPath.style.fill = 'none';
+    dimSvg.appendChild(bulbPath);
+    dimIconWrap.appendChild(dimSvg);
+    dimFab.appendChild(dimIconWrap);
+
+    // 4. 좌우 반전 (Mirror) FAB — right: 155px
+    mirrorFab = document.createElement('div');
+    mirrorFab.className = 'ytd-fab ytd-fab--idle';
+    mirrorFab.style.display = 'none';
+    mirrorFab.style.right = '155px';
+    mirrorFab.title = "좌우 반전";
+
+    const mirrorIconWrap = document.createElement('div'); mirrorIconWrap.className = 'ytd-fab-icon';
+    const mirrorSvg = document.createElementNS(svgNS,'svg'); mirrorSvg.setAttribute('viewBox','0 0 24 24'); mirrorSvg.setAttribute('fill','none'); mirrorSvg.setAttribute('stroke-width','2'); mirrorSvg.setAttribute('stroke-linecap','round'); mirrorSvg.setAttribute('stroke-linejoin','round');
+    // 좌우 반전 아이콘: 양쪽 화살표
+    const mirrorPath1 = document.createElementNS(svgNS, 'polyline');
+    mirrorPath1.setAttribute('points', '7,8 3,12 7,16');
+    mirrorPath1.style.stroke = '#4a5060';
+    mirrorPath1.style.fill = 'none';
+    const mirrorPath2 = document.createElementNS(svgNS, 'polyline');
+    mirrorPath2.setAttribute('points', '17,8 21,12 17,16');
+    mirrorPath2.style.stroke = '#4a5060';
+    mirrorPath2.style.fill = 'none';
+    const mirrorLine1 = document.createElementNS(svgNS, 'line');
+    mirrorLine1.setAttribute('x1', '3'); mirrorLine1.setAttribute('y1', '12');
+    mirrorLine1.setAttribute('x2', '10'); mirrorLine1.setAttribute('y2', '12');
+    mirrorLine1.style.stroke = '#4a5060';
+    const mirrorLine2 = document.createElementNS(svgNS, 'line');
+    mirrorLine2.setAttribute('x1', '14'); mirrorLine2.setAttribute('y1', '12');
+    mirrorLine2.setAttribute('x2', '21'); mirrorLine2.setAttribute('y2', '12');
+    mirrorLine2.style.stroke = '#4a5060';
+    // 가운데 점선 (거울 축)
+    const mirrorCenter = document.createElementNS(svgNS, 'line');
+    mirrorCenter.setAttribute('x1', '12'); mirrorCenter.setAttribute('y1', '5');
+    mirrorCenter.setAttribute('x2', '12'); mirrorCenter.setAttribute('y2', '19');
+    mirrorCenter.setAttribute('stroke-dasharray', '2,2');
+    mirrorCenter.style.stroke = '#4a5060';
+    mirrorSvg.appendChild(mirrorPath1);
+    mirrorSvg.appendChild(mirrorPath2);
+    mirrorSvg.appendChild(mirrorLine1);
+    mirrorSvg.appendChild(mirrorLine2);
+    mirrorSvg.appendChild(mirrorCenter);
+    mirrorIconWrap.appendChild(mirrorSvg);
+    mirrorFab.appendChild(mirrorIconWrap);
+
+    // DOM에 4개의 FAB 추가
+    document.documentElement.appendChild(mirrorFab);
+    document.documentElement.appendChild(dimFab);
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
-    // FAB 공용 드래그 + 클릭 로직 (2개)
+    // FAB 공용 드래그 + 클릭 로직 (4개)
     let dragging=false, moved=false, dragStartX=0, dragStartY=0;
-    let fabX=0, fabY=0, maxX=0, maxY=0;
+    let fabX=0, fabY=0, maxX=0, maxY=0, dimX=0, dimY=0, mirX=0, mirY=0;
 
     const onDown = (e, targetEl) => {
       if(e.button!==0)return;
       dragging=true; moved=false;
       const rF = fab.getBoundingClientRect();
       const rM = maxFab.getBoundingClientRect();
+      const rD = dimFab.getBoundingClientRect();
+      const rMi = mirrorFab.getBoundingClientRect();
       dragStartX = e.clientX; dragStartY = e.clientY;
       fabX = rF.left; fabY = rF.top;
       maxX = rM.left; maxY = rM.top;
+      dimX = rD.left; dimY = rD.top;
+      mirX = rMi.left; mirY = rMi.top;
       targetEl.setPointerCapture(e.pointerId);
       e.preventDefault();
     };
@@ -806,11 +1148,15 @@
       moved = true;
       fab.style.left = (fabX+dx)+'px'; fab.style.top = (fabY+dy)+'px'; fab.style.right = 'auto';
       maxFab.style.left = (maxX+dx)+'px'; maxFab.style.top = (maxY+dy)+'px'; maxFab.style.right = 'auto';
+      dimFab.style.left = (dimX+dx)+'px'; dimFab.style.top = (dimY+dy)+'px'; dimFab.style.right = 'auto';
+      mirrorFab.style.left = (mirX+dx)+'px'; mirrorFab.style.top = (mirY+dy)+'px'; mirrorFab.style.right = 'auto';
     };
 
     const fabActions = new Map([
-      [fab,     () => togglePanel()],
-      [maxFab,  () => Maximizer.toggle()],
+      [fab,       () => togglePanel()],
+      [maxFab,    () => Maximizer.toggle()],
+      [dimFab,    () => Dimmer.toggle()],
+      [mirrorFab, () => Mirror.toggle()],
     ]);
 
     for (const [btn, action] of fabActions) {
@@ -834,6 +1180,8 @@
       <div id="ytd-hdr">
         <span>🔍 Tint Detector</span>
         <div style="display:flex; gap:6px;">
+          <button id="ytd-mirror" title="좌우 반전">↔</button>
+          <button id="ytd-dim" title="조명 끄기/켜기">💡</button>
           <button id="ytd-maximize" title="최대화/해제">🗖</button>
           <button id="ytd-refresh" title="재탐색">↺</button>
           <button id="ytd-close" title="닫기">✕</button>
@@ -894,9 +1242,14 @@
   function bindPanelEvents() {
     q('ytd-sel').addEventListener('change', () => { const videos = getAllVideos(); const v = videos[+q('ytd-sel').value]; if (v) startAnalysis(v); });
 
+    q('ytd-mirror').addEventListener('click', () => Mirror.toggle());
+    q('ytd-dim').addEventListener('click', () => Dimmer.toggle());
     q('ytd-maximize').addEventListener('click', () => Maximizer.toggle());
     q('ytd-refresh').addEventListener('click', refreshVideoList);
     q('ytd-close').addEventListener('click', () => togglePanel(false));
+
+    // 패널 열릴 때 Mirror UI 동기화
+    Mirror.syncUI();
 
     let dragging = false, dx = 0, dy = 0;
     q('ytd-hdr').addEventListener('pointerdown', e => { if (e.button !== 0) return; dragging = true; const r = panel.getBoundingClientRect(); dx = e.clientX - r.left; dy = e.clientY - r.top; e.target.setPointerCapture(e.pointerId); });
@@ -924,6 +1277,11 @@
     setInterval(() => {
       if (liveVideo && !liveVideo.isConnected) { liveVideo = null; }
       autoDetect();
+      // Mirror가 활성 상태면 새 비디오에도 자동 적용
+      if (Mirror.isActive()) {
+        const best = pickBestVideo();
+        if (best) Mirror.onNewVideo(best);
+      }
     }, 3000);
   }
 
