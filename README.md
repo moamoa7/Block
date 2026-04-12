@@ -25,7 +25,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 <br>
 
 ※ Video_Tools.js
-- 영상의 노란끼 감지 + 비디오 브라우저 최대화 + 항상 보이는 시계
+- 영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계 + Turn Off the Lights + 좌우 반전
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 ```
