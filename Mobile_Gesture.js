@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      66.07.0
+// @version      66.08.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
 // @author       Gemini & Claude
 // @license      MIT
@@ -14,6 +14,11 @@
 
 (function() {
     'use strict';
+
+    // ★ 모바일 환경 검사 — 데스크톱이면 즉시 종료
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent)
+        || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+    if (!isMobile) return;
 
     const CFG = {
         minDist: 10, longPress: 500, rateBase: 2.0, senseX: 0.25, senseY: 1.0,
@@ -149,10 +154,8 @@
         lockOrientation(dir);
     };
 
-    // --- 전체화면 전용 touch-action: none 셀렉터 ---
     const FS_TOUCH_LOCK_SELECTORS = ':fullscreen, :fullscreen *, .gt-fullscreen-active, .gt-fullscreen-active *, .gt-lock-touch-full';
 
-    // --- 일반 모드: pan-y 허용 (수직 스크롤 가능) ---
     const NORMAL_TOUCH_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, video';
 
     GM_addStyle(`
@@ -540,7 +543,6 @@
         let hit = identify(e); if (!hit || !hit.video) return;
         targetP = ensureUIAndWrapper(hit); targetV = hit.video;
 
-        // 전체화면일 때만 touch-action: none 클래스 부여
         const isFS = !!getFS() || targetP.classList.contains('gt-fullscreen-active');
         if (isFS) {
             if (!targetP.classList.contains('gt-lock-touch-full')) targetP.classList.add('gt-lock-touch-full');
@@ -691,7 +693,6 @@
 
         isTouch = false; targetV = null; action = null;
 
-        // 전체화면 전용 클래스 정리
         setTimeout(() => {
             if(endRoot) endRoot.classList.remove('gt-lock-touch-full');
             if(endVideo) endVideo.classList.remove('gt-lock-touch-full');
