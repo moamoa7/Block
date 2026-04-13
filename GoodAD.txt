@@ -4932,6 +4932,9 @@ duckduckgo.com#@#[class*="AD"]
 www.yahoo.co.jp#@#[class*="AD"]
 ! - https://www.baidu.com/ - 일부 아이콘 사라짐
 baidu.com#@#[class*="AD"]
+! - https://chzzk.naver.com/ - 메인 일부 영상 이미지 사라짐
+chzzk.naver.com#@#[class*="AD"]
+
 
 
 
