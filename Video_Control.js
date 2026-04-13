@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.9.3)
+// @name         Video_Control (v31.9.4)
 // @namespace    https://github.com/moamoa7
-// @version      31.9.3
-// @description  v31.9.3: 샤프닝 강도 상향 (cap/AUTO/desatMul 조정)
+// @version      31.9.4
+// @description  v31.9.4: 샤프닝 강도 추가 상향 (getSharpProfile/PRESETS.detail/AUTO 모드/desatMul/FHD 이하 autoBase 간소화)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -43,14 +43,11 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
   function getSharpProfile(nW) {
-    if (nW > 2560) return { cap: 0.25, diagRatio: 0.60, autoBase: 0.14 };
-    if (nW > 1920) return { cap: 0.22, diagRatio: 0.65, autoBase: 0.12 };
-    const autoBase = nW <= 640 ? 0.14
-                   : nW <= 960 ? 0.12
-                   : nW <= 1280 ? 0.12
-                   : 0.12;
-    return { cap: 0.20, diagRatio: 0.707, autoBase };
-  }
+  if (nW > 2560) return { cap: 0.32, diagRatio: 0.58, autoBase: 0.15 };
+  if (nW > 1920) return { cap: 0.27, diagRatio: 0.63, autoBase: 0.13 };
+  const autoBase = nW <= 640 ? 0.14 : 0.12;
+  return { cap: 0.24, diagRatio: 0.68, autoBase }; // diagRatio 0.707→0.68으로 낮춰 대각 링잉 감소
+}
   const SHARP_CAP_DEFAULT = 0.20;
 
   function onFsChange(fn) {
@@ -90,15 +87,15 @@
   }
 
   const PRESETS = Object.freeze({
-    detail: {
-      none: { label: 'OFF' },
-      off:  { label: 'AUTO' },
-      S:    { sharpAdd: 4,  sharp2Add: 2,  clarityAdd: 2,  label: '1단' },
-      M:    { sharpAdd: 7,  sharp2Add: 4,  clarityAdd: 4,  label: '2단' },
-      L:  { sharpAdd: 8,  sharp2Add: 4,  clarityAdd: 4,  label: '3단' },
-      XL: { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 4,  label: '4단' },
-    }
-  });
+  detail: {
+    none: { label: 'OFF' },
+    off:  { label: 'AUTO' },
+    S:  { sharpAdd: 4,  sharp2Add: 2,  clarityAdd: 2,  label: '1단' }, // LUT ≈ 0.060
+    M:  { sharpAdd: 7,  sharp2Add: 4,  clarityAdd: 3,  label: '2단' }, // LUT ≈ 0.111
+    L:  { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 4,  label: '3단' }, // LUT ≈ 0.146
+    XL: { sharpAdd: 13, sharp2Add: 6,  clarityAdd: 5,  label: '4단' }, // LUT ≈ 0.189
+  }
+});
   const _PRESET_SHARP_LUT = {};
   for (const [key, d] of Object.entries(PRESETS.detail)) {
     if (key === 'none' || key === 'off') continue;
@@ -141,7 +138,7 @@ const MANUAL_PRESETS = [
   { n: '텍스트선명', v: [ 0,  0,  4, -4,  0,  0,  -6,  20,   4] },
 
   // ── 색감/무드 ──
-  { n: '영화/드라마', v: [  4,  0, 12,   8,  2,   6,  6, -6,  8] },
+  { n: '영화/드라마', v: [  0,  0, 12,   8,  2,   6,  6, -6,  8] },
   { n: '애니(컬러팝)', v: [  0,  0,  6,  0,  0,  8,  4,  10,  3] },
   { n: '블버(일반)', v: [ 0,  0,  8, -4,  0, -6,  4,  12,   6] },
   { n: '블버(다크)', v: [ 0,  0,  10, -5,  0, -5,  10,  10,   10] },
@@ -1034,7 +1031,7 @@ const MANUAL_PRESETS = [
       const satInput = totalS >= 0.005 ? 'conv' : 'tmp';
       if (st.satInputKey !== satInput) { st.satInputKey = satInput; ctx2.fSat.setAttribute('in', satInput); }
 
-      const desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.06, 0.92, 1) : 1;
+      const desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.10, 0.88, 1) : 1;
       const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
       if (st.satKey !== satVal) { st.satKey = satVal; ctx2.fSat.setAttribute('values', satVal); }
 
@@ -1078,7 +1075,7 @@ const MANUAL_PRESETS = [
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
         out._sharpCap = sharpProfile.cap; out._diagRatio = sharpProfile.diagRatio;
 
-        if (presetS === 'off') { out.sharp = autoBase * 0.55 * platformScale; }
+        if (presetS === 'off') { out.sharp = autoBase * 0.65 * platformScale; }
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.25); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
         out.sharp = CLAMP(out.sharp, 0, sharpProfile.cap);
 
@@ -1544,7 +1541,7 @@ icon.appendChild(
       const btnUp = h('button', { class: 'fine-btn', style: 'font-size:14px;min-width:36px;min-height:36px' }, '▶');
       const resetBtn = h('button', { class: 'fine-btn', style: 'font-size:10px;min-width:36px;opacity:.6' }, '100');
 
-      const STEP = 1;
+      const STEP = 5;
       const MIN = 1;
       const MAX = 200;
 
