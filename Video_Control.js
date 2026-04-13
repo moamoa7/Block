@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Control (v31.9.4)
 // @namespace    https://github.com/moamoa7
-// @version      31.9.4
-// @description  v31.9.4: 샤프닝 강도 추가 상향 (getSharpProfile/PRESETS.detail/AUTO 모드/desatMul/FHD 이하 autoBase 간소화)
+// @version      31.9.5
+// @description  v31.9.5: 샤프닝 강도 추가 조정 (PC / 모바일 샤프닝 강도 상향)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.9.3';
+  const VSC_VERSION = '31.9.5';
   const DEBUG = false;
 
   const log = {
@@ -1071,12 +1071,18 @@ const MANUAL_PRESETS = [
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase, sharpProfile } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(0) };
-        const platformScale = IS_MOBILE ? 0.7 : 1.0;
-        const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
-        out._sharpCap = sharpProfile.cap; out._diagRatio = sharpProfile.diagRatio;
+        // ✅ 가장 단순하고 명확한 최종 코드
+        const platformScale = IS_MOBILE ? 0.85 : 1.0;
+        const finalMul      = mul * platformScale;          // PRESET_BASE 불필요
+        out._sharpCap  = sharpProfile.cap;
+        out._diagRatio = sharpProfile.diagRatio;
 
-        if (presetS === 'off') { out.sharp = autoBase * 0.65 * platformScale; }
-        else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.25); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
+        if (presetS === 'off') {
+          out.sharp = autoBase * 0.50 * platformScale;
+        } else if (presetS !== 'none') {
+          const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.25);
+          out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor;
+        }
         out.sharp = CLAMP(out.sharp, 0, sharpProfile.cap);
 
         const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD) ?? 0), 0, 100);
