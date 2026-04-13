@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      6.0.0
-// @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계 + Turn Off the Lights + 좌우 반전
+// @version      7.0.0
+// @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + Turn Off the Lights + 좌우 반전
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -22,7 +22,7 @@
   }
   function safeHTML(str) { return ttPolicy ? ttPolicy.createHTML(str) : str; }
 
-  const CFG = { sampleSize: 48, intervalMs: 1000, threshold: 12, histLen: 24, tempPerScore: 5 };
+  const CFG = { sampleSize: 48, intervalMs: 1000, threshold: 12, coldThreshold: -12, histLen: 24, tempPerScore: 5 };
 
   let timerID = null, clockTimer = null, liveVideo = null, shadowVid = null;
   let history = [], panel = null, fab = null, maxFab = null, dimFab = null, mirrorFab = null, fabStyle = null, panelStyle = null;
@@ -166,7 +166,26 @@
     v.play().catch(() => {}); shadowVid = v; return v;
   }
   function killShadow() { if (!shadowVid) return; shadowVid.src = ''; shadowVid.remove(); shadowVid = null; }
-  function scoreToTemp(score) { return score <= 0 ? 0 : -(Math.floor(score / CFG.tempPerScore)); }
+
+  /**
+   * score → 권장 색온도 보정값
+   * 양수 score = 노란끼 → 음수 보정 (색온도 낮춤)
+   * 음수 score = 청색끼 → 양수 보정 (색온도 올림)
+   */
+  function scoreToTemp(score) {
+    if (Math.abs(score) < 1) return 0;
+    return -(Math.round(score / CFG.tempPerScore));
+  }
+
+  /**
+   * score → tint 상태 분류
+   * 'warm' = 노란끼, 'cold' = 청색끼, 'ok' = 정상
+   */
+  function classifyTint(score) {
+    if (score > CFG.threshold) return 'warm';
+    if (score < CFG.coldThreshold) return 'cold';
+    return 'ok';
+  }
 
   /* ── 시계 & FAB 상태 ─────────────────────────────────── */
   function updateClock() {
@@ -183,7 +202,7 @@
     if (scoreEl) {
       if (status === 'idle') scoreEl.textContent = '';
       else if (status === 'error') scoreEl.textContent = '!';
-      else { const t = scoreToTemp(score); scoreEl.textContent = t === 0 ? '0' : String(t); }
+      else { const t = scoreToTemp(score); scoreEl.textContent = t === 0 ? '0' : (t > 0 ? '+' + t : String(t)); }
     }
     fab.className = 'ytd-fab ytd-fab--' + status;
   }
@@ -239,7 +258,6 @@
       stopAnalysis();
     }
 
-    // 전체화면 진입 시 Dimmer 해제
     if (isFullscreen() && Dimmer.isActive()) {
       Dimmer.off();
     }
@@ -283,7 +301,12 @@
     if (panelOpen) clearError();
     shadowRetries = 0;
     history.push(res); if (history.length > CFG.histLen) history.shift();
-    updateFabState(res.score > CFG.threshold ? 'warn' : 'ok', res.score);
+
+    const tint = classifyTint(res.score);
+    if (tint === 'warm') updateFabState('warn', res.score);
+    else if (tint === 'cold') updateFabState('cold', res.score);
+    else updateFabState('ok', res.score);
+
     if (panelOpen && panel) { renderUI(res); drawGraph(); }
   }
 
@@ -297,14 +320,26 @@
     q('gb').style.width = pct(g); q('gv').textContent = Math.round(g);
     q('bb').style.width = pct(b); q('bv').textContent = Math.round(b);
     q('sv').textContent = score.toFixed(1);
+
     const bd = q('ytd-badge');
-    if (score > CFG.threshold) { bd.textContent = '⚠️  노란끼 감지됨'; bd.className = 'warn'; }
+    const tint = classifyTint(score);
+    if (tint === 'warm') { bd.textContent = '⚠️  노란끼 감지됨'; bd.className = 'warn'; }
+    else if (tint === 'cold') { bd.textContent = '🧊  청색끼 감지됨'; bd.className = 'cold'; }
     else { bd.textContent = '✅  색조 정상'; bd.className = 'ok'; }
+
     const tempEl = q('ytd-temp');
     if (tempEl) {
       const temp = scoreToTemp(score);
-      if (temp === 0) { tempEl.textContent = '권장 색온도 보정: 불필요'; tempEl.className = 'ytd-temp ok'; }
-      else { tempEl.textContent = `권장 색온도 보정: ${temp}`; tempEl.className = 'ytd-temp ' + (Math.abs(temp) >= 3 ? 'warn' : 'mild'); }
+      if (temp === 0) {
+        tempEl.textContent = '권장 색온도 보정: 불필요';
+        tempEl.className = 'ytd-temp ok';
+      } else if (temp > 0) {
+        tempEl.textContent = `권장 색온도 보정: +${temp} (따뜻하게)`;
+        tempEl.className = 'ytd-temp ' + (Math.abs(temp) >= 3 ? 'cold-warn' : 'cold-mild');
+      } else {
+        tempEl.textContent = `권장 색온도 보정: ${temp} (차갑게)`;
+        tempEl.className = 'ytd-temp ' + (Math.abs(temp) >= 3 ? 'warn' : 'mild');
+      }
     }
   }
 
@@ -313,17 +348,57 @@
     const gx = gc.getContext('2d'), W = gc.width, H = gc.height;
     gx.clearRect(0, 0, W, H); if (history.length < 2) return;
     const scores = history.map(d => d.score);
-    const hi = Math.max(CFG.threshold * 2.2, ...scores), lo = Math.min(0, ...scores), rng = hi - lo || 1;
+    const maxAbs = Math.max(CFG.threshold * 2.2, Math.abs(CFG.coldThreshold) * 2.2, ...scores.map(s => Math.abs(s)));
+    const hi = maxAbs, lo = -maxAbs, rng = hi - lo || 1;
     const ty = s => H - ((s - lo) / rng * (H - 10)) - 5;
     const tx = i => (i / (CFG.histLen - 1)) * W;
     const ox = CFG.histLen - history.length;
-    gx.strokeStyle = 'rgba(245,200,66,.2)'; gx.lineWidth = 1; gx.setLineDash([3,4]);
-    gx.beginPath(); gx.moveTo(0, ty(CFG.threshold)); gx.lineTo(W, ty(CFG.threshold)); gx.stroke(); gx.setLineDash([]);
+
+    // 0 기준선 (중앙)
+    gx.strokeStyle = 'rgba(200,200,200,.12)'; gx.lineWidth = 1; gx.setLineDash([2,3]);
+    gx.beginPath(); gx.moveTo(0, ty(0)); gx.lineTo(W, ty(0)); gx.stroke();
+
+    // 노란끼 임계선
+    gx.strokeStyle = 'rgba(245,200,66,.2)';
+    gx.beginPath(); gx.moveTo(0, ty(CFG.threshold)); gx.lineTo(W, ty(CFG.threshold)); gx.stroke();
+
+    // 청색끼 임계선
+    gx.strokeStyle = 'rgba(80,160,240,.2)';
+    gx.beginPath(); gx.moveTo(0, ty(CFG.coldThreshold)); gx.lineTo(W, ty(CFG.coldThreshold)); gx.stroke();
+    gx.setLineDash([]);
+
+    // 면적 채우기 (양수는 노란색, 음수는 파란색)
+    // 양수 영역
+    gx.beginPath();
+    history.forEach((d, i) => {
+      const y = ty(Math.max(0, d.score));
+      i === 0 ? gx.moveTo(tx(i+ox), y) : gx.lineTo(tx(i+ox), y);
+    });
+    gx.lineTo(tx(ox+history.length-1), ty(0)); gx.lineTo(tx(ox), ty(0)); gx.closePath();
+    const warmGrad = gx.createLinearGradient(0, ty(hi), 0, ty(0));
+    warmGrad.addColorStop(0, 'rgba(245,200,66,.28)'); warmGrad.addColorStop(1, 'rgba(245,200,66,.02)');
+    gx.fillStyle = warmGrad; gx.fill();
+
+    // 음수 영역
+    gx.beginPath();
+    history.forEach((d, i) => {
+      const y = ty(Math.min(0, d.score));
+      i === 0 ? gx.moveTo(tx(i+ox), y) : gx.lineTo(tx(i+ox), y);
+    });
+    gx.lineTo(tx(ox+history.length-1), ty(0)); gx.lineTo(tx(ox), ty(0)); gx.closePath();
+    const coldGrad = gx.createLinearGradient(0, ty(0), 0, ty(lo));
+    coldGrad.addColorStop(0, 'rgba(80,160,240,.02)'); coldGrad.addColorStop(1, 'rgba(80,160,240,.28)');
+    gx.fillStyle = coldGrad; gx.fill();
+
+    // 선
     gx.beginPath(); history.forEach((d, i) => i === 0 ? gx.moveTo(tx(i+ox), ty(d.score)) : gx.lineTo(tx(i+ox), ty(d.score)));
-    const grad = gx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'rgba(245,200,66,.28)'); grad.addColorStop(1,'rgba(245,200,66,.02)');
-    gx.lineTo(tx(ox+history.length-1),H); gx.lineTo(tx(ox),H); gx.closePath(); gx.fillStyle = grad; gx.fill();
-    gx.beginPath(); history.forEach((d, i) => i === 0 ? gx.moveTo(tx(i+ox), ty(d.score)) : gx.lineTo(tx(i+ox), ty(d.score)));
-    gx.strokeStyle = '#f5c842'; gx.lineWidth = 1.5; gx.stroke();
+    // 동적 선 색상: 마지막 값 기준
+    const lastScore = history[history.length - 1].score;
+    const tint = classifyTint(lastScore);
+    if (tint === 'warm') gx.strokeStyle = '#f5c842';
+    else if (tint === 'cold') gx.strokeStyle = '#50a0f0';
+    else gx.strokeStyle = '#50d070';
+    gx.lineWidth = 1.5; gx.stroke();
   }
 
   function setStatus(txt, active) { const el = q('ytd-st'); if (!el) return; el.textContent = txt; el.className = active ? 'on' : ''; }
@@ -517,7 +592,6 @@
     }
 
     function doMaximizeDirect(video) {
-      // 최대화 시 Dimmer 해제
       if (Dimmer.isActive()) Dimmer.off();
 
       targetVideo = video;
@@ -887,7 +961,6 @@
         .${MIRROR_CLASS} {
           transform: scaleX(-1) !important;
         }
-        /* 최대화 + 반전 동시 적용 시 */
         .ytd-vmax-max.${MIRROR_CLASS} {
           transform: scaleX(-1) !important;
         }
@@ -916,7 +989,6 @@
     function removeFromAll() {
       const videos = getAllVideos();
       for (const v of videos) removeFromVideo(v);
-      // 혹시 연결 끊긴 비디오에도 클래스가 남아있을 수 있으므로 전체 탐색
       document.querySelectorAll('.' + MIRROR_CLASS).forEach(el => el.classList.remove(MIRROR_CLASS));
     }
 
@@ -941,7 +1013,6 @@
       if (active) off(); else on();
     }
 
-    // 새로운 비디오가 감지될 때 자동으로 반전 적용
     function onNewVideo(video) {
       if (active && video) {
         applyToVideo(video);
@@ -1017,19 +1088,27 @@
       .ytd-fab--warn .ytd-fab-dot{background:#f5c842;box-shadow:0 0 8px rgba(245,200,66,.7);animation:ytd-dot-blink 1s ease-in-out infinite}
       .ytd-fab--warn .ytd-fab-score{color:#f5c842;border-color:#4a3800;background:#1f1a08}
       .ytd-fab--warn .ytd-fab-clock{color:#f5c842}
+      .ytd-fab--cold{border-color:#50a0f0;box-shadow:0 0 16px rgba(80,160,240,.25),0 0 40px rgba(80,160,240,.08),0 4px 16px rgba(0,0,0,.5);animation:ytd-fab-pulse-cold 1.8s ease-in-out infinite}
+      .ytd-fab--cold .ytd-fab-icon svg{fill:none;stroke:#50a0f0}
+      .ytd-fab--cold .ytd-fab-ring{border-color:rgba(80,160,240,.35);box-shadow:0 0 12px rgba(80,160,240,.15);animation:ytd-ring-pulse-cold 1.8s ease-in-out infinite}
+      .ytd-fab--cold .ytd-fab-dot{background:#50a0f0;box-shadow:0 0 8px rgba(80,160,240,.7);animation:ytd-dot-blink 1s ease-in-out infinite}
+      .ytd-fab--cold .ytd-fab-score{color:#50a0f0;border-color:#0a2a4a;background:#081828}
+      .ytd-fab--cold .ytd-fab-clock{color:#50a0f0}
       .ytd-fab--error{border-color:#3a1515}
       .ytd-fab--error .ytd-fab-icon svg{fill:none;stroke:#e06060}
       .ytd-fab--error .ytd-fab-dot{background:#e06060;box-shadow:0 0 6px rgba(224,96,96,.5)}
       .ytd-fab--error .ytd-fab-score{color:#e06060;border-color:#3a1515}
       .ytd-fab--error .ytd-fab-clock{color:#e06060}
       @keyframes ytd-fab-pulse{0%,100%{box-shadow:0 0 16px rgba(245,200,66,.25),0 0 40px rgba(245,200,66,.08),0 4px 16px rgba(0,0,0,.5)}50%{box-shadow:0 0 24px rgba(245,200,66,.4),0 0 60px rgba(245,200,66,.12),0 4px 16px rgba(0,0,0,.5)}}
+      @keyframes ytd-fab-pulse-cold{0%,100%{box-shadow:0 0 16px rgba(80,160,240,.25),0 0 40px rgba(80,160,240,.08),0 4px 16px rgba(0,0,0,.5)}50%{box-shadow:0 0 24px rgba(80,160,240,.4),0 0 60px rgba(80,160,240,.12),0 4px 16px rgba(0,0,0,.5)}}
       @keyframes ytd-ring-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.6}}
+      @keyframes ytd-ring-pulse-cold{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.6}}
       @keyframes ytd-dot-blink{0%,100%{opacity:1}50%{opacity:.3}}`;
     document.documentElement.appendChild(fabStyle);
 
     const svgNS = 'http://www.w3.org/2000/svg';
 
-    // 1. 메인 FAB (색상 감지 및 패널 열기) — right: 5px
+    // 1. 메인 FAB (색상 감지 및 패널 열기)
     fab = document.createElement('div'); fab.className = 'ytd-fab ytd-fab--idle'; fab.style.display = 'none';
     const iconWrap = document.createElement('div'); iconWrap.className = 'ytd-fab-icon';
     const svg = document.createElementNS(svgNS,'svg'); svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none'); svg.setAttribute('stroke-width','2'); svg.setAttribute('stroke-linecap','round'); svg.setAttribute('stroke-linejoin','round');
@@ -1042,7 +1121,7 @@
     fab.appendChild(Object.assign(document.createElement('span'),{className:'ytd-fab-score'}));
     const clockSpan = document.createElement('span'); clockSpan.className = 'ytd-fab-clock'; clockSpan.textContent = '--:--'; fab.appendChild(clockSpan);
 
-    // 2. 최대화 (Maximizer) FAB — right: 55px
+    // 2. 최대화 FAB
     maxFab = document.createElement('div');
     maxFab.className = 'ytd-fab ytd-fab--idle';
     maxFab.style.display = 'none';
@@ -1058,7 +1137,7 @@
     maxIconWrap.appendChild(maxSvg);
     maxFab.appendChild(maxIconWrap);
 
-    // 3. 조명 끄기 (Dimmer) FAB — right: 105px
+    // 3. 조명 끄기 FAB
     dimFab = document.createElement('div');
     dimFab.className = 'ytd-fab ytd-fab--idle';
     dimFab.style.display = 'none';
@@ -1075,7 +1154,7 @@
     dimIconWrap.appendChild(dimSvg);
     dimFab.appendChild(dimIconWrap);
 
-    // 4. 좌우 반전 (Mirror) FAB — right: 155px
+    // 4. 좌우 반전 FAB
     mirrorFab = document.createElement('div');
     mirrorFab.className = 'ytd-fab ytd-fab--idle';
     mirrorFab.style.display = 'none';
@@ -1084,7 +1163,6 @@
 
     const mirrorIconWrap = document.createElement('div'); mirrorIconWrap.className = 'ytd-fab-icon';
     const mirrorSvg = document.createElementNS(svgNS,'svg'); mirrorSvg.setAttribute('viewBox','0 0 24 24'); mirrorSvg.setAttribute('fill','none'); mirrorSvg.setAttribute('stroke-width','2'); mirrorSvg.setAttribute('stroke-linecap','round'); mirrorSvg.setAttribute('stroke-linejoin','round');
-    // 좌우 반전 아이콘: 양쪽 화살표
     const mirrorPath1 = document.createElementNS(svgNS, 'polyline');
     mirrorPath1.setAttribute('points', '7,8 3,12 7,16');
     mirrorPath1.style.stroke = '#4a5060';
@@ -1101,7 +1179,6 @@
     mirrorLine2.setAttribute('x1', '14'); mirrorLine2.setAttribute('y1', '12');
     mirrorLine2.setAttribute('x2', '21'); mirrorLine2.setAttribute('y2', '12');
     mirrorLine2.style.stroke = '#4a5060';
-    // 가운데 점선 (거울 축)
     const mirrorCenter = document.createElementNS(svgNS, 'line');
     mirrorCenter.setAttribute('x1', '12'); mirrorCenter.setAttribute('y1', '5');
     mirrorCenter.setAttribute('x2', '12'); mirrorCenter.setAttribute('y2', '19');
@@ -1115,13 +1192,12 @@
     mirrorIconWrap.appendChild(mirrorSvg);
     mirrorFab.appendChild(mirrorIconWrap);
 
-    // DOM에 4개의 FAB 추가
     document.documentElement.appendChild(mirrorFab);
     document.documentElement.appendChild(dimFab);
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
-    // FAB 공용 드래그 + 클릭 로직 (4개)
+    // FAB 공용 드래그 + 클릭
     let dragging=false, moved=false, dragStartX=0, dragStartY=0;
     let fabX=0, fabY=0, maxX=0, maxY=0, dimX=0, dimY=0, mirX=0, mirY=0;
 
@@ -1193,9 +1269,9 @@
         <div class="row"><span>G</span><div class="trk"><div id="gb" class="fill" style="background:#5ab85a"></div></div><span id="gv">—</span></div>
         <div class="row"><span>B</span><div class="trk"><div id="bb" class="fill" style="background:#5090e0"></div></div><span id="bv">—</span></div>
       </div>
-      <div id="ytd-score"><span>Yellow Score</span><b id="sv">—</b></div>
+      <div id="ytd-score"><span>Tint Score</span><b id="sv">—</b></div>
       <div id="ytd-temp" class="ytd-temp">권장 색온도 보정: —</div>
-      <canvas id="ytd-gc" width="216" height="52"></canvas>
+      <canvas id="ytd-gc" width="216" height="64"></canvas>
       <div id="ytd-foot"><select id="ytd-sel"></select><span id="ytd-st">대기</span></div>
       <div id="ytd-err"></div>`);
     getFsRoot().appendChild(el);
@@ -1208,6 +1284,7 @@
       #ytd-hdr button:hover{color:#ccd0d8}
       #ytd-badge{margin:9px 10px 2px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-align:center;background:#1a1d24;color:#7a8499;transition:background .25s,color .25s}
       #ytd-badge.warn{background:#2c1f00;color:#f5c842}
+      #ytd-badge.cold{background:#0a1a2c;color:#50a0f0}
       #ytd-badge.ok{background:#0b1f10;color:#50d070}
       #ytd-badge.err{background:#200a0a;color:#e06060}
       #ytd-bars{padding:7px 10px 4px;display:flex;flex-direction:column;gap:5px}
@@ -1219,7 +1296,11 @@
       #ytd-score{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-top:1px solid #1a1d24;margin-top:3px;font-size:10px;color:#4a5060}
       #ytd-score b{font-size:14px;color:#ccd0d8}
       .ytd-temp{font-size:11px;font-weight:600;text-align:center;padding:4px 10px;margin:2px 10px;border-radius:5px;background:#1a1d24;color:#7a8499;transition:all .25s}
-      .ytd-temp.ok{color:#50d070}.ytd-temp.mild{color:#d4a84a}.ytd-temp.warn{color:#f5c842;background:#2c1f00}
+      .ytd-temp.ok{color:#50d070}
+      .ytd-temp.mild{color:#d4a84a}
+      .ytd-temp.warn{color:#f5c842;background:#2c1f00}
+      .ytd-temp.cold-mild{color:#70b0e0}
+      .ytd-temp.cold-warn{color:#50a0f0;background:#0a1a2c}
       #ytd-gc{display:block;margin:4px 10px 6px;width:calc(100% - 20px);background:#0b0d10;border-radius:4px}
       #ytd-foot{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;border-top:1px solid #252830;background:#181b21}
       #ytd-sel{flex:1;max-width:134px;background:#1a1d24;color:#7a8499;border:1px solid #252830;border-radius:4px;font-size:10px;padding:2px 4px}
@@ -1248,7 +1329,6 @@
     q('ytd-refresh').addEventListener('click', refreshVideoList);
     q('ytd-close').addEventListener('click', () => togglePanel(false));
 
-    // 패널 열릴 때 Mirror UI 동기화
     Mirror.syncUI();
 
     let dragging = false, dx = 0, dy = 0;
@@ -1277,7 +1357,6 @@
     setInterval(() => {
       if (liveVideo && !liveVideo.isConnected) { liveVideo = null; }
       autoDetect();
-      // Mirror가 활성 상태면 새 비디오에도 자동 적용
       if (Mirror.isActive()) {
         const best = pickBestVideo();
         if (best) Mirror.onNewVideo(best);
