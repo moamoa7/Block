@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Video_Control (v31.9.4)
+// @name         Video_Control (v31.9.5)
 // @namespace    https://github.com/moamoa7
 // @version      31.9.5
 // @description  v31.9.5: 샤프닝 강도 추가 조정 (PC / 모바일 샤프닝 강도 상향)
