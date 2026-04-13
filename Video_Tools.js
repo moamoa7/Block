@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      7.0.0
+// @version      7.0.1
 // @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + Turn Off the Lights + 좌우 반전
 // @match        *://*/*
 // @grant        none
@@ -196,16 +196,18 @@
   }
   function startClock() { if (clockTimer) return; updateClock(); clockTimer = setInterval(updateClock, 1000); }
 
-  function updateFabState(status, score) {
+   function updateFabState(status, score) {
     if (!fab) return; lastStatus = status;
     const scoreEl = fab.querySelector('.ytd-fab-score');
     if (scoreEl) {
       if (status === 'idle') scoreEl.textContent = '';
       else if (status === 'error') scoreEl.textContent = '!';
-      else { const t = scoreToTemp(score); scoreEl.textContent = t === 0 ? '0' : (t > 0 ? '+' + t : String(t)); }
+      else if (status === 'ok') scoreEl.textContent = '0';
+      else { const t = scoreToTemp(score); scoreEl.textContent = t > 0 ? '+' + t : String(t); }
     }
     fab.className = 'ytd-fab ytd-fab--' + status;
   }
+
 
   function setFabVisible(show) {
     if (!fab) return;
@@ -313,7 +315,7 @@
   /* ── 패널 UI 업데이트 ────────────────────────────────── */
   function q(id) { return panel?.querySelector('#' + id); }
 
-  function renderUI({ r, g, b, score }) {
+    function renderUI({ r, g, b, score }) {
     const pct = v => (v / 255 * 100).toFixed(1) + '%';
     const rb = q('rb'); if (!rb) return;
     rb.style.width = pct(r); q('rv').textContent = Math.round(r);
@@ -329,19 +331,23 @@
 
     const tempEl = q('ytd-temp');
     if (tempEl) {
-      const temp = scoreToTemp(score);
-      if (temp === 0) {
+      if (tint === 'ok') {
+        // 정상 범위 → 보정 불필요
         tempEl.textContent = '권장 색온도 보정: 불필요';
         tempEl.className = 'ytd-temp ok';
-      } else if (temp > 0) {
-        tempEl.textContent = `권장 색온도 보정: +${temp} (따뜻하게)`;
-        tempEl.className = 'ytd-temp ' + (Math.abs(temp) >= 3 ? 'cold-warn' : 'cold-mild');
       } else {
-        tempEl.textContent = `권장 색온도 보정: ${temp} (차갑게)`;
-        tempEl.className = 'ytd-temp ' + (Math.abs(temp) >= 3 ? 'warn' : 'mild');
+        const temp = scoreToTemp(score);
+        if (tint === 'warm') {
+          tempEl.textContent = `권장 색온도 보정: ${temp} (차갑게)`;
+          tempEl.className = 'ytd-temp ' + (Math.abs(temp) >= 3 ? 'warn' : 'mild');
+        } else {
+          tempEl.textContent = `권장 색온도 보정: +${temp} (따뜻하게)`;
+          tempEl.className = 'ytd-temp ' + (Math.abs(temp) >= 3 ? 'cold-warn' : 'cold-mild');
+        }
       }
     }
   }
+
 
   function drawGraph() {
     const gc = q('ytd-gc'); if (!gc) return;
