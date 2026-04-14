@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      8.2.0
+// @version      8.3.0
 // @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + Turn Off the Lights + 좌우 반전 + 확대/축소
 // @match        *://*/*
 // @grant        none
@@ -37,13 +37,16 @@
   }
   resetCanvas();
 
-  /* ── 모바일 / 전체화면 판별 ─────────────────────────── */
+  /* ── 모바일 / 전체화면 / iframe 판별 ───────────────── */
   function isMobile() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
            (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
   }
   function isFullscreen() {
     return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+  function isInIframe() {
+    try { return window !== window.top; } catch (_) { return true; }
   }
   function shouldAnalyze() {
     if (!isMobile()) return true;
@@ -199,33 +202,56 @@
     fab.className = 'ytd-fab ytd-fab--' + status;
   }
 
+  /* ═════════════════════════════════════════════════════════════════════════
+     ★ FAB 동적 위치 계산
+     — 보이는 FAB만 오른쪽부터 순서대로 배치 (간격 50px)
+     — 숨겨진 FAB은 건너뛰어 빈 공간 없이 정렬
+  ═════════════════════════════════════════════════════════════════════════ */
+  const FAB_START_RIGHT = 5;   // 가장 오른쪽 FAB의 right 값
+  const FAB_GAP = 50;          // FAB 간 간격
+
+  function layoutFabs() {
+    // 오른쪽→왼쪽 순서로 배치할 FAB 목록 (main이 가장 오른쪽)
+    const ordered = [fab, maxFab, dimFab, mirrorFab, zoomFab];
+    let pos = 0;
+    for (const f of ordered) {
+      if (!f) continue;
+      if (f.style.display === 'none') continue;
+      // 드래그로 위치가 변경된 경우(left가 설정된 경우) 레이아웃 건너뜀
+      if (f.style.left && f.style.left !== 'auto') continue;
+      f.style.right = (FAB_START_RIGHT + FAB_GAP * pos) + 'px';
+      pos++;
+    }
+  }
+
   function setFabVisible(show) {
     if (!fab) return;
+    const mobile = isMobile();
+    const iframe = isInIframe();
     const showMainFab = show && shouldAnalyze();
+
     if (showMainFab) {
       if (fab.style.display === 'none') fab.style.display = '';
     } else {
       if (fab.style.display !== 'none') fab.style.display = 'none';
       if (panelOpen) togglePanel(false);
     }
+
     if (show) {
-      if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
-      if (dimFab && dimFab.style.display === 'none') dimFab.style.display = '';
-      if (mirrorFab && mirrorFab.style.display === 'none') mirrorFab.style.display = '';
-      /* ── 모바일이면 줌 FAB 항상 숨김 ── */
-      if (zoomFab) {
-        if (isMobile()) {
-          if (zoomFab.style.display !== 'none') zoomFab.style.display = 'none';
-        } else {
-          if (zoomFab.style.display === 'none') zoomFab.style.display = '';
-        }
-      }
+      if (maxFab) maxFab.style.display = '';
+      // Dimmer: iframe 안에서는 숨김
+      if (dimFab) dimFab.style.display = iframe ? 'none' : '';
+      if (mirrorFab) mirrorFab.style.display = '';
+      // Zoom: 모바일에서는 숨김
+      if (zoomFab) zoomFab.style.display = mobile ? 'none' : '';
     } else {
-      if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
-      if (dimFab && dimFab.style.display !== 'none') dimFab.style.display = 'none';
-      if (mirrorFab && mirrorFab.style.display !== 'none') mirrorFab.style.display = 'none';
-      if (zoomFab && zoomFab.style.display !== 'none') zoomFab.style.display = 'none';
+      if (maxFab) maxFab.style.display = 'none';
+      if (dimFab) dimFab.style.display = 'none';
+      if (mirrorFab) mirrorFab.style.display = 'none';
+      if (zoomFab) zoomFab.style.display = 'none';
     }
+
+    layoutFabs();
   }
 
   function getFsRoot() {
@@ -235,22 +261,20 @@
   }
   function reparent() {
     const target = getFsRoot();
-    if (fab && fab.parentNode !== target) try { target.appendChild(fab); } catch (_) {}
-    if (maxFab && maxFab.parentNode !== target) try { target.appendChild(maxFab); } catch (_) {}
-    if (dimFab && dimFab.parentNode !== target) try { target.appendChild(dimFab); } catch (_) {}
-    if (mirrorFab && mirrorFab.parentNode !== target) try { target.appendChild(mirrorFab); } catch (_) {}
-    if (zoomFab && zoomFab.parentNode !== target) try { target.appendChild(zoomFab); } catch (_) {}
+    const allFabs = [fab, maxFab, dimFab, mirrorFab, zoomFab];
+    for (const f of allFabs) {
+      if (f && f.parentNode !== target) try { target.appendChild(f); } catch (_) {}
+    }
     if (panel && panelOpen && panel.parentNode !== target) try { target.appendChild(panel); } catch (_) {}
   }
   function onFsChange() {
     reparent();
     setTimeout(reparent, 120);
     setTimeout(() => {
-      if (fab && !fab.isConnected) document.documentElement.appendChild(fab);
-      if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
-      if (dimFab && !dimFab.isConnected) document.documentElement.appendChild(dimFab);
-      if (mirrorFab && !mirrorFab.isConnected) document.documentElement.appendChild(mirrorFab);
-      if (zoomFab && !zoomFab.isConnected) document.documentElement.appendChild(zoomFab);
+      const allFabs = [fab, maxFab, dimFab, mirrorFab, zoomFab];
+      for (const f of allFabs) {
+        if (f && !f.isConnected) document.documentElement.appendChild(f);
+      }
     }, 300);
 
     const best = pickBestVideo();
@@ -265,9 +289,8 @@
       Dimmer.off();
     }
 
-    // 전체화면 해제 시 줌 리셋
     if (!isFullscreen() && Zoom.isActive()) {
-      Zoom.reset(true); // silent reset
+      Zoom.reset(true);
     }
   }
 
@@ -468,8 +491,6 @@
 
   /* ═════════════════════════════════════════════════════════════════════════
      ★ 통합 Transform 헬퍼
-     Mirror + Zoom 이 동시에 video.style.transform 을 쓰므로
-     하나의 함수에서 결합하여 적용한다.
   ═════════════════════════════════════════════════════════════════════════ */
   function applyVideoTransform(video) {
     if (!video) return;
@@ -509,10 +530,6 @@
     let hiddenSiblings = [];
     let savedScrollX = 0, savedScrollY = 0;
     let classMO = null;
-
-    function isInIframe() {
-      try { return window !== window.top; } catch (_) { return true; }
-    }
 
     function findIframeForWindow(childWin) {
       try {
@@ -801,6 +818,7 @@
 
   /* ═════════════════════════════════════════════════════════════════════════
      ★ Turn Off the Lights (Dimmer) 모듈
+     — iframe 안에서는 비활성
   ═════════════════════════════════════════════════════════════════════════ */
   const Dimmer = (() => {
     let active = false;
@@ -854,6 +872,10 @@
 
     function on() {
       if (active) return;
+      if (isInIframe()) {
+        showOSD('프레임 영상에서는 조명 끄기를 사용할 수 없습니다.', 1500);
+        return;
+      }
       const video = pickBestVideo();
       if (!video) { showOSD('조명 끄기: 비디오를 찾을 수 없습니다.', 1500); return; }
       if (Maximizer.isActive()) { showOSD('최대화 모드에서는 조명 끄기가 불필요합니다.', 1500); return; }
@@ -942,10 +964,7 @@
 
   /* ═════════════════════════════════════════════════════════════════════════
      ★ 확대/축소 (Zoom) 모듈
-     — 데스크톱 전용: Alt+휠 / FAB 탭 단계 순환
-     — 모바일에서는 완전 비활성 (Mobile Gesture 스크립트가 핀치 줌 담당)
-     — 확대 시 Alt+좌클릭 드래그로 팬(pan) 이동
-     — 비디오 영역만 확대, 페이지 전체는 영향 없음
+     — 데스크톱 전용 (모바일은 Mobile Gesture 스크립트의 핀치 줌 사용)
   ═════════════════════════════════════════════════════════════════════════ */
   const Zoom = (() => {
     let scale = 1.0;
@@ -970,7 +989,7 @@
     }
 
     function setScale(newScale, video, silent) {
-      if (isMobile()) return; // 모바일에서는 줌 무시
+      if (isMobile()) return;
       const prev = scale;
       scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.round(newScale * 100) / 100));
       if (scale <= 1.05) { scale = 1.0; panX = 0; panY = 0; }
@@ -992,7 +1011,7 @@
     }
 
     function cycleStep() {
-      if (isMobile()) return; // 모바일에서는 줌 무시
+      if (isMobile()) return;
       const video = pickBestVideo();
       if (!video) { showOSD('확대/축소: 비디오를 찾을 수 없습니다.', 1500); return; }
       let nextIdx = 0;
@@ -1003,9 +1022,8 @@
       setScale(STEPS[nextIdx], video);
     }
 
-    // Alt+휠 확대/축소
     function onWheel(e) {
-      if (isMobile()) return; // 모바일에서는 줌 무시
+      if (isMobile()) return;
       if (!e.altKey) return;
       const video = pickBestVideo();
       if (!video) return;
@@ -1018,7 +1036,6 @@
       setScale(scale + delta, video);
     }
 
-    // Alt+좌클릭 드래그로 팬 이동
     function onMouseDown(e) {
       if (isMobile()) return;
       if (scale <= 1.05) return;
@@ -1081,14 +1098,12 @@
       if (btn) btn.style.color = isZoomed ? '#e040fb' : '';
     }
 
-    // ESC로 줌 리셋 (Maximizer가 비활성일 때)
     window.addEventListener('keydown', e => {
       if (e.key === 'Escape' && scale > 1.0 && !Maximizer.isActive()) {
         reset();
       }
     }, { capture: true });
 
-    /* ── 데스크톱에서만 이벤트 리스너 등록 ── */
     if (!isMobile()) {
       document.addEventListener('wheel', onWheel, { passive: false, capture: true });
       document.addEventListener('mousedown', onMouseDown, { capture: true });
@@ -1107,9 +1122,11 @@
   })();
 
 
-  /* ── FAB 빌드 (5개: Zoom, Mirror, Dim, Max, Main) ──────────────── */
+  /* ── FAB 빌드 ──────────────────────────────────────── */
   function buildFab() {
     if (fab) return;
+
+    const mobile = isMobile();
 
     if (!coreStyle || !coreStyle.isConnected) {
       coreStyle?.remove();
@@ -1126,7 +1143,7 @@
 
     fabStyle = document.createElement('style'); fabStyle.id = '__ytd3_fab_style__';
     fabStyle.textContent = `
-      .ytd-fab{position:fixed;top:40px;right:5px;z-index:2147483647;opacity:0.5;width:40px;height:40px;border-radius:50%;background:#15171c;border:2px solid #2a2d36;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .35s cubic-bezier(.16,1,.3,1);box-shadow:0 4px 16px rgba(0,0,0,.5);user-select:none;-webkit-tap-highlight-color:transparent}
+      .ytd-fab{position:fixed;top:40px;z-index:2147483647;opacity:0.5;width:40px;height:40px;border-radius:50%;background:#15171c;border:2px solid #2a2d36;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .35s cubic-bezier(.16,1,.3,1);box-shadow:0 4px 16px rgba(0,0,0,.5);user-select:none;-webkit-tap-highlight-color:transparent}
       @media (hover: hover){.ytd-fab:hover{transform:scale(1.12);border-color:#3a3d48;box-shadow:0 6px 24px rgba(0,0,0,.6)}}
       @media (hover: none){.ytd-fab{opacity:0.25}}
       .ytd-fab-icon{width:20px;height:20px;position:relative;display:flex;align-items:center;justify-content:center}
@@ -1173,7 +1190,7 @@
     const svgNS = 'http://www.w3.org/2000/svg';
 
     // 1. 메인 FAB
-    fab = document.createElement('div'); fab.className = 'ytd-fab ytd-fab--idle'; fab.style.display = 'none';
+    fab = document.createElement('div'); fab.className = 'ytd-fab ytd-fab--idle'; fab.style.display = 'none'; fab.style.right = FAB_START_RIGHT + 'px';
     const iconWrap = document.createElement('div'); iconWrap.className = 'ytd-fab-icon';
     const svg = document.createElementNS(svgNS,'svg'); svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none'); svg.setAttribute('stroke-width','2'); svg.setAttribute('stroke-linecap','round'); svg.setAttribute('stroke-linejoin','round');
     const circle = document.createElementNS(svgNS,'circle'); circle.setAttribute('cx','12'); circle.setAttribute('cy','12'); circle.setAttribute('r','5'); svg.appendChild(circle);
@@ -1186,7 +1203,7 @@
     const clockSpan = document.createElement('span'); clockSpan.className = 'ytd-fab-clock'; clockSpan.textContent = '--:--'; fab.appendChild(clockSpan);
 
     // 2. 최대화 FAB
-    maxFab = document.createElement('div'); maxFab.className = 'ytd-fab ytd-fab--idle'; maxFab.style.display = 'none'; maxFab.style.right = '55px'; maxFab.title = "화면 최대화/해제";
+    maxFab = document.createElement('div'); maxFab.className = 'ytd-fab ytd-fab--idle'; maxFab.style.display = 'none'; maxFab.title = "화면 최대화/해제";
     const maxIconWrap = document.createElement('div'); maxIconWrap.className = 'ytd-fab-icon';
     const maxSvg = document.createElementNS(svgNS,'svg'); maxSvg.setAttribute('viewBox','0 0 24 24'); maxSvg.setAttribute('fill','none'); maxSvg.setAttribute('stroke-width','2'); maxSvg.setAttribute('stroke-linecap','round'); maxSvg.setAttribute('stroke-linejoin','round');
     const maxPath = document.createElementNS(svgNS, 'path');
@@ -1195,7 +1212,7 @@
     maxSvg.appendChild(maxPath); maxIconWrap.appendChild(maxSvg); maxFab.appendChild(maxIconWrap);
 
     // 3. 조명 끄기 FAB
-    dimFab = document.createElement('div'); dimFab.className = 'ytd-fab ytd-fab--idle'; dimFab.style.display = 'none'; dimFab.style.right = '105px'; dimFab.title = "조명 끄기/켜기";
+    dimFab = document.createElement('div'); dimFab.className = 'ytd-fab ytd-fab--idle'; dimFab.style.display = 'none'; dimFab.title = "조명 끄기/켜기";
     const dimIconWrap = document.createElement('div'); dimIconWrap.className = 'ytd-fab-icon';
     const dimSvg = document.createElementNS(svgNS,'svg'); dimSvg.setAttribute('viewBox','0 0 24 24'); dimSvg.setAttribute('fill','none'); dimSvg.setAttribute('stroke-width','2'); dimSvg.setAttribute('stroke-linecap','round'); dimSvg.setAttribute('stroke-linejoin','round');
     const bulbPath = document.createElementNS(svgNS, 'path');
@@ -1204,7 +1221,7 @@
     dimSvg.appendChild(bulbPath); dimIconWrap.appendChild(dimSvg); dimFab.appendChild(dimIconWrap);
 
     // 4. 좌우 반전 FAB
-    mirrorFab = document.createElement('div'); mirrorFab.className = 'ytd-fab ytd-fab--idle'; mirrorFab.style.display = 'none'; mirrorFab.style.right = '155px'; mirrorFab.title = "좌우 반전";
+    mirrorFab = document.createElement('div'); mirrorFab.className = 'ytd-fab ytd-fab--idle'; mirrorFab.style.display = 'none'; mirrorFab.title = "좌우 반전";
     const mirrorIconWrap = document.createElement('div'); mirrorIconWrap.className = 'ytd-fab-icon';
     const mirrorSvg = document.createElementNS(svgNS,'svg'); mirrorSvg.setAttribute('viewBox','0 0 24 24'); mirrorSvg.setAttribute('fill','none'); mirrorSvg.setAttribute('stroke-width','2'); mirrorSvg.setAttribute('stroke-linecap','round'); mirrorSvg.setAttribute('stroke-linejoin','round');
     const mirrorPath1 = document.createElementNS(svgNS, 'polyline'); mirrorPath1.setAttribute('points', '7,8 3,12 7,16'); mirrorPath1.style.stroke = '#4a5060'; mirrorPath1.style.fill = 'none';
@@ -1216,10 +1233,8 @@
     mirrorIconWrap.appendChild(mirrorSvg); mirrorFab.appendChild(mirrorIconWrap);
 
     // 5. 확대/축소 FAB — 데스크톱에서만 생성
-    const _isMobile = isMobile();
-
-    if (!_isMobile) {
-      zoomFab = document.createElement('div'); zoomFab.className = 'ytd-fab ytd-fab--idle'; zoomFab.style.display = 'none'; zoomFab.style.right = '205px'; zoomFab.title = "확대/축소 (Alt+휠 | 클릭: 단계 순환)";
+    if (!mobile) {
+      zoomFab = document.createElement('div'); zoomFab.className = 'ytd-fab ytd-fab--idle'; zoomFab.style.display = 'none'; zoomFab.title = "확대/축소 (Alt+휠 | 클릭: 단계 순환)";
       const zoomIconWrap = document.createElement('div'); zoomIconWrap.className = 'ytd-fab-icon';
       const zoomSvg = document.createElementNS(svgNS,'svg'); zoomSvg.setAttribute('viewBox','0 0 24 24'); zoomSvg.setAttribute('fill','none'); zoomSvg.setAttribute('stroke-width','2'); zoomSvg.setAttribute('stroke-linecap','round'); zoomSvg.setAttribute('stroke-linejoin','round');
       const zoomCircle = document.createElementNS(svgNS, 'circle'); zoomCircle.setAttribute('cx','11'); zoomCircle.setAttribute('cy','11'); zoomCircle.setAttribute('r','8'); zoomCircle.style.stroke = '#4a5060';
@@ -1231,53 +1246,40 @@
       document.documentElement.appendChild(zoomFab);
     }
 
-    // DOM에 추가 (왼→오: zoom(데스크톱만), mirror, dim, max, main)
+    // DOM에 추가
     document.documentElement.appendChild(mirrorFab);
     document.documentElement.appendChild(dimFab);
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
-    // ── 모바일에서는 나머지 FAB 위치를 왼쪽으로 당김 (줌 FAB 없으므로) ──
-    if (_isMobile) {
-      mirrorFab.style.right = '155px'; // 변동 없음
-      // 줌 FAB 자리(205px)가 비므로 별도 조정 불필요
-    }
-
     // FAB 공용 드래그 + 클릭
-    let dragging=false, moved=false, dragStartX=0, dragStartY=0;
-    let fabX=0, fabY=0, maxX=0, maxY=0, dimX=0, dimY=0, mirX=0, mirY=0, zooX=0, zooY=0;
+    let dragging = false, moved = false, dragStartX = 0, dragStartY = 0;
+    const dragOrigins = new Map(); // fab → { x, y }
+
+    const activeFabList = () => [fab, maxFab, dimFab, mirrorFab, zoomFab].filter(Boolean);
 
     const onDown = (e, targetEl) => {
-      if(e.button!==0)return;
-      dragging=true; moved=false;
-      const rF = fab.getBoundingClientRect();
-      const rM = maxFab.getBoundingClientRect();
-      const rD = dimFab.getBoundingClientRect();
-      const rMi = mirrorFab.getBoundingClientRect();
+      if (e.button !== 0) return;
+      dragging = true; moved = false;
       dragStartX = e.clientX; dragStartY = e.clientY;
-      fabX = rF.left; fabY = rF.top;
-      maxX = rM.left; maxY = rM.top;
-      dimX = rD.left; dimY = rD.top;
-      mirX = rMi.left; mirY = rMi.top;
-      if (zoomFab) {
-        const rZ = zoomFab.getBoundingClientRect();
-        zooX = rZ.left; zooY = rZ.top;
+      dragOrigins.clear();
+      for (const f of activeFabList()) {
+        const r = f.getBoundingClientRect();
+        dragOrigins.set(f, { x: r.left, y: r.top });
       }
       targetEl.setPointerCapture(e.pointerId);
       e.preventDefault();
     };
 
     const onMove = (e) => {
-      if(!dragging)return;
-      const dx=e.clientX-dragStartX, dy=e.clientY-dragStartY;
-      if(!moved && Math.abs(dx)<4 && Math.abs(dy)<4) return;
+      if (!dragging) return;
+      const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+      if (!moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
       moved = true;
-      fab.style.left = (fabX+dx)+'px'; fab.style.top = (fabY+dy)+'px'; fab.style.right = 'auto';
-      maxFab.style.left = (maxX+dx)+'px'; maxFab.style.top = (maxY+dy)+'px'; maxFab.style.right = 'auto';
-      dimFab.style.left = (dimX+dx)+'px'; dimFab.style.top = (dimY+dy)+'px'; dimFab.style.right = 'auto';
-      mirrorFab.style.left = (mirX+dx)+'px'; mirrorFab.style.top = (mirY+dy)+'px'; mirrorFab.style.right = 'auto';
-      if (zoomFab) {
-        zoomFab.style.left = (zooX+dx)+'px'; zoomFab.style.top = (zooY+dy)+'px'; zoomFab.style.right = 'auto';
+      for (const f of activeFabList()) {
+        const o = dragOrigins.get(f);
+        if (!o) continue;
+        f.style.left = (o.x + dx) + 'px'; f.style.top = (o.y + dy) + 'px'; f.style.right = 'auto';
       }
     };
 
@@ -1308,15 +1310,17 @@
   /* ── 패널 빌드 ────────────────────────── */
   function buildPanel() {
     const el = document.createElement('div'); el.id = '__ytd2__';
-    const _isMobile = isMobile();
-    const zoomBtnHTML = _isMobile ? '' : '<button id="ytd-zoom" title="확대 리셋">🔍</button>';
+    const mobile = isMobile();
+    const iframe = isInIframe();
+    const zoomBtnHTML = mobile ? '' : '<button id="ytd-zoom" title="확대 리셋">🔍</button>';
+    const dimBtnHTML = iframe ? '' : '<button id="ytd-dim" title="조명 끄기/켜기">💡</button>';
     el.innerHTML = safeHTML(`
       <div id="ytd-hdr">
         <span>🔍 Tint Detector</span>
         <div style="display:flex; gap:6px;">
           ${zoomBtnHTML}
           <button id="ytd-mirror" title="좌우 반전">↔</button>
-          <button id="ytd-dim" title="조명 끄기/켜기">💡</button>
+          ${dimBtnHTML}
           <button id="ytd-maximize" title="최대화/해제">🗖</button>
           <button id="ytd-refresh" title="재탐색">↺</button>
           <button id="ytd-close" title="닫기">✕</button>
@@ -1383,8 +1387,9 @@
     q('ytd-sel').addEventListener('change', () => { const videos = getAllVideos(); const v = videos[+q('ytd-sel').value]; if (v) startAnalysis(v); });
     const zoomBtn = q('ytd-zoom');
     if (zoomBtn) zoomBtn.addEventListener('click', () => Zoom.reset());
+    const dimBtn = q('ytd-dim');
+    if (dimBtn) dimBtn.addEventListener('click', () => Dimmer.toggle());
     q('ytd-mirror').addEventListener('click', () => Mirror.toggle());
-    q('ytd-dim').addEventListener('click', () => Dimmer.toggle());
     q('ytd-maximize').addEventListener('click', () => Maximizer.toggle());
     q('ytd-refresh').addEventListener('click', refreshVideoList);
     q('ytd-close').addEventListener('click', () => togglePanel(false));
