@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260413
+! Version: 20260414
 !
 !
 !
@@ -5542,6 +5542,14 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ! - 아래처럼 순서 바꿔서 하니 위 규칙과 동일한 효과로 도지코믹스 및 만화방 처리됨 (위 규칙으로는 만화방 배너 처리가 안됨)
 !##[target][href] img
 [$domain=/^dozi\d+.com/],[$domain=/^\d+.avpop.tv/],[$domain=/^\d+.19hot.net/],[$domain=/^ditto-torrent\d+.top/],[$domain=/^redzone\d+.xyz/],[$domain=/^coolgirl\d+.xyz/],[$domain=/^t1.xtoon\d+.com/]##a[href][target]:has(img)
+!  - 전제 차단
+##a[href][target]:has(img)
+! - 북마크 열때 지정안된 사이트에서는 아이콘이 안보여서 포기
+! - - - 일반
+weather.go.kr,namu.wiki,trand.co.kr,sooplive.com,www.naver.com,tv.naver.com,www.nate.com,www.google.com,etoland.co.kr,poong.today,inven.co.kr,mlbpark.donga.com#@#a[href][target]:has(img)
+! - - - 성인
+twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target]:has(img)
+
 
 
 !!! - 기본 3
@@ -6085,12 +6093,3 @@ trand.co.kr#@#[id][style*="background"][style]
 
 ! - 잘못된 구문 해제 (Adblock-Rule-Collection-Lite) (26.04.09)
 @@^$generichide,badfilter
-
-
-##a[href][target]:has(img)
-! - 북마크 열때 지정안된 사이트에서는 아이콘이 안보여서 포기
-! - - - 일반
-namu.wiki,trand.co.kr,sooplive.com,www.naver.com,tv.naver.com,www.nate.com,www.google.com,etoland.co.kr,poong.today,inven.co.kr,mlbpark.donga.com#@#a[href][target]:has(img)
-! - - - 성인
-twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target]:has(img)
-
