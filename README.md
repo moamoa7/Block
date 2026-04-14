@@ -25,7 +25,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 <br>
 
 ※ Video_Tools.js
-- 영상의 노란끼/청색끼 감지 + 항상 보이는 시계 + 비디오 최대화 + Turn Off the Lights + 좌우 반전 + 확대/축소
+- 영상의 노란끼/청색끼 감지 + 항상 보이는 시계 + 비디오 최대화 + 좌우 반전 + 확대/축소
 - 영상의 노란끼/청색끼 감지 + 항상 보이는 시계는 모바일에서는 전체화면에서만 작동
 - 확대/축소는 PC에서만 작동
 ```
