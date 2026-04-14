@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      8.1.0
+// @version      8.2.0
 // @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + Turn Off the Lights + 좌우 반전 + 확대/축소
 // @match        *://*/*
 // @grant        none
@@ -212,7 +212,14 @@
       if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
       if (dimFab && dimFab.style.display === 'none') dimFab.style.display = '';
       if (mirrorFab && mirrorFab.style.display === 'none') mirrorFab.style.display = '';
-      if (zoomFab && zoomFab.style.display === 'none') zoomFab.style.display = '';
+      /* ── 모바일이면 줌 FAB 항상 숨김 ── */
+      if (zoomFab) {
+        if (isMobile()) {
+          if (zoomFab.style.display !== 'none') zoomFab.style.display = 'none';
+        } else {
+          if (zoomFab.style.display === 'none') zoomFab.style.display = '';
+        }
+      }
     } else {
       if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
       if (dimFab && dimFab.style.display !== 'none') dimFab.style.display = 'none';
@@ -935,7 +942,8 @@
 
   /* ═════════════════════════════════════════════════════════════════════════
      ★ 확대/축소 (Zoom) 모듈
-     — Alt+휠(데스크톱) / FAB 탭 단계 순환(모바일+데스크톱)
+     — 데스크톱 전용: Alt+휠 / FAB 탭 단계 순환
+     — 모바일에서는 완전 비활성 (Mobile Gesture 스크립트가 핀치 줌 담당)
      — 확대 시 Alt+좌클릭 드래그로 팬(pan) 이동
      — 비디오 영역만 확대, 페이지 전체는 영향 없음
   ═════════════════════════════════════════════════════════════════════════ */
@@ -962,6 +970,7 @@
     }
 
     function setScale(newScale, video, silent) {
+      if (isMobile()) return; // 모바일에서는 줌 무시
       const prev = scale;
       scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.round(newScale * 100) / 100));
       if (scale <= 1.05) { scale = 1.0; panX = 0; panY = 0; }
@@ -983,6 +992,7 @@
     }
 
     function cycleStep() {
+      if (isMobile()) return; // 모바일에서는 줌 무시
       const video = pickBestVideo();
       if (!video) { showOSD('확대/축소: 비디오를 찾을 수 없습니다.', 1500); return; }
       let nextIdx = 0;
@@ -995,6 +1005,7 @@
 
     // Alt+휠 확대/축소
     function onWheel(e) {
+      if (isMobile()) return; // 모바일에서는 줌 무시
       if (!e.altKey) return;
       const video = pickBestVideo();
       if (!video) return;
@@ -1009,6 +1020,7 @@
 
     // Alt+좌클릭 드래그로 팬 이동
     function onMouseDown(e) {
+      if (isMobile()) return;
       if (scale <= 1.05) return;
       if (!e.altKey || e.button !== 0) return;
       const video = pickBestVideo();
@@ -1076,11 +1088,13 @@
       }
     }, { capture: true });
 
-    // 이벤트 바인딩
-    document.addEventListener('wheel', onWheel, { passive: false, capture: true });
-    document.addEventListener('mousedown', onMouseDown, { capture: true });
-    document.addEventListener('mousemove', onMouseMove, { capture: true });
-    document.addEventListener('mouseup', onMouseUp, { capture: true });
+    /* ── 데스크톱에서만 이벤트 리스너 등록 ── */
+    if (!isMobile()) {
+      document.addEventListener('wheel', onWheel, { passive: false, capture: true });
+      document.addEventListener('mousedown', onMouseDown, { capture: true });
+      document.addEventListener('mousemove', onMouseMove, { capture: true });
+      document.addEventListener('mouseup', onMouseUp, { capture: true });
+    }
 
     return {
       getState,
@@ -1201,29 +1215,37 @@
     mirrorSvg.appendChild(mirrorPath1); mirrorSvg.appendChild(mirrorPath2); mirrorSvg.appendChild(mirrorLine1); mirrorSvg.appendChild(mirrorLine2); mirrorSvg.appendChild(mirrorCenter);
     mirrorIconWrap.appendChild(mirrorSvg); mirrorFab.appendChild(mirrorIconWrap);
 
-    // 5. 확대/축소 FAB (돋보기+)
-    zoomFab = document.createElement('div'); zoomFab.className = 'ytd-fab ytd-fab--idle'; zoomFab.style.display = 'none'; zoomFab.style.right = '205px'; zoomFab.title = "확대/축소 (Alt+휠 | 클릭: 단계 순환)";
-    const zoomIconWrap = document.createElement('div'); zoomIconWrap.className = 'ytd-fab-icon';
-    const zoomSvg = document.createElementNS(svgNS,'svg'); zoomSvg.setAttribute('viewBox','0 0 24 24'); zoomSvg.setAttribute('fill','none'); zoomSvg.setAttribute('stroke-width','2'); zoomSvg.setAttribute('stroke-linecap','round'); zoomSvg.setAttribute('stroke-linejoin','round');
-    const zoomCircle = document.createElementNS(svgNS, 'circle'); zoomCircle.setAttribute('cx','11'); zoomCircle.setAttribute('cy','11'); zoomCircle.setAttribute('r','8'); zoomCircle.style.stroke = '#4a5060';
-    const zoomLine = document.createElementNS(svgNS, 'line'); zoomLine.setAttribute('x1','21'); zoomLine.setAttribute('y1','21'); zoomLine.setAttribute('x2','16.65'); zoomLine.setAttribute('y2','16.65'); zoomLine.style.stroke = '#4a5060';
-    const zp1 = document.createElementNS(svgNS, 'line'); zp1.setAttribute('x1','11'); zp1.setAttribute('y1','8'); zp1.setAttribute('x2','11'); zp1.setAttribute('y2','14'); zp1.style.stroke = '#4a5060';
-    const zp2 = document.createElementNS(svgNS, 'line'); zp2.setAttribute('x1','8'); zp2.setAttribute('y1','11'); zp2.setAttribute('x2','14'); zp2.setAttribute('y2','11'); zp2.style.stroke = '#4a5060';
-    zoomSvg.appendChild(zoomCircle); zoomSvg.appendChild(zoomLine); zoomSvg.appendChild(zp1); zoomSvg.appendChild(zp2);
-    zoomIconWrap.appendChild(zoomSvg); zoomFab.appendChild(zoomIconWrap);
+    // 5. 확대/축소 FAB — 데스크톱에서만 생성
+    const _isMobile = isMobile();
 
-    // DOM에 추가 (왼→오: zoom, mirror, dim, max, main)
-    document.documentElement.appendChild(zoomFab);
+    if (!_isMobile) {
+      zoomFab = document.createElement('div'); zoomFab.className = 'ytd-fab ytd-fab--idle'; zoomFab.style.display = 'none'; zoomFab.style.right = '205px'; zoomFab.title = "확대/축소 (Alt+휠 | 클릭: 단계 순환)";
+      const zoomIconWrap = document.createElement('div'); zoomIconWrap.className = 'ytd-fab-icon';
+      const zoomSvg = document.createElementNS(svgNS,'svg'); zoomSvg.setAttribute('viewBox','0 0 24 24'); zoomSvg.setAttribute('fill','none'); zoomSvg.setAttribute('stroke-width','2'); zoomSvg.setAttribute('stroke-linecap','round'); zoomSvg.setAttribute('stroke-linejoin','round');
+      const zoomCircle = document.createElementNS(svgNS, 'circle'); zoomCircle.setAttribute('cx','11'); zoomCircle.setAttribute('cy','11'); zoomCircle.setAttribute('r','8'); zoomCircle.style.stroke = '#4a5060';
+      const zoomLine = document.createElementNS(svgNS, 'line'); zoomLine.setAttribute('x1','21'); zoomLine.setAttribute('y1','21'); zoomLine.setAttribute('x2','16.65'); zoomLine.setAttribute('y2','16.65'); zoomLine.style.stroke = '#4a5060';
+      const zp1 = document.createElementNS(svgNS, 'line'); zp1.setAttribute('x1','11'); zp1.setAttribute('y1','8'); zp1.setAttribute('x2','11'); zp1.setAttribute('y2','14'); zp1.style.stroke = '#4a5060';
+      const zp2 = document.createElementNS(svgNS, 'line'); zp2.setAttribute('x1','8'); zp2.setAttribute('y1','11'); zp2.setAttribute('x2','14'); zp2.setAttribute('y2','11'); zp2.style.stroke = '#4a5060';
+      zoomSvg.appendChild(zoomCircle); zoomSvg.appendChild(zoomLine); zoomSvg.appendChild(zp1); zoomSvg.appendChild(zp2);
+      zoomIconWrap.appendChild(zoomSvg); zoomFab.appendChild(zoomIconWrap);
+      document.documentElement.appendChild(zoomFab);
+    }
+
+    // DOM에 추가 (왼→오: zoom(데스크톱만), mirror, dim, max, main)
     document.documentElement.appendChild(mirrorFab);
     document.documentElement.appendChild(dimFab);
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
+    // ── 모바일에서는 나머지 FAB 위치를 왼쪽으로 당김 (줌 FAB 없으므로) ──
+    if (_isMobile) {
+      mirrorFab.style.right = '155px'; // 변동 없음
+      // 줌 FAB 자리(205px)가 비므로 별도 조정 불필요
+    }
+
     // FAB 공용 드래그 + 클릭
     let dragging=false, moved=false, dragStartX=0, dragStartY=0;
     let fabX=0, fabY=0, maxX=0, maxY=0, dimX=0, dimY=0, mirX=0, mirY=0, zooX=0, zooY=0;
-
-    const allFabs = [fab, maxFab, dimFab, mirrorFab, zoomFab];
 
     const onDown = (e, targetEl) => {
       if(e.button!==0)return;
@@ -1232,13 +1254,15 @@
       const rM = maxFab.getBoundingClientRect();
       const rD = dimFab.getBoundingClientRect();
       const rMi = mirrorFab.getBoundingClientRect();
-      const rZ = zoomFab.getBoundingClientRect();
       dragStartX = e.clientX; dragStartY = e.clientY;
       fabX = rF.left; fabY = rF.top;
       maxX = rM.left; maxY = rM.top;
       dimX = rD.left; dimY = rD.top;
       mirX = rMi.left; mirY = rMi.top;
-      zooX = rZ.left; zooY = rZ.top;
+      if (zoomFab) {
+        const rZ = zoomFab.getBoundingClientRect();
+        zooX = rZ.left; zooY = rZ.top;
+      }
       targetEl.setPointerCapture(e.pointerId);
       e.preventDefault();
     };
@@ -1252,7 +1276,9 @@
       maxFab.style.left = (maxX+dx)+'px'; maxFab.style.top = (maxY+dy)+'px'; maxFab.style.right = 'auto';
       dimFab.style.left = (dimX+dx)+'px'; dimFab.style.top = (dimY+dy)+'px'; dimFab.style.right = 'auto';
       mirrorFab.style.left = (mirX+dx)+'px'; mirrorFab.style.top = (mirY+dy)+'px'; mirrorFab.style.right = 'auto';
-      zoomFab.style.left = (zooX+dx)+'px'; zoomFab.style.top = (zooY+dy)+'px'; zoomFab.style.right = 'auto';
+      if (zoomFab) {
+        zoomFab.style.left = (zooX+dx)+'px'; zoomFab.style.top = (zooY+dy)+'px'; zoomFab.style.right = 'auto';
+      }
     };
 
     const fabActions = new Map([
@@ -1260,8 +1286,10 @@
       [maxFab,    () => Maximizer.toggle()],
       [dimFab,    () => Dimmer.toggle()],
       [mirrorFab, () => Mirror.toggle()],
-      [zoomFab,   () => Zoom.cycleStep()],
     ]);
+    if (zoomFab) {
+      fabActions.set(zoomFab, () => Zoom.cycleStep());
+    }
 
     for (const [btn, action] of fabActions) {
       btn.addEventListener('pointerdown', e => onDown(e, btn));
@@ -1280,11 +1308,13 @@
   /* ── 패널 빌드 ────────────────────────── */
   function buildPanel() {
     const el = document.createElement('div'); el.id = '__ytd2__';
+    const _isMobile = isMobile();
+    const zoomBtnHTML = _isMobile ? '' : '<button id="ytd-zoom" title="확대 리셋">🔍</button>';
     el.innerHTML = safeHTML(`
       <div id="ytd-hdr">
         <span>🔍 Tint Detector</span>
         <div style="display:flex; gap:6px;">
-          <button id="ytd-zoom" title="확대 리셋">🔍</button>
+          ${zoomBtnHTML}
           <button id="ytd-mirror" title="좌우 반전">↔</button>
           <button id="ytd-dim" title="조명 끄기/켜기">💡</button>
           <button id="ytd-maximize" title="최대화/해제">🗖</button>
@@ -1351,7 +1381,8 @@
 
   function bindPanelEvents() {
     q('ytd-sel').addEventListener('change', () => { const videos = getAllVideos(); const v = videos[+q('ytd-sel').value]; if (v) startAnalysis(v); });
-    q('ytd-zoom').addEventListener('click', () => Zoom.reset());
+    const zoomBtn = q('ytd-zoom');
+    if (zoomBtn) zoomBtn.addEventListener('click', () => Zoom.reset());
     q('ytd-mirror').addEventListener('click', () => Mirror.toggle());
     q('ytd-dim').addEventListener('click', () => Dimmer.toggle());
     q('ytd-maximize').addEventListener('click', () => Maximizer.toggle());
