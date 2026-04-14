@@ -9,7 +9,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 
 ※ Video_Control.js
 - 영상 화질 선명 등 설정 / 영상 배속 / 사운드 증폭 등
-- 모바일은 전체화면에서만 작동 제한
+- 모바일은 크롬 & 전체화면에서만 작동
 
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
