@@ -485,6 +485,8 @@ m.dcinside.com###notice_list > li:not(:has(.ntc-line-orange))
 m.dcinside.com###notice_list > li:nth-of-type(-n+3)
 ! - 개죽이 차단
 dcinside.com##+js(nostif, adblock_detected7)
+! - 외부 링크 이동 경고 메시지 이동시 , 첨부 오류
+m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 !
 !
 ! 아카라이브 (https://arca.live/)
