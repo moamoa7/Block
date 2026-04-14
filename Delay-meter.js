@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      16.2.0
-// @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화, 절충 트리거)
+// @version      16.2.1
+// @description  라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
 // @match        *://*.chzzk.naver.com/*
-// @match        *://*.sooplive.com/*
-// @match        *://*.sooplive.co.kr/*
+// @match        *://*.play.sooplive.com/*
+// @match        *://*.play.sooplive.co.kr/*
 // @match        *://*.twitch.tv/*
 // @exclude      *://*.youtube.com/live_chat*
 // @exclude      *://challenges.cloudflare.com/*
