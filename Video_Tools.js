@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      8.3.0
+// @version      8.4.0
 // @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + Turn Off the Lights + 좌우 반전 + 확대/축소
 // @match        *://*/*
 // @grant        none
@@ -141,6 +141,21 @@
     return best;
   }
 
+  /* ── 비디오 원본 rect 구하기 (줌/팬 보정) ──────────── */
+  function getVideoOriginalRect(video) {
+    const raw = video.getBoundingClientRect();
+    const zs = Zoom.getState();
+    if (zs.scale <= 1.05 && zs.panX === 0 && zs.panY === 0) return raw;
+    const s = zs.scale;
+    const cx = raw.left + raw.width / 2;
+    const cy = raw.top + raw.height / 2;
+    const origW = raw.width / s;
+    const origH = raw.height / s;
+    const origLeft = cx - origW / 2 - zs.panX;
+    const origTop = cy - origH / 2 - zs.panY;
+    return { left: origLeft, top: origTop, width: origW, height: origH, right: origLeft + origW, bottom: origTop + origH };
+  }
+
   /* ── 샘플링 ─────────────────────────────────────────── */
   function sampleRGB(video) {
     try {
@@ -204,20 +219,16 @@
 
   /* ═════════════════════════════════════════════════════════════════════════
      ★ FAB 동적 위치 계산
-     — 보이는 FAB만 오른쪽부터 순서대로 배치 (간격 50px)
-     — 숨겨진 FAB은 건너뛰어 빈 공간 없이 정렬
   ═════════════════════════════════════════════════════════════════════════ */
-  const FAB_START_RIGHT = 5;   // 가장 오른쪽 FAB의 right 값
-  const FAB_GAP = 50;          // FAB 간 간격
+  const FAB_START_RIGHT = 5;
+  const FAB_GAP = 50;
 
   function layoutFabs() {
-    // 오른쪽→왼쪽 순서로 배치할 FAB 목록 (main이 가장 오른쪽)
     const ordered = [fab, maxFab, dimFab, mirrorFab, zoomFab];
     let pos = 0;
     for (const f of ordered) {
       if (!f) continue;
       if (f.style.display === 'none') continue;
-      // 드래그로 위치가 변경된 경우(left가 설정된 경우) 레이아웃 건너뜀
       if (f.style.left && f.style.left !== 'auto') continue;
       f.style.right = (FAB_START_RIGHT + FAB_GAP * pos) + 'px';
       pos++;
@@ -239,10 +250,8 @@
 
     if (show) {
       if (maxFab) maxFab.style.display = '';
-      // Dimmer: iframe 안에서는 숨김
       if (dimFab) dimFab.style.display = iframe ? 'none' : '';
       if (mirrorFab) mirrorFab.style.display = '';
-      // Zoom: 모바일에서는 숨김
       if (zoomFab) zoomFab.style.display = mobile ? 'none' : '';
     } else {
       if (maxFab) maxFab.style.display = 'none';
@@ -819,6 +828,7 @@
   /* ═════════════════════════════════════════════════════════════════════════
      ★ Turn Off the Lights (Dimmer) 모듈
      — iframe 안에서는 비활성
+     — 줌 상태에서도 원본 크기 기준으로 구멍 생성
   ═════════════════════════════════════════════════════════════════════════ */
   const Dimmer = (() => {
     let active = false;
@@ -861,7 +871,8 @@
       if (!active || !overlay) return;
       const video = pickBestVideo();
       if (!video || !video.isConnected) { off(); return; }
-      const rect = video.getBoundingClientRect();
+      /* ★ 줌 보정: 확대된 getBoundingClientRect 대신 원본 rect 사용 */
+      const rect = getVideoOriginalRect(video);
       if (rect.width < 10 || rect.height < 10) {
         overlay.innerHTML = safeHTML(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${window.innerWidth} ${window.innerHeight}" preserveAspectRatio="none"><rect width="100%" height="100%" fill="rgba(0,0,0,${OPACITY})"/></svg>`);
       } else {
@@ -881,7 +892,8 @@
       if (Maximizer.isActive()) { showOSD('최대화 모드에서는 조명 끄기가 불필요합니다.', 1500); return; }
       active = true;
       createOverlay();
-      overlay.innerHTML = safeHTML(buildSVG(video.getBoundingClientRect()));
+      /* ★ 줌 보정된 rect 사용 */
+      overlay.innerHTML = safeHTML(buildSVG(getVideoOriginalRect(video)));
       requestAnimationFrame(() => { if (overlay) overlay.classList.add('ytd-dim-visible'); });
       rafId = requestAnimationFrame(updatePosition);
       syncDimUI();
@@ -1254,7 +1266,7 @@
 
     // FAB 공용 드래그 + 클릭
     let dragging = false, moved = false, dragStartX = 0, dragStartY = 0;
-    const dragOrigins = new Map(); // fab → { x, y }
+    const dragOrigins = new Map();
 
     const activeFabList = () => [fab, maxFab, dimFab, mirrorFab, zoomFab].filter(Boolean);
 
