@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      9.0.0
+// @version      9.1.0
 // @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + 좌우 반전 + 확대/축소
 // @match        *://*/*
 // @grant        none
@@ -269,7 +269,7 @@
     }, 300);
 
     const best = pickBestVideo();
-    setFabVisible(!!best);
+    setFabVisible(!!best || !!findBestIframe());
     if (shouldAnalyze()) {
       if (best) startAnalysis(best);
     } else {
@@ -459,10 +459,25 @@
     detectTimer = setTimeout(() => { detectTimer = 0; autoDetect(); }, 300);
   }
 
+  /* ── iframe 탐색 헬퍼 ─────────────────────────────── */
+  function findBestIframe() {
+    const iframes = document.querySelectorAll('iframe');
+    let bestIframe = null, bestArea = 0;
+    for (const ifr of iframes) {
+      if (!ifr.isConnected) continue;
+      const r = ifr.getBoundingClientRect();
+      const area = r.width * r.height;
+      if (area < 10000) continue;
+      if (area > bestArea) { bestArea = area; bestIframe = ifr; }
+    }
+    return bestIframe;
+  }
+
   function autoDetect() {
     const best = pickBestVideo();
     const hasVid = !!best;
-    setFabVisible(hasVid);
+    const hasIframe = !hasVid && !!findBestIframe();
+    setFabVisible(hasVid || hasIframe);
 
     if (!shouldAnalyze()) {
       if (timerID) stopAnalysis();
@@ -505,6 +520,7 @@
     const HIDE_CLASS = 'ytd-vmax-hide';
     const ANCESTOR_CLASS = 'ytd-vmax-ancestor';
     const IFRAME_MAX_CLASS = 'ytd-vmax-iframe';
+    const WRAPPER_MAX_CLASS = 'ytd-vmax-wrapper';
 
     let active = false;
     let targetVideo = null;
@@ -517,6 +533,91 @@
     let hiddenSiblings = [];
     let savedScrollX = 0, savedScrollY = 0;
     let classMO = null;
+    let playerWrapper = null;
+
+    /* ── 비디오 컨트롤 판별 ────────────────────────── */
+    function isVideoControlElement(el) {
+      if (!el || el.nodeType !== 1) return false;
+      const text = ((el.className && typeof el.className === 'string' ? el.className : '') + ' ' + (el.id || '')).toLowerCase();
+      const controlKeywords = [
+        'control', 'controls', 'toolbar', 'bottom-bar', 'bottombar',
+        'progress', 'seekbar', 'seek-bar', 'playbar', 'play-bar',
+        'player-ui', 'player-controls', 'player-bottom',
+        'time', 'volume', 'fullscreen', 'setting',
+        'overlay', 'ui-layer', 'uilayer',
+        'caption', 'subtitle', 'quality', 'speed',
+        'vod-control', 'vod_control',
+        'ctrl', 'player_bottom', 'bottom_ctrl',
+        'ctrl_bar', 'ctrl-bar', 'ctrlbar'
+      ];
+      for (const kw of controlKeywords) {
+        if (text.includes(kw)) return true;
+      }
+      for (const attr of el.attributes) {
+        if (attr.name.startsWith('data-') || attr.name === 'role') {
+          const val = attr.value.toLowerCase();
+          if (val.includes('control') || val.includes('toolbar') ||
+              val.includes('slider') || val.includes('progressbar')) return true;
+        }
+      }
+      if (el.getAttribute('role') === 'slider' ||
+          el.getAttribute('role') === 'toolbar') return true;
+      try {
+        if (el.querySelector &&
+            el.querySelector('button, input[type="range"], [role="slider"], [class*="time"], [class*="progress"]')) {
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    /* ── 플레이어 래퍼 찾기 ─────────────────────────── */
+    function findPlayerWrapper(videoEl) {
+      let el = videoEl.parentElement;
+      let depth = 0;
+      while (el && el !== document.body && el !== document.documentElement && depth < 6) {
+        for (const child of el.children) {
+          if (child === videoEl) continue;
+          if (child.nodeType !== 1) continue;
+          if (isVideoControlElement(child)) return el;
+        }
+        // 재귀적으로 손자 요소까지 확인
+        const descendants = el.querySelectorAll('*');
+        let controlCount = 0;
+        for (const desc of descendants) {
+          if (desc === videoEl) continue;
+          if (isVideoControlElement(desc)) { controlCount++; if (controlCount >= 2) return el; }
+        }
+        el = el.parentElement;
+        depth++;
+      }
+      return null;
+    }
+
+    /* ── iframe용: 비디오를 포함하는 iframe의 "플레이어 영역" 래퍼 찾기 ── */
+    function findIframePlayerWrapper(iframeEl) {
+      // iframe의 부모부터 위로 올라가며, 플레이어 관련 클래스를 가진 래퍼를 찾음
+      let el = iframeEl.parentElement;
+      let depth = 0;
+      while (el && el !== document.body && el !== document.documentElement && depth < 8) {
+        const text = ((el.className && typeof el.className === 'string' ? el.className : '') + ' ' + (el.id || '')).toLowerCase();
+        const wrapperKeywords = [
+          'player', 'htmlplayer', 'video-player', 'video_player',
+          'player_area', 'player-area', 'playerarea',
+          'player_wrap', 'player-wrap', 'playerwrap',
+          'player_content', 'player-content', 'playercontent',
+          'float_box', 'float-box', 'floatbox',
+          'soop_player', 'soop-player'
+        ];
+        for (const kw of wrapperKeywords) {
+          if (text.includes(kw)) return el;
+        }
+        el = el.parentElement;
+        depth++;
+      }
+      // 못 찾으면 iframe의 직접 부모를 반환
+      return iframeEl.parentElement;
+    }
 
     function findIframeForWindow(childWin) {
       try {
@@ -555,19 +656,21 @@
       delete el.__ytd_max_saved;
     }
 
-    function hideSiblings(el) {
+    function hideSiblings(el, videoEl) {
       if (!el.parentNode) return;
       for (const sib of el.parentNode.children) {
         if (sib === el || sib.nodeType !== 1) continue;
         if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
         if (sib.id === '__ytd2__' || sib.id === 'ytd-osd' || sib.classList.contains('ytd-fab')) continue;
         if (sib === fab || sib === maxFab || sib === mirrorFab || sib === zoomFab || sib === panel) continue;
+        if (videoEl && isVideoControlElement(sib)) continue;
+        if (videoEl && sib.contains && sib.contains(videoEl)) continue;
         sib.classList.add(HIDE_CLASS);
         hiddenSiblings.push({ el: sib });
       }
     }
 
-    function clearAncestorChain(startEl) {
+    function clearAncestorChain(startEl, videoOrIframe) {
       let ancestor = startEl.parentElement;
       while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
         ancestor.dataset.ytdMaxAncestor = '1';
@@ -576,7 +679,7 @@
           clip: 'auto', 'clip-path': 'none', contain: 'none'
         });
         ancestor.classList.add(ANCESTOR_CLASS);
-        hideSiblings(ancestor);
+        hideSiblings(ancestor, videoOrIframe);
         ancestor = ancestor.parentElement;
       }
     }
@@ -590,16 +693,13 @@
 
     function startClassGuard(primaryEl) {
       if (classMO) { classMO.disconnect(); classMO = null; }
-      const guardClass = isIframeMode ? IFRAME_MAX_CLASS : MAX_CLASS;
       classMO = new MutationObserver((muts) => {
         for (const m of muts) {
           if (m.type !== 'attributes' || m.attributeName !== 'class' || !active) continue;
           const el = m.target;
-          if (el === primaryEl && !el.classList.contains(guardClass)) el.classList.add(guardClass);
           if (el.dataset?.ytdMaxAncestor === '1' && !el.classList.contains(ANCESTOR_CLASS)) el.classList.add(ANCESTOR_CLASS);
         }
       });
-      classMO.observe(primaryEl, { attributes: true, attributeFilter: ['class'] });
       let cur = primaryEl.parentElement;
       while (cur && cur !== document.body && cur !== document.documentElement) {
         classMO.observe(cur, { attributes: true, attributeFilter: ['class'] });
@@ -611,39 +711,98 @@
       if (classMO) { classMO.disconnect(); classMO = null; }
     }
 
+    /* ── 직접 video 최대화 (래퍼 감지 포함) ─────────── */
     function doMaximizeDirect(video) {
       targetVideo = video;
       isIframeMode = false;
       savedScrollX = window.scrollX;
       savedScrollY = window.scrollY;
-      clearAncestorChain(video);
-      lockBody();
-      backupAndApplyStyle(video, {});
-      video.classList.add(MAX_CLASS);
-      applyVideoTransform(video);
-      hideSiblings(video);
-      window.scrollTo(0, 0);
-      startClassGuard(video);
+
+      playerWrapper = findPlayerWrapper(video);
+
+      if (playerWrapper) {
+        clearAncestorChain(playerWrapper, video);
+        lockBody();
+        backupAndApplyStyle(playerWrapper, {
+          position: 'fixed', top: '0', left: '0',
+          width: '100vw', height: '100dvh',
+          'z-index': '2147483646', background: '#000',
+          margin: '0', padding: '0', overflow: 'hidden'
+        });
+        backupAndApplyStyle(video, {
+          width: '100%', height: '100%',
+          'object-fit': 'contain'
+        });
+        hideSiblings(playerWrapper, video);
+        window.scrollTo(0, 0);
+        startClassGuard(playerWrapper);
+        applyVideoTransform(video);
+      } else {
+        clearAncestorChain(video, video);
+        lockBody();
+        backupAndApplyStyle(video, {});
+        video.classList.add(MAX_CLASS);
+        applyVideoTransform(video);
+        hideSiblings(video, video);
+        window.scrollTo(0, 0);
+        startClassGuard(video);
+      }
+
       active = true;
       syncBtnUI();
       showOSD('최대화 ON (ESC 복원)', 1200);
     }
 
+    /* ── iframe 최대화: 래퍼 단위 (핵심 변경) ────────── */
     function doMaximizeIframe(iframeEl) {
       targetIframe = iframeEl;
       isIframeMode = true;
       savedScrollX = window.scrollX;
       savedScrollY = window.scrollY;
-      clearAncestorChain(iframeEl);
-      lockBody();
-      backupAndApplyStyle(iframeEl, {});
-      iframeEl.classList.add(IFRAME_MAX_CLASS);
-      hideSiblings(iframeEl);
-      window.scrollTo(0, 0);
-      startClassGuard(iframeEl);
+
+      // ★ iframe을 감싸는 플레이어 래퍼를 찾아서 래퍼 단위로 최대화
+      playerWrapper = findIframePlayerWrapper(iframeEl);
+
+      if (playerWrapper && playerWrapper !== document.body && playerWrapper !== document.documentElement) {
+        // 래퍼 위의 조상 처리
+        clearAncestorChain(playerWrapper, iframeEl);
+        lockBody();
+
+        // 래퍼를 화면 가득 채움 (래퍼 안의 모든 자식은 보존)
+        backupAndApplyStyle(playerWrapper, {
+          position: 'fixed', top: '0', left: '0',
+          width: '100vw', height: '100dvh',
+          'z-index': '2147483646', background: '#000',
+          margin: '0', padding: '0', overflow: 'hidden'
+        });
+
+        // iframe을 래퍼 안에서 가득 채움
+        backupAndApplyStyle(iframeEl, {
+          width: '100%', height: '100%',
+          border: 'none', margin: '0', padding: '0'
+        });
+
+        // 래퍼 외부의 형제만 숨김 (래퍼 내부는 보존)
+        hideSiblings(playerWrapper, iframeEl);
+
+        window.scrollTo(0, 0);
+        startClassGuard(playerWrapper);
+      } else {
+        // 래퍼를 못 찾으면 기존 방식 (iframe 직접 최대화)
+        clearAncestorChain(iframeEl, null);
+        lockBody();
+        backupAndApplyStyle(iframeEl, {});
+        iframeEl.classList.add(IFRAME_MAX_CLASS);
+        hideSiblings(iframeEl, null);
+        window.scrollTo(0, 0);
+        startClassGuard(iframeEl);
+      }
+
       active = true;
       syncBtnUI();
-      showOSD('최대화 ON (iframe)', 1200);
+      showOSD('최대화 ON (ESC 복원)', 1200);
+
+      // iframe 내부에도 메시지 전송 (내부 스크립트가 동작 중이면)
       try { iframeEl.contentWindow.postMessage({ __ytd_max: 'apply_inner' }, '*'); } catch (_) {}
     }
 
@@ -663,12 +822,13 @@
         const el = savedElementsList[i];
         restoreStyle(el);
         try {
-          el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS);
+          el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS, WRAPPER_MAX_CLASS);
           delete el.dataset.ytdMaxAncestor;
         } catch (_) {}
       }
       savedElementsList.length = 0;
       savedElementsSet.clear();
+      playerWrapper = null;
       window.scrollTo(savedScrollX, savedScrollY);
       active = false;
       targetVideo = null;
@@ -680,9 +840,11 @@
       showOSD('최대화 OFF', 1200);
     }
 
+    /* ── iframe 내부 최대화 (래퍼 감지 적용) ────────── */
     let innerMaxActive = false;
     const innerSavedSet = new Set();
     const innerSavedList = [];
+    let innerHiddenSiblings = [];
 
     function backupInner(el, css) {
       _backupApply(innerSavedSet, innerSavedList, el, css);
@@ -693,16 +855,49 @@
       const video = pickBestVideo();
       if (!video) return;
       innerMaxActive = true;
-      backupInner(video, {
-        width: '100vw', height: '100dvh', 'object-fit': 'contain',
-        position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
-        background: '#000', margin: '0', padding: '0', border: 'none'
-      });
-      let ancestor = video.parentElement;
-      while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
-        backupInner(ancestor, { overflow: 'visible', position: 'static', transform: 'none', clip: 'auto', 'clip-path': 'none', contain: 'none' });
-        ancestor = ancestor.parentElement;
+
+      // ★ iframe 내부에서도 플레이어 래퍼를 감지
+      const wrapper = findPlayerWrapper(video);
+
+      if (wrapper) {
+        // 래퍼를 화면 가득 채우고, 내부 구조(컨트롤 포함)는 보존
+        backupInner(wrapper, {
+          position: 'fixed', top: '0', left: '0',
+          width: '100vw', height: '100dvh',
+          'z-index': '2147483646', background: '#000',
+          margin: '0', padding: '0', overflow: 'hidden'
+        });
+        backupInner(video, {
+          width: '100%', height: '100%',
+          'object-fit': 'contain'
+        });
+
+        // 래퍼의 조상 체인 정리
+        let ancestor = wrapper.parentElement;
+        while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+          backupInner(ancestor, {
+            overflow: 'visible', position: 'static', transform: 'none',
+            clip: 'auto', 'clip-path': 'none', contain: 'none'
+          });
+          ancestor = ancestor.parentElement;
+        }
+      } else {
+        // 래퍼 없으면 기존 방식
+        backupInner(video, {
+          width: '100vw', height: '100dvh', 'object-fit': 'contain',
+          position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
+          background: '#000', margin: '0', padding: '0', border: 'none'
+        });
+        let ancestor = video.parentElement;
+        while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+          backupInner(ancestor, {
+            overflow: 'visible', position: 'static', transform: 'none',
+            clip: 'auto', 'clip-path': 'none', contain: 'none'
+          });
+          ancestor = ancestor.parentElement;
+        }
       }
+
       backupInner(document.body, { overflow: 'hidden', margin: '0', padding: '0' });
       if (document.documentElement) backupInner(document.documentElement, { overflow: 'hidden' });
     }
@@ -711,6 +906,7 @@
       if (!innerMaxActive) return;
       for (let i = innerSavedList.length - 1; i >= 0; i--) restoreStyle(innerSavedList[i]);
       innerSavedList.length = 0; innerSavedSet.clear();
+      innerHiddenSiblings = [];
       innerMaxActive = false;
     }
 
@@ -733,15 +929,8 @@
       if (active) { undoMaximize(); return; }
       const video = pickBestVideo();
       if (video) { doMaximizeDirect(video); return; }
-      const iframes = document.querySelectorAll('iframe');
-      let bestIframe = null, bestArea = 0;
-      for (const ifr of iframes) {
-        if (!ifr.isConnected) continue;
-        const r = ifr.getBoundingClientRect();
-        const area = r.width * r.height;
-        if (area < 10000) continue;
-        if (area > bestArea) { bestArea = area; bestIframe = ifr; }
-      }
+
+      const bestIframe = findBestIframe();
       if (bestIframe) doMaximizeIframe(bestIframe);
       else showOSD('최대화할 비디오를 찾을 수 없습니다.', 1500);
     }
@@ -844,7 +1033,6 @@
 
   /* ═════════════════════════════════════════════════════════════════════════
      ★ 확대/축소 (Zoom) 모듈
-     — 데스크톱 전용 (모바일은 Mobile Gesture 스크립트의 핀치 줌 사용)
   ═════════════════════════════════════════════════════════════════════════ */
   const Zoom = (() => {
     let scale = 1.0;
