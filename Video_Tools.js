@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      10.2.0
+// @version      10.2.1
 // @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + 좌우 반전 + 확대/축소
 // @match        *://*/*
 // @grant        none
@@ -37,7 +37,6 @@
   }
   resetCanvas();
 
-  /* ── 모바일 / 전체화면 / iframe 판별 ───────────────── */
   function isMobile() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
            (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
@@ -53,7 +52,6 @@
     return isFullscreen();
   }
 
-  /* ── OSD (On-Screen Display) ───────────────────────── */
   let __osdEl = null, __osdTimerId = 0;
   function showOSD(text, durationMs = 1200) {
     if (!document.body) return;
@@ -90,7 +88,6 @@
     }, durationMs);
   }
 
-  /* ── 영상 탐색 ───────────────────────────────────────── */
   function findVideosInShadowRoots(root, results, depth) {
     if (depth > 8) return;
     let els;
@@ -141,7 +138,6 @@
     return best;
   }
 
-  /* ── 샘플링 ─────────────────────────────────────────── */
   function sampleRGB(video) {
     try {
       oCtx.drawImage(video, 0, 0, CFG.sampleSize, CFG.sampleSize);
@@ -181,7 +177,6 @@
     return 'ok';
   }
 
-  /* ── 시계 & FAB 상태 ─────────────────────────────────── */
   function updateClock() {
     if (!fab) return;
     const el = fab.querySelector('.ytd-fab-clock'); if (!el) return;
@@ -202,9 +197,6 @@
     fab.className = 'ytd-fab ytd-fab--' + status;
   }
 
-  /* ═════════════════════════════════════════════════════════════════════════
-     ★ FAB 동적 위치 계산
-  ═════════════════════════════════════════════════════════════════════════ */
   const FAB_START_RIGHT = 5;
   const FAB_GAP = 50;
 
@@ -225,8 +217,6 @@
     const mobile = isMobile();
     const showMainFab = show && shouldAnalyze();
 
-    /* ★ v10.2.0: top 페이지에서 직접 <video>가 없고 iframe만 있으면
-       top FAB를 숨긴다. iframe 내부 FAB에 위임. */
     const inTop = !isInIframe();
     const hasDirectVideo = getAllVideos().length > 0;
     const hideTopFabForIframe = inTop && !hasDirectVideo;
@@ -243,8 +233,6 @@
       if (mirrorFab) mirrorFab.style.display = '';
       if (zoomFab) zoomFab.style.display = mobile ? 'none' : '';
     } else if (show && hideTopFabForIframe) {
-      /* top에서 iframe만 있는 경우: 최대화 FAB만 표시, 나머지 숨김
-         → 아니, iframe 내부 FAB에 완전 위임하므로 top FAB 전부 숨김 */
       if (maxFab) maxFab.style.display = 'none';
       if (mirrorFab) mirrorFab.style.display = 'none';
       if (zoomFab) zoomFab.style.display = 'none';
@@ -293,7 +281,6 @@
     }
   }
 
-  /* ── tick ─────────────────────────────────────────────── */
   let shadowRetries = 0;
   const MAX_SHADOW_RETRIES = 5;
 
@@ -340,7 +327,6 @@
     if (panelOpen && panel) { renderUI(res); drawGraph(); }
   }
 
-  /* ── 패널 UI 업데이트 ────────────────────────────────── */
   function q(id) { return panel?.querySelector('#' + id); }
 
   function renderUI({ r, g, b, score }) {
@@ -425,7 +411,6 @@
   }
   function clearError() { const el = q('ytd-err'); if (el) el.style.display = 'none'; setStatus('분석 중', true); }
 
-  /* ── 분석 시작/중지 ──────────────────────────────────── */
   function startAnalysis(video) {
     stopAnalysis(); liveVideo = video; history = []; shadowRetries = 0;
     if (panelOpen) setStatus('분석 중', true);
@@ -464,7 +449,6 @@
     }
   }
 
-  /* ── 자동 감지 ───────────────────────────────────────── */
   let detectTimer = 0;
   function scheduleDetect() {
     if (detectTimer) return;
@@ -514,10 +498,6 @@
     else if (!hasVid && liveVideo) { stopAnalysis(); liveVideo = null; }
   }
 
-
-  /* ═════════════════════════════════════════════════════════════════════════
-     ★ 통합 Transform 헬퍼
-  ═════════════════════════════════════════════════════════════════════════ */
   function applyVideoTransform(video) {
     if (!video) return;
     const parts = [];
@@ -536,9 +516,9 @@
   }
 
 
-  /* ═════════════════════════════════════════════════════════════════════════
-     ★ Video Maximizer 모듈 (v10.2.0)
-  ═════════════════════════════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════
+     ★ Video Maximizer 모듈 (v10.2.1)
+  ═══════════════════════════════════════════════════════ */
   const Maximizer = (() => {
     const MAX_CLASS = 'ytd-vmax-max';
     const HIDE_CLASS = 'ytd-vmax-hide';
@@ -557,6 +537,12 @@
     let savedScrollX = 0, savedScrollY = 0;
     let classMO = null;
     let playerWrapper = null;
+
+    /* ★ v10.2.1: DOM 이동 복원 정보 */
+    let movedVideo = null;
+    let movedOrigParent = null;
+    let movedOrigNext = null;
+    let movedOrigClassName = '';
 
     function isPlayerControlElement(el) {
       if (!el || el.nodeType !== 1) return false;
@@ -755,14 +741,52 @@
         startClassGuard(playerWrapper);
         applyVideoTransform(video);
       } else {
-        clearAncestorChain(video);
+        /* ★ v10.2.1: playerWrapper가 없는 단독 <video> — DOM 이동 방식
+           video를 <body> 직접 자식으로 이동시켜 모든 조상 CSS 영향 차단.
+           사이트 CSS (.contain .gif-video 등)의 specificity 문제를 근본적으로 해결. */
+
+        // 원래 위치 저장
+        movedVideo = video;
+        movedOrigParent = video.parentElement;
+        movedOrigNext = video.nextSibling;
+        movedOrigClassName = video.className;
+
+        // 현재 재생 시간 기억 (DOM 이동 시 일부 브라우저에서 리셋될 수 있음)
+        const wasPlaying = !video.paused;
+        const curTime = video.currentTime;
+
         lockBody();
-        backupAndApplyStyle(video, {});
+
+        // video의 기존 class 제거 (사이트 CSS 영향 완전 차단)
+        video.className = '';
+
+        // body로 이동
+        document.body.appendChild(video);
+
+        // 최대화 스타일 적용 (inline !important)
+        backupAndApplyStyle(video, {
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          width: '100vw',
+          height: '100vh',
+          'z-index': '2147483646',
+          'object-fit': 'contain',
+          background: '#000',
+          margin: '0',
+          padding: '0',
+          border: 'none',
+          'max-width': 'none',
+          'max-height': 'none'
+        });
         video.classList.add(MAX_CLASS);
+
+        // 재생 상태 복원
+        video.currentTime = curTime;
+        if (wasPlaying) video.play().catch(() => {});
+
         applyVideoTransform(video);
-        hideSiblingsOf(video);
         window.scrollTo(0, 0);
-        startClassGuard(video);
       }
 
       active = true;
@@ -812,17 +836,44 @@
       active = true;
       syncBtnUI();
       showOSD('최대화 ON (ESC 복원)', 1200);
-      // ★ v10.2.0: 소프트 모드 — iframe 내부 컨트롤바 보존
       try { iframeEl.contentWindow.postMessage({ __ytd_max: 'apply_inner_soft' }, '*'); } catch (_) {}
     }
 
     function undoMaximize() {
       if (!active) return;
       stopClassGuard();
+
       if (isIframeMode && targetIframe) {
         try { targetIframe.contentWindow.postMessage({ __ytd_max: 'undo_inner' }, '*'); } catch (_) {}
         try { targetIframe.contentWindow.postMessage({ __ytd_max: 'state_off' }, '*'); } catch (_) {}
       }
+
+      /* ★ v10.2.1: DOM 이동된 video 복원 */
+      if (movedVideo) {
+        const vid = movedVideo;
+        const wasPlaying = !vid.paused;
+        const curTime = vid.currentTime;
+
+        // 원래 위치로 복원
+        if (movedOrigNext && movedOrigNext.parentNode === movedOrigParent) {
+          movedOrigParent.insertBefore(vid, movedOrigNext);
+        } else if (movedOrigParent) {
+          movedOrigParent.appendChild(vid);
+        }
+
+        // 원래 class 복원
+        vid.className = movedOrigClassName;
+
+        // 재생 상태 복원
+        vid.currentTime = curTime;
+        if (wasPlaying) vid.play().catch(() => {});
+
+        movedVideo = null;
+        movedOrigParent = null;
+        movedOrigNext = null;
+        movedOrigClassName = '';
+      }
+
       for (let i = hiddenSiblings.length - 1; i >= 0; i--) {
         const { el } = hiddenSiblings[i];
         try { el.classList.remove(HIDE_CLASS); } catch (_) {}
@@ -850,7 +901,6 @@
       showOSD('최대화 OFF', 1200);
     }
 
-    /* ── iframe 내부 최대화 ── */
     let innerMaxActive = false;
     const innerSavedSet = new Set();
     const innerSavedList = [];
@@ -890,7 +940,8 @@
         backupInner(video, {
           width: '100vw', height: '100dvh', 'object-fit': 'contain',
           position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
-          background: '#000', margin: '0', padding: '0', border: 'none'
+          background: '#000', margin: '0', padding: '0', border: 'none',
+          'max-width': 'none', 'max-height': 'none'
         });
         let ancestor = video.parentElement;
         while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
@@ -906,7 +957,6 @@
       if (document.documentElement) backupInner(document.documentElement, { overflow: 'hidden' });
     }
 
-    // ★ v10.2.0: 소프트 모드 — overflow/크기 제약만 해제
     function applyInnerMaximizeSoft() {
       if (innerMaxActive) return;
       innerMaxActive = true;
@@ -1027,9 +1077,6 @@
   })();
 
 
-  /* ═════════════════════════════════════════════════════════════════════════
-     ★ 좌우 반전 (Mirror) 모듈
-  ═════════════════════════════════════════════════════════════════════════ */
   const Mirror = (() => {
     let active = false;
 
@@ -1069,9 +1116,6 @@
   })();
 
 
-  /* ═════════════════════════════════════════════════════════════════════════
-     ★ 확대/축소 (Zoom) 모듈
-  ═════════════════════════════════════════════════════════════════════════ */
   const Zoom = (() => {
     let scale = 1.0;
     let panX = 0, panY = 0;
@@ -1228,7 +1272,6 @@
   })();
 
 
-  /* ── FAB 빌드 (4개: Zoom, Mirror, Max, Main) ──────── */
   function buildFab() {
     if (fab) return;
 
@@ -1239,7 +1282,7 @@
       coreStyle = document.createElement('style');
       coreStyle.id = '__ytd3_core_style__';
       coreStyle.textContent = `
-  .ytd-vmax-max{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;}
+  .ytd-vmax-max{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;max-width:none!important;max-height:none!important;}
   .ytd-vmax-hide{display:none!important;}
   .ytd-vmax-ancestor{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;}
   .ytd-vmax-iframe{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;max-width:100vw!important;max-height:100vh!important;background:#000!important;}
@@ -1396,7 +1439,6 @@
     startClock();
   }
 
-  /* ── 패널 빌드 ────────────────────────── */
   function buildPanel() {
     const el = document.createElement('div'); el.id = '__ytd2__';
     const mobile = isMobile();
@@ -1492,7 +1534,6 @@
     else { if (panel) panel.classList.remove('open'); setTimeout(() => { if (!panelOpen) destroyPanel(); }, 350); }
   }
 
-  /* ── 시작 ────────────────────────────────────────────── */
   function init() {
     buildFab();
     autoDetect();
