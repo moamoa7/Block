@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      10.1.0
+// @version      10.2.0
 // @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + 좌우 반전 + 확대/축소
 // @match        *://*/*
 // @grant        none
@@ -225,17 +225,29 @@
     const mobile = isMobile();
     const showMainFab = show && shouldAnalyze();
 
-    if (showMainFab) {
+    /* ★ v10.2.0: top 페이지에서 직접 <video>가 없고 iframe만 있으면
+       top FAB를 숨긴다. iframe 내부 FAB에 위임. */
+    const inTop = !isInIframe();
+    const hasDirectVideo = getAllVideos().length > 0;
+    const hideTopFabForIframe = inTop && !hasDirectVideo;
+
+    if (showMainFab && !hideTopFabForIframe) {
       if (fab.style.display === 'none') fab.style.display = '';
     } else {
       if (fab.style.display !== 'none') fab.style.display = 'none';
       if (panelOpen) togglePanel(false);
     }
 
-    if (show) {
+    if (show && !hideTopFabForIframe) {
       if (maxFab) maxFab.style.display = '';
       if (mirrorFab) mirrorFab.style.display = '';
       if (zoomFab) zoomFab.style.display = mobile ? 'none' : '';
+    } else if (show && hideTopFabForIframe) {
+      /* top에서 iframe만 있는 경우: 최대화 FAB만 표시, 나머지 숨김
+         → 아니, iframe 내부 FAB에 완전 위임하므로 top FAB 전부 숨김 */
+      if (maxFab) maxFab.style.display = 'none';
+      if (mirrorFab) mirrorFab.style.display = 'none';
+      if (zoomFab) zoomFab.style.display = 'none';
     } else {
       if (maxFab) maxFab.style.display = 'none';
       if (mirrorFab) mirrorFab.style.display = 'none';
@@ -459,7 +471,6 @@
     detectTimer = setTimeout(() => { detectTimer = 0; autoDetect(); }, 300);
   }
 
-  /* ── findBestIframe() — 비디오 src 우선 감지 ── */
   const VIDEO_SRC_RE = /\.(mp4|webm|ogg|m3u8)(\?.*)?$/i;
 
   function findBestIframe() {
@@ -526,7 +537,7 @@
 
 
   /* ═════════════════════════════════════════════════════════════════════════
-     ★ 통합된 Video Maximizer 모듈 (v10.1.0)
+     ★ Video Maximizer 모듈 (v10.2.0)
   ═════════════════════════════════════════════════════════════════════════ */
   const Maximizer = (() => {
     const MAX_CLASS = 'ytd-vmax-max';
@@ -547,7 +558,6 @@
     let classMO = null;
     let playerWrapper = null;
 
-    /* ── 비디오 플레이어 컨트롤 판별 ─── */
     function isPlayerControlElement(el) {
       if (!el || el.nodeType !== 1) return false;
       const cn = (el.className && typeof el.className === 'string') ? el.className.toLowerCase() : '';
@@ -575,7 +585,6 @@
       return false;
     }
 
-    /* ── 플레이어 래퍼 찾기 ────────── */
     function findPlayerWrapper(videoEl) {
       let el = videoEl.parentElement;
       let depth = 0;
@@ -598,7 +607,6 @@
       return null;
     }
 
-    /* ── iframe용 플레이어 래퍼 ── */
     function findIframePlayerWrapper(iframeEl) {
       let el = iframeEl.parentElement;
       let depth = 0;
@@ -658,7 +666,6 @@
       delete el.__ytd_max_saved;
     }
 
-    /* ── 형제 숨기기 ── */
     function isOurElement(sib) {
       if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') return true;
       if (sib.id === '__ytd2__' || sib.id === 'ytd-osd' || sib.id === '__ytd3_core_style__' ||
@@ -678,7 +685,6 @@
       }
     }
 
-    /* ── clearAncestorChain() ─────── */
     function clearAncestorChain(startEl) {
       let ancestor = startEl.parentElement;
       while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
@@ -723,7 +729,6 @@
       if (classMO) { classMO.disconnect(); classMO = null; }
     }
 
-    /* ── video 직접 최대화 ─────────────── */
     function doMaximizeDirect(video) {
       targetVideo = video;
       isIframeMode = false;
@@ -765,7 +770,6 @@
       showOSD('최대화 ON (ESC 복원)', 1200);
     }
 
-    /* ── ★ [v10.1.0 핵심 변경] doMaximizeIframe() — 래퍼 내부 형제 보존 ── */
     function doMaximizeIframe(iframeEl) {
       targetIframe = iframeEl;
       isIframeMode = true;
@@ -775,7 +779,6 @@
       playerWrapper = findIframePlayerWrapper(iframeEl);
 
       if (playerWrapper && playerWrapper !== document.body && playerWrapper !== document.documentElement) {
-        // 래퍼 있음 (sooplive 등): 래퍼 단위 최대화
         clearAncestorChain(playerWrapper);
         lockBody();
         backupAndApplyStyle(playerWrapper, {
@@ -788,13 +791,10 @@
           width: '100%', height: '100%',
           border: 'none', margin: '0', padding: '0'
         });
-        // ★ v10.1.0: 래퍼의 형제만 숨기고, 래퍼 내부 형제는 숨기지 않음
-        // (컨트롤바 등 iframe과 같은 래퍼 내부 요소 보존)
         hideSiblingsOf(playerWrapper);
         window.scrollTo(0, 0);
         startClassGuard(playerWrapper);
       } else {
-        // 래퍼 없음 (fomos.kr 등) — iframe 직접 fixed 최대화
         clearAncestorChain(iframeEl);
         lockBody();
         backupAndApplyStyle(iframeEl, {
@@ -812,9 +812,7 @@
       active = true;
       syncBtnUI();
       showOSD('최대화 ON (ESC 복원)', 1200);
-
-      // ★ v10.1.0: iframe 내부에는 "소프트" 메시지만 전달
-      // position:fixed 를 사용하지 않고 overflow/크기 제약만 해제
+      // ★ v10.2.0: 소프트 모드 — iframe 내부 컨트롤바 보존
       try { iframeEl.contentWindow.postMessage({ __ytd_max: 'apply_inner_soft' }, '*'); } catch (_) {}
     }
 
@@ -852,7 +850,7 @@
       showOSD('최대화 OFF', 1200);
     }
 
-    /* ── ★ [v10.1.0] iframe 내부 최대화 — 소프트 모드 추가 ── */
+    /* ── iframe 내부 최대화 ── */
     let innerMaxActive = false;
     const innerSavedSet = new Set();
     const innerSavedList = [];
@@ -861,7 +859,6 @@
       _backupApply(innerSavedSet, innerSavedList, el, css);
     }
 
-    // ★ v10.1.0: 기존 "하드" 내부 최대화 (iframe이 스스로 요청한 경우)
     function applyInnerMaximize() {
       if (innerMaxActive) return;
       const video = pickBestVideo();
@@ -909,14 +906,11 @@
       if (document.documentElement) backupInner(document.documentElement, { overflow: 'hidden' });
     }
 
-    // ★ v10.1.0 신규: "소프트" 내부 최대화 — overflow/크기 제약만 해제, position:fixed 안 씀
+    // ★ v10.2.0: 소프트 모드 — overflow/크기 제약만 해제
     function applyInnerMaximizeSoft() {
       if (innerMaxActive) return;
       innerMaxActive = true;
 
-      // body, html의 overflow만 해제하고 크기 제약만 풀어줌
-      // 비디오와 플레이어 래퍼의 position/layout은 건드리지 않음
-      // → iframe 내부 컨트롤바가 원래 위치에 그대로 유지됨
       if (document.body) {
         backupInner(document.body, {
           overflow: 'visible',
@@ -930,7 +924,6 @@
         });
       }
 
-      // 비디오가 있으면 조상의 크기/overflow 제약만 풀어줌
       const video = pickBestVideo();
       if (video) {
         let ancestor = video.parentElement;
@@ -994,7 +987,6 @@
         if (cmd === 'undo') { if (active) undoMaximize(); }
         return;
       }
-      // ★ v10.1.0: 소프트 모드 메시지 처리
       if (cmd === 'apply_inner_soft') { applyInnerMaximizeSoft(); return; }
       if (cmd === 'apply_inner') { applyInnerMaximize(); return; }
       if (cmd === 'undo_inner') { undoInnerMaximize(); return; }
