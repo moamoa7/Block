@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      11.0.0
-// @description  영상의 노란끼/청색끼 감지 + 항상 보이는 시계 + 좌우 반전 + 확대/축소
+// @version      10.1.0
+// @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + 좌우 반전 + 확대/축소
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -25,8 +25,9 @@
   const CFG = { sampleSize: 48, intervalMs: 1000, threshold: 12, coldThreshold: -12, histLen: 24, tempPerScore: 5 };
 
   let timerID = null, clockTimer = null, liveVideo = null, shadowVid = null;
-  let history = [], panel = null, fab = null, mirrorFab = null, zoomFab = null, fabStyle = null, panelStyle = null;
+  let history = [], panel = null, fab = null, maxFab = null, mirrorFab = null, zoomFab = null, fabStyle = null, panelStyle = null;
   let panelOpen = false, lastStatus = 'idle';
+  let coreStyle = null;
 
   let offscreen, oCtx;
   function resetCanvas() {
@@ -36,13 +37,16 @@
   }
   resetCanvas();
 
-  /* ── 모바일 / 전체화면 판별 ─────────────────────────── */
+  /* ── 모바일 / 전체화면 / iframe 판별 ───────────────── */
   function isMobile() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
            (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
   }
   function isFullscreen() {
     return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+  function isInIframe() {
+    try { return window !== window.top; } catch (_) { return true; }
   }
   function shouldAnalyze() {
     if (!isMobile()) return true;
@@ -198,12 +202,14 @@
     fab.className = 'ytd-fab ytd-fab--' + status;
   }
 
-  /* ── FAB 위치 ───────────────────────────────────────── */
+  /* ═════════════════════════════════════════════════════════════════════════
+     ★ FAB 동적 위치 계산
+  ═════════════════════════════════════════════════════════════════════════ */
   const FAB_START_RIGHT = 5;
   const FAB_GAP = 50;
 
   function layoutFabs() {
-    const ordered = [fab, mirrorFab, zoomFab];
+    const ordered = [fab, maxFab, mirrorFab, zoomFab];
     let pos = 0;
     for (const f of ordered) {
       if (!f) continue;
@@ -227,9 +233,11 @@
     }
 
     if (show) {
+      if (maxFab) maxFab.style.display = '';
       if (mirrorFab) mirrorFab.style.display = '';
       if (zoomFab) zoomFab.style.display = mobile ? 'none' : '';
     } else {
+      if (maxFab) maxFab.style.display = 'none';
       if (mirrorFab) mirrorFab.style.display = 'none';
       if (zoomFab) zoomFab.style.display = 'none';
     }
@@ -244,7 +252,7 @@
   }
   function reparent() {
     const target = getFsRoot();
-    const allFabs = [fab, mirrorFab, zoomFab];
+    const allFabs = [fab, maxFab, mirrorFab, zoomFab];
     for (const f of allFabs) {
       if (f && f.parentNode !== target) try { target.appendChild(f); } catch (_) {}
     }
@@ -254,14 +262,14 @@
     reparent();
     setTimeout(reparent, 120);
     setTimeout(() => {
-      const allFabs = [fab, mirrorFab, zoomFab];
+      const allFabs = [fab, maxFab, mirrorFab, zoomFab];
       for (const f of allFabs) {
         if (f && !f.isConnected) document.documentElement.appendChild(f);
       }
     }, 300);
 
     const best = pickBestVideo();
-    setFabVisible(!!best);
+    setFabVisible(!!best || !!findBestIframe());
     if (shouldAnalyze()) {
       if (best) startAnalysis(best);
     } else {
@@ -451,10 +459,38 @@
     detectTimer = setTimeout(() => { detectTimer = 0; autoDetect(); }, 300);
   }
 
+  /* ── findBestIframe() — 비디오 src 우선 감지 ── */
+  const VIDEO_SRC_RE = /\.(mp4|webm|ogg|m3u8)(\?.*)?$/i;
+
+  function findBestIframe() {
+    const iframes = document.querySelectorAll('iframe');
+    let bestIframe = null, bestArea = 0;
+    for (const ifr of iframes) {
+      if (!ifr.isConnected) continue;
+      const src = ifr.src || ifr.getAttribute('src') || '';
+      if (VIDEO_SRC_RE.test(src)) {
+        const r = ifr.getBoundingClientRect();
+        const area = r.width * r.height;
+        if (area > bestArea) { bestArea = area; bestIframe = ifr; }
+      }
+    }
+    if (bestIframe) return bestIframe;
+    bestArea = 0;
+    for (const ifr of iframes) {
+      if (!ifr.isConnected) continue;
+      const r = ifr.getBoundingClientRect();
+      const area = r.width * r.height;
+      if (area < 10000) continue;
+      if (area > bestArea) { bestArea = area; bestIframe = ifr; }
+    }
+    return bestIframe;
+  }
+
   function autoDetect() {
     const best = pickBestVideo();
     const hasVid = !!best;
-    setFabVisible(hasVid);
+    const hasIframe = !hasVid && !!findBestIframe();
+    setFabVisible(hasVid || hasIframe);
 
     if (!shouldAnalyze()) {
       if (timerID) stopAnalysis();
@@ -487,6 +523,516 @@
     video.style.transform = parts.length ? parts.join(' ') : '';
     video.style.transformOrigin = 'center center';
   }
+
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     ★ 통합된 Video Maximizer 모듈 (v10.1.0)
+  ═════════════════════════════════════════════════════════════════════════ */
+  const Maximizer = (() => {
+    const MAX_CLASS = 'ytd-vmax-max';
+    const HIDE_CLASS = 'ytd-vmax-hide';
+    const ANCESTOR_CLASS = 'ytd-vmax-ancestor';
+    const IFRAME_MAX_CLASS = 'ytd-vmax-iframe';
+
+    let active = false;
+    let targetVideo = null;
+    let targetIframe = null;
+    let isIframeMode = false;
+    let delegatedToTop = false;
+
+    const savedElementsSet = new Set();
+    const savedElementsList = [];
+    let hiddenSiblings = [];
+    let savedScrollX = 0, savedScrollY = 0;
+    let classMO = null;
+    let playerWrapper = null;
+
+    /* ── 비디오 플레이어 컨트롤 판별 ─── */
+    function isPlayerControlElement(el) {
+      if (!el || el.nodeType !== 1) return false;
+      const cn = (el.className && typeof el.className === 'string') ? el.className.toLowerCase() : '';
+      const id = (el.id || '').toLowerCase();
+      const text = cn + ' ' + id;
+
+      const strictKeywords = [
+        'player-controls', 'player_controls', 'playercontrols',
+        'video-controls', 'video_controls', 'videocontrols',
+        'ctrl_bar', 'ctrl-bar', 'ctrlbar',
+        'control-bar', 'control_bar', 'controlbar',
+        'seekbar', 'seek-bar', 'seek_bar',
+        'playbar', 'play-bar', 'play_bar',
+        'vod-control', 'vod_control',
+        'bottom_ctrl', 'bottom-ctrl',
+        'player-bottom', 'player_bottom'
+      ];
+      for (const kw of strictKeywords) {
+        if (text.includes(kw)) return true;
+      }
+
+      const role = el.getAttribute('role');
+      if (role === 'slider' || role === 'toolbar') return true;
+
+      return false;
+    }
+
+    /* ── 플레이어 래퍼 찾기 ────────── */
+    function findPlayerWrapper(videoEl) {
+      let el = videoEl.parentElement;
+      let depth = 0;
+      while (el && el !== document.body && el !== document.documentElement && depth < 6) {
+        for (const child of el.children) {
+          if (child === videoEl) continue;
+          if (child.nodeType !== 1) continue;
+          if (isPlayerControlElement(child)) return el;
+        }
+        try {
+          const descendants = el.querySelectorAll(
+            '[class*="control-bar"], [class*="controlbar"], [class*="seekbar"], ' +
+            '[class*="playbar"], [role="slider"], [role="toolbar"]'
+          );
+          if (descendants.length >= 2) return el;
+        } catch (_) {}
+        el = el.parentElement;
+        depth++;
+      }
+      return null;
+    }
+
+    /* ── iframe용 플레이어 래퍼 ── */
+    function findIframePlayerWrapper(iframeEl) {
+      let el = iframeEl.parentElement;
+      let depth = 0;
+      while (el && el !== document.body && el !== document.documentElement && depth < 8) {
+        const text = ((el.className && typeof el.className === 'string' ? el.className : '') + ' ' + (el.id || '')).toLowerCase();
+        const wrapperKeywords = [
+          'player', 'htmlplayer', 'video-player', 'video_player',
+          'player_area', 'player-area', 'playerarea',
+          'player_wrap', 'player-wrap', 'playerwrap',
+          'player_content', 'player-content', 'playercontent',
+          'float_box', 'float-box', 'floatbox',
+          'soop_player', 'soop-player'
+        ];
+        for (const kw of wrapperKeywords) {
+          if (text.includes(kw)) return el;
+        }
+        el = el.parentElement;
+        depth++;
+      }
+      return null;
+    }
+
+    function findIframeForWindow(childWin) {
+      try {
+        const iframes = document.querySelectorAll('iframe');
+        for (const ifr of iframes) {
+          try { if (ifr.contentWindow === childWin) return ifr; } catch (_) {}
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    function _backupApply(set, list, el, css) {
+      if (!set.has(el)) {
+        set.add(el); list.push(el);
+        if (!el.__ytd_max_saved) el.__ytd_max_saved = {};
+      }
+      for (const prop in css) {
+        if (!(prop in el.__ytd_max_saved)) {
+          el.__ytd_max_saved[prop] = el.style.getPropertyValue(prop);
+        }
+        el.style.setProperty(prop, css[prop], 'important');
+      }
+    }
+
+    function backupAndApplyStyle(el, css) {
+      _backupApply(savedElementsSet, savedElementsList, el, css);
+    }
+
+    function restoreStyle(el) {
+      if (!el.__ytd_max_saved) return;
+      for (const prop in el.__ytd_max_saved) {
+        const val = el.__ytd_max_saved[prop];
+        if (val) el.style.setProperty(prop, val);
+        else el.style.removeProperty(prop);
+      }
+      delete el.__ytd_max_saved;
+    }
+
+    /* ── 형제 숨기기 ── */
+    function isOurElement(sib) {
+      if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') return true;
+      if (sib.id === '__ytd2__' || sib.id === 'ytd-osd' || sib.id === '__ytd3_core_style__' ||
+          sib.id === '__ytd3_fab_style__' || sib.id === '__ytd2_style__') return true;
+      if (sib.classList && sib.classList.contains('ytd-fab')) return true;
+      if (sib === fab || sib === maxFab || sib === mirrorFab || sib === zoomFab || sib === panel) return true;
+      return false;
+    }
+
+    function hideSiblingsOf(el) {
+      if (!el.parentNode) return;
+      for (const sib of el.parentNode.children) {
+        if (sib === el || sib.nodeType !== 1) continue;
+        if (isOurElement(sib)) continue;
+        sib.classList.add(HIDE_CLASS);
+        hiddenSiblings.push({ el: sib });
+      }
+    }
+
+    /* ── clearAncestorChain() ─────── */
+    function clearAncestorChain(startEl) {
+      let ancestor = startEl.parentElement;
+      while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+        ancestor.dataset.ytdMaxAncestor = '1';
+        backupAndApplyStyle(ancestor, {
+          overflow: 'visible', position: 'static', transform: 'none',
+          clip: 'auto', 'clip-path': 'none', contain: 'none',
+          width: '100vw', height: '100vh',
+          'max-width': 'none', 'max-height': 'none',
+          margin: '0', padding: '0'
+        });
+        ancestor.classList.add(ANCESTOR_CLASS);
+        hideSiblingsOf(ancestor);
+        ancestor = ancestor.parentElement;
+      }
+    }
+
+    function lockBody() {
+      backupAndApplyStyle(document.body, { overflow: 'hidden', margin: '0', padding: '0' });
+      if (document.documentElement) {
+        backupAndApplyStyle(document.documentElement, { overflow: 'hidden' });
+      }
+    }
+
+    function startClassGuard(primaryEl) {
+      if (classMO) { classMO.disconnect(); classMO = null; }
+      classMO = new MutationObserver((muts) => {
+        for (const m of muts) {
+          if (m.type !== 'attributes' || m.attributeName !== 'class' || !active) continue;
+          const el = m.target;
+          if (el.dataset?.ytdMaxAncestor === '1' && !el.classList.contains(ANCESTOR_CLASS)) el.classList.add(ANCESTOR_CLASS);
+        }
+      });
+      let cur = primaryEl.parentElement;
+      while (cur && cur !== document.body && cur !== document.documentElement) {
+        classMO.observe(cur, { attributes: true, attributeFilter: ['class'] });
+        cur = cur.parentElement;
+      }
+    }
+
+    function stopClassGuard() {
+      if (classMO) { classMO.disconnect(); classMO = null; }
+    }
+
+    /* ── video 직접 최대화 ─────────────── */
+    function doMaximizeDirect(video) {
+      targetVideo = video;
+      isIframeMode = false;
+      savedScrollX = window.scrollX;
+      savedScrollY = window.scrollY;
+
+      playerWrapper = findPlayerWrapper(video);
+
+      if (playerWrapper) {
+        clearAncestorChain(playerWrapper);
+        lockBody();
+        backupAndApplyStyle(playerWrapper, {
+          position: 'fixed', top: '0', left: '0',
+          width: '100vw', height: '100dvh',
+          'z-index': '2147483646', background: '#000',
+          margin: '0', padding: '0', overflow: 'hidden'
+        });
+        backupAndApplyStyle(video, {
+          width: '100%', height: '100%',
+          'object-fit': 'contain'
+        });
+        hideSiblingsOf(playerWrapper);
+        window.scrollTo(0, 0);
+        startClassGuard(playerWrapper);
+        applyVideoTransform(video);
+      } else {
+        clearAncestorChain(video);
+        lockBody();
+        backupAndApplyStyle(video, {});
+        video.classList.add(MAX_CLASS);
+        applyVideoTransform(video);
+        hideSiblingsOf(video);
+        window.scrollTo(0, 0);
+        startClassGuard(video);
+      }
+
+      active = true;
+      syncBtnUI();
+      showOSD('최대화 ON (ESC 복원)', 1200);
+    }
+
+    /* ── ★ [v10.1.0 핵심 변경] doMaximizeIframe() — 래퍼 내부 형제 보존 ── */
+    function doMaximizeIframe(iframeEl) {
+      targetIframe = iframeEl;
+      isIframeMode = true;
+      savedScrollX = window.scrollX;
+      savedScrollY = window.scrollY;
+
+      playerWrapper = findIframePlayerWrapper(iframeEl);
+
+      if (playerWrapper && playerWrapper !== document.body && playerWrapper !== document.documentElement) {
+        // 래퍼 있음 (sooplive 등): 래퍼 단위 최대화
+        clearAncestorChain(playerWrapper);
+        lockBody();
+        backupAndApplyStyle(playerWrapper, {
+          position: 'fixed', top: '0', left: '0',
+          width: '100vw', height: '100dvh',
+          'z-index': '2147483646', background: '#000',
+          margin: '0', padding: '0', overflow: 'hidden'
+        });
+        backupAndApplyStyle(iframeEl, {
+          width: '100%', height: '100%',
+          border: 'none', margin: '0', padding: '0'
+        });
+        // ★ v10.1.0: 래퍼의 형제만 숨기고, 래퍼 내부 형제는 숨기지 않음
+        // (컨트롤바 등 iframe과 같은 래퍼 내부 요소 보존)
+        hideSiblingsOf(playerWrapper);
+        window.scrollTo(0, 0);
+        startClassGuard(playerWrapper);
+      } else {
+        // 래퍼 없음 (fomos.kr 등) — iframe 직접 fixed 최대화
+        clearAncestorChain(iframeEl);
+        lockBody();
+        backupAndApplyStyle(iframeEl, {
+          position: 'fixed', top: '0', left: '0',
+          width: '100vw', height: '100dvh',
+          'z-index': '2147483646', background: '#000',
+          border: 'none', margin: '0', padding: '0'
+        });
+        iframeEl.classList.add(IFRAME_MAX_CLASS);
+        hideSiblingsOf(iframeEl);
+        window.scrollTo(0, 0);
+        startClassGuard(iframeEl);
+      }
+
+      active = true;
+      syncBtnUI();
+      showOSD('최대화 ON (ESC 복원)', 1200);
+
+      // ★ v10.1.0: iframe 내부에는 "소프트" 메시지만 전달
+      // position:fixed 를 사용하지 않고 overflow/크기 제약만 해제
+      try { iframeEl.contentWindow.postMessage({ __ytd_max: 'apply_inner_soft' }, '*'); } catch (_) {}
+    }
+
+    function undoMaximize() {
+      if (!active) return;
+      stopClassGuard();
+      if (isIframeMode && targetIframe) {
+        try { targetIframe.contentWindow.postMessage({ __ytd_max: 'undo_inner' }, '*'); } catch (_) {}
+        try { targetIframe.contentWindow.postMessage({ __ytd_max: 'state_off' }, '*'); } catch (_) {}
+      }
+      for (let i = hiddenSiblings.length - 1; i >= 0; i--) {
+        const { el } = hiddenSiblings[i];
+        try { el.classList.remove(HIDE_CLASS); } catch (_) {}
+      }
+      hiddenSiblings = [];
+      for (let i = savedElementsList.length - 1; i >= 0; i--) {
+        const el = savedElementsList[i];
+        restoreStyle(el);
+        try {
+          el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS);
+          delete el.dataset.ytdMaxAncestor;
+        } catch (_) {}
+      }
+      savedElementsList.length = 0;
+      savedElementsSet.clear();
+      playerWrapper = null;
+      window.scrollTo(savedScrollX, savedScrollY);
+      active = false;
+      targetVideo = null;
+      targetIframe = null;
+      isIframeMode = false;
+      const vid = pickBestVideo();
+      if (vid) applyVideoTransform(vid);
+      syncBtnUI();
+      showOSD('최대화 OFF', 1200);
+    }
+
+    /* ── ★ [v10.1.0] iframe 내부 최대화 — 소프트 모드 추가 ── */
+    let innerMaxActive = false;
+    const innerSavedSet = new Set();
+    const innerSavedList = [];
+
+    function backupInner(el, css) {
+      _backupApply(innerSavedSet, innerSavedList, el, css);
+    }
+
+    // ★ v10.1.0: 기존 "하드" 내부 최대화 (iframe이 스스로 요청한 경우)
+    function applyInnerMaximize() {
+      if (innerMaxActive) return;
+      const video = pickBestVideo();
+      if (!video) return;
+      innerMaxActive = true;
+
+      const wrapper = findPlayerWrapper(video);
+
+      if (wrapper) {
+        backupInner(wrapper, {
+          position: 'fixed', top: '0', left: '0',
+          width: '100vw', height: '100dvh',
+          'z-index': '2147483646', background: '#000',
+          margin: '0', padding: '0', overflow: 'hidden'
+        });
+        backupInner(video, {
+          width: '100%', height: '100%',
+          'object-fit': 'contain'
+        });
+        let ancestor = wrapper.parentElement;
+        while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+          backupInner(ancestor, {
+            overflow: 'visible', position: 'static', transform: 'none',
+            clip: 'auto', 'clip-path': 'none', contain: 'none'
+          });
+          ancestor = ancestor.parentElement;
+        }
+      } else {
+        backupInner(video, {
+          width: '100vw', height: '100dvh', 'object-fit': 'contain',
+          position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
+          background: '#000', margin: '0', padding: '0', border: 'none'
+        });
+        let ancestor = video.parentElement;
+        while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+          backupInner(ancestor, {
+            overflow: 'visible', position: 'static', transform: 'none',
+            clip: 'auto', 'clip-path': 'none', contain: 'none'
+          });
+          ancestor = ancestor.parentElement;
+        }
+      }
+
+      backupInner(document.body, { overflow: 'hidden', margin: '0', padding: '0' });
+      if (document.documentElement) backupInner(document.documentElement, { overflow: 'hidden' });
+    }
+
+    // ★ v10.1.0 신규: "소프트" 내부 최대화 — overflow/크기 제약만 해제, position:fixed 안 씀
+    function applyInnerMaximizeSoft() {
+      if (innerMaxActive) return;
+      innerMaxActive = true;
+
+      // body, html의 overflow만 해제하고 크기 제약만 풀어줌
+      // 비디오와 플레이어 래퍼의 position/layout은 건드리지 않음
+      // → iframe 내부 컨트롤바가 원래 위치에 그대로 유지됨
+      if (document.body) {
+        backupInner(document.body, {
+          overflow: 'visible',
+          'max-width': 'none', 'max-height': 'none'
+        });
+      }
+      if (document.documentElement) {
+        backupInner(document.documentElement, {
+          overflow: 'visible',
+          'max-width': 'none', 'max-height': 'none'
+        });
+      }
+
+      // 비디오가 있으면 조상의 크기/overflow 제약만 풀어줌
+      const video = pickBestVideo();
+      if (video) {
+        let ancestor = video.parentElement;
+        let depth = 0;
+        while (ancestor && ancestor !== document.body && ancestor !== document.documentElement && depth < 10) {
+          backupInner(ancestor, {
+            overflow: 'visible',
+            'max-width': 'none', 'max-height': 'none',
+            clip: 'auto', 'clip-path': 'none', contain: 'none'
+          });
+          ancestor = ancestor.parentElement;
+          depth++;
+        }
+      }
+    }
+
+    function undoInnerMaximize() {
+      if (!innerMaxActive) return;
+      for (let i = innerSavedList.length - 1; i >= 0; i--) restoreStyle(innerSavedList[i]);
+      innerSavedList.length = 0; innerSavedSet.clear();
+      innerMaxActive = false;
+    }
+
+    function toggle() {
+      if (isInIframe()) {
+        if (delegatedToTop) {
+          try { window.top.postMessage({ __ytd_max: 'undo' }, '*'); } catch (_) {}
+          delegatedToTop = false;
+          return;
+        }
+        try {
+          window.top.postMessage({ __ytd_max: 'request' }, '*');
+          delegatedToTop = true;
+        } catch (_) {
+          const video = pickBestVideo();
+          if (video) doMaximizeDirect(video);
+        }
+        return;
+      }
+      if (active) { undoMaximize(); return; }
+      const video = pickBestVideo();
+      if (video) { doMaximizeDirect(video); return; }
+
+      const bestIframe = findBestIframe();
+      if (bestIframe) doMaximizeIframe(bestIframe);
+      else showOSD('최대화할 비디오를 찾을 수 없습니다.', 1500);
+    }
+
+    function handleMessage(e) {
+      if (!e.data || typeof e.data !== 'object' || !e.data.__ytd_max) return;
+      const cmd = e.data.__ytd_max;
+      if (!isInIframe()) {
+        if (cmd === 'request') {
+          const iframeEl = findIframeForWindow(e.source);
+          if (iframeEl) {
+            if (active) undoMaximize();
+            doMaximizeIframe(iframeEl);
+            try { e.source.postMessage({ __ytd_max: 'state_on' }, '*'); } catch (_) {}
+          }
+        }
+        if (cmd === 'undo') { if (active) undoMaximize(); }
+        return;
+      }
+      // ★ v10.1.0: 소프트 모드 메시지 처리
+      if (cmd === 'apply_inner_soft') { applyInnerMaximizeSoft(); return; }
+      if (cmd === 'apply_inner') { applyInnerMaximize(); return; }
+      if (cmd === 'undo_inner') { undoInnerMaximize(); return; }
+      if (cmd === 'state_on') { delegatedToTop = true; syncBtnUI(); return; }
+      if (cmd === 'state_off') { delegatedToTop = false; syncBtnUI(); return; }
+    }
+
+    function syncBtnUI() {
+      const isMax = active || delegatedToTop;
+      if (maxFab) {
+         maxFab.style.borderColor = isMax ? '#50d070' : '#2a2d36';
+         const svg = maxFab.querySelector('svg path');
+         if (svg) svg.style.stroke = isMax ? '#50d070' : '#4a5060';
+      }
+      const btn = document.getElementById('ytd-maximize');
+      if (btn) btn.style.color = isMax ? '#50d070' : '';
+    }
+
+    window.addEventListener('message', handleMessage);
+
+    window.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (active) {
+        undoMaximize();
+      } else if (delegatedToTop) {
+        try { window.top.postMessage({ __ytd_max: 'undo' }, '*'); } catch (_) {}
+        delegatedToTop = false;
+        syncBtnUI();
+        showOSD('최대화 OFF', 1200);
+      }
+    }, { capture: true });
+
+    return {
+      toggle,
+      undoMaximize,
+      isActive: () => active || delegatedToTop
+    };
+  })();
 
 
   /* ═════════════════════════════════════════════════════════════════════════
@@ -631,7 +1177,7 @@
       if (video) { clampPan(video); applyVideoTransform(video); }
     }
 
-    function onMouseUp() {
+    function onMouseUp(e) {
       if (!isPanning) return;
       isPanning = false;
       document.body.style.cursor = '';
@@ -667,7 +1213,7 @@
     }
 
     window.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && scale > 1.0) {
+      if (e.key === 'Escape' && scale > 1.0 && !Maximizer.isActive()) {
         reset();
       }
     }, { capture: true });
@@ -690,11 +1236,24 @@
   })();
 
 
-  /* ── FAB 빌드 (3개: Zoom, Mirror, Main) ────────────── */
+  /* ── FAB 빌드 (4개: Zoom, Mirror, Max, Main) ──────── */
   function buildFab() {
     if (fab) return;
 
     const mobile = isMobile();
+
+    if (!coreStyle || !coreStyle.isConnected) {
+      coreStyle?.remove();
+      coreStyle = document.createElement('style');
+      coreStyle.id = '__ytd3_core_style__';
+      coreStyle.textContent = `
+  .ytd-vmax-max{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;}
+  .ytd-vmax-hide{display:none!important;}
+  .ytd-vmax-ancestor{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;}
+  .ytd-vmax-iframe{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;max-width:100vw!important;max-height:100vh!important;background:#000!important;}
+`;
+      document.documentElement.appendChild(coreStyle);
+    }
 
     fabStyle = document.createElement('style'); fabStyle.id = '__ytd3_fab_style__';
     fabStyle.textContent = `
@@ -756,6 +1315,14 @@
     fab.appendChild(Object.assign(document.createElement('span'),{className:'ytd-fab-score'}));
     const clockSpan = document.createElement('span'); clockSpan.className = 'ytd-fab-clock'; clockSpan.textContent = '--:--'; fab.appendChild(clockSpan);
 
+    maxFab = document.createElement('div'); maxFab.className = 'ytd-fab ytd-fab--idle'; maxFab.style.display = 'none'; maxFab.title = "화면 최대화/해제";
+    const maxIconWrap = document.createElement('div'); maxIconWrap.className = 'ytd-fab-icon';
+    const maxSvg = document.createElementNS(svgNS,'svg'); maxSvg.setAttribute('viewBox','0 0 24 24'); maxSvg.setAttribute('fill','none'); maxSvg.setAttribute('stroke-width','2'); maxSvg.setAttribute('stroke-linecap','round'); maxSvg.setAttribute('stroke-linejoin','round');
+    const maxPath = document.createElementNS(svgNS, 'path');
+    maxPath.setAttribute('d', 'M15,3L21,3L21,9 M9,21L3,21L3,15 M21,3L14,10 M3,21L10,14');
+    maxPath.style.stroke = '#4a5060';
+    maxSvg.appendChild(maxPath); maxIconWrap.appendChild(maxSvg); maxFab.appendChild(maxIconWrap);
+
     mirrorFab = document.createElement('div'); mirrorFab.className = 'ytd-fab ytd-fab--idle'; mirrorFab.style.display = 'none'; mirrorFab.title = "좌우 반전";
     const mirrorIconWrap = document.createElement('div'); mirrorIconWrap.className = 'ytd-fab-icon';
     const mirrorSvg = document.createElementNS(svgNS,'svg'); mirrorSvg.setAttribute('viewBox','0 0 24 24'); mirrorSvg.setAttribute('fill','none'); mirrorSvg.setAttribute('stroke-width','2'); mirrorSvg.setAttribute('stroke-linecap','round'); mirrorSvg.setAttribute('stroke-linejoin','round');
@@ -781,12 +1348,13 @@
     }
 
     document.documentElement.appendChild(mirrorFab);
+    document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
     let dragging = false, moved = false, dragStartX = 0, dragStartY = 0;
     const dragOrigins = new Map();
 
-    const activeFabList = () => [fab, mirrorFab, zoomFab].filter(Boolean);
+    const activeFabList = () => [fab, maxFab, mirrorFab, zoomFab].filter(Boolean);
 
     const onDown = (e, targetEl) => {
       if (e.button !== 0) return;
@@ -815,6 +1383,7 @@
 
     const fabActions = new Map([
       [fab,       () => togglePanel()],
+      [maxFab,    () => Maximizer.toggle()],
       [mirrorFab, () => Mirror.toggle()],
     ]);
     if (zoomFab) {
@@ -846,6 +1415,7 @@
         <div style="display:flex; gap:6px;">
           ${zoomBtnHTML}
           <button id="ytd-mirror" title="좌우 반전">↔</button>
+          <button id="ytd-maximize" title="최대화/해제">🗖</button>
           <button id="ytd-refresh" title="재탐색">↺</button>
           <button id="ytd-close" title="닫기">✕</button>
         </div>
@@ -912,6 +1482,7 @@
     const zoomBtn = q('ytd-zoom');
     if (zoomBtn) zoomBtn.addEventListener('click', () => Zoom.reset());
     q('ytd-mirror').addEventListener('click', () => Mirror.toggle());
+    q('ytd-maximize').addEventListener('click', () => Maximizer.toggle());
     q('ytd-refresh').addEventListener('click', refreshVideoList);
     q('ytd-close').addEventListener('click', () => togglePanel(false));
     Mirror.syncUI();
