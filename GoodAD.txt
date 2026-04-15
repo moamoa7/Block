@@ -407,6 +407,12 @@ aagag.com##.bottom.center.sAlert
 aagag.com#$#.la { position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 !
 !
+! 이슈링크 (https://www.issuelink.co.kr/)
+! - 광고 차단 하라는 팝업
+! -- 차단하면 스크롤 안됨
+!##[class*="-dialog"]
+!
+!
 ! 디시인사이드 (https://gall.dcinside.com)
 ! - 오른쪽 배너 공간
 ! - - - 유니콘Pro에 없는거 (List-KR)
@@ -5548,7 +5554,7 @@ www.linknala.com,[$domain=/^tkor\d+.com/],[$domain=/^wfwf\d+.com/],[$domain=/^fx
 ##a[href][target]:has(img)
 ! - 북마크 열때 지정안된 사이트에서는 아이콘이 안보여서 포기
 ! - - - 일반
-weather.go.kr,namu.wiki,trand.co.kr,sooplive.com,www.naver.com,tv.naver.com,www.nate.com,www.google.com,etoland.co.kr,poong.today,inven.co.kr,mlbpark.donga.com,web.humoruniv.com#@#a[href][target]:has(img)
+weather.go.kr,namu.wiki,trand.co.kr,sooplive.com,www.naver.com,tv.naver.com,www.nate.com,www.google.com,etoland.co.kr,poong.today,inven.co.kr,mlbpark.donga.com,web.humoruniv.com,ygosu.com#@#a[href][target]:has(img)
 ! - - - 성인
 twivideo.net,twidouga.net,monsnode.com,twihub.net,twiigle.com#@#a[href][target]:has(img)
 
