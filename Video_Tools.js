@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      9.1.0
+// @version      9.2.0
 // @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + 좌우 반전 + 확대/축소
 // @match        *://*/*
 // @grant        none
@@ -459,7 +459,6 @@
     detectTimer = setTimeout(() => { detectTimer = 0; autoDetect(); }, 300);
   }
 
-  /* ── iframe 탐색 헬퍼 ─────────────────────────────── */
   function findBestIframe() {
     const iframes = document.querySelectorAll('iframe');
     let bestIframe = null, bestArea = 0;
@@ -520,7 +519,6 @@
     const HIDE_CLASS = 'ytd-vmax-hide';
     const ANCESTOR_CLASS = 'ytd-vmax-ancestor';
     const IFRAME_MAX_CLASS = 'ytd-vmax-iframe';
-    const WRAPPER_MAX_CLASS = 'ytd-vmax-wrapper';
 
     let active = false;
     let targetVideo = null;
@@ -535,43 +533,37 @@
     let classMO = null;
     let playerWrapper = null;
 
-    /* ── 비디오 컨트롤 판별 ────────────────────────── */
-    function isVideoControlElement(el) {
+    /* ── 비디오 플레이어 컨트롤 판별 (엄격 버전) ─────── */
+    function isPlayerControlElement(el) {
       if (!el || el.nodeType !== 1) return false;
-      const text = ((el.className && typeof el.className === 'string' ? el.className : '') + ' ' + (el.id || '')).toLowerCase();
-      const controlKeywords = [
-        'control', 'controls', 'toolbar', 'bottom-bar', 'bottombar',
-        'progress', 'seekbar', 'seek-bar', 'playbar', 'play-bar',
-        'player-ui', 'player-controls', 'player-bottom',
-        'time', 'volume', 'fullscreen', 'setting',
-        'overlay', 'ui-layer', 'uilayer',
-        'caption', 'subtitle', 'quality', 'speed',
+      const cn = (el.className && typeof el.className === 'string') ? el.className.toLowerCase() : '';
+      const id = (el.id || '').toLowerCase();
+      const text = cn + ' ' + id;
+
+      // ★ 엄격한 키워드: 반드시 플레이어 컨트롤에만 해당하는 것들
+      const strictKeywords = [
+        'player-controls', 'player_controls', 'playercontrols',
+        'video-controls', 'video_controls', 'videocontrols',
+        'ctrl_bar', 'ctrl-bar', 'ctrlbar',
+        'control-bar', 'control_bar', 'controlbar',
+        'seekbar', 'seek-bar', 'seek_bar',
+        'playbar', 'play-bar', 'play_bar',
         'vod-control', 'vod_control',
-        'ctrl', 'player_bottom', 'bottom_ctrl',
-        'ctrl_bar', 'ctrl-bar', 'ctrlbar'
+        'bottom_ctrl', 'bottom-ctrl',
+        'player-bottom', 'player_bottom'
       ];
-      for (const kw of controlKeywords) {
+      for (const kw of strictKeywords) {
         if (text.includes(kw)) return true;
       }
-      for (const attr of el.attributes) {
-        if (attr.name.startsWith('data-') || attr.name === 'role') {
-          const val = attr.value.toLowerCase();
-          if (val.includes('control') || val.includes('toolbar') ||
-              val.includes('slider') || val.includes('progressbar')) return true;
-        }
-      }
-      if (el.getAttribute('role') === 'slider' ||
-          el.getAttribute('role') === 'toolbar') return true;
-      try {
-        if (el.querySelector &&
-            el.querySelector('button, input[type="range"], [role="slider"], [class*="time"], [class*="progress"]')) {
-          return true;
-        }
-      } catch (_) {}
+
+      // role 속성 체크
+      const role = el.getAttribute('role');
+      if (role === 'slider' || role === 'toolbar') return true;
+
       return false;
     }
 
-    /* ── 플레이어 래퍼 찾기 ─────────────────────────── */
+    /* ── 플레이어 래퍼 찾기 (컨트롤이 있는 경우만) ────── */
     function findPlayerWrapper(videoEl) {
       let el = videoEl.parentElement;
       let depth = 0;
@@ -579,24 +571,24 @@
         for (const child of el.children) {
           if (child === videoEl) continue;
           if (child.nodeType !== 1) continue;
-          if (isVideoControlElement(child)) return el;
+          if (isPlayerControlElement(child)) return el;
         }
-        // 재귀적으로 손자 요소까지 확인
-        const descendants = el.querySelectorAll('*');
-        let controlCount = 0;
-        for (const desc of descendants) {
-          if (desc === videoEl) continue;
-          if (isVideoControlElement(desc)) { controlCount++; if (controlCount >= 2) return el; }
-        }
+        // 자식 요소 중 컨트롤이 2개 이상이면 래퍼로 인정
+        try {
+          const descendants = el.querySelectorAll(
+            '[class*="control-bar"], [class*="controlbar"], [class*="seekbar"], ' +
+            '[class*="playbar"], [role="slider"], [role="toolbar"]'
+          );
+          if (descendants.length >= 2) return el;
+        } catch (_) {}
         el = el.parentElement;
         depth++;
       }
       return null;
     }
 
-    /* ── iframe용: 비디오를 포함하는 iframe의 "플레이어 영역" 래퍼 찾기 ── */
+    /* ── iframe용 플레이어 래퍼 찾기 ─────────────────── */
     function findIframePlayerWrapper(iframeEl) {
-      // iframe의 부모부터 위로 올라가며, 플레이어 관련 클래스를 가진 래퍼를 찾음
       let el = iframeEl.parentElement;
       let depth = 0;
       while (el && el !== document.body && el !== document.documentElement && depth < 8) {
@@ -615,7 +607,6 @@
         el = el.parentElement;
         depth++;
       }
-      // 못 찾으면 iframe의 직접 부모를 반환
       return iframeEl.parentElement;
     }
 
@@ -656,21 +647,28 @@
       delete el.__ytd_max_saved;
     }
 
-    function hideSiblings(el, videoEl) {
+    /* ── 형제 숨기기 — 래퍼 모드와 직접 모드 분리 ─────── */
+    function isOurElement(sib) {
+      if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') return true;
+      if (sib.id === '__ytd2__' || sib.id === 'ytd-osd' || sib.id === '__ytd3_core_style__' ||
+          sib.id === '__ytd3_fab_style__' || sib.id === '__ytd2_style__') return true;
+      if (sib.classList && sib.classList.contains('ytd-fab')) return true;
+      if (sib === fab || sib === maxFab || sib === mirrorFab || sib === zoomFab || sib === panel) return true;
+      return false;
+    }
+
+    // 래퍼 모드: 래퍼 외부의 형제만 숨김 (래퍼 내부는 보존)
+    function hideSiblingsOf(el) {
       if (!el.parentNode) return;
       for (const sib of el.parentNode.children) {
         if (sib === el || sib.nodeType !== 1) continue;
-        if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
-        if (sib.id === '__ytd2__' || sib.id === 'ytd-osd' || sib.classList.contains('ytd-fab')) continue;
-        if (sib === fab || sib === maxFab || sib === mirrorFab || sib === zoomFab || sib === panel) continue;
-        if (videoEl && isVideoControlElement(sib)) continue;
-        if (videoEl && sib.contains && sib.contains(videoEl)) continue;
+        if (isOurElement(sib)) continue;
         sib.classList.add(HIDE_CLASS);
         hiddenSiblings.push({ el: sib });
       }
     }
 
-    function clearAncestorChain(startEl, videoOrIframe) {
+    function clearAncestorChain(startEl) {
       let ancestor = startEl.parentElement;
       while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
         ancestor.dataset.ytdMaxAncestor = '1';
@@ -679,7 +677,7 @@
           clip: 'auto', 'clip-path': 'none', contain: 'none'
         });
         ancestor.classList.add(ANCESTOR_CLASS);
-        hideSiblings(ancestor, videoOrIframe);
+        hideSiblingsOf(ancestor);
         ancestor = ancestor.parentElement;
       }
     }
@@ -711,7 +709,7 @@
       if (classMO) { classMO.disconnect(); classMO = null; }
     }
 
-    /* ── 직접 video 최대화 (래퍼 감지 포함) ─────────── */
+    /* ── video 직접 최대화 ───────────────────────────── */
     function doMaximizeDirect(video) {
       targetVideo = video;
       isIframeMode = false;
@@ -721,7 +719,8 @@
       playerWrapper = findPlayerWrapper(video);
 
       if (playerWrapper) {
-        clearAncestorChain(playerWrapper, video);
+        // ★ 래퍼 모드: 래퍼를 fullscreen, 내부(컨트롤 포함) 보존
+        clearAncestorChain(playerWrapper);
         lockBody();
         backupAndApplyStyle(playerWrapper, {
           position: 'fixed', top: '0', left: '0',
@@ -733,17 +732,19 @@
           width: '100%', height: '100%',
           'object-fit': 'contain'
         });
-        hideSiblings(playerWrapper, video);
+        hideSiblingsOf(playerWrapper);
         window.scrollTo(0, 0);
         startClassGuard(playerWrapper);
         applyVideoTransform(video);
       } else {
-        clearAncestorChain(video, video);
+        // ★ 직접 모드: video를 MAX_CLASS로 fixed
+        //   조상 체인의 모든 형제를 무조건 숨김 (컨트롤 판별 불필요)
+        clearAncestorChain(video);
         lockBody();
         backupAndApplyStyle(video, {});
         video.classList.add(MAX_CLASS);
         applyVideoTransform(video);
-        hideSiblings(video, video);
+        hideSiblingsOf(video);
         window.scrollTo(0, 0);
         startClassGuard(video);
       }
@@ -753,47 +754,37 @@
       showOSD('최대화 ON (ESC 복원)', 1200);
     }
 
-    /* ── iframe 최대화: 래퍼 단위 (핵심 변경) ────────── */
+    /* ── iframe 최대화 ──────────────────────────────── */
     function doMaximizeIframe(iframeEl) {
       targetIframe = iframeEl;
       isIframeMode = true;
       savedScrollX = window.scrollX;
       savedScrollY = window.scrollY;
 
-      // ★ iframe을 감싸는 플레이어 래퍼를 찾아서 래퍼 단위로 최대화
       playerWrapper = findIframePlayerWrapper(iframeEl);
 
       if (playerWrapper && playerWrapper !== document.body && playerWrapper !== document.documentElement) {
-        // 래퍼 위의 조상 처리
-        clearAncestorChain(playerWrapper, iframeEl);
+        clearAncestorChain(playerWrapper);
         lockBody();
-
-        // 래퍼를 화면 가득 채움 (래퍼 안의 모든 자식은 보존)
         backupAndApplyStyle(playerWrapper, {
           position: 'fixed', top: '0', left: '0',
           width: '100vw', height: '100dvh',
           'z-index': '2147483646', background: '#000',
           margin: '0', padding: '0', overflow: 'hidden'
         });
-
-        // iframe을 래퍼 안에서 가득 채움
         backupAndApplyStyle(iframeEl, {
           width: '100%', height: '100%',
           border: 'none', margin: '0', padding: '0'
         });
-
-        // 래퍼 외부의 형제만 숨김 (래퍼 내부는 보존)
-        hideSiblings(playerWrapper, iframeEl);
-
+        hideSiblingsOf(playerWrapper);
         window.scrollTo(0, 0);
         startClassGuard(playerWrapper);
       } else {
-        // 래퍼를 못 찾으면 기존 방식 (iframe 직접 최대화)
-        clearAncestorChain(iframeEl, null);
+        clearAncestorChain(iframeEl);
         lockBody();
         backupAndApplyStyle(iframeEl, {});
         iframeEl.classList.add(IFRAME_MAX_CLASS);
-        hideSiblings(iframeEl, null);
+        hideSiblingsOf(iframeEl);
         window.scrollTo(0, 0);
         startClassGuard(iframeEl);
       }
@@ -801,8 +792,6 @@
       active = true;
       syncBtnUI();
       showOSD('최대화 ON (ESC 복원)', 1200);
-
-      // iframe 내부에도 메시지 전송 (내부 스크립트가 동작 중이면)
       try { iframeEl.contentWindow.postMessage({ __ytd_max: 'apply_inner' }, '*'); } catch (_) {}
     }
 
@@ -822,7 +811,7 @@
         const el = savedElementsList[i];
         restoreStyle(el);
         try {
-          el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS, WRAPPER_MAX_CLASS);
+          el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS);
           delete el.dataset.ytdMaxAncestor;
         } catch (_) {}
       }
@@ -840,11 +829,10 @@
       showOSD('최대화 OFF', 1200);
     }
 
-    /* ── iframe 내부 최대화 (래퍼 감지 적용) ────────── */
+    /* ── iframe 내부 최대화 ──────────────────────────── */
     let innerMaxActive = false;
     const innerSavedSet = new Set();
     const innerSavedList = [];
-    let innerHiddenSiblings = [];
 
     function backupInner(el, css) {
       _backupApply(innerSavedSet, innerSavedList, el, css);
@@ -856,11 +844,9 @@
       if (!video) return;
       innerMaxActive = true;
 
-      // ★ iframe 내부에서도 플레이어 래퍼를 감지
       const wrapper = findPlayerWrapper(video);
 
       if (wrapper) {
-        // 래퍼를 화면 가득 채우고, 내부 구조(컨트롤 포함)는 보존
         backupInner(wrapper, {
           position: 'fixed', top: '0', left: '0',
           width: '100vw', height: '100dvh',
@@ -871,8 +857,6 @@
           width: '100%', height: '100%',
           'object-fit': 'contain'
         });
-
-        // 래퍼의 조상 체인 정리
         let ancestor = wrapper.parentElement;
         while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
           backupInner(ancestor, {
@@ -882,7 +866,6 @@
           ancestor = ancestor.parentElement;
         }
       } else {
-        // 래퍼 없으면 기존 방식
         backupInner(video, {
           width: '100vw', height: '100dvh', 'object-fit': 'contain',
           position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
@@ -906,7 +889,6 @@
       if (!innerMaxActive) return;
       for (let i = innerSavedList.length - 1; i >= 0; i--) restoreStyle(innerSavedList[i]);
       innerSavedList.length = 0; innerSavedSet.clear();
-      innerHiddenSiblings = [];
       innerMaxActive = false;
     }
 
@@ -1257,7 +1239,6 @@
 
     const svgNS = 'http://www.w3.org/2000/svg';
 
-    // 1. 메인 FAB
     fab = document.createElement('div'); fab.className = 'ytd-fab ytd-fab--idle'; fab.style.display = 'none'; fab.style.right = FAB_START_RIGHT + 'px';
     const iconWrap = document.createElement('div'); iconWrap.className = 'ytd-fab-icon';
     const svg = document.createElementNS(svgNS,'svg'); svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none'); svg.setAttribute('stroke-width','2'); svg.setAttribute('stroke-linecap','round'); svg.setAttribute('stroke-linejoin','round');
@@ -1270,7 +1251,6 @@
     fab.appendChild(Object.assign(document.createElement('span'),{className:'ytd-fab-score'}));
     const clockSpan = document.createElement('span'); clockSpan.className = 'ytd-fab-clock'; clockSpan.textContent = '--:--'; fab.appendChild(clockSpan);
 
-    // 2. 최대화 FAB
     maxFab = document.createElement('div'); maxFab.className = 'ytd-fab ytd-fab--idle'; maxFab.style.display = 'none'; maxFab.title = "화면 최대화/해제";
     const maxIconWrap = document.createElement('div'); maxIconWrap.className = 'ytd-fab-icon';
     const maxSvg = document.createElementNS(svgNS,'svg'); maxSvg.setAttribute('viewBox','0 0 24 24'); maxSvg.setAttribute('fill','none'); maxSvg.setAttribute('stroke-width','2'); maxSvg.setAttribute('stroke-linecap','round'); maxSvg.setAttribute('stroke-linejoin','round');
@@ -1279,7 +1259,6 @@
     maxPath.style.stroke = '#4a5060';
     maxSvg.appendChild(maxPath); maxIconWrap.appendChild(maxSvg); maxFab.appendChild(maxIconWrap);
 
-    // 3. 좌우 반전 FAB
     mirrorFab = document.createElement('div'); mirrorFab.className = 'ytd-fab ytd-fab--idle'; mirrorFab.style.display = 'none'; mirrorFab.title = "좌우 반전";
     const mirrorIconWrap = document.createElement('div'); mirrorIconWrap.className = 'ytd-fab-icon';
     const mirrorSvg = document.createElementNS(svgNS,'svg'); mirrorSvg.setAttribute('viewBox','0 0 24 24'); mirrorSvg.setAttribute('fill','none'); mirrorSvg.setAttribute('stroke-width','2'); mirrorSvg.setAttribute('stroke-linecap','round'); mirrorSvg.setAttribute('stroke-linejoin','round');
@@ -1291,7 +1270,6 @@
     mirrorSvg.appendChild(mirrorPath1); mirrorSvg.appendChild(mirrorPath2); mirrorSvg.appendChild(mirrorLine1); mirrorSvg.appendChild(mirrorLine2); mirrorSvg.appendChild(mirrorCenter);
     mirrorIconWrap.appendChild(mirrorSvg); mirrorFab.appendChild(mirrorIconWrap);
 
-    // 4. 확대/축소 FAB — 데스크톱에서만 생성
     if (!mobile) {
       zoomFab = document.createElement('div'); zoomFab.className = 'ytd-fab ytd-fab--idle'; zoomFab.style.display = 'none'; zoomFab.title = "확대/축소 (Alt+휠 | 클릭: 단계 순환)";
       const zoomIconWrap = document.createElement('div'); zoomIconWrap.className = 'ytd-fab-icon';
@@ -1305,12 +1283,10 @@
       document.documentElement.appendChild(zoomFab);
     }
 
-    // DOM에 추가
     document.documentElement.appendChild(mirrorFab);
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
-    // FAB 공용 드래그 + 클릭
     let dragging = false, moved = false, dragStartX = 0, dragStartY = 0;
     const dragOrigins = new Map();
 
