@@ -2,12 +2,14 @@ name: Flatten List-KR Filters
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 6시간마다 자동 실행
-  workflow_dispatch:         # 수동 실행도 가능
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   flatten:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
