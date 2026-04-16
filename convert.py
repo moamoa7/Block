@@ -7,18 +7,52 @@ import os
 
 base_URL = 'https://raw.githubusercontent.com/List-KR/List-KR/master/filterslists/'
 
-# 평탄화할 소스 파일 전체 목록
-sources = [
-    'filterslist-uBlockOrigin-classic.txt',
-    'filterslist-uBlockOrigin.txt',
-    'filterslist-uBlockOrigin-unified.txt',
-    'filterslist-AdGuard-classic.txt',
-    'filterslist-AdGuard.txt',
-    'filterslist-AdGuard-unified.txt',
-]
+# 각 소스 파일별 헤더 정보
+headers = {
+    'filterslist-uBlockOrigin-classic.txt': {
+        'title': 'List-KR classic filters list (uBlock Origin)',
+        'description': 'uBlock Origin용 List-KR 클래식 필터 리스트입니다.',
+    },
+    'filterslist-uBlockOrigin.txt': {
+        'title': 'List-KR filters list (uBlock Origin)',
+        'description': 'uBlock Origin용 List-KR 필터 리스트입니다.',
+    },
+    'filterslist-uBlockOrigin-unified.txt': {
+        'title': 'List-KR unified filters list (uBlock Origin)',
+        'description': 'uBlock Origin용 List-KR 통합 필터 리스트입니다. 한국어권 및 국제 웹 페이지 및 앱에 있는 광고, 트래커, 방해 요소와 안티 애드블록을 차단합니다.',
+    },
+    'filterslist-AdGuard-classic.txt': {
+        'title': 'List-KR classic filters list (AdGuard)',
+        'description': 'AdGuard용 List-KR 클래식 필터 리스트입니다.',
+    },
+    'filterslist-AdGuard.txt': {
+        'title': 'List-KR filters list (AdGuard)',
+        'description': 'AdGuard용 List-KR 필터 리스트입니다.',
+    },
+    'filterslist-AdGuard-unified.txt': {
+        'title': 'List-KR unified filters list (AdGuard)',
+        'description': 'AdGuard용 List-KR 통합 필터 리스트입니다. 한국어권 및 국제 웹 페이지 및 앱에 있는 광고, 트래커, 방해 요소와 안티 애드블록을 차단합니다.',
+    },
+}
+
+sources = list(headers.keys())
 
 print("Filter update triggered at " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 os.makedirs('./dist', exist_ok=True)
+
+
+def make_header(source_filename):
+    info = headers[source_filename]
+    now = datetime.datetime.utcnow()
+    version = now.strftime('%Y.%m%d%H.0')
+    return (
+        f"! Title: {info['title']}\n"
+        f"! Description: {info['description']}\n"
+        f"! Version: {version}\n"
+        f"! Expires: 1 day (update frequency)\n"
+        f"! Homepage: https://github.com/List-KR/List-KR\n"
+        f"! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE\n"
+    )
 
 
 def flatten_filter(source_filename):
@@ -34,10 +68,10 @@ def flatten_filter(source_filename):
             continue
         elif line.startswith('!#include'):
             path = line.split(" ", 1)[1].strip()
-            if path not in sub_filters:  # 중복 제거
+            if path not in sub_filters:
                 sub_filters.append(path)
 
-    flattened = ''
+    flattened = make_header(source_filename) + '\n'
     success = 0
     fail = 0
 
@@ -52,7 +86,6 @@ def flatten_filter(source_filename):
             print(f"  FAIL: {sub_filter} -> {e}")
             fail += 1
 
-    # 출력 파일명: filterslist-xxx.txt -> flat-xxx.txt
     output_name = source_filename.replace('filterslist-', 'flat-')
     output_path = f'./dist/{output_name}'
 
