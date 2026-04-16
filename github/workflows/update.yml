@@ -1,0 +1,29 @@
+name: Flatten List-KR Filters
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 6시간마다 자동 실행
+  workflow_dispatch:         # 수동 실행도 가능
+
+jobs:
+  flatten:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run flatten script
+        run: python convert.py
+
+      - name: Commit and Push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add ./dist/
+          git diff --cached --quiet || git commit -m "Update flattened filters"
+          git push
