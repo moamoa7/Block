@@ -345,7 +345,8 @@ tonghrencomics.net##a[href][target*="blank"]:has(img[src*='.svg'])
 ! 치지직 (https://chzzk.naver.com/)
 ! - 상단 배너
 chzzk.naver.com##.top_banner_container__Nk\+98
-##.popup_modal__hRwfq.popup_container__Aqx-3
+! -- 로그인 팝업 차단되서 해제
+!##.popup_modal__hRwfq.popup_container__Aqx-3
 ! - 첫 구매 이벤트 중 알림
 chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! 치트키 구매하기 툴팁
