@@ -6,59 +6,47 @@ import datetime
 import os
 
 base_URL = 'https://raw.githubusercontent.com/List-KR/List-KR/master/filterslists/'
+cdn_URL = 'https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/'
 
-# 각 소스 파일별 헤더 정보
-headers = {
-    'filterslist-uBlockOrigin-classic.txt': {
-        'title': 'List-KR classic filters list (uBlock Origin)',
-        'description': 'uBlock Origin용 List-KR 클래식 필터 리스트입니다.',
-    },
-    'filterslist-uBlockOrigin.txt': {
-        'title': 'List-KR filters list (uBlock Origin)',
-        'description': 'uBlock Origin용 List-KR 필터 리스트입니다.',
-    },
-    'filterslist-uBlockOrigin-unified.txt': {
-        'title': 'List-KR unified filters list (uBlock Origin)',
-        'description': 'uBlock Origin용 List-KR 통합 필터 리스트입니다. 한국어권 및 국제 웹 페이지 및 앱에 있는 광고, 트래커, 방해 요소와 안티 애드블록을 차단합니다.',
-    },
-    'filterslist-AdGuard-classic.txt': {
-        'title': 'List-KR classic filters list (AdGuard)',
-        'description': 'AdGuard용 List-KR 클래식 필터 리스트입니다.',
-    },
-    'filterslist-AdGuard.txt': {
-        'title': 'List-KR filters list (AdGuard)',
-        'description': 'AdGuard용 List-KR 필터 리스트입니다.',
-    },
-    'filterslist-AdGuard-unified.txt': {
-        'title': 'List-KR unified filters list (AdGuard)',
-        'description': 'AdGuard용 List-KR 통합 필터 리스트입니다. 한국어권 및 국제 웹 페이지 및 앱에 있는 광고, 트래커, 방해 요소와 안티 애드블록을 차단합니다.',
-    },
+# 소스(GitHub) -> 빌드(jsDelivr) 파일명 매핑
+sources = {
+    'filterslist-uBlockOrigin-classic.txt': 'filterslist-uBlockOrigin-classic.txt',
+    'filterslist-uBlockOrigin.txt': 'filterslist-uBlockOrigin.txt',
+    'filterslist-uBlockOrigin-unified.txt': 'filterslist-uBlockOrigin-unified.txt',
+    'filterslist-AdGuard-classic.txt': 'filterslist-AdGuard-classic.txt',
+    'filterslist-AdGuard.txt': 'filterslist-AdGuard.txt',
+    'filterslist-AdGuard-unified.txt': 'filterslist-AdGuard-unified.txt',
 }
-
-sources = list(headers.keys())
 
 print("Filter update triggered at " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 os.makedirs('./dist', exist_ok=True)
 
 
-def make_header(source_filename):
-    info = headers[source_filename]
-    now = datetime.datetime.utcnow()
-    version = now.strftime('%Y.%m%d%H.0')
-    return (
-        f"! Title: {info['title']}\n"
-        f"! Description: {info['description']}\n"
-        f"! Version: {version}\n"
-        f"! Expires: 1 day (update frequency)\n"
-        f"! Homepage: https://github.com/List-KR/List-KR\n"
-        f"! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE\n"
-    )
+def get_header_from_cdn(cdn_filename):
+    """jsDelivr 빌드 파일에서 헤더(! 로 시작하는 줄)를 가져옴"""
+    url = cdn_URL + cdn_filename
+    header = ''
+    try:
+        with urllib.request.urlopen(url) as response:
+            for line in response.read().decode('utf-8').splitlines():
+                if line.startswith('! '):
+                    header += line + '\n'
+                elif line.startswith('!#') or (line and not line.startswith('!')):
+                    break
+        print(f"  Header fetched from CDN: {cdn_filename}")
+    except Exception as e:
+        print(f"  Header fetch FAIL: {e}")
+    return header
 
 
-def flatten_filter(source_filename):
+def flatten_filter(source_filename, cdn_filename):
     url = base_URL + source_filename
     print(f"\n===== Processing: {source_filename} =====")
 
+    # 1. 원본 헤더 가져오기
+    header = get_header_from_cdn(cdn_filename)
+
+    # 2. 소스 파일에서 include 목록 수집
     with urllib.request.urlopen(url) as response:
         filter_text = response.read().decode('utf-8')
 
@@ -71,7 +59,8 @@ def flatten_filter(source_filename):
             if path not in sub_filters:
                 sub_filters.append(path)
 
-    flattened = make_header(source_filename) + '\n'
+    # 3. 서브 필터 병합
+    flattened = header + '\n'
     success = 0
     fail = 0
 
@@ -95,7 +84,7 @@ def flatten_filter(source_filename):
     print(f"  Done: {success} OK, {fail} FAIL -> {output_path}")
 
 
-for source in sources:
-    flatten_filter(source)
+for source, cdn in sources.items():
+    flatten_filter(source, cdn)
 
 print("\nAll filters processed.")
