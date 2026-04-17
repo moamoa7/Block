@@ -88,19 +88,19 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 3자 ping / websocket 차단
-||*$ping,websocket,third-party
+!||*$ping,websocket,third-party
 ! - 3자 websocket 차단 해제
 ! - - - 디스코드 (https://discord.com/) 연결시 필요
 ! - - - www.amateur.tv 연결해야 실시간 방송이 재생됨
 ! - - - player.bunny-frame.online - 해제해야 영상 재생 가능
 ! - - - 예외
-@@||gateway.discord.gg$websocket
+!@@||gateway.discord.gg$websocket
 ! - - - 일반
-@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|www.tving.com
+!@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|www.tving.com
 ! - - - 성인
-@@||*$websocket,domain=chaturbate.com
+!@@||*$websocket,domain=chaturbate.com
 ! - - - 아프리카 TV 등 그리드 차단 (AdVoid.Full 필터 목록 해제)
-@@||localhost^$badfilter
+!@@||localhost^$badfilter
 !
 !
 ! https://discord.com/
