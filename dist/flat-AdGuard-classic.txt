@@ -1,6 +1,6 @@
 ! Title: List-KR classic filters list (AdGuard)
 ! Description: AdGuard용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20559.0
+! Version: 2026.20559.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
@@ -612,6 +612,7 @@ m.fmkorea.com##iframe[src*="//loader.fmkorea.com/"][src*="_loader/"]
 !
 ! Filter: adblocking/filters-share/specific_URL.txt
 !
+||jeongcheogi.edugamja.com/ads/
 ||algumon.com/n/api/ca/list
 ||api.coupangstreaming.com/ads-vod-public/
 /mobus/resources/images/route_inquiry_addBoxImg$domain=m.bustago.or.kr
@@ -1756,6 +1757,7 @@ eegosa.com##section[id*="_ads_"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+jeongcheogi.edugamja.com##a[rel="noopener noreferrer sponsored"]
 instiz.net##body > div[style^="min-height:"]
 damoang.net##.damoang-banner
 damoang.net##div[data-position="side-image-text-banner"]
@@ -4261,6 +4263,7 @@ lover932.net,lover933.net,lover934.net,lover935.net,lover936.net,lover937.net,lo
 !
 ! Filter: adblocking/filters-AG/specific_REDIRECT.txt
 !
+||jeongcheogi.edugamja.com/ads/$redirect=2x2-transparent.png
 ||ssl.pstatic.net/tveta/libs/glad/prod/gfp-core.js$script,domain=m.cafe.naver.com,redirect=noopjs
 ||video.veilduck.app^$redirect=noopmp4-1s
 ||advod.sbs.co.kr/sbsad/$media,redirect=noopmp4-1s

@@ -1,6 +1,6 @@
 ! Title: List-KR filters list (uBO)
 ! Description: uBlock Origin용 List-KR 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고, 트래커, 방해 요소와 안티 애드블록을 차단합니다.
-! Version: 2026.20559.0
+! Version: 2026.20559.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
@@ -573,6 +573,7 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 !
 ! Filter: adblocking/filters-share/specific_URL.txt
 !
+||jeongcheogi.edugamja.com/ads/
 ||algumon.com/n/api/ca/list
 ||api.coupangstreaming.com/ads-vod-public/
 /mobus/resources/images/route_inquiry_addBoxImg$domain=m.bustago.or.kr
@@ -1717,6 +1718,7 @@ eegosa.com##section[id*="_ads_"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+jeongcheogi.edugamja.com##a[rel="noopener noreferrer sponsored"]
 instiz.net##body > div[style^="min-height:"]
 damoang.net##.damoang-banner
 damoang.net##div[data-position="side-image-text-banner"]
@@ -3456,6 +3458,7 @@ aniya24.com#$?#div[class*="-player-wrapper"] > .play-media-control ~ div[class^=
 !
 ! Filter: adblocking/filters-uBO/specific_REDIRECT.txt
 !
+||jeongcheogi.edugamja.com/ads/$redirect=2x2.png
 ||ssl.pstatic.net/tveta/libs/glad/prod/gfp-core.js$script,domain=m.cafe.naver.com,redirect=noop.js
 ||video.veilduck.app^$redirect=noop-1s.mp4
 ||advod.sbs.co.kr/sbsad/$media,redirect=noop-1s.mp4
