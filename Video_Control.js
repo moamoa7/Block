@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.9.5)
+// @name         Video_Control (v32.0.0)
 // @namespace    https://github.com/moamoa7
-// @version      31.9.5
-// @description  v31.9.5: 샤프닝 강도 추가 조정 (PC / 모바일 샤프닝 강도 상향)
+// @version      32.0.0
+// @description  v32.0.0: 프리셋 보정 + 오디오 자동 게인 보상
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.9.5';
+  const VSC_VERSION = '32.0.0';
   const DEBUG = false;
 
   const log = {
@@ -43,11 +43,11 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
   function getSharpProfile(nW) {
-  if (nW > 2560) return { cap: 0.32, diagRatio: 0.58, autoBase: 0.15 };
-  if (nW > 1920) return { cap: 0.27, diagRatio: 0.63, autoBase: 0.13 };
-  const autoBase = nW <= 640 ? 0.14 : 0.12;
-  return { cap: 0.24, diagRatio: 0.68, autoBase }; // diagRatio 0.707→0.68으로 낮춰 대각 링잉 감소
-}
+    if (nW > 2560) return { cap: 0.32, diagRatio: 0.58, autoBase: 0.15 };
+    if (nW > 1920) return { cap: 0.27, diagRatio: 0.63, autoBase: 0.13 };
+    const autoBase = nW <= 640 ? 0.14 : 0.12;
+    return { cap: 0.24, diagRatio: 0.68, autoBase };
+  }
   const SHARP_CAP_DEFAULT = 0.20;
 
   function onFsChange(fn) {
@@ -82,20 +82,20 @@
     for (const evt of _SHIELD_EVENTS) {
       hostEl.addEventListener(evt, (e) => {
         e.stopPropagation();
-       }, { capture: false, passive: true });
+      }, { capture: false, passive: true });
     }
   }
 
   const PRESETS = Object.freeze({
-  detail: {
-    none: { label: 'OFF' },
-    off:  { label: 'AUTO' },
-    S:  { sharpAdd: 4,  sharp2Add: 2,  clarityAdd: 2,  label: '1단' }, // LUT ≈ 0.060
-    M:  { sharpAdd: 7,  sharp2Add: 4,  clarityAdd: 3,  label: '2단' }, // LUT ≈ 0.111
-    L:  { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 4,  label: '3단' }, // LUT ≈ 0.146
-    XL: { sharpAdd: 13, sharp2Add: 6,  clarityAdd: 5,  label: '4단' }, // LUT ≈ 0.189
-  }
-});
+    detail: {
+      none: { label: 'OFF' },
+      off:  { label: 'AUTO' },
+      S:  { sharpAdd: 4,  sharp2Add: 2,  clarityAdd: 2,  label: '1단' },
+      M:  { sharpAdd: 7,  sharp2Add: 4,  clarityAdd: 3,  label: '2단' },
+      L:  { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 4,  label: '3단' },
+      XL: { sharpAdd: 13, sharp2Add: 6,  clarityAdd: 5,  label: '4단' },
+    }
+  });
   const _PRESET_SHARP_LUT = {};
   for (const [key, d] of Object.entries(PRESETS.detail)) {
     if (key === 'none' || key === 'off') continue;
@@ -113,52 +113,50 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
-const MANUAL_PRESETS = [
-  // ── 기본 ──
-  { n: 'OFF',  v: [ 0,  0,  0,  0,  0,  0,   0,   0,   0] },
-  { n: '자연(중립)*',    v: [ 0,  0,  2,  0,  0, -4,   4,   2,   0] },
-  { n: '만능보정*',    v: [ 0,  0,  6,  0,  0,  0,   6,   6,   6] },
-  { n: '편하게*', v: [0, 0, 0, 0, 0, -5, 7, -2, 8] },
-  { n: '피부톤', v: [0, 0, 4, 3, -2, -3, 5, -2, 8] },
-  { n: '밝게',  v: [ 0,  0,  0,  0,  0,  0,  14,  14,  14] },
-  { n: '어둡게', v: [0, 0, 0, 0, 0, 0, -10, -10, -10] },
+  const MANUAL_PRESETS = [
+    // ── 기본 ──
+    { n: 'OFF',  v: [ 0,  0,  0,  0,  0,  0,   0,   0,   0] },
+    { n: '자연(중립)*',    v: [ 0,  0,  2,  0,  0, -4,   4,   2,   0] },
+    { n: '만능보정*',    v: [ 0,  0,  6,  0,  0,  0,   6,   6,   6] },
+    { n: '편하게*', v: [0, 0, 0, 0, 0, -5, 7, -2, 8] },
+    { n: '피부톤', v: [0, 0, 4, 3, -2, -3, 5, -2, 8] },
+    { n: '밝게',  v: [ 0,  0,  0,  0,  0,  0,  14,  14,  14] },
+    { n: '어둡게', v: [0, 0, 0, 0, 0, 0, -10, -10, -10] },
 
-  // ── 환경/조명 ──
-  { n: '선명+밝게', v: [ 0,  0, 10,  0,  0,  4,   0,  18,  12] },
-  { n: '생동감', v: [0, 0, 10, 0, 0, 16, -4, 10, 8] },
-  { n: '라이브선명', v: [ 0,  0,  6, 0,  0,  4,  -4,  14,  6] },
-  { n: '광명', v: [ 0,  0,  0,  0,  0,  0,  -24,  24,  24] },
-  { n: '강한직사광', v: [ 0, 0, 0, 0, 0, -12, -8, 24, 0] },
-  { n: '눈편함',    v: [ 0,  0,  0,  8,  0, -8,   4,  -6,  -6] },
-  { n: '야간', v: [0, 0, 0, 8, 0, -6, 2, -4, -8] },
+    // ── 환경/조명 ──
+    { n: '선명+밝게', v: [ 0,  0, 10,  0,  0,  4,   0,  18,  12] },
+    { n: '생동감', v: [0, 0, 10, 0, 0, 16, -4, 10, 8] },
+    { n: '라이브선명', v: [ 0,  0,  6, 0,  0,  4,  -4,  14,  6] },
+    { n: '광명', v: [ 0,  0,  0,  0,  0,  0,  -24,  24,  24] },
+    { n: '강한직사광', v: [ 0, 0, 0, 0, 0, -12, -8, 24, 0] },
+    { n: '눈편함',    v: [ 0,  0,  0,  8,  0, -8,   4,  -6,  -6] },
+    { n: '야간', v: [0, 0, 0, 8, 0, -6, 2, -4, -8] },
 
+    // ── 문제 해결 ──
+    { n: '저비트보정', v: [6, 4, 4, 0, 0, -2, 4, 8, 4] },
+    { n: '저조도영상', v: [20, 8, 8, 0, 0, -4, 10, 4, 12] },
+    { n: '과노출영상', v: [ 0,  0,  0,  0,  0,  0,   4,  10, -18] },
+    { n: '역광보정', v: [40, 0, 15, 0, 0, 0, 12, 8, -8] },
+    { n: '안개제거', v: [ 0, 0, 0, -8, 0, -6,  0, 28, 0] },
+    { n: '텍스트선명', v: [ 0, 0, 0, -4, 0,  0, -6, 20, 0] },
 
-  // ── 문제 해결 ──
-  { n: '저비트보정', v: [6, 4, 4, 0, 0, -2, 4, 8, 4] },
-  { n: '저조도영상', v: [20, 8, 8, 0, 0, -4, 10, 4, 12] },
-  { n: '과노출영상', v: [ 0,  0,  0,  0,  0,  0,   4,  10, -18] },
-  { n: '역광보정', v: [40, 0, 15, 0, 0, 0, 12, 8, -8] },
-  { n: '안개제거', v: [ 0, 0, 0, -8, 0, -6,  0, 28, 0] },
-  { n: '텍스트선명', v: [ 0, 0, 0, -4, 0,  0, -6, 20, 0] },
+    // ── 색감/무드 ──
+    { n: '영화/드라마', v: [0, 0, 10, 0, 0, 6, 6, -4, 8] },
+    { n: '애니(컬러팝)', v: [  0,  0,  6,  0,  0,  8,  4,  10,  3] },
+    { n: '블버(일반)', v: [ 0,  0,  8, -4,  0, -6,  4,  12,   6] },
+    { n: '블버(다크)', v: [ 0,  0,  10, -5,  0, -5,  10,  10,   10] },
+    { n: '쿨톤(선명)',   v: [ 0, 0,  0, -8,  0,  6,   4,  10, 10] },
+    { n: '쿨톤(차가운)', v: [ 0,  0, 10, -8,  0, -8,  -6, -12,  12] },
+    { n: '웜톤', v: [0, 0, 0, 10, 0, 4, 2, 4, 4] },
+    { n: '흑백', v: [0, 0, 0, 0, 0, -20, 2, 8, 0] },
 
-  // ── 색감/무드 ──
-  { n: '영화/드라마', v: [0, 0, 10, 0, 0, 6, 6, -4, 8] },
-  { n: '애니(컬러팝)', v: [  0,  0,  6,  0,  0,  8,  4,  10,  3] },
-  { n: '블버(일반)', v: [ 0,  0,  8, -4,  0, -6,  4,  12,   6] },
-  { n: '블버(다크)', v: [ 0,  0,  10, -5,  0, -5,  10,  10,   10] },
-  { n: '쿨톤(선명)',   v: [ 0, 0,  0, -8,  0,  6,   4,  10, 10] },
-  { n: '쿨톤(차가운)', v: [ 0,  0, 10, -8,  0, -8,  -6, -12,  12] },
-  { n: '웜톤', v: [0, 0, 0, 10, 0, 4, 2, 4, 4] },
-  { n: '흑백', v: [0, 0, 0, 0, 0, -20, 2, 8, 0] },
-
-  // ── 특수 ──
-  { n: '스포츠/게임', v: [0, 0, 0, 0, 0, 2, -4, 16, 0] },
-  { n: '편하게2', v: [0, 0, 8, 5, 0, -4, 4, -6, 6] },
-  { n: '뽀샤시', v: [0, 0, 12, 0, 0, 0,  4,  -6, 16] },
-  { n: '복구1', v: [100, 0, 10,  0,  0,  0,  0, 10,  20] },
-  { n: '복구2', v: [100, 0, 20,  0,  0,  0, 10, 10, 20] },
-
-];
+    // ── 특수 ──
+    { n: '스포츠/게임', v: [0, 0, 0, 0, 0, 2, -4, 16, 0] },
+    { n: '편하게2', v: [0, 0, 8, 5, 0, -4, 4, -6, 6] },
+    { n: '뽀샤시', v: [0, 0, 12, 0, 0, 0,  4,  -6, 16] },
+    { n: '복구1', v: [100, 0, 10,  0,  0,  0,  0, 10,  20] },
+    { n: '복구2', v: [100, 0, 20,  0,  0,  0, 10, 10, 20] },
+  ];
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, manualPreGain: 100 },
@@ -186,7 +184,6 @@ const MANUAL_PRESETS = [
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
-  /* ── Persistence (사이트별 설정 저장/복원) ── */
   const SAVE_CATEGORIES = ['video', 'audio', 'playback', 'radio'];
   const STORAGE_PREFIX = 'vsc_site_';
   const GLOBAL_KEY = 'vsc_global';
@@ -308,7 +305,6 @@ const MANUAL_PRESETS = [
 
     function init(store) {
       _store = store;
-
       const siteData = loadSiteData(siteKey);
       if (siteData) {
         applySaved(store, siteData);
@@ -320,7 +316,6 @@ const MANUAL_PRESETS = [
           log.info('[Persist] 글로벌 기본 설정 로드');
         }
       }
-
       for (const cat of SAVE_CATEGORIES) {
         const catDefaults = DEFAULTS[cat];
         if (!catDefaults) continue;
@@ -761,6 +756,7 @@ const MANUAL_PRESETS = [
       applySurroundWidth(Number(store.get(P.A_SURROUND)) || 0);
       applyClarity(Number(store.get(P.A_CLARITY)) || 0);
       applyBoost(Number(store.get(P.A_BOOST)) ?? 100);
+      updateMasterGain();
       routeCompressor();
       return true;
     }
@@ -774,10 +770,11 @@ const MANUAL_PRESETS = [
     function applyStrength(strength) {
       if (!comp || !makeupGain || !ctx) return;
       const s = CLAMP(strength, 0, 100) / 100;
-      if (s === 0) { comp.threshold.value = 0; comp.ratio.value = 1; comp.knee.value = 40; comp.attack.value = 0.02; comp.release.value = 0.25; try { makeupGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05); } catch (_) { makeupGain.gain.value = 1; } return; }
+      if (s === 0) { comp.threshold.value = 0; comp.ratio.value = 1; comp.knee.value = 40; comp.attack.value = 0.02; comp.release.value = 0.25; try { makeupGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05); } catch (_) { makeupGain.gain.value = 1; } updateMasterGain(); return; }
       comp.threshold.value = -8 - s * 24; comp.ratio.value = 1.5 + s * 10.5; comp.knee.value = 16 - s * 10; comp.attack.value = 0.005 + (1 - s) * 0.015; comp.release.value = 0.30 + (1 - s) * 0.20;
       const threshAbs = Math.abs(comp.threshold.value); const makeupDb = threshAbs * (1 - 1 / comp.ratio.value) * 0.4; const gain = Math.pow(10, makeupDb / 20);
       try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); } catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
+      updateMasterGain();
     }
 
     function applySurroundWidth(width) {
@@ -792,13 +789,53 @@ const MANUAL_PRESETS = [
       const c = CLAMP(clarity, 0, 100) / 100;
       try { eqLow.gain.setTargetAtTime(-4 * c, ctx.currentTime, 0.05); eqMid.gain.setTargetAtTime(6 * c, ctx.currentTime, 0.05); eqHigh.gain.setTargetAtTime(3 * c, ctx.currentTime, 0.05); }
       catch (_) { eqLow.gain.value = -4 * c; eqMid.gain.value = 6 * c; eqHigh.gain.value = 3 * c; }
+      updateMasterGain();
     }
 
     function applyBoost(boostPercent) {
       if (!ctx || !boostGain) return;
       const gain = CLAMP(boostPercent, 100, 300) / 100;
       try { boostGain.gain.setTargetAtTime(gain, ctx.currentTime, 0.05); } catch (_) { boostGain.gain.value = gain; }
+      updateMasterGain();
     }
+
+    function updateMasterGain() {
+  if (!ctx || !masterOut) return;
+  let totalGainDb = 0;
+
+  // 평준화: STR 50% 초과부터만 보수적 추정
+  if (store.get(P.A_EN)) {
+    const s = CLAMP(Number(store.get(P.A_STR) ?? 50), 0, 100) / 100;
+    if (s > 0.5) {
+      const excess = (s - 0.5) * 2;
+      totalGainDb += excess * 6;
+    }
+  }
+
+  // 선명도: 50% 초과부터만 보상
+  const clarity = CLAMP(Number(store.get(P.A_CLARITY) ?? 0), 0, 100) / 100;
+  if (clarity > 0.5) {
+    totalGainDb += (clarity - 0.5) * 2 * 4;
+  }
+
+  // 부스트: 150% 초과부터만, 절반만 보상
+  const boostRatio = CLAMP(Number(store.get(P.A_BOOST) ?? 100), 100, 300) / 100;
+  if (boostRatio > 1.5) {
+    const boostDb = 20 * Math.log10(boostRatio / 1.5);
+    totalGainDb += boostDb * 0.5;
+  }
+
+  // 리미터 headroom(-3dB) 고려, 하한 0.35로 상향
+  const compensateDb = Math.max(0, totalGainDb - 3);
+  const compensateGain = Math.pow(10, -compensateDb / 20);
+  const finalGain = CLAMP(compensateGain, 0.35, 1.0);
+
+  try {
+    masterOut.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05);
+  } catch (_) {
+    masterOut.gain.value = finalGain;
+  }
+}
 
     function enterBypass(video, reason) {
       if (bypassMode) return; bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false;
@@ -853,7 +890,9 @@ const MANUAL_PRESETS = [
       setTimeout(() => {
         if (gen !== generation) { if (cleanupFn) try { cleanupFn(); } catch (_) {} return; }
         try { fn(); } catch (_) {}
-        if (ctx && masterOut && ctx.state !== 'closed') { try { const t2 = ctx.currentTime; masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(masterOut.gain.value, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
+        if (ctx && masterOut && ctx.state !== 'closed') {
+          updateMasterGain();
+        }
       }, 60);
     }
 
@@ -880,7 +919,7 @@ const MANUAL_PRESETS = [
     }
 
     function updateMix() {
-      if (!ctx || bypassMode) return; routeCompressor();
+      if (!ctx || bypassMode) return; routeCompressor(); updateMasterGain();
       if (currentSrc) { const wantProcessed = isAnyAudioActive(); if (wantProcessed === currentRouteIsProcessed) return; try { currentSrc.disconnect(); } catch (_) {} if (wantProcessed) { currentSrc.connect(splitter); } else { currentSrc.connect(fullDryPath); } currentRouteIsProcessed = wantProcessed; }
       else if (targetVideo?.isConnected && isAnyAudioActive() && canConnect(targetVideo)) { connectSource(targetVideo); }
     }
@@ -909,7 +948,7 @@ const MANUAL_PRESETS = [
       if (!document.hidden && ctx?.state === 'suspended') { ctx.resume().then(() => { if (ctx.state === 'running') return; setTimeout(() => { if (ctx?.state === 'suspended') ctx.resume().catch(() => {}); }, 120); }).catch(() => {}); }
     }, { passive: true });
 
-    return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode, applyStrength, applySurroundWidth, applyClarity, applyBoost, routeCompressor, onVideoLoadstart };
+    return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode, applyStrength, applySurroundWidth, applyClarity, applyBoost, routeCompressor, onVideoLoadstart, updateMasterGain };
   }
 
   function createFilters() {
@@ -1079,9 +1118,8 @@ const MANUAL_PRESETS = [
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase, sharpProfile } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(0) };
-        // ✅ 가장 단순하고 명확한 최종 코드
         const platformScale = IS_MOBILE ? 0.85 : 1.0;
-        const finalMul      = mul * platformScale;          // PRESET_BASE 불필요
+        const finalMul      = mul * platformScale;
         out._sharpCap  = sharpProfile.cap;
         out._diagRatio = sharpProfile.diagRatio;
 
@@ -1141,7 +1179,6 @@ const MANUAL_PRESETS = [
     };
   }
 
-  /* ── Radio Mode ── */
   function createRadioMode(Store, Registry, Scheduler, Filters) {
     const overlays = new WeakMap();
     let active = false;
@@ -1160,7 +1197,6 @@ const MANUAL_PRESETS = [
 
     function createOverlay(video) {
       if (overlays.has(video)) return overlays.get(video);
-
       const container = video.parentElement;
       if (!container) return null;
 
@@ -1189,17 +1225,16 @@ const MANUAL_PRESETS = [
       `;
 
       const icon = document.createElement('div');
-icon.style.cssText = 'position:relative!important;z-index:1!important;display:flex!important;';
-icon.appendChild(
-  h('svg', { ns: 'svg', width: '32', height: '32', viewBox: '0 0 24 24', fill: 'none', stroke: 'rgba(0,229,255,0.9)', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
-    h('path', { ns: 'svg', d: 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' }),
-    h('path', { ns: 'svg', d: 'M16.24 7.76a6 6 0 0 1 0 8.49' }),
-    h('path', { ns: 'svg', d: 'M7.76 16.24a6 6 0 0 1 0-8.49' }),
-    h('path', { ns: 'svg', d: 'M19.07 4.93a10 10 0 0 1 0 14.14' }),
-    h('path', { ns: 'svg', d: 'M4.93 19.07a10 10 0 0 1 0-14.14' })
-  )
-);
-
+      icon.style.cssText = 'position:relative!important;z-index:1!important;display:flex!important;';
+      icon.appendChild(
+        h('svg', { ns: 'svg', width: '32', height: '32', viewBox: '0 0 24 24', fill: 'none', stroke: 'rgba(0,229,255,0.9)', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+          h('path', { ns: 'svg', d: 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' }),
+          h('path', { ns: 'svg', d: 'M16.24 7.76a6 6 0 0 1 0 8.49' }),
+          h('path', { ns: 'svg', d: 'M7.76 16.24a6 6 0 0 1 0-8.49' }),
+          h('path', { ns: 'svg', d: 'M19.07 4.93a10 10 0 0 1 0 14.14' }),
+          h('path', { ns: 'svg', d: 'M4.93 19.07a10 10 0 0 1 0-14.14' })
+        )
+      );
 
       iconWrap.append(pulse, icon);
 
@@ -1320,17 +1355,14 @@ icon.appendChild(
 
     function disengage(video) {
       if (timeUpdateHandler) { clearInterval(timeUpdateHandler); timeUpdateHandler = null; }
-
       if (video) {
         showVideo(video);
         removeOverlay(video);
       }
-
       for (const v of Registry.videos) {
         if (overlays.has(v)) removeOverlay(v);
         showVideo(v);
       }
-
       Registry.resumeAllRvfc();
       Scheduler.request();
     }
@@ -1338,7 +1370,6 @@ icon.appendChild(
     function setActive(on) {
       const wasActive = active;
       active = on;
-
       if (on && !wasActive) {
         const video = __internal._activeVideo;
         if (video) engage(video);
@@ -1484,12 +1515,10 @@ icon.appendChild(
     function onFullscreenChange() { reparent(); Scheduler.request(); setTimeout(reparent, 80); setTimeout(reparent, 400); if (!document.fullscreenElement && !document.webkitFullscreenElement) { _lastMount = null; _lastIsFs = null; } }
     function updateQuickBarVisibility() {
       if (!quickBarHost) return;
-
       if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         if (_qbarHasVideo) { _qbarHasVideo = false; quickBarHost.style.setProperty('display', 'none', 'important'); if (panelOpen) togglePanel(false); }
         return;
       }
-
       let has = Registry.videos.size > 0;
       if (!has) try { has = !!document.querySelector('video'); } catch (_) {}
       if (!has && Registry.shadowRootsLRU) { for (const it of Registry.shadowRootsLRU) { if (it.host?.isConnected && it.root) { try { if (it.root.querySelector('video')) { has = true; break; } } catch (_) {} } } }
@@ -1632,31 +1661,24 @@ icon.appendChild(
 
     function buildRadioCard() {
       const card = h('div', { class: 'radio-card' });
-
       const iconWrap = h('div', { class: 'radio-icon' });
-iconWrap.appendChild(
-  h('svg', { ns: 'svg', width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
-    h('path', { ns: 'svg', d: 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' }),
-    h('path', { ns: 'svg', d: 'M16.24 7.76a6 6 0 0 1 0 8.49' }),
-    h('path', { ns: 'svg', d: 'M7.76 16.24a6 6 0 0 1 0-8.49' })
-  )
-);
-
-
+      iconWrap.appendChild(
+        h('svg', { ns: 'svg', width: '20', height: '20', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+          h('path', { ns: 'svg', d: 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' }),
+          h('path', { ns: 'svg', d: 'M16.24 7.76a6 6 0 0 1 0 8.49' }),
+          h('path', { ns: 'svg', d: 'M7.76 16.24a6 6 0 0 1 0-8.49' })
+        )
+      );
       const info = h('div', { class: 'radio-info' },
         h('div', { class: 'radio-title' }, '라디오 모드'),
         h('div', { class: 'radio-desc' }, '영상 화면만 검게 표시')
       );
-
       const badge = h('div', { class: 'radio-badge' }, 'OFF');
-
       card.append(iconWrap, info, badge);
-
       card.addEventListener('click', () => {
         const next = !Store.get(P.RADIO_EN);
         Store.set(P.RADIO_EN, next);
       });
-
       const sync = () => {
         const on = !!Store.get(P.RADIO_EN);
         card.classList.toggle('on', on);
@@ -1665,7 +1687,6 @@ iconWrap.appendChild(
       };
       tabFns.push(sync);
       sync();
-
       return card;
     }
 
