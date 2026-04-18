@@ -1086,8 +1086,6 @@ poooo.ml##.h30
 poooo.ml#@#.ad
 ! - 복원 (🔒 Privacy Essentials) - 영상 안나옴
 @@||ok.ru/videoembed^$3p,frame
-! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
-@@||*ss/ss*$image
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
