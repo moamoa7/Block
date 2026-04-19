@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v32.0.0)
+// @name         Video_Control (v32.0.1)
 // @namespace    https://github.com/moamoa7
-// @version      32.0.0
-// @description  v32.0.0: 프리셋 보정 + 오디오 자동 게인 보상
+// @version      32.0.1
+// @description  v32.0.1: FMKorea 등 CORS 오디오 문제 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '32.0.0';
+  const VSC_VERSION = '32.0.1';
   const DEBUG = false;
 
   const log = {
@@ -114,15 +114,12 @@
   }
 
   const MANUAL_PRESETS = [
-    // ── 기본 ──
     { n: 'OFF',  v: [ 0,  0,  0,  0,  0,  0,   0,   0,   0] },
     { n: '자연(중립)',    v: [ 0,  0,  2,  0,  0, -4,   4,   2,   0] },
     { n: '만능보정*',    v: [ 0,  0,  6,  0,  0,  0,   6,   6,   6] },
     { n: '편하게*', v: [0, 0, 0, 0, 0, -5, 7, -2, 8] },
     { n: '피부톤', v: [0, 0, 6, 4, 2, 2, 3, -2, 8] },
     { n: '밝게',  v: [ 0,  0,  0,  0,  0,  0,  14,  14,  14] },
-
-    // ── 환경/조명 ──
     { n: '선명+밝게*', v: [ 0,  0, 10,  0,  0,  4,   0,  18,  12] },
     { n: '생동감', v: [0, 0, 10, 0, 0, 16, -4, 10, 8] },
     { n: '라이브선명*', v: [0, 0, 6, 0, 0, 4, -4, 18, 6] },
@@ -133,15 +130,11 @@
     { n: '모바일2', v: [0, 0, 30, 0, 0, 0, -10, -10, -10] },
     { n: '눈편함',    v: [ 0,  0,  0,  8,  0, -8,   4,  -6,  -6] },
     { n: '야간', v: [0, 0, 0, 8, 0, -6, 2, -4, -8] },
-
-    // ── 문제 해결 ──
     { n: '저비트영상*', v: [6, 4, 4, 0, 0, -2, 4, 8, 4] },
     { n: '저조도영상*', v: [20, 8, 8, 0, 0, -4, 10, 4, 12] },
     { n: '과노출영상', v: [ 0,  0,  0,  0,  0,  0,   4,  10, -18] },
     { n: '안개제거', v: [ 0, 0, 0, -8, 0, -6,  0, 28, 0] },
     { n: '텍스트선명', v: [ 0, 0, 0, -4, 0,  0, -6, 20, 0] },
-
-    // ── 색감/무드 ──
     { n: '영화/드라마', v: [0, 0, 10, 0, 0, 6, 6, -4, 8] },
     { n: '애니(컬러팝)', v: [  0,  0,  6,  0,  0,  8,  4,  10,  3] },
     { n: '블버(일반)', v: [ 0,  0,  8, -4,  0, -6,  4,  12,   6] },
@@ -150,8 +143,6 @@
     { n: '쿨톤(차가운)', v: [ 0,  0, 10, -8,  0, -8,  -6, -12,  12] },
     { n: '웜톤', v: [0, 0, 0, 10, 0, 4, 2, 4, 4] },
     { n: '흑백', v: [0, 0, 0, 0, 0, -20, 2, 8, 0] },
-
-    // ── 특수 ──
     { n: '스포츠/게임', v: [0, 0, 0, 0, 0, 2, -4, 16, 0] },
     { n: '편하게2', v: [0, 0, 8, 5, 0, -4, 4, -6, 6] },
     { n: '뽀샤시', v: [0, 0, 12, 0, 0, 0,  4,  -6, 16] },
@@ -696,6 +687,9 @@
     let bypassMode = false;
     let generation = 0;
 
+    // ★ 수정: MES로 연결된 적이 있는 비디오를 추적
+    const mesConnectedVideos = new WeakSet();
+
     const jwCache = new WeakMap();
     function detectJWPlayer(video) {
       if (!video) return false;
@@ -801,49 +795,49 @@
     }
 
     function updateMasterGain() {
-  if (!ctx || !masterOut) return;
-  let totalGainDb = 0;
-
-  // 평준화: STR 50% 초과부터만 보수적 추정
-  if (store.get(P.A_EN)) {
-    const s = CLAMP(Number(store.get(P.A_STR) ?? 50), 0, 100) / 100;
-    if (s > 0.5) {
-      const excess = (s - 0.5) * 2;
-      totalGainDb += excess * 6;
+      if (!ctx || !masterOut) return;
+      let totalGainDb = 0;
+      if (store.get(P.A_EN)) {
+        const s = CLAMP(Number(store.get(P.A_STR) ?? 50), 0, 100) / 100;
+        if (s > 0.5) {
+          const excess = (s - 0.5) * 2;
+          totalGainDb += excess * 6;
+        }
+      }
+      const clarity = CLAMP(Number(store.get(P.A_CLARITY) ?? 0), 0, 100) / 100;
+      if (clarity > 0.5) {
+        totalGainDb += (clarity - 0.5) * 2 * 4;
+      }
+      const boostRatio = CLAMP(Number(store.get(P.A_BOOST) ?? 100), 100, 300) / 100;
+      if (boostRatio > 1.5) {
+        const boostDb = 20 * Math.log10(boostRatio / 1.5);
+        totalGainDb += boostDb * 0.5;
+      }
+      const compensateDb = Math.max(0, totalGainDb - 3);
+      const compensateGain = Math.pow(10, -compensateDb / 20);
+      const finalGain = CLAMP(compensateGain, 0.35, 1.0);
+      try {
+        masterOut.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05);
+      } catch (_) {
+        masterOut.gain.value = finalGain;
+      }
     }
-  }
-
-  // 선명도: 50% 초과부터만 보상
-  const clarity = CLAMP(Number(store.get(P.A_CLARITY) ?? 0), 0, 100) / 100;
-  if (clarity > 0.5) {
-    totalGainDb += (clarity - 0.5) * 2 * 4;
-  }
-
-  // 부스트: 150% 초과부터만, 절반만 보상
-  const boostRatio = CLAMP(Number(store.get(P.A_BOOST) ?? 100), 100, 300) / 100;
-  if (boostRatio > 1.5) {
-    const boostDb = 20 * Math.log10(boostRatio / 1.5);
-    totalGainDb += boostDb * 0.5;
-  }
-
-  // 리미터 headroom(-3dB) 고려, 하한 0.35로 상향
-  const compensateDb = Math.max(0, totalGainDb - 3);
-  const compensateGain = Math.pow(10, -compensateDb / 20);
-  const finalGain = CLAMP(compensateGain, 0.35, 1.0);
-
-  try {
-    masterOut.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05);
-  } catch (_) {
-    masterOut.gain.value = finalGain;
-  }
-}
 
     function enterBypass(video, reason) {
       if (bypassMode) return; bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false;
+      log.info('[Audio] enterBypass:', reason);
       if (video && ctx && currentSrc) {
         try { currentSrc.disconnect(); } catch (_) {}
-        if (currentSrc.__vsc_isCaptureStream) { if (currentSrc.__vsc_originalVolume != null) try { video.volume = currentSrc.__vsc_originalVolume; } catch (_) {} if (video.muted && currentSrc.__vsc_originalMuted === false) try { video.muted = false; } catch (_) {} const stream = currentSrc.__vsc_captureStream; if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); }
-        else { try { currentSrc.connect(ctx.destination); } catch (_) {} }
+        if (currentSrc.__vsc_isCaptureStream) {
+          if (currentSrc.__vsc_originalVolume != null) try { video.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
+          if (video.muted && currentSrc.__vsc_originalMuted === false) try { video.muted = false; } catch (_) {}
+          const stream = currentSrc.__vsc_captureStream;
+          if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        }
+        else {
+          // ★ 수정: MES 소스는 ctx.destination에 연결해서 소리 유지
+          try { currentSrc.connect(ctx.destination); } catch (_) {}
+        }
       }
       currentSrc = null;
     }
@@ -867,8 +861,18 @@
       if (!ctx || video.dataset.vscMesFail === "1") return null;
       let s = mesMap.get(video);
       if (s) { if (s.context === ctx) return s; mesMap.delete(video); return null; }
-      try { s = ctx.createMediaElementSource(video); mesMap.set(video, s); return s; }
+      try {
+        s = ctx.createMediaElementSource(video);
+        mesMap.set(video, s);
+        mesConnectedVideos.add(video); // ★ 추적
+        return s;
+      }
       catch (e) { video.dataset.vscMesFail = "1"; return null; }
+    }
+
+    // ★ 수정: MES로 연결된 비디오인지 확인
+    function hasMesConnection(video) {
+      return mesMap.has(video) || mesConnectedVideos.has(video);
     }
 
     function connectSource(video) {
@@ -907,7 +911,10 @@
         streamMap.delete(target);
       }
       try { currentSrc.disconnect(); } catch (_) {}
-      if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') { try { currentSrc.connect(ctx.destination); } catch (_) {} }
+      // ★ 수정: MES 소스는 disconnect 후 반드시 ctx.destination에 재연결해야 소리가 남
+      if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') {
+        try { currentSrc.connect(ctx.destination); } catch (_) {}
+      }
       currentSrc = null; currentMode = 'none'; currentRouteIsProcessed = false;
     }
 
@@ -921,23 +928,93 @@
 
     function updateMix() {
       if (!ctx || bypassMode) return; routeCompressor(); updateMasterGain();
-      if (currentSrc) { const wantProcessed = isAnyAudioActive(); if (wantProcessed === currentRouteIsProcessed) return; try { currentSrc.disconnect(); } catch (_) {} if (wantProcessed) { currentSrc.connect(splitter); } else { currentSrc.connect(fullDryPath); } currentRouteIsProcessed = wantProcessed; }
-      else if (targetVideo?.isConnected && isAnyAudioActive() && canConnect(targetVideo)) { connectSource(targetVideo); }
+      if (currentSrc) {
+        const wantProcessed = isAnyAudioActive();
+        if (wantProcessed === currentRouteIsProcessed) return;
+        try { currentSrc.disconnect(); } catch (_) {}
+        if (wantProcessed) { currentSrc.connect(splitter); }
+        else { currentSrc.connect(fullDryPath); }
+        currentRouteIsProcessed = wantProcessed;
+      }
+      else if (targetVideo?.isConnected && isAnyAudioActive() && canConnect(targetVideo)) {
+        connectSource(targetVideo);
+      }
+      // ★ 수정: 오디오가 모두 비활성이고, MES 연결이 있었던 비디오인데 currentSrc가 없으면
+      //          ctx.destination 경로가 유지되고 있으므로 그냥 놔둠 (소리가 이미 남)
     }
 
     function setTarget(video) {
-      if (video === targetVideo) { if (bypassMode) { if (!canConnect(video)) return; exitBypass(); if (connectSource(video)) { updateMix(); return; } return; } if (currentSrc) { updateMix(); return; } if (canConnect(video)) { if (!initCtx()) return; if (connectSource(video)) updateMix(); } return; }
-      const gen = ++generation; const active = isAnyAudioActive();
-      if (!active) { const oldTarget = targetVideo; if (currentSrc || targetVideo) { fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } }, () => restoreOrphanedStream(oldTarget)); } else { targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } } return; }
+      if (video === targetVideo) {
+        if (bypassMode) {
+          if (!canConnect(video)) return;
+          exitBypass();
+          if (connectSource(video)) { updateMix(); return; }
+          return;
+        }
+        if (currentSrc) { updateMix(); return; }
+        // ★ 수정: 오디오 기능이 전부 꺼져있으면 연결 시도하지 않음
+        if (!isAnyAudioActive()) return;
+        if (canConnect(video)) {
+          if (!initCtx()) return;
+          if (connectSource(video)) updateMix();
+        }
+        return;
+      }
+
+      const gen = ++generation;
+      const active = isAnyAudioActive();
+
+      // ★ 핵심 수정: 오디오 처리가 전혀 불필요하면 AudioContext/MES 연결을 절대 하지 않음
+      if (!active) {
+        const oldTarget = targetVideo;
+        if (currentSrc || bypassMode) {
+          fadeOutThen(gen, () => {
+            disconnectCurrent(oldTarget);
+            targetVideo = video;
+            if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; }
+          }, () => restoreOrphanedStream(oldTarget));
+        } else {
+          targetVideo = video;
+          if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; }
+        }
+        return;
+      }
+
       if (!initCtx()) { targetVideo = video; return; }
-      if (video && !canConnect(video)) { const oldTarget = targetVideo; fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false; } }, () => restoreOrphanedStream(oldTarget)); return; }
+
+      if (video && !canConnect(video)) {
+        const oldTarget = targetVideo;
+        fadeOutThen(gen, () => {
+          disconnectCurrent(oldTarget);
+          targetVideo = video;
+          if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false; }
+        }, () => restoreOrphanedStream(oldTarget));
+        return;
+      }
+
       const oldTarget = targetVideo;
-      fadeOutThen(gen, () => { disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); }, () => restoreOrphanedStream(oldTarget));
+      fadeOutThen(gen, () => {
+        disconnectCurrent(oldTarget);
+        if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; }
+        targetVideo = video;
+        if (!video) { updateMix(); return; }
+        connectSource(video);
+        updateMix();
+      }, () => restoreOrphanedStream(oldTarget));
     }
 
     function onVideoLoadstart(video) {
-      jwCache.delete(video); const s = streamMap.get(video);
-      if (s) { if (s.__vsc_captureStream) s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); try { s.disconnect(); } catch (_) {} streamMap.delete(video); if (currentSrc === s) { currentSrc = null; currentMode = 'none'; currentRouteIsProcessed = false; } }
+      jwCache.delete(video);
+      const s = streamMap.get(video);
+      if (s) {
+        if (s.__vsc_captureStream) s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        try { s.disconnect(); } catch (_) {}
+        streamMap.delete(video);
+        if (currentSrc === s) { currentSrc = null; currentMode = 'none'; currentRouteIsProcessed = false; }
+      }
+      // ★ 수정: MES는 loadstart 시에도 mesMap에서 제거 (새 소스로 다시 연결 필요)
+      // 단, MES는 한번 생성되면 재사용되므로 실제로는 mesMap을 유지
+      // mesConnectedVideos도 유지 (같은 video 엘리먼트이므로)
     }
 
     let gestureHooked = false;
