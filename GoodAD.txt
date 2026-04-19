@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260418
+! Version: 20260419
 !
 !
 !
@@ -351,6 +351,8 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! 치트키 구매하기 툴팁
 ##.tooltip
+! - - - 예외 - 차단리스트 내용 안나옴
+my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
 chzzk.naver.com##.pzp-pc__loading-indicator
 !
@@ -1985,11 +1987,15 @@ aliexpress.com##._3KrBP
 ! 중고나라 (https://web.joongna.com/)
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 ! - - - 검색시 나오는 광고 게시물
-web.joongna.com##li:has(span:has-text(광고))
+!web.joongna.com##li:has(span:has-text(광고))
 ! - - - 검색시 나오는 하단 배너
-web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
+!web.joongna.com##div:has([alt='ad']):has([target^='_bla']):not(:has(h2))
 ! - - - 게시물내 새상품 광고
-web.joongna.com##.pb-12
+!web.joongna.com##.pb-12
+! - 광고 삭제
+web.joongna.com##.max-md\:gap-\[60px\]
+web.joongna.com##div.max-md\:gap-3.flex-nowrap
+
 !
 !
 ! 바나나몰 (www.bananamall.co.kr)
