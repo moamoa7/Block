@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.03.31
+! Version: 2026.04.19
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -17,14 +17,21 @@
 ##iframe[src*='digitalcamp.co.kr']
 ##iframe[src*='targetpush.co.kr']
 *##[target='_blank']:has([src*='/banner/'])
-*$script,third-party,domain=nimi.wiki
+*$script,third-party,domain=nimi.wiki|kissjav.*
 *tcid=$all
 [$domain=/^hoohootv[0-9]*\.[a-z]{2,}/]###img_row_container
 [$domain=/^tvmon[0-9]*\.[a-z]{2,}/]##.banner_wrap2
 [$domain=/^tvwiki[0-9]*\.net/]###bannerList, #viewCover
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[href*='/ad'][target='_blank']:has(img)
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##div[class$='gallery'][id] [target='_blank']:upward(1)
+[$domain=/torrentqq[0-9]*\.com/]##div.at-banner:has(a[href*="/ads/"])
+[$domain=/yadongtv[0-9]*\.com/]##div[style*="top: 215px"]:has(img[src*="/banners/"]), img[src*="/banners/"]
+algumon.com##div.bg-base-100:has(> div > .fb)
+algumon.com##div.bg-base-100:has(> div > ins.adsbygoogle)
 algumon.com##div.card.bg-base-100.rounded-none:has(a[href^='https://link.coupang.com/'], ins.adsbygoogle, div[style*='min-height'])
+algumon.com##div.deal-2col:has(> div > .fb)
+algumon.com##div.deal-2col:has(> div > ins.adsbygoogle)
+arca.live##.vrow.hybrid:has(.category-badge)
 auction.co.kr,gmarket.co.kr##.plcc_banner
 avdbs.com##.ad-btn[class*='tp']
 avsee.ru##.at-main > div.main-box > .miso-post-mix .post-wrap
@@ -38,6 +45,8 @@ blog.naver.com,comic.naver.com##[class*='banner_area']
 booktoki469.com,booktoki470.com##.col-sm-9.col-md-9.col-15
 booktoki469.com,booktoki470.com,manatoki469.net,manatoki470.net,newtoki469.com,newtoki470.com##[style='margin-bottom: 20px;'].row.row-15
 booktoki469.com,booktoki470.com,manatoki469.net,manatoki470.net,newtoki469.com,newtoki470.com##li:has([target]:not([href*=bbs]))
+bunjang.co.kr##div[class*="ProductExternalAdsstyle"]:has(h3:has-text(비슷한 새 상품 보기))
+bunjang.co.kr##section:has(> [class*="adTitle"]):has-text(AD)
 chimhaha.net##[id^='slot']
 chimhaha.net##div[style='margin-top: 50px; ']
 chimhaha.net,seoul.co.kr,mule.co.kr##[class*='Ad']
@@ -45,26 +54,29 @@ danawa.com,m.cafe.naver.com##[class^='banner']
 dcinside.com##li[id^='comment_']:has(p[class*='txt']:has-text(/^(https?:\/\/)[A-Za-z0-9]{2,10}(\.[a-z]{2,7}|\.co\.kr)(\/(?=.*[a-z])(?=.*[0-9])[A-Za-z0-9_]{5,9})$/):not(:has-text(/git|g2sh|img|tebin|sendanywhe|twitter|rentry|x\.com|youtu|ibb\.co|archive\.md|t\.me|streamable|dev/i))):style(opacity: 0.1 !important;)
 dvdprime.com##[id$='top_banner']
 dvdprime.com##[id^='ad_mobile']
+ebs.co.kr##.ji_adban
 etoland.co.kr##[id*='underGoodBtn']
 etoland.co.kr,ppomppu.co.kr,m.ppomppu1.co.kr##[id$='_popup']
 fc-info.com##div[class^='Venatus_']
 fmkorea.com##[class$='_ad']
+gall.dcinside.com##.gnb_list.clear > li:nth-of-type(6)
 gmarket.co.kr##.js-impressionable.box__head-ad
 harpi.in##div:has(> script[src])
 hygall.com##div[style='display: flex;justify-content: center; width:100%;height:100px;']
 instiz.net##.view_top
 instiz.net##div[class^='hot_u']
-instiz.net##div[style*='min-height:250px;']
 inven.co.kr,mt.co.kr##[class$='ads']
 inven.co.kr,wowtv.co.kr,damoang.net##[class*='-banner']
+jusoya.com##div.banner-widget:has(a.secure-banner-link[data-original-url])
 k-hentai.org##.my-3.container
-kone.gg##.flex.justify-center.py-3
+litomi.in##[data-juicy-ads-slot]
 m.bobaedream.co.kr##div[style$='height:50px;']
 m.cafe.daum.net##[class*='_banner']
 m.danawa.com###mdnw-main-dimm, #mdnw-main-bottomSheet-container
 m.daum.net###trendKeywordsContainer
 m.dcinside.com###notice_list > li
 m.dcinside.com##.layer-bottom-popup
+m.dcinside.com##.menu-scroll-lst.swiper-wrapper > li.swiper-slide:nth-of-type(5)
 m.dcinside.com##.view-btm-con
 m.dcinside.com#$##notice_list > li:has(.ct):not(:has(.ntc-line-pink.round)) { display: table !important; }
 m.ppomppu.co.kr##.js-ad_slot.JS-div_gpt_ad
@@ -80,10 +92,13 @@ mule.co.kr##[class*='-ad-']
 namu.wiki#$#div[class][id]:is(:empty, :has(> iframe[id^='google_ads_iframe'])) { display: none !important; }
 naver.com###sb-kh-shortents-wrap
 naver.com##.sa_mw.sa_empty_ad
-nexon.com,gg,ps,xyz,loawa.com,or.kr,go.kr#@#[target='_blank']:has([src*='/banner/'])
+news.jtbc.co.kr##.print-hide:has-text(AD)
+nexon.com,gg,ps,xyz,loawa.com,or.kr,go.kr,ai,chat#@#[target='_blank']:has([src*='/banner/'])
 pay.naver.com##div[class^='BottomAds_article']
+postype.com##div[data-sentry-component="RecommendFeedGoogleAd"]:upward(1)
 ppomppu.co.kr##.bottom > div[style]
 ppomppu.co.kr$$tr:has-text(AD)
+redvi79.com##div[style*="z-index: 9999"]:has(img[src*="/banners/"]), img[src*="/banners/"]
 rgr.kr,rgrong.net,te31.com###foot:style(height: 150px !important;)
 rgr.kr,rgrong.net,te31.com##div[style='position:relative;z-index:11;']
 ruliweb.com,ppomppu.co.kr,naver.com,daum.net,etoland.co.kr##[id$='_ad']
@@ -94,6 +109,7 @@ seoul.co.kr###bottomScrollBox
 seoul.co.kr##[class^='ad']
 shopping.naver.com##div[class^="_carouselProductList_mobile_carousel_product_list_"]
 soccerline.kr##.bottBann
+sooplive.com##.adballoon_icon
 svrforum.com$$ins[class="adsbygoogle"]
 talk.op.gg##+js(set-cookie, _talkg_banner, 1)
 te31.com##table:has(td > script)
@@ -104,8 +120,10 @@ teamblind.com##div.article:has(> [href^='https://link.coupang.com/re/AFFSDP'])
 teamblind.com##div.comment_area.wrap-comment[style='cursor: pointer;']
 torrentpi150.com##.h20 +.widget-box
 torrentpi150.com##div.col-sm-12 > .widget-box > .basic-post-gallery
+uppity.co.kr##.adrop-outer
 windowsforum.kr,seoul.co.kr,xportsnews.com##.ad
 wowtv.co.kr,cafe.naver.com##[class*='Banner']
+ydzone20.cc##ul.d-flex.flex-wrap:has(a[href*="/bbs/banner.php"])
 zod.kr##div:has(> [rel='sponsored'])
 ||*nestads.*
 ||get*ads-*-du.a.run.app^
@@ -126,7 +144,7 @@ zod.kr##div:has(> [rel='sponsored'])
 
 ! Minor distractions
 arca.live##.d-lg-none.topbar-area
-damoang.net##.mb-6 ~.mb-4:not(.sm\:hidden)
+arca.live##a:has(img[src*="karisuma-point-x2.png"])
 gall.dcinside.com##.dc_all
 gall.dcinside.com##.dcmedia.content_box
 gall.dcinside.com##.r_dcmedia
@@ -144,6 +162,7 @@ m.dcinside.com##section.grid > .md-tit-box:has-text(Daum)
 m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
 m.naver.com##script#MM_search_disaster ~*
 mlbpark.donga.com##.the_hottest
+namu.wiki##div[class]:matches-css(position: sticky)
 namu.wiki##li:has(a > time):not(:has([href*='/raw/'])):upward(2)
 quasarzone.com##.best-official-news, .new-official-news, .best-official-news-container, .new-official-news-container, .new-partner-saleinfo-container
 search.dcinside.com##.right_content
@@ -153,19 +172,18 @@ search.naver.com##.api_subject_bx div:has(.fds-aib-answer-expand-button-wrapper)
 cafe.naver.com##+js(remove-class, disable-select, #ct)
 fmkorea.com##+js(set, link_url, '')
 manatoki469.net,manatoki470.net,newtoki469.com,newtoki470.com##+js(acis, oncontextmenu)
-namu.wiki##div[class]:matches-css(position: sticky)
 ||arca.live/static/assets/js/adult.min.js
 
 ! Anti-adblock
 @@||piku.co.kr^$generichide
 aagag.com##+js(set-cookie, ab, 0)
 aagag.com#$#.la { position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
-kissjav.*##+js(rmnt, script, /contextmenu|ghost|localStorage|video\-ad\-overlay|juicyads|admanager/i)
+kissjav.*##+js(rmnt, script, /contextmenu|ghost|localStorage|video\-ad\-overlay|admanager/i)
 dcinside.com###moveOverlay, #gaejukimg
 m.fmkorea.com##+js(set, _make_power_link_identifier, noopFunc)
 m.fmkorea.com##script ~ div.bd_mobile.bd:matches-css(margin: /[0-5]px [0-5]px/):matches-css(padding: /[0-5]px/):remove()
 m.fmkorea.com##section.fmWidgetStyle2019.bd_mobile.bd:matches-css(margin: /[0-5]px [0-5]px/):matches-css(padding: /[0-5]px/):remove()
-namu.wiki##div:has(img[data-doc]:not([data-doc^="/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
+namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 
 ! Incorrect blocking
@@ -175,7 +193,7 @@ $@$link[rel="manifest"]
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
 @@||ad-img.gmarket.com^$image,domain=m.gmarket.co.kr|auction.co.kr|www.gmarket.co.kr
 @@||adtouch.*
-@@||arca.live^$generichide
+@@||arca.live^$ghide
 @@||blog.kakaocdn.net*/img.gif
 @@||code-pia.com^$stealth=dpi
 @@||fs2.joycity.com^$stealth=dpi
@@ -213,8 +231,9 @@ www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 
 ! Google Spam Links
 www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*="baepwu.art"], a[href*="ghugnf.art"], a[href*="jgkoqg.art"], a[href*="mpvrxu.art"], a[href*="pmtpxf.art"], a[href*="qvkjum.art"], a[href*="akxhlo.asia"], a[href*="btbmyf.asia"], a[href*="dygnyh.asia"], a[href*="hnangpo.asia"], a[href*="nglryc.asia"], a[href*="obexke.asia"], a[href*="oonxly.asia"], a[href*="scyhqb.asia"], a[href*="therefectory.asia"], a[href*="ttdshj.asia"], a[href*="tveygl.baby"], a[href*="umpodg.baby"], a[href*="bitaineboulangerie.be"], a[href*="blogtopia.be"], a[href*="chirobart.be"], a[href*="clublescerises.be"], a[href*="ha-vesalius.be"], a[href*="hetvertier.be"], a[href*="ista-webportal.be"], a[href*="lacasablanca.be"], a[href*="obekin.be"], a[href*="olne.be"], a[href*="raamwebshop.be"], a[href*="thima.be"], a[href*="inthegroove.blog"], a[href*="topuniversities.blog"], a[href*="trending360.blog"], a[href*="ggltransport.ca"], a[href*="furmxd.cafe"], a[href*="azneen.cc"], a[href*="gysrjs.cc"], a[href*="ofkvuv.cc"], a[href*="cxhumx.city"], a[href*="agpbgv.cloud"], a[href*="fdzfbg.cloud"], a[href*="kkwwev.cloud"], a[href*="lmgwzm.cloud"], a[href*="lmxubn.cloud"], a[href*="lnezil.cloud"], a[href*="yslcir.cloud"], a[href*="watchfreejavonline.co"], a[href*="hkpqax.codes"], a[href*="jgulvs.codes"], a[href*="spbmkd.codes"], a[href*="tjdhmq.codes"], a[href*="yigcbx.codes"], a[href*="garagepierreperreault.com"], a[href*="ginegar.com"], a[href*="hudsontrainingcenter.com"], a[href*="karunalayamattingal.com"], a[href*="marchesandagadrummond.com"], a[href*="passionitgroup.com"], a[href*="zigcou.com"], a[href*="igkmih.company"], a[href*="mfczbq.company"], a[href*="qntpgd.company"], a[href*="uahxxl.company"], a[href*="vuzhnj.company"], a[href*="antoniopenalver.eu"], a[href*="beautyserwis.eu"], a[href*="borderlessbeauty.eu"], a[href*="crepiere-comparatif.eu"], a[href*="culture-echecs.eu"], a[href*="gutgas.eu"], a[href*="lagoiseotrasportoebiketour.eu"], a[href*="picture-it.eu"], a[href*="pijaca.eu"], a[href*="pp-stavebni.eu"], a[href*="regionalninoviny.eu"], a[href*="rumexbaltics.eu"], a[href*="tacosta.eu"], a[href*="voicesofthelaw.eu"], a[href*="cntjck.gay"], a[href*="oilaas.gay"], a[href*="vieidh.gay"], a[href*="zgbybb.gay"], a[href*="bqluwi.info"], a[href*="birrificiowarshop.it"], a[href*="clabmeeting.it"], a[href*="consorziocimiterocarditocrispano.it"], a[href*="intavoliamo.it"], a[href*="kasaway.it"], a[href*="rammses.it"], a[href*="residenzaanticaroma.it"], a[href*="vininvilla.it"], a[href*="visitcostadeitrabocchi.it"], a[href*="asano400.jp"], a[href*="moreliving.co.jp"], a[href*="e-click.jp"], a[href*="hbcm.jp"], a[href*="maruinto-nagainto.jp"], a[href*="mcrane.jp"], a[href*="medicalenglish.jp"], a[href*="shabuchin-namba.jp"], a[href*="tacosta.jp"], a[href*="awesomek.co.kr"], a[href*="foke.co.kr"], a[href*="foodtruckhouse.co.kr"], a[href*="grentech.co.kr"], a[href*="k-visaplus.co.kr"], a[href*="keepu.co.kr"], a[href*="yagu1004.co.kr"], a[href*="yanghan.co.kr"], a[href*="darosan.kr"], a[href*="todaytopic.kr"], a[href*="csfwhb.lat"], a[href*="omnia.lat"], a[href*="abateser.life"], a[href*="ahtombe.life"], a[href*="babehest.life"], a[href*="bebebose.life"], a[href*="beghartol.life"], a[href*="bihlekemt.life"], a[href*="cjealw.life"], a[href*="cptiqi.life"], a[href*="davinci.life"], a[href*="dmwyzo.life"], a[href*="dynnsl.life"], a[href*="eliheter.life"], a[href*="gigiratar.life"], a[href*="kpyvkh.life"], a[href*="mirezepo.life"], a[href*="mnihatar.life"], a[href*="mutitarka.life"], a[href*="nihaltelef.life"], a[href*="ntegyq.life"], a[href*="plekarak.life"], a[href*="popritat.life"], a[href*="songuletlako.life"], a[href*="suskelamte.life"], a[href*="wgxcze.life"], a[href*="cxkdvs.link"], a[href*="dlwmuh.link"], a[href*="emldzk.link"], a[href*="hoyiki.link"], a[href*="jissey1.link"], a[href*="ktqzfd.link"], a[href*="tuoidc.link"], a[href*="hjgeim.lol"], a[href*="mvomag.lol"], a[href*="avsnnv.media"], a[href*="avvucv.media"], a[href*="ckilxq.media"], a[href*="dbjflq.media"], a[href*="gxkcgj.media"], a[href*="wcmosm.media"], a[href*="yegazk.media"], a[href*="hsnnup.network"], a[href*="ozisbj.network"], a[href*="qpmyqk.network"], a[href*="udvter.network"], a[href*="vmg-makelaars.nl"], a[href*="voetselvoetreflextherapie.nl"], a[href*="cgrvre.online"], a[href*="casaricci.org"], a[href*="shogakukan.edu.pl"], a[href*="zjeogv.press"], a[href*="nmemer.pw"], a[href*="rtperr.pw"], a[href*="ufrevh.pw"], a[href*="nrelpj.rip"], a[href*="autobody.ru"], a[href*="domupn.ru"], a[href*="fashiontime.ru"], a[href*="goskrep.ru"], a[href*="koni-store.ru"], a[href*="lublin-tver.ru"], a[href*="souzveche.ru"], a[href*="sovermed.ru"], a[href*="stroyip.ru"], a[href*="tltsu.ru"], a[href*="dalunahh.shop"], a[href*="fdmzep.shop"], a[href*="futurechem.shop"], a[href*="gkqnmq.shop"], a[href*="hojbjm.shop"], a[href*="oappgk.shop"], a[href*="ojiykt.shop"], a[href*="sacjdr.shop"], a[href*="txhuzb.shop"], a[href*="ygtdwp.shop"], a[href*="ketoslast.si"], a[href*="letovanje-lombar.si"], a[href*="acvvmt.skin"], a[href*="qtjjbf.space"], a[href*="vrfrrx.space"], a[href*="yzzvcp.space"], a[href*="bjmlnh.store"], a[href*="cqsngq.stream"], a[href*="hysajf.stream"], a[href*="kukatr.stream"], a[href*="nlvhvi.stream"], a[href*="yvyusz.stream"], a[href*="cfasdj.uno"], a[href*="gamsdk.uno"], a[href*="klhine.uno"], a[href*="kvssso.vu"], a[href*="ourkzc.vu"], a[href*="vjyotq.vu"], a[href*="hutsau.website"], a[href*="dtpsez.work"], a[href*="mzzfqj.work"], a[href*="rkzqnz.work"], a[href*="rubosc.work"], a[href*="uhqipk.work"], a[href*="uvvqix.work"], a[href*="aczcev.xyz"], a[href*="kcxcwq.xyz"], a[href*="mitnvv.xyz"], a[href*="thtxhu.xyz"])
-www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*="acxkjp.art"], a[href*="drycix.art"], a[href*="dsmabm.art"], a[href*="hrxoda.art"], a[href*="izgxpd.art"], a[href*="jzmhse.art"], a[href*="loeezc.art"], a[href*="oxbvqj.art"], a[href*="xximst.art"], a[href*="yricum.art"], a[href*="zrsmjs.art"], a[href*="bskzfj.asia"], a[href*="cbodnd.asia"], a[href*="gbarzf.asia"], a[href*="omjedi.asia"], a[href*="tapvnx.asia"], a[href*="vjsifg.asia"], a[href*="wnluvc.asia"], a[href*="berberecafe.be"], a[href*="cycure.be"], a[href*="milkflow.be"], a[href*="eldokl.company"], a[href*="gslarr.company"], a[href*="umovhc.company"], a[href*="yonevf.company"], a[href*="apbonl.gay"], a[href*="hwmdxo.gay"], a[href*="wwivrj.gay"], a[href*="yzswqi.gay"], a[href*="zsdtbr.gay"], a[href*="lenday.info"], a[href*="sjixvf.info"], a[href*="carlociampi.it"], a[href*="ecopools.it"], a[href*="my-radio.it"], a[href*="a2ti3pwlik8jxoduusp5663.jspf"], a[href*="hanseomotors.co.kr"], a[href*="qualityperformance.co.kr"], a[href*="aharifay.life"], a[href*="bagrataty.life"], a[href*="cvijhd.life"], a[href*="gaszlm.life"], a[href*="gelirafem.life"], a[href*="ihtiratko.life"], a[href*="kgmmko.life"], a[href*="kogdrq.life"], a[href*="lemwoc.life"], a[href*="mbnxlx.life"], a[href*="sobeltfen.life"], a[href*="tzwrln.life"], a[href*="xodtoc.life"], a[href*="yznlea.life"], a[href*="zokulo.life"], a[href*="azecmp.link"], a[href*="dazudr.link"], a[href*="jtqauo.link"], a[href*="laabuw.link"], a[href*="nobdgc.pw"], a[href*="vzmqfv.pw"], a[href*="wmxjew.pw"], a[href*="fejgxr.shop"], a[href*="mbsjgg.shop"], a[href*="mrgrvy.shop"], a[href*="pyylst.shop"], a[href*="rtymbn.shop"], a[href*="ucmbmk.shop"], a[href*="clwscg.today"], a[href*="ecgrjf.today"], a[href*="fbtxqp.today"], a[href*="irwhqf.today"], a[href*="itqsnz.today"], a[href*="jqjqud.today"], a[href*="kjurdg.today"], a[href*="knlcmx.today"], a[href*="nohdjs.today"], a[href*="opkgzk.today"], a[href*="rgjgfk.today"], a[href*="uoxjyi.today"], a[href*="wufywf.today"], a[href*="xzexph.today"], a[href*="ebmflg.work"], a[href*="glzsqh.work"], a[href*="mayofy.work"], a[href*="udktan.work"], a[href*="lmeuox.xyz"], a[href*="oabwky.xyz"], a[href*="rbtoba.xyz"])
+www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*="acxkjp.art"], a[href*="drycix.art"], a[href*="dsmabm.art"], a[href*="hrxoda.art"], a[href*="izgxpd.art"], a[href*="jzmhse.art"], a[href*="loeezc.art"], a[href*="oxbvqj.art"], a[href*="xximst.art"], a[href*="yricum.art"], a[href*="zrsmjs.art"], a[href*="bskzfj.asia"], a[href*="cbodnd.asia"], a[href*="gbarzf.asia"], a[href*="omjedi.asia"], a[href*="tapvnx.asia"], a[href*="vjsifg.asia"], a[href*="wnluvc.asia"], a[href*="berberecafe.be"], a[href*="cycure.be"], a[href*="milkflow.be"], a[href*="czvefo.company"], a[href*="eldokl.company"], a[href*="gslarr.company"], a[href*="ktbflh.company"], a[href*="umovhc.company"], a[href*="yonevf.company"], a[href*="energylab.cz"], a[href*="apbonl.gay"], a[href*="hwmdxo.gay"], a[href*="tsvzvr.gay"], a[href*="wwivrj.gay"], a[href*="yzswqi.gay"], a[href*="zsdtbr.gay"], a[href*="thomascook.in"], a[href*="lenday.info"], a[href*="sjixvf.info"], a[href*="amcromaeur.it"], a[href*="beauty-smile.it"], a[href*="carlociampi.it"], a[href*="ecopools.it"], a[href*="emmepiaperturaporte.it"], a[href*="fitfit.it"], a[href*="iof-rallo.it"], a[href*="joliechampagnerie.it"], a[href*="larivierasrls.it"], a[href*="leucianarestaurant.it"], a[href*="lukia.it"], a[href*="lunicapausadolce.it"], a[href*="my-radio.it"], a[href*="newshampoo.it"], a[href*="pasquasia.it"], a[href*="secural.it"], a[href*="elafonisi.co.kr"], a[href*="hanseomotors.co.kr"], a[href*="naturebred.co.kr"], a[href*="qualityperformance.co.kr"], a[href*="aharifay.life"], a[href*="bagrataty.life"], a[href*="cvijhd.life"], a[href*="gaszlm.life"], a[href*="gelirafem.life"], a[href*="ihtiratko.life"], a[href*="kgmmko.life"], a[href*="kogdrq.life"], a[href*="lemwoc.life"], a[href*="mbnxlx.life"], a[href*="rhpsej.life"], a[href*="sobeltfen.life"], a[href*="tzwrln.life"], a[href*="xodtoc.life"], a[href*="xrrtbm.life"], a[href*="yznlea.life"], a[href*="zokulo.life"], a[href*="azecmp.link"], a[href*="dazudr.link"], a[href*="jtqauo.link"], a[href*="laabuw.link"], a[href*="fm-world.lv"], a[href*="cvrshx.pw"], a[href*="nobdgc.pw"], a[href*="vzmqfv.pw"], a[href*="wmxjew.pw"], a[href*="fejgxr.shop"], a[href*="mbsjgg.shop"], a[href*="mrgrvy.shop"], a[href*="pyylst.shop"], a[href*="rtymbn.shop"], a[href*="ucmbmk.shop"], a[href*="clwscg.today"], a[href*="ecgrjf.today"], a[href*="fbtxqp.today"], a[href*="hvytcw.today"], a[href*="irwhqf.today"], a[href*="itqsnz.today"], a[href*="jqjqud.today"], a[href*="kjurdg.today"], a[href*="knlcmx.today"], a[href*="nohdjs.today"], a[href*="opkgzk.today"], a[href*="rgjgfk.today"], a[href*="uoxjyi.today"], a[href*="wufywf.today"], a[href*="xzexph.today"], a[href*="ebmflg.work"], a[href*="glzsqh.work"], a[href*="mayofy.work"], a[href*="uckozi.work"], a[href*="udktan.work"], a[href*="vzgkrg.work"], a[href*="iseri.xyz"], a[href*="lmeuox.xyz"], a[href*="oabwky.xyz"], a[href*="rbtoba.xyz"])
 www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(img[src^="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y+mAAAAsVBMVEVHcEzf4uXQz8yxranO1dq00ewAAACin5yFgHtNRj/Av77Q2N/P2ODBz9u1xdKJhoG7yNXe39+8uLTe3t6IhH7JzM+IhYHJzdDJzM3///8BT5UAVaIARYMASosBXK4APHQAQXsAacYANmwAYrsFcM8BdNozX4qVqsD0+PycweQdTn8xesA8d66Wss50krKAq9cegt/s9fxrm8txr"])
+www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(img[src^="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAAAAABXZoBIAAAA5UlEQVR4AY3SsQ3CMBCF4VfSPFfswRiUiDVoGIABmIA6WYIp0lGl8QQsQHf4/ADOYCEOYVl8+SWcBOnH/INk8k8ZfiDlLfBdAtCuicG67s/nfVEyXvAoMZqN6P0hlnUwGxCjWArJ6CpJYZ2nt+VpO5tdR7BFVpyszgx2ypJlXw/QDWnxAKDwhE45gcS29OD3UUaQC5jdQBf3eE4moUqSEctPwgXcUotUieXaNaVeuTPLYLgJQpV"])
 www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*=".auction/"], a[href*=".autos/"])
 www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*=".bar/"], a[href*=".beauty/"])
 www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*=".best/"], a[href*=".boats/"])
@@ -253,20 +272,19 @@ www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*=".vu/"])
 www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*=".watch/"])
 www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*=".works/"], a[href*=".wtf/"])
 www.google.*##.MjjYud:not(:has([data-id="mosaic"])):has(a[href*=".yachts/"])
-! Allow specific TLDs (e.g., .hu) by adding an exception rule www.google.*#@#.MjjYud:not(:has([data-id="mosaic"])):has(a[href*=".horse/"], a[href*=".hu/"])
+! Allow specific TLDs (e.g., .hu) by adding an exception rule: www.google.*#@#.MjjYud:not(:has([data-id="mosaic"])):has(a[href*=".horse/"], a[href*=".hu/"])
 
 ! Etc
 arca.live#%#const _s=document.documentElement.appendChild(Object.assign(document.createElement("style"),{textContent:'a.notice .vcol.col-ad .badge.badge-success,a.notice .vcol.col-id>b{visibility:hidden}'}));document.addEventListener("DOMContentLoaded",()=>{const t=document.querySelector("div.list-table");if(!t){_s.remove();return;}const s=()=>{const e=t.querySelector('a.notice[href*="/b/"]');if(!e)return;const g=e.pathname.split("/b/")[1]?.split("/")[0];if(!g)return;const b=e.querySelector(".vcol.col-ad .badge.badge-success"),i=e.querySelector(".vcol.col-id>b");if(b)b.textContent=g;if(i)i.textContent=g;if(b||i)_s.remove()};s();let r;new MutationObserver(()=>{clearTimeout(r);r=setTimeout(s,100)}).observe(t,{childList:!0,subtree:!0})});
 dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_mrnhbtk', '1year', '/', '.dmm.co.jp')
-dcinside.com#%#//scriptlet('trusted-create-element', 'head', 'meta', 'name="theme-color" content="#2b367d"')
 gall.dcinside.com##div.img_area button.btn:style(opacity: 0.4 !important;)
 gall.dcinside.com#$#.btn_imgcmtopen { opacity: 0.4 !important; transform: translate(8px, 7px) !important; }
-gall.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview_head:has(em.icon_write_app) > div.gall_writer > div.fl', 'span', 'alt="imgtoggle"', 'ㅤAPP')
-gall.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview_head:has(em.icon_write_mbl) > div.gall_writer > div.fl', 'span', 'alt="imgtoggle"', 'ㅤMOBILE')
-gall.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview_head:not(:has(em.icon_write_mbl)):not(:has(em.icon_write_app)) > div.gall_writer > div.fl', 'span', 'alt="imgtoggle"', 'ㅤPC')
+gall.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview_head:has(em.icon_write_app) > div.gall_writer > div.fl', 'span', '', 'ㅤAPP')
+gall.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview_head:has(em.icon_write_mbl) > div.gall_writer > div.fl', 'span', '', 'ㅤMOBILE')
+gall.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview_head:not(:has(em.icon_write_mbl)):not(:has(em.icon_write_app)) > div.gall_writer > div.fl', 'span', '', 'ㅤPC')
 m.dcinside.com#$#button.btn-imgcomment { transform: scale(0.7) translate(21.5px, 15.3px) !important; opacity: 0.6 !important; }
-m.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview-tit-box:has(span.sp-app) > div > ul.ginfo2', 'li', 'alt="imgtoggle"', 'APP')
-m.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview-tit-box:has(span.sp-mweb) > div > ul.ginfo2', 'li', 'alt="imgtoggle"', 'MOBILE')
-m.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview-tit-box:not(:has(span.sp-icon)) > div > ul.ginfo2', 'li', 'alt="imgtoggle"', 'PC')
+m.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview-tit-box:has(span.sp-app) > div > ul.ginfo2', 'li', '', 'APP')
+m.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview-tit-box:has(span.sp-mweb) > div > ul.ginfo2', 'li', '', 'MOBILE')
+m.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview-tit-box:not(:has(span.sp-icon)) > div > ul.ginfo2', 'li', '', 'PC')
 m.youtube.com#%#setInterval(function(){var ts=document.querySelectorAll(".slim-owner-subscribe-button");for(var i=0;i<ts.length;i++){var t=ts[i];if(t.offsetParent!==null&&!t.parentElement.querySelector(".pip-btn")){var b=document.createElement("div");b.className="pip-btn";b.innerText="PiP";b.tabIndex=0;b.style.cssText="display:flex;align-items:center;justify-content:center;background-color:#f2f2f2;border-radius:18px;height:36px;padding:0 16px;margin-right:8px;font-family:Roboto,Arial,sans-serif;font-size:14px;font-weight:500;color:#0f0f0f;cursor:pointer;outline:none;user-select:none;transition:background-color 0.2s";b.onmouseover=function(){this.style.backgroundColor="#e5e5e5"};b.onmouseout=function(){this.style.backgroundColor="#f2f2f2"};b.onclick=function(e){e.preventDefault();e.stopPropagation();var v=document.querySelector("video");if(v){v.removeAttribute("disablepictureinpicture");document.pictureInPictureElement?document.exitPictureInPicture():v.requestPictureInPicture()}};b.onfocus=b.onmouseenter=function(){if(window._pipT)return;window._pipT=1;var p=document.createElement("div");p.innerText="By Gallery Filter";p.style.cssText="position:fixed;z-index:9999;padding:4px 8px;background:rgba(255,255,255,0.8);border:1px solid rgba(0,0,0,0.2);border-radius:4px;box-shadow:0 2px 5px rgba(0,0,0,0.1);backdrop-filter:blur(3px);font-size:11px;font-family:sans-serif;color:black;pointer-events:none;opacity:1;transition:opacity 0.5s ease-out;";var r=this.getBoundingClientRect();p.style.top=(r.top-30)+"px";p.style.left=(r.left+r.width/2)+"px";p.style.transform="translateX(-50%)";document.body.appendChild(p);setTimeout(function(){p.style.opacity="0";setTimeout(function(){p.remove()},500)},1500)};t.parentElement.insertBefore(b,t)}}},1000);
 !  =============== END (Maginot Line) =============== !
