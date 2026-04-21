@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      67.01.0
+// @version      67.02.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
 // @author       Gemini & Claude
 // @license      MIT
@@ -101,10 +101,7 @@
         if (v) return v;
         let els = root.querySelectorAll ? root.querySelectorAll('*') : [];
         for (let el of els) {
-            if (el.shadowRoot) {
-                v = findDeepVid(el.shadowRoot);
-                if (v) return v;
-            }
+            if (el.shadowRoot) { v = findDeepVid(el.shadowRoot); if (v) return v; }
         }
         return null;
     };
@@ -119,9 +116,7 @@
                 const rect = current.getBoundingClientRect();
                 if (rect.width > 50 && rect.height > 50) {
                     if (!fallbackMatch) fallbackMatch = current;
-                    if (current.matches && current.matches(VIP_SELECTORS)) {
-                        bestMatch = current;
-                    }
+                    if (current.matches && current.matches(VIP_SELECTORS)) bestMatch = current;
                 }
             }
             current = current.parentNode || current.host;
@@ -132,10 +127,7 @@
 
     const setIconIfChanged = (btn, key) => {
         if (!btn) return;
-        if (btn.dataset.gtIcon !== key) {
-            btn.innerHTML = key;
-            btn.dataset.gtIcon = key;
-        }
+        if (btn.dataset.gtIcon !== key) { btn.innerHTML = key; btn.dataset.gtIcon = key; }
     };
 
     const hijackFullscreenAPI = () => {
@@ -148,19 +140,14 @@
                         let target = this;
                         if (this.tagName === 'VIDEO') {
                             const isNaked = !this.parentNode.classList?.contains('gt-video-wrapper') && !findUp(this.parentNode, VIP_SELECTORS.replace(', iframe', ''));
-                            if (isNaked) {
-                                target = this.parentNode;
-                                target.classList.add('gt-fullscreen-active');
-                            }
+                            if (isNaked) { target = this.parentNode; target.classList.add('gt-fullscreen-active'); }
                         }
                         const promise = originalMethod.apply(target, args);
                         let v = target.tagName === 'VIDEO' ? target : findDeepVid(target);
                         if (!v) v = findDeepVid(document);
                         if (v) lockOrientation(getVideoOrientationDir(v));
                         return promise;
-                    } catch (e) {
-                        return originalMethod.apply(this, args);
-                    }
+                    } catch (e) { return originalMethod.apply(this, args); }
                 };
             }
         });
@@ -170,7 +157,6 @@
     const toggleNativeFullscreen = (container, video) => {
         const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement) || container.classList.contains('gt-fullscreen-active');
         const fsBtn = container.querySelector('.art-icon-fullscreenOn, .art-control-fullscreen, .dplayer-full-icon, .plyr__control[data-plyr="fullscreen"], .vjs-fullscreen-control, .xgplayer-fullscreen, .tcplayer-fullscreen-btn, .prism-fullscreen-btn, [aria-label*="全屏"], [title*="全屏"], [aria-label*="전체 화면"], [title*="전체화면"], .fullscreen-btn, .bilibili-player-video-btn-fullscreen');
-
         if (isFS) {
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
             if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
@@ -191,8 +177,7 @@
                     });
                 } else { setTimeout(forceLockLandscape, 150); }
             } else if (video.webkitEnterFullscreen) {
-                video.webkitEnterFullscreen();
-                setTimeout(forceLockLandscape, 150);
+                video.webkitEnterFullscreen(); setTimeout(forceLockLandscape, 150);
             }
         }
     };
@@ -228,7 +213,6 @@
         :fullscreen { background-color: #000 !important; }
 
         .gt-ui-layer { position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none !important; z-index: 2147483647 !important; }
-
         .gt-mini-progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: rgba(255,255,255,0.2); z-index: 2147483640; pointer-events: none; overflow: hidden; opacity: 0.9; transition: height 0.2s, opacity 0.3s; box-shadow: 0 -1px 1px rgba(0,0,0,0.2); }
         .gt-mini-progress .gt-fill { height: 100%; width: 0%; background: ${CFG.progressBarColor}; transition: width 0.1s linear; box-shadow: 0 0 4px ${CFG.progressBarColor}; }
         :fullscreen .gt-mini-progress, .gt-fullscreen-active .gt-mini-progress { height: 3px !important; }
@@ -249,19 +233,19 @@
         .gt-pip-btn { top: 40px; left: 10px; }
         .gt-shot-btn { top: calc(40px + 32px); left: 10px; }
 
-        /* 오른쪽 상단: 회전, 탐색모드, 탐색값 */
-        .gt-rotate-btn { top: 40px; right: 10px; }
-        .gt-seek-mode-btn { top: calc(40px + 32px); right: 10px; }
-        .gt-seek-val-btn { top: calc(40px + 64px); right: 10px; }
+        /* 오른쪽 상단: 탐색모드, 탐색값 */
+        .gt-seek-mode-btn { top: 40px; right: 10px; }
+        .gt-seek-val-btn { top: calc(40px + 32px); right: 10px; }
 
         /* 오른쪽 하단: 잠금, 모드(속도/줌) */
         .gt-lock-btn { bottom: 48px; right: 10px; }
         .gt-mode-btn { bottom: calc(48px + 32px); right: 10px; }
 
-        /* 하단 중앙: 화면비율, 속도리셋, 줌리셋 (프로그레스바 위 가로 배열) */
-        .gt-fit-btn { bottom: 14px; left: 50%; transform: translateX(-50%); }
-        .gt-reset-speed-btn { bottom: 14px; left: calc(50% - 36px); transform: translateX(-50%); }
-        .gt-reset-zoom-btn { bottom: 14px; left: calc(50% + 36px); transform: translateX(-50%); }
+        /* 하단 중앙: 화면비율, 회전 (상시) + 속도리셋, 줌리셋 (조건부) */
+        .gt-fit-btn { bottom: 32px; left: calc(50% - 18px); transform: translateX(-50%); }
+        .gt-rotate-btn { bottom: 32px; left: calc(50% + 18px); transform: translateX(-50%); }
+        .gt-reset-speed-btn { bottom: 32px; left: calc(50% - 54px); transform: translateX(-50%); }
+        .gt-reset-zoom-btn { bottom: 32px; left: calc(50% + 54px); transform: translateX(-50%); }
 
         /* ===== 전체화면 배치 ===== */
         :fullscreen .gt-btn-base, .gt-fullscreen-active .gt-btn-base { width: 38px; height: 38px; }
@@ -274,18 +258,18 @@
         :fullscreen .gt-shot-btn, .gt-fullscreen-active .gt-shot-btn { top: calc(55px + 50px); left: 20px; }
 
         /* 오른쪽 상단 */
-        :fullscreen .gt-rotate-btn, .gt-fullscreen-active .gt-rotate-btn { top: 55px; right: 20px; }
-        :fullscreen .gt-seek-mode-btn, .gt-fullscreen-active .gt-seek-mode-btn { top: calc(55px + 50px); right: 20px; }
-        :fullscreen .gt-seek-val-btn, .gt-fullscreen-active .gt-seek-val-btn { top: calc(55px + 100px); right: 20px; }
+        :fullscreen .gt-seek-mode-btn, .gt-fullscreen-active .gt-seek-mode-btn { top: 55px; right: 20px; }
+        :fullscreen .gt-seek-val-btn, .gt-fullscreen-active .gt-seek-val-btn { top: calc(55px + 50px); right: 20px; }
 
         /* 오른쪽 하단 */
         :fullscreen .gt-lock-btn, .gt-fullscreen-active .gt-lock-btn { bottom: 60px; right: 20px; }
         :fullscreen .gt-mode-btn, .gt-fullscreen-active .gt-mode-btn { bottom: calc(60px + 50px); right: 20px; }
 
         /* 하단 중앙 */
-        :fullscreen .gt-fit-btn, .gt-fullscreen-active .gt-fit-btn { bottom: 20px; left: 50%; transform: translateX(-50%); }
-        :fullscreen .gt-reset-speed-btn, .gt-fullscreen-active .gt-reset-speed-btn { bottom: 20px; left: calc(50% - 48px); transform: translateX(-50%); }
-        :fullscreen .gt-reset-zoom-btn, .gt-fullscreen-active .gt-reset-zoom-btn { bottom: 20px; left: calc(50% + 48px); transform: translateX(-50%); }
+        :fullscreen .gt-fit-btn, .gt-fullscreen-active .gt-fit-btn { bottom: 40px; left: calc(50% - 24px); transform: translateX(-50%); }
+        :fullscreen .gt-rotate-btn, .gt-fullscreen-active .gt-rotate-btn { bottom: 40px; left: calc(50% + 24px); transform: translateX(-50%); }
+        :fullscreen .gt-reset-speed-btn, .gt-fullscreen-active .gt-reset-speed-btn { bottom: 40px; left: calc(50% - 72px); transform: translateX(-50%); }
+        :fullscreen .gt-reset-zoom-btn, .gt-fullscreen-active .gt-reset-zoom-btn { bottom: 40px; left: calc(50% + 72px); transform: translateX(-50%); }
     `);
 
     const SVG_LOCK = `<svg viewBox="0 0 24 24" width="100%" height="100%"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`;
@@ -362,9 +346,7 @@
         if (!rootContainer || rootContainer === document.body || rootContainer === document.documentElement) {
             rootContainer = targetVideo.parentNode || targetVideo;
         }
-        if (rootContainer && rootContainer.tagName === 'VIDEO') {
-            rootContainer = rootContainer.parentNode;
-        }
+        if (rootContainer && rootContainer.tagName === 'VIDEO') { rootContainer = rootContainer.parentNode; }
 
         if (e.touches && e.touches.length > 0) {
             const isFS = !!getFS() || (rootContainer && rootContainer.classList.contains('gt-fullscreen-active'));
@@ -400,7 +382,6 @@
         if(!uiLayer) return;
 
         const btnLock = uiLayer.querySelector('.gt-lock-btn'), btnMode = uiLayer.querySelector('.gt-mode-btn'), btnRot = uiLayer.querySelector('.gt-rotate-btn'), btnRst = uiLayer.querySelector('.gt-reset-speed-btn'), btnZoomRst = uiLayer.querySelector('.gt-reset-zoom-btn'), btnSeekMode = uiLayer.querySelector('.gt-seek-mode-btn'), btnSeekVal = uiLayer.querySelector('.gt-seek-val-btn'), btnFit = uiLayer.querySelector('.gt-fit-btn'), btnShot = uiLayer.querySelector('.gt-shot-btn'), btnPip = uiLayer.querySelector('.gt-pip-btn'), shield = uiLayer.querySelector('.gt-lock-shield');
-        const isFS = !!getFS() || root.classList.contains('gt-fullscreen-active');
 
         setIconIfChanged(btnLock, state.isScreenLocked ? SVG_LOCK : SVG_UNLOCK);
         setIconIfChanged(btnMode, state.pinchMode === 'speed' ? SVG_SPEED : SVG_ZOOM);
@@ -412,8 +393,8 @@
             [btnMode, btnRot, btnRst, btnZoomRst, btnSeekMode, btnSeekVal, btnFit, btnShot, btnPip].forEach(b => b?.classList.add('hidden-by-state'));
         } else {
             if(shield) shield.style.display = 'none';
-            [btnMode, btnSeekMode, btnSeekVal, btnFit, btnShot, btnPip].forEach(b => b?.classList.remove('hidden-by-state'));
-            if(btnRot) { if(isFS) btnRot.classList.remove('hidden-by-state'); else btnRot.classList.add('hidden-by-state'); }
+            // ★ 회전 버튼: 전체화면 조건 제거, 항상 표시 (하단 중앙에 배치됨)
+            [btnMode, btnRot, btnSeekMode, btnSeekVal, btnFit, btnShot, btnPip].forEach(b => b?.classList.remove('hidden-by-state'));
             if(btnRst) { if(video && video.playbackRate !== 1.0) btnRst.classList.remove('hidden-by-state'); else btnRst.classList.add('hidden-by-state'); }
             if(btnZoomRst) { if(state.scale > 1.0) btnZoomRst.classList.remove('hidden-by-state'); else btnZoomRst.classList.add('hidden-by-state'); }
         }
@@ -479,7 +460,6 @@
 
     const ensureUIAndWrapper = (hit) => {
         let { root, video, isNaked } = hit;
-
         if (isNaked) { video.setAttribute('controlslist', 'nofullscreen'); }
 
         let uiLayer = root.querySelector('.gt-ui-layer');
@@ -521,10 +501,6 @@
             });
             uiLayer.appendChild(shotBtn);
 
-            // 오른쪽 상단: 회전 (전체화면에서만 표시)
-            const rBtn = document.createElement('div'); rBtn.className = 'gt-btn-base gt-rotate-btn'; rBtn.innerHTML = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>`;
-            bindTap(rBtn, () => { toggleOrientation(); wakeUpUI(root, video); }); uiLayer.appendChild(rBtn);
-
             // 오른쪽 상단: 탐색 모드
             const smBtn = document.createElement('div'); smBtn.className = 'gt-btn-base gt-seek-mode-btn';
             bindTap(smBtn, () => { seekMode = seekMode === 'sec' ? 'frame' : 'sec'; GM_setValue('gt_seek_mode', seekMode); updateUIState(root, video); showMsg(`탐색 모드: ${seekMode==='sec'?'초 단위':'프레임 단위'}`); wakeUpUI(root, video); }); uiLayer.appendChild(smBtn);
@@ -552,6 +528,10 @@
                 wakeUpUI(root, video);
             });
             uiLayer.appendChild(fitBtn);
+
+            // 하단 중앙: 회전
+            const rBtn = document.createElement('div'); rBtn.className = 'gt-btn-base gt-rotate-btn'; rBtn.innerHTML = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>`;
+            bindTap(rBtn, () => { toggleOrientation(); wakeUpUI(root, video); }); uiLayer.appendChild(rBtn);
 
             // 하단 중앙: 속도 리셋 (조건부)
             const rstBtn = document.createElement('div'); rstBtn.className = 'gt-btn-base gt-reset-speed-btn'; rstBtn.innerHTML = `<span>1.0x</span>`;
