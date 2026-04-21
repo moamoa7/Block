@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      66.08.0
+// @version      67.00.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
 // @author       Gemini & Claude
 // @license      MIT
@@ -68,12 +68,74 @@
         }
     });
 
-    const VIP_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, iframe';
+    const VIP_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], [data-testid="video-container"], .player-wrapper, .one-video-player_display-w, .one-video-player, vk-video-player, [aria-label="Видео плеер"], [aria-label="Video Player"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, iframe';
 
-    const IGNORE_TOUCH_SELECTORS = '[data-vsc-ui="1"], .gt-btn-base, .dplayer-controller, .dplayer-bar-wrap, .vjs-control-bar, .art-bottom, .art-controls, .bpx-player-control-wrap, .plyr__controls, .xgplayer-controls, .tcplayer-controls, .prism-controlbar, .mui-player-controls, input[type="range"], .buttons-bar, .progress-bar-container';
+    const IGNORE_TOUCH_SELECTORS = '[data-vsc-ui="1"], .gt-btn-base, .dplayer-controller, .dplayer-bar-wrap, .vjs-control-bar, .art-bottom, .art-controls, .bpx-player-control-wrap, .plyr__controls, .xgplayer-controls, .tcplayer-controls, .prism-controlbar, .mui-player-controls, .wrapper-bottom, [data-testid="player_controls"], [data-testid="progress_bar"], [data-testid="volume-slider"], input[type="range"], .buttons-bar, .progress-bar-container';
 
-    const findUp = (el, selector) => { while (el && el !== document.body) { if (el.matches && el.matches(selector)) return el; el = el.parentNode; } return null; };
-    const isExcludedZone = (target) => !!findUp(target, IGNORE_TOUCH_SELECTORS);
+    // ★ [개선1] composedPath 기반 제외 영역 판별 — Shadow DOM 경계를 넘어서도 정확하게 판별
+    const isExcludedZone = (e) => {
+        const path = (typeof e.composedPath === 'function') ? e.composedPath() : [];
+        if (path.length > 0) {
+            for (let el of path) {
+                if (el.matches && el.matches(IGNORE_TOUCH_SELECTORS)) return true;
+            }
+            return false;
+        }
+        // composedPath 미지원 폴백
+        let el = e.target;
+        while (el && el !== document.body && el !== document.documentElement) {
+            if (el.matches && el.matches(IGNORE_TOUCH_SELECTORS)) return el;
+            el = el.parentNode || el.host;
+        }
+        return false;
+    };
+
+    // ★ [개선2] findUp 유틸리티 — Shadow DOM host 경계도 순회
+    const findUp = (el, selector) => {
+        while (el && el !== document.body && el !== document.documentElement) {
+            if (el.matches && el.matches(selector)) return el;
+            el = el.parentNode || el.host;
+        }
+        return null;
+    };
+
+    // ★ [개선3] Shadow DOM 내부 비디오 탐색 유틸리티
+    const findDeepVid = (root) => {
+        if (!root) return null;
+        let v = root.querySelector ? root.querySelector('video') : null;
+        if (v) return v;
+        let els = root.querySelectorAll ? root.querySelectorAll('*') : [];
+        for (let el of els) {
+            if (el.shadowRoot) {
+                v = findDeepVid(el.shadowRoot);
+                if (v) return v;
+            }
+        }
+        return null;
+    };
+
+    // ★ [개선4] getValidPlayerRoot — 비디오에서 위로 올라가며 최적의 플레이어 컨테이너를 탐색
+    const getValidPlayerRoot = (video) => {
+        let current = video.parentNode || (video.getRootNode && video.getRootNode().host) || video;
+        let bestMatch = null;
+        let fallbackMatch = null;
+
+        let depth = 0;
+        while (current && current !== document.body && current !== document.documentElement && depth < 15) {
+            if (current.getBoundingClientRect) {
+                const rect = current.getBoundingClientRect();
+                if (rect.width > 50 && rect.height > 50) {
+                    if (!fallbackMatch) fallbackMatch = current;
+                    if (current.matches && current.matches(VIP_SELECTORS)) {
+                        bestMatch = current;
+                    }
+                }
+            }
+            current = current.parentNode || current.host;
+            depth++;
+        }
+        return bestMatch || fallbackMatch || video.parentNode || video;
+    };
 
     const setIconIfChanged = (btn, key) => {
         if (!btn) return;
@@ -83,14 +145,11 @@
         }
     };
 
-    const originalFSMethods = new Map();
-
     const hijackFullscreenAPI = () => {
         const fsMethods = ['requestFullscreen', 'webkitRequestFullscreen', 'mozRequestFullScreen', 'msRequestFullscreen'];
         fsMethods.forEach(method => {
             if (Element.prototype[method]) {
                 const originalMethod = Element.prototype[method];
-                originalFSMethods.set(method, originalMethod);
                 Element.prototype[method] = function(...args) {
                     try {
                         let target = this;
@@ -102,7 +161,8 @@
                             }
                         }
                         const promise = originalMethod.apply(target, args);
-                        let v = target.tagName === 'VIDEO' ? target : (target.querySelector('video') || document.querySelector('video'));
+                        let v = target.tagName === 'VIDEO' ? target : findDeepVid(target);
+                        if (!v) v = findDeepVid(document);
                         if (v) lockOrientation(getVideoOrientationDir(v));
                         return promise;
                     } catch (e) {
@@ -240,41 +300,111 @@
 
     const getFS = () => document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
 
+    // ★ [핵심 개선] identify — elementsFromPoint + Shadow DOM 순회 + getValidPlayerRoot 캐싱
     const identify = (e) => {
-        const t = e.target; let targetVideo = null; let rootContainer = null;
+        let targetVideo = null;
+        let rootContainer = null;
 
-        const vip = findUp(t, VIP_SELECTORS);
-        if (vip) {
-            targetVideo = vip.tagName === 'VIDEO' ? vip : (vip.querySelector('video') || (vip.shadowRoot ? vip.shadowRoot.querySelector('video') : null));
-            rootContainer = vip;
+        // 1단계: 터치 좌표 추출
+        let cx, cy;
+        if (e.touches && e.touches.length > 0) {
+            cx = e.touches[0].clientX;
+            cy = e.touches[0].clientY;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            cx = e.changedTouches[0].clientX;
+            cy = e.changedTouches[0].clientY;
+        } else {
+            cx = e.clientX;
+            cy = e.clientY;
         }
 
+        // 2단계: elementsFromPoint + Shadow DOM 순회로 비디오 찾기
+        if (cx !== undefined && cy !== undefined) {
+            let currentRoot = document;
+            while (currentRoot) {
+                let els;
+                try { els = currentRoot.elementsFromPoint(cx, cy) || []; } catch (_) { els = []; }
+                for (let el of els) {
+                    if (el.tagName === 'VIDEO') { targetVideo = el; break; }
+                }
+                if (targetVideo) break;
+
+                // Shadow DOM 내부로 진입
+                let nextRoot = null;
+                for (let el of els) {
+                    if (el.shadowRoot) { nextRoot = el.shadowRoot; break; }
+                }
+                currentRoot = nextRoot;
+            }
+        }
+
+        // 3단계: elementsFromPoint로 못 찾았으면 좌표 기반 rect 비교 폴백
+        if (!targetVideo && cx !== undefined && cy !== undefined) {
+            const deepSearch = (root) => {
+                let v = root.querySelector ? root.querySelector('video') : null;
+                if (v) {
+                    const r = v.getBoundingClientRect();
+                    if (r.width > 0 && cx >= r.left - 10 && cx <= r.right + 10 && cy >= r.top - 10 && cy <= r.bottom + 10) return v;
+                }
+                if (root.querySelectorAll) {
+                    for (let el of root.querySelectorAll('*')) {
+                        if (el.shadowRoot) {
+                            v = deepSearch(el.shadowRoot);
+                            if (v) return v;
+                        }
+                    }
+                }
+                return null;
+            };
+            targetVideo = deepSearch(document);
+        }
+
+        // 4단계: 그래도 못 찾으면 페이지에서 가장 큰 비디오로 폴백
         if (!targetVideo) {
             const videos = document.querySelectorAll('video');
             if (videos.length > 0) {
-                targetVideo = Array.from(videos).sort((a,b) => (b.clientWidth*b.clientHeight) - (a.clientWidth*a.clientHeight))[0];
-                if (targetVideo && targetVideo.clientWidth > 50) {
-                    rootContainer = findUp(targetVideo, VIP_SELECTORS) || targetVideo.parentNode;
-                } else targetVideo = null;
+                targetVideo = Array.from(videos).sort((a, b) => (b.clientWidth * b.clientHeight) - (a.clientWidth * a.clientHeight))[0];
+                if (targetVideo && targetVideo.clientWidth < 50) targetVideo = null;
             }
         }
 
         if (!targetVideo) return null;
 
+        // 5단계: getValidPlayerRoot + 캐싱으로 최적 컨테이너 찾기
+        if (targetVideo.gtRoot && document.contains(targetVideo.gtRoot)) {
+            rootContainer = targetVideo.gtRoot;
+        } else {
+            rootContainer = getValidPlayerRoot(targetVideo);
+            if (rootContainer && rootContainer !== document.body && rootContainer !== document.documentElement) {
+                targetVideo.gtRoot = rootContainer;
+            }
+        }
+
+        if (!rootContainer || rootContainer === document.body || rootContainer === document.documentElement) {
+            rootContainer = targetVideo.parentNode || targetVideo;
+        }
+
         if (rootContainer && rootContainer.tagName === 'VIDEO') {
             rootContainer = rootContainer.parentNode;
         }
 
+        // 터치 범위 검증 (전체화면이 아닌 경우)
         if (e.touches && e.touches.length > 0) {
             const isFS = !!getFS() || (rootContainer && rootContainer.classList.contains('gt-fullscreen-active'));
             if (!isFS) {
                 const checkBox = rootContainer || targetVideo;
-                const rect = checkBox.getBoundingClientRect(); const touch = e.touches[0];
-                if (touch.clientX < rect.left - 10 || touch.clientX > rect.right + 10 || touch.clientY < rect.top - 10 || touch.clientY > rect.bottom + 10) return null;
+                const rect = checkBox.getBoundingClientRect();
+                const touch = e.touches[0];
+                if (touch.clientX < rect.left - 10 || touch.clientX > rect.right + 10 ||
+                    touch.clientY < rect.top - 10 || touch.clientY > rect.bottom + 10) return null;
             }
         }
 
-        return { root: rootContainer, video: targetVideo, isNaked: (!rootContainer.classList?.contains('gt-video-wrapper') && !findUp(rootContainer, VIP_SELECTORS.replace(', iframe', ''))) };
+        return {
+            root: rootContainer,
+            video: targetVideo,
+            isNaked: (!rootContainer.classList?.contains('gt-video-wrapper') && !findUp(rootContainer, VIP_SELECTORS.replace(', iframe', '')))
+        };
     };
 
     const showMsg = (txt) => {
@@ -291,7 +421,11 @@
     let activeUIEl = null;
     const updateUIState = (root, video) => {
         if(!root) return;
-        const uiLayer = root.querySelector('.gt-ui-layer'); if(!uiLayer) return;
+        let uiLayer = null;
+        if (root.shadowRoot) uiLayer = root.shadowRoot.querySelector('.gt-ui-layer');
+        if (!uiLayer) uiLayer = root.querySelector('.gt-ui-layer');
+        if(!uiLayer) return;
+
         const btnLock = uiLayer.querySelector('.gt-lock-btn'), btnMode = uiLayer.querySelector('.gt-mode-btn'), btnRot = uiLayer.querySelector('.gt-rotate-btn'), btnRst = uiLayer.querySelector('.gt-reset-speed-btn'), btnZoomRst = uiLayer.querySelector('.gt-reset-zoom-btn'), btnSeekMode = uiLayer.querySelector('.gt-seek-mode-btn'), btnSeekVal = uiLayer.querySelector('.gt-seek-val-btn'), btnFit = uiLayer.querySelector('.gt-fit-btn'), btnShot = uiLayer.querySelector('.gt-shot-btn'), btnPip = uiLayer.querySelector('.gt-pip-btn'), shield = uiLayer.querySelector('.gt-lock-shield');
         const isFS = !!getFS() || root.classList.contains('gt-fullscreen-active');
 
@@ -314,12 +448,22 @@
 
     const wakeUpUI = (root, video) => {
         if (!root) return;
-        const uiLayer = root.querySelector('.gt-ui-layer'); if(!uiLayer) return;
+        let uiLayer = null;
+        if (root.shadowRoot) uiLayer = root.shadowRoot.querySelector('.gt-ui-layer');
+        if (!uiLayer) uiLayer = root.querySelector('.gt-ui-layer');
+        if(!uiLayer) return;
         if (activeUIEl && activeUIEl !== uiLayer) activeUIEl.classList.remove('gt-ui-visible');
         activeUIEl = uiLayer; uiLayer.classList.add('gt-ui-visible'); updateUIState(root, video);
         if (uiTimer) clearTimeout(uiTimer); uiTimer = setTimeout(() => { if (activeUIEl) activeUIEl.classList.remove('gt-ui-visible'); activeUIEl = null; }, CFG.uiTimeout);
     };
-    const hideUI = (root) => { if (!root) return; const uiLayer = root.querySelector('.gt-ui-layer'); if(uiLayer) { uiLayer.classList.remove('gt-ui-visible'); if (activeUIEl === uiLayer) activeUIEl = null; } if (uiTimer) clearTimeout(uiTimer); };
+    const hideUI = (root) => {
+        if (!root) return;
+        let uiLayer = null;
+        if (root.shadowRoot) uiLayer = root.shadowRoot.querySelector('.gt-ui-layer');
+        if (!uiLayer) uiLayer = root.querySelector('.gt-ui-layer');
+        if(uiLayer) { uiLayer.classList.remove('gt-ui-visible'); if (activeUIEl === uiLayer) activeUIEl = null; }
+        if (uiTimer) clearTimeout(uiTimer);
+    };
 
     const applyTransform = (video) => {
         if(!video) return;
@@ -453,8 +597,13 @@
 
         if (!video.dataset.gtTimeupdate) {
             video.addEventListener('timeupdate', () => {
-                const fill = uiLayer.querySelector('.gt-mini-progress .gt-fill');
-                if (fill && video.duration) fill.style.width = `${(video.currentTime / video.duration) * 100}%`;
+                let ul = null;
+                if (root.shadowRoot) ul = root.shadowRoot.querySelector('.gt-ui-layer');
+                if (!ul) ul = root.querySelector('.gt-ui-layer');
+                if (ul) {
+                    const fill = ul.querySelector('.gt-mini-progress .gt-fill');
+                    if (fill && video.duration) fill.style.width = `${(video.currentTime / video.duration) * 100}%`;
+                }
             }); video.dataset.gtTimeupdate = 'true';
         }
 
@@ -528,7 +677,7 @@
             });
         }
 
-        const isEx = isExcludedZone(e.target);
+        const isEx = isExcludedZone(e);
         const currentIsFS = isInFullscreen();
 
         if (state.isScreenLocked && !isEx) {
@@ -574,8 +723,14 @@
             if (e.cancelable) e.preventDefault();
             e.stopPropagation(); e.stopImmediatePropagation();
 
-            const r = (e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX) / window.innerWidth;
             const uiLayer = targetP.querySelector('.gt-ui-layer') || targetP;
+
+            // ★ 개선: 컨테이너 기준 좌우 판별
+            const rRect = targetP.getBoundingClientRect();
+            const rClientX = (e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX);
+            const rWidth = rRect.width || window.innerWidth;
+            const rLeft = rRect.width ? rRect.left : 0;
+            const r = (rClientX - rLeft) / rWidth;
 
             if (r < 0.3) handleAccumulatedSeek('left', uiLayer, targetV);
             else if (r > 0.7) handleAccumulatedSeek('right', uiLayer, targetV);
@@ -608,7 +763,7 @@
 
     const onMove = (e) => {
         if (state.isScreenLocked) {
-            if (!isExcludedZone(e.target) && (!!getFS() || (targetP && targetP.contains(e.target)))) {
+            if (!isExcludedZone(e) && (!!getFS() || (targetP && targetP.contains(e.target)))) {
                 if (e.cancelable) e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
             } return;
         }
@@ -662,7 +817,7 @@
 
     const onEnd = (e) => {
         const now = Date.now();
-        const isEx = isExcludedZone(e.target);
+        const isEx = isExcludedZone(e);
 
         if (now < blockGestureUntil && !isEx) {
             e.stopPropagation(); e.stopImmediatePropagation();
@@ -704,7 +859,7 @@
 
     ['pointerdown', 'pointerup', 'pointercancel', 'click', 'dblclick'].forEach(evt => {
         document.addEventListener(evt, (e) => {
-            const isEx = isExcludedZone(e.target);
+            const isEx = isExcludedZone(e);
 
             if (evt === 'dblclick' && !isEx && identify(e)) {
                 e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
