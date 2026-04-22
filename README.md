@@ -102,7 +102,7 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 
 # 사용중인 Filter 목록
 
-- uBlock Origin에 적합한 필터들 : https://github.com/yokoffing/filterlists
+※ uBlock Origin에 적합한 필터들 : https://github.com/yokoffing/filterlists
 
 ※ uBlock filters
 https://ublockorigin.github.io/uAssets/filters/filters.txt
