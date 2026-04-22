@@ -1,6 +1,6 @@
 ! Title: List-KR classic filters list (uBO)
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20565.1
+! Version: 2026.20565.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
@@ -1444,7 +1444,7 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 /lover[0-9]\.net\/file\/1bet\/.*\.gif$domain=/lover[0-9]\.net/
 /lover[0-9]\.net\/file\/eve\/.*\.png$domain=/lover[0-9]\.net/
 ||cokcok.stream/public/vast.php
-/^https:\/\/tvwiki[0-9]+\.net\/data\/banner\//$domain=/tvwiki[0-9]+\.net/
+/^https:\/\/cdn[a-z0-9]+\.site\/data\/banner\//$domain=/tvwiki[0-9]+\.net/
 ||wdwd*.com/data/banner/
 ||static.tzstatic.top/z/*.gif
 ||ddal.xyz/project/mc/js/nuevo.min.js
