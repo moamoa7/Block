@@ -131,7 +131,7 @@ https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_f
 
 (언어) 필터
 
-※ List-KR
+※ List-KR (https://github.com/List-KR/List-KR)
 
 * (uBlock Origin)
 https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt
