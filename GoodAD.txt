@@ -102,12 +102,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - 아프리카 TV 등 그리드 차단 (AdVoid.Full 필터 목록 해제)
 !@@||localhost^$badfilter
 !
-!
-! https://discord.com/
-! - 해제 목록 (Adblock-Rule-Collection-Lite)
-@@||discord.com^
-!
-!
 ! - https://wonforecast.com/ 환율 가져오기
 @@||tradingview.com/socket.io/websocket
 !
@@ -917,9 +911,6 @@ ppomppu.co.kr##.hot-imgBoard
 ppomppu.co.kr###ask_app_usage_popup
 ! - ##[class^="ad"] 복원 - 첨부파일 / 댓글주소복사 기능 등 몇가지 사라짐
 ppomppu.co.kr#@#[class^="ad"]
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-ppomppu.co.kr###buttonBox-sharing
-ppomppu.co.kr###view-top-three-rung-menu .submenu-share
 !
 !
 ! SLR (https://www.slrclub.com/)
@@ -2018,8 +2009,6 @@ c.appstory.co.kr###modalPreventExit
 !c.appstory.co.kr##.modal_add_home.renew_modal
 ! - 오른쪽 배너
 !##.right_banner
-! - 차단 목록 (Adblock-Rule-Collection-Lite)
-@@||cdn.taboola.com/libtrc/*/tfa.js
 !
 !
 !!! 옥션 (https://www.auction.co.kr) / 지마켓 (https://www.gmarket.co.kr/)
@@ -4113,13 +4102,6 @@ thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 ||fbcdn.net
 
 
-
-!
-!
-
-! https://uploady.io/
-! - 차단 목록(Adblock-Rule-Collection-Lite)
-@@||uploady.io^$generichide
 !
 !
 !
@@ -4139,12 +4121,6 @@ thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 ! https://www.dailymotion.com/
 ! - Block third party fonts 해제 - 폰트 차단으로 틀 깨짐
 @@||fonts.googleapis.com^$domain=www.dailymotion.com
-!
-!
-! https://www.investing.com/
-! - 차단 목록(Adblock-Rule-Collection-Lite)
-@@||investing.com^$generichide
-!
 !
 !
 ! https://fc-info.com/
