@@ -105,14 +105,23 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 ※ uBlock filters
 https://ublockorigin.github.io/uAssets/filters/filters.txt
 
+※ uBlock filters – Badware risks
+https://ublockorigin.github.io/uAssets/filters/badware.txt
+
+※ uBlock filters – Privacy
+https://ublockorigin.github.io/uAssets/filters/privacy.txt
+
+※ uBlock filters – Quick fixes
+https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt
+
+※ uBlock filters – Unbreak
+https://ublockorigin.github.io/uAssets/filters/unbreak.txt
+
 ※ Easy List
 https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt
 
-※ AdGuard Base filter
-https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
-
-※ AdGuard Mobile Ads filter
-https://filters.adtidy.org/extension/ublock/filters/11.txt
+※ EasyPrivacy
+https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt
 
 ※ Block third party font
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
@@ -122,14 +131,8 @@ https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_f
 
 ※ List-KR
 
-* (AdGuard)
-https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt
-
 * (uBlock Origin)
 https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt
-
-※ List-KR for uBlock Origin (백업)
-https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
 
 ※ AdGuard Japanese filter
 https://filters.adtidy.org/extension/ublock/filters/7.txt
@@ -140,13 +143,14 @@ https://filters.adtidy.org/extension/ublock/filters/7.txt
 
 ```
 https://ublockorigin.github.io/uAssets/filters/filters.txt
+https://ublockorigin.github.io/uAssets/filters/badware.txt
+https://ublockorigin.github.io/uAssets/filters/privacy.txt
+https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt
+https://ublockorigin.github.io/uAssets/filters/unbreak.txt
 https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt
-https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt
-https://filters.adtidy.org/extension/ublock/filters/11.txt
+https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
-https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt
 https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt
-https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
 https://filters.adtidy.org/extension/ublock/filters/7.txt
 ```
 
