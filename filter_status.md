@@ -1,19 +1,14 @@
 # Filter Status Report
 
-**Updated:** 2026-04-23 13:54:23 (KST)
+**Updated:** 2026-04-23 14:33:37 (KST)
 
-**Sources:** 13 total | ✅ 13 OK | ❌ 0 Failed
-**Total rules:** 327,893
+**Sources:** 8 total | ✅ 8 OK | ❌ 0 Failed
+**Total rules:** 312,788
 
 ## Source Details
 
 | Status | Code | Rules | Source |
 |--------|------|-------|--------|
-| ✅ OK | 200 | 6,225 | uBlock Origin - filters.txt |
-| ✅ OK | 200 | 4,457 | uBlock Origin - badware.txt |
-| ✅ OK | 200 | 1,627 | uBlock Origin - privacy.txt |
-| ✅ OK | 200 | 288 | uBlock Origin - quick-fixes.txt |
-| ✅ OK | 200 | 2,508 | uBlock Origin - unbreak.txt |
 | ✅ OK | 200 | 86,986 | uBlock Origin (3rd) - easylist.txt |
 | ✅ OK | 200 | 139,771 | AdGuard - 2.txt |
 | ✅ OK | 200 | 8,328 | AdGuard - 11.txt |
