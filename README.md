@@ -106,7 +106,7 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 
 ※  아래 필터들을 하나로 합친 파일 : https://raw.githubusercontent.com/moamoa7/adblock/main/combined_filters.txt
 <br/>
--- 중복 체크없이 모든 필터들 단순하게 하나로 묶은것입니다
+-- 중복 체크없이 아래 필터들을 단순하게 하나로 묶은것입니다
 
 ※ uBlock filters
 https://ublockorigin.github.io/uAssets/filters/filters.txt
