@@ -136,10 +136,12 @@ def preprocess_lines(lines):
 urls = [
     # AdGuard 네이티브 필터 (우선순위 상위)
     "https://filters.adtidy.org/windows/filters/2.txt",
+    "https://filters.adtidy.org/windows/filters/7.txt",
     "https://filters.adtidy.org/windows/filters/11.txt",
     "https://filters.adtidy.org/windows/filters/14.txt",
     "https://filters.adtidy.org/windows/filters/17.txt",
-    "https://filters.adtidy.org/windows/filters/7.txt",
+    "https://filters.adtidy.org/windows/filters/227.txt",
+
     # EasyList 계열 (안정적인 미러 사용)
     "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
     # uBlock Origin 필터 (부분 호환)
@@ -147,10 +149,7 @@ urls = [
     "https://ublockorigin.github.io/uAssets/filters/badware.txt",
     "https://ublockorigin.github.io/uAssets/filters/privacy.txt",
     "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt",
-    "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
-    # List-KR
-    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
-    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt",
+    "https://ublockorigin.github.io/uAssets/filters/unbreak.txt"
 ]
 
 
