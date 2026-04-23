@@ -7,7 +7,6 @@ combined.py
 import subprocess, sys, re
 from datetime import datetime, timezone, timedelta
 
-# ---- 의존성 자동 설치 ----
 try:
     import requests
 except ImportError:
@@ -18,7 +17,6 @@ except ImportError:
 # AdGuard for Windows 전처리 상수
 # ============================================================
 ADGUARD_CONSTANTS = {
-    # AdGuard 제품
     "adguard":                True,
     "adguard_app_windows":    True,
     "adguard_app_mac":        False,
@@ -30,7 +28,6 @@ ADGUARD_CONSTANTS = {
     "adguard_ext_safari":     False,
     "adguard_ext_opera":      False,
     "adguard_ext_android_cb": False,
-    # uBlock Origin 토큰 (AdGuard에서는 모두 false)
     "ext_ublock":             False,
     "ext_ubol":               False,
     "ext_abp":                False,
@@ -41,16 +38,13 @@ ADGUARD_CONSTANTS = {
     "env_mobile":             False,
     "env_safari":             False,
     "env_mv3":                False,
-    # 기능 토큰
     "cap_html_filtering":     True,
     "cap_user_stylesheet":    True,
-    # 특수
     "false":                  False,
 }
 
 
 def _split_outside_parens(expr, operator):
-    """괄호 바깥에서만 연산자로 분할"""
     parts = []
     depth = 0
     current = ""
@@ -75,10 +69,7 @@ def _split_outside_parens(expr, operator):
 
 
 def evaluate_condition(cond):
-    """!#if 조건식을 ADGUARD_CONSTANTS 기준으로 평가"""
     expr = cond.strip()
-
-    # 바깥 괄호 제거
     while expr.startswith("(") and expr.endswith(")"):
         inner = expr[1:-1]
         depth = 0
@@ -96,69 +87,46 @@ def evaluate_condition(cond):
         else:
             break
 
-    # OR (||)
     parts = _split_outside_parens(expr, "||")
     if len(parts) > 1:
         return any(evaluate_condition(p) for p in parts)
 
-    # AND (&&)
     parts = _split_outside_parens(expr, "&&")
     if len(parts) > 1:
         return all(evaluate_condition(p) for p in parts)
 
-    # NOT (!)
     if expr.startswith("!"):
         return not evaluate_condition(expr[1:])
 
-    # 토큰
     return ADGUARD_CONSTANTS.get(expr.strip(), False)
 
 
 def preprocess_lines(lines):
-    """
-    !#if / !#else / !#endif 전처리 지시문을 AdGuard 환경으로 평가.
-    활성화된 규칙만 반환.
-    """
     result = []
-    # 스택: (이 블록이 활성인가, else를 만났는가, if 조건의 원래 결과)
     stack = []
-
     for line in lines:
         s = line.strip()
-
-        # !#if 조건
         if s.startswith("!#if "):
             condition = s[5:].strip()
             cond_val = evaluate_condition(condition)
-            # 부모가 전부 활성이어야 자식도 활성 가능
             parent_active = all(item[0] for item in stack) if stack else True
             stack.append((cond_val and parent_active, False, cond_val))
             continue
-
-        # !#else
         if s == "!#else":
             if stack:
                 active, _, orig_cond = stack[-1]
                 parent_active = all(item[0] for item in stack[:-1]) if len(stack) > 1 else True
-                # if가 false였으면 else가 true (부모가 활성일 때)
                 stack[-1] = (not orig_cond and parent_active, True, orig_cond)
             continue
-
-        # !#endif
         if s == "!#endif":
             if stack:
                 stack.pop()
             continue
-
-        # !#include — 이미 컴파일된 파일이므로 무시
         if s.startswith("!#include "):
             continue
-
-        # 현재 모든 스택 항목이 활성인 경우만 포함
         is_active = all(item[0] for item in stack) if stack else True
         if is_active:
             result.append(line)
-
     return result
 
 
@@ -166,39 +134,43 @@ def preprocess_lines(lines):
 # 필터 소스 URL
 # ============================================================
 urls = [
+    # AdGuard 네이티브 필터 (우선순위 상위)
+    "https://filters.adtidy.org/windows/filters/2.txt",
+    "https://filters.adtidy.org/windows/filters/11.txt",
+    "https://filters.adtidy.org/windows/filters/14.txt",
+    "https://filters.adtidy.org/windows/filters/17.txt",
+    "https://filters.adtidy.org/windows/filters/7.txt",
+    # EasyList 계열 (안정적인 미러 사용)
+    "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
+    "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
+    # uBlock Origin 필터 (부분 호환)
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
     "https://ublockorigin.github.io/uAssets/filters/badware.txt",
     "https://ublockorigin.github.io/uAssets/filters/privacy.txt",
     "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt",
     "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
-    "https://filters.adtidy.org/windows/filters/2.txt",
-    "https://filters.adtidy.org/windows/filters/11.txt",
-    "https://easylist.to/easylist/easylist.txt",
-    "https://easylist.to/easylist/easyprivacy.txt",
-    "https://filters.adtidy.org/windows/filters/17.txt",
-    "https://filters.adtidy.org/windows/filters/14.txt",
+    # List-KR
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt",
-    "https://filters.adtidy.org/windows/filters/7.txt",
 ]
 
-# ---- 소스 이름 추출 ----
+
 def get_source_name(url):
     if "uAssets/filters/" in url:
         return "uBlock Origin - " + url.split("/")[-1]
     if "uAssets/thirdparties/" in url:
         return "uBlock Origin (3rd) - " + url.split("/")[-1]
     if "list-kr" in url or "List-KR" in url:
-        fname = url.split("/")[-1]            # filterslist-AdGuard-classic.txt
+        fname = url.split("/")[-1]
         tag = fname.replace("filterslist-AdGuard-", "").replace(".txt", "")
-        return f"List-KR - {tag}"             # List-KR - classic / List-KR - unified
+        return f"List-KR - {tag}"
     if "adtidy.org" in url:
         return "AdGuard - " + url.split("/")[-1]
     if "easylist.to" in url:
         return "EasyList - " + url.split("/")[-1]
     return url.split("/")[-1]
 
-# ---- 주석 / 메타데이터 판별 ----
+
 _VALID_HASH_PREFIXES = ("##", "#@#", "#$#", "#$@#", "#?#", "#@?#", "#%#", "#@%#")
 
 def is_skip_line(line):
@@ -212,7 +184,7 @@ def is_skip_line(line):
         return True
     return False
 
-# ---- ABP 전용 비호환 구문 ----
+
 def is_incompatible(line):
     if ":-abp-" in line:
         return True
@@ -233,11 +205,8 @@ for url in urls:
         resp.raise_for_status()
 
         raw_lines = resp.text.splitlines()
-
-        # ★ 1단계: 전처리 지시문 평가 (AdGuard 환경)
         processed = preprocess_lines(raw_lines)
 
-        # ★ 2단계: 주석·메타데이터·비호환 구문 제거
         for ln in processed:
             s = ln.strip()
             if is_skip_line(s):
@@ -247,17 +216,13 @@ for url in urls:
             rules.append(s)
 
         source_blocks.append((name, url, rules))
-        results.append({
-            "url": url, "name": name, "status": "OK",
-            "code": resp.status_code,
-            "rules": len(rules),
-        })
+        results.append({"url": url, "name": name, "status": "OK",
+                        "code": resp.status_code, "rules": len(rules)})
         print(f"  -> {len(rules):,} rules")
 
     except requests.exceptions.HTTPError as e:
         results.append({"url": url, "name": name, "status": "HTTP_ERROR",
-                        "code": getattr(e.response, "status_code", "N/A"),
-                        "rules": 0})
+                        "code": getattr(e.response, "status_code", "N/A"), "rules": 0})
         print(f"  -> HTTP ERROR")
     except requests.exceptions.Timeout:
         results.append({"url": url, "name": name, "status": "TIMEOUT",
@@ -267,6 +232,7 @@ for url in urls:
         results.append({"url": url, "name": name, "status": "ERROR",
                         "code": "N/A", "rules": 0})
         print(f"  -> ERROR: {e}")
+
 
 # ============================================================
 # 통계
@@ -278,9 +244,11 @@ total_rules = sum(len(b[2]) for b in source_blocks)
 ok_count = sum(1 for r in results if r["status"] == "OK")
 fail_count = len(results) - ok_count
 
+
 # ============================================================
-# combined_filters.txt (AdGuard용)
+# combined_filters.txt
 # ============================================================
+# ✅ 수정: \\n → \n (실제 개행문자)
 header = (
     f"! Title: My Combined Filter (AdGuard)\n"
     f"! Description: uBlock + EasyList + EasyPrivacy + AdGuard + List-KR 통합 필터\n"
@@ -304,6 +272,7 @@ with open("combined_filters.txt", "w", encoding="utf-8") as f:
         f.write(f"! ========================================\n")
         for rule in rules:
             f.write(rule + "\n")
+
 
 # ============================================================
 # filter_status.md
@@ -330,12 +299,15 @@ if fail_count > 0:
         if r["status"] != "OK":
             report.append(f"- ❌ **{r['name']}**: {r['status']} (`{r['url']}`)")
 
+# ✅ 수정: \\n → \n
 with open("filter_status.md", "w", encoding="utf-8") as f:
     f.write("\n".join(report))
+
 
 # ============================================================
 # 최종 출력
 # ============================================================
+# ✅ 수정: \\n → \n
 print("\n" + "=" * 60)
 print(f"  Generated: {now} (KST)")
 print(f"  Preprocessor: AdGuard for Windows")
