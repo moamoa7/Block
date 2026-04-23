@@ -1,9 +1,9 @@
 # Filter Status Report
 
-**Updated:** 2026-04-23 17:01:12 (KST)
+**Updated:** 2026-04-23 17:11:40 (KST)
 
-**Sources:** 14 total | ✅ 14 OK | ❌ 0 Failed
-**Total rules:** 383,077
+**Sources:** 13 total | ✅ 13 OK | ❌ 0 Failed
+**Total rules:** 296,091
 **Preprocessor:** `!#if` directives evaluated for AdGuard for Windows
 
 ## Source Details
@@ -15,7 +15,6 @@
 | ✅ OK | 200 | 55,880 | AdGuard - 14.txt |
 | ✅ OK | 200 | 2,475 | AdGuard - 17.txt |
 | ✅ OK | 200 | 11,812 | AdGuard - 7.txt |
-| ✅ OK | 200 | 86,986 | uBlock Origin (3rd) - easylist.txt |
 | ✅ OK | 200 | 55,332 | uBlock Origin (3rd) - easyprivacy.txt |
 | ✅ OK | 200 | 6,165 | uBlock Origin - filters.txt |
 | ✅ OK | 200 | 4,442 | uBlock Origin - badware.txt |
