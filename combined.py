@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
-import subprocess
-import sys
-import re
+"""
+combined.py
+- uBlock Origin용: combined_ublock.txt + trusted_ublock.txt
+- AdGuard 용:       combined_adguard.txt  (전부 포함, trusted 체크로 해결)
+- 상태 보고서:       filter_status.md
+"""
+import subprocess, sys, re
 from datetime import datetime, timezone, timedelta
 
+# ---- 의존성 자동 설치 ----
 try:
     import requests
 except ImportError:
-    print("requests 설치 중...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "requests"])
     import requests
 
-# ==================== 필터 URL 목록 ====================
+# ---- 필터 소스 URL ----
 urls = [
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
     "https://ublockorigin.github.io/uAssets/filters/badware.txt",
@@ -24,219 +28,253 @@ urls = [
     "https://filters.adtidy.org/extension/ublock/filters/7.txt",
 ]
 
-# ==================== 줄 판별 ====================
-_VALID_HASH_PREFIXES = ("##", "#@#", "#$#", "#$@#", "#?#", "#@?#", "#%#")
+# ---- 소스 이름 추출 ----
+def get_source_name(url):
+    if "uAssets/filters/" in url:
+        return "uBlock Origin - " + url.split("/")[-1]
+    if "uAssets/thirdparties/" in url:
+        return "uBlock Origin (3rd) - " + url.split("/")[-1]
+    if "yokoffing" in url:
+        return "yokoffing - " + url.split("/")[-1]
+    if "list-kr" in url or "List-KR" in url:
+        return "List-KR - unified"
+    if "adtidy.org" in url:
+        return "AdGuard - " + url.split("/")[-1]
+    return url.split("/")[-1]
 
-def is_skip_line(line: str) -> bool:
+# ---- 주석 / 메타데이터 판별 ----
+_VALID_HASH_PREFIXES = ("##", "#@#", "#$#", "#$@#", "#?#", "#@?#", "#%#", "#@%#")
+
+def is_skip_line(line):
     if not line:
         return True
-    if line.startswith('!'):
+    if line.startswith("!"):
         return True
-    if line.startswith('['):
+    if line.startswith("["):
         return True
-    if line.startswith('#') and not line.startswith(_VALID_HASH_PREFIXES):
-        return True
-    return False
-
-# ==================== uBO 미지원 문법 (제거 대상) ====================
-def is_incompatible(line: str) -> bool:
-    if ':-abp-' in line:
+    if line.startswith("#") and not line.startswith(_VALID_HASH_PREFIXES):
         return True
     return False
 
-# ==================== trusted 전용 규칙 판별 ====================
-_JS_SCRIPTLET_RE = re.compile(r'#@?\+js\(([^,)]+)')
+# ---- ABP 전용 비호환 구문 ----
+def is_incompatible(line):
+    if ":-abp-" in line:
+        return True
+    return False
 
+# ---- trusted 전용 규칙 판별 ----
 _TRUSTED_SCRIPTLET_NAMES = (
-    'trusted-',
-    'rpnt',
-    'trusted-rpnt',
-    'trusted-rpfr',
-    'trusted-rpot',
+    "trusted-",       # trusted- 로 시작하는 모든 scriptlet
+    "rpnt",           # replace-node-text 약어
 )
 
-def is_trusted_only(line: str) -> bool:
-    """신뢰된 소스에서만 동작하는 규칙인지 판별"""
+_JS_SCRIPTLET_RE = re.compile(r"#\+js\(([^,)]+)")
 
-    # 1) scriptlet 검사
+def is_trusted_only(line):
+    # scriptlet 검사 (##+js(...) 또는 #@#+js(...))
     m = _JS_SCRIPTLET_RE.search(line)
     if m:
-        scriptlet_name = m.group(1).strip()
-        for t in _TRUSTED_SCRIPTLET_NAMES:
-            if scriptlet_name == t or scriptlet_name.startswith(t):
-                return True
+        name = m.group(1).strip()
+        if any(name == t or name.startswith(t) for t in _TRUSTED_SCRIPTLET_NAMES):
+            return True
 
-    # 2) 네트워크 필터: $replace=, $uritransform=, $urlskip=
-    #    $ 또는 , 뒤에 옵션이 오는 두 패턴 모두 검사
-    #    (정규식 내부에 $가 있어서 rfind 방식은 실패하므로 직접 검색)
-    if '$replace=' in line or ',replace=' in line:
+    # 네트워크 필터 옵션 검사 (줄 전체에서 검색)
+    if "$replace=" in line or ",replace=" in line:
         return True
-    if '$uritransform=' in line or ',uritransform=' in line:
+    if "$uritransform=" in line or ",uritransform=" in line:
         return True
-    if '$urlskip=' in line or ',urlskip=' in line:
+    if "$urlskip=" in line or ",urlskip=" in line:
         return True
 
     return False
 
-def get_source_name(url: str) -> str:
-    if 'uAssets/filters/' in url:
-        return "uBlock Origin - " + url.split('/')[-1]
-    elif 'uAssets/thirdparties/' in url:
-        return "uBlock Origin (3rd) - " + url.split('/')[-1]
-    elif 'yokoffing' in url:
-        return "yokoffing - " + url.split('/')[-1]
-    elif 'list-kr' in url:
-        return "List-KR - unified"
-    elif 'adtidy.org' in url:
-        return "AdGuard - " + url.split('/')[-1]
-    else:
-        return url.split('/')[-1]
-
-# ==================== 다운로드 및 병합 ====================
-source_blocks = []
+# ---- 다운로드 및 분류 ----
+source_blocks = []      # (name, url, normal_rules, trusted_rules)
 results = []
-total_incompatible = 0
 
 for url in urls:
+    name = get_source_name(url)
+    normal_rules = []
+    trusted_rules = []
     try:
-        print(f"다운로드 중: {url}")
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
+        print(f"Downloading: {name}")
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
 
-        source_name = get_source_name(url)
-        normal_rules = []
-        trusted_rules = []
-        incompatible_count = 0
-
-        for line in response.text.splitlines():
-            stripped = line.strip()
-            if is_skip_line(stripped):
+        for ln in resp.text.splitlines():
+            s = ln.strip()
+            if is_skip_line(s):
                 continue
-            if is_incompatible(stripped):
-                incompatible_count += 1
+            if is_incompatible(s):
                 continue
-            if is_trusted_only(stripped):
-                trusted_rules.append(stripped)
+            if is_trusted_only(s):
+                trusted_rules.append(s)
             else:
-                normal_rules.append(stripped)
+                normal_rules.append(s)
 
-        source_blocks.append((source_name, url, normal_rules, trusted_rules))
-        total = len(normal_rules) + len(trusted_rules)
-        total_incompatible += incompatible_count
-        print(f"  -> {total}개 (일반: {len(normal_rules)}, trusted: {len(trusted_rules)}, 제외: {incompatible_count})")
+        source_blocks.append((name, url, normal_rules, trusted_rules))
         results.append({
-            "url": url,
-            "status": "OK",
-            "code": response.status_code,
-            "rules": total,
+            "url": url, "name": name, "status": "OK",
+            "code": resp.status_code,
+            "normal": len(normal_rules),
             "trusted": len(trusted_rules),
-            "incompatible": incompatible_count,
+            "total": len(normal_rules) + len(trusted_rules),
         })
+        print(f"  -> normal: {len(normal_rules)}, trusted: {len(trusted_rules)}")
 
     except requests.exceptions.HTTPError as e:
-        code = e.response.status_code if e.response is not None else "N/A"
-        print(f"  -> HTTP 에러: {code}")
-        results.append({"url": url, "status": "HTTP_ERROR", "code": code, "rules": 0, "trusted": 0, "incompatible": 0})
-
+        results.append({"url": url, "name": name, "status": "HTTP_ERROR",
+                        "code": getattr(e.response, "status_code", "N/A"),
+                        "normal": 0, "trusted": 0, "total": 0})
+        print(f"  -> HTTP ERROR")
     except requests.exceptions.Timeout:
-        print(f"  -> 타임아웃")
-        results.append({"url": url, "status": "TIMEOUT", "code": "N/A", "rules": 0, "trusted": 0, "incompatible": 0})
-
+        results.append({"url": url, "name": name, "status": "TIMEOUT",
+                        "code": "N/A", "normal": 0, "trusted": 0, "total": 0})
+        print(f"  -> TIMEOUT")
     except Exception as e:
-        print(f"  -> 실패: {e}")
-        results.append({"url": url, "status": "ERROR", "code": "N/A", "rules": 0, "trusted": 0, "incompatible": 0})
+        results.append({"url": url, "name": name, "status": "ERROR",
+                        "code": "N/A", "normal": 0, "trusted": 0, "total": 0})
+        print(f"  -> ERROR: {e}")
 
-# ==================== 타임스탬프 ====================
-tz_kst = timezone(timedelta(hours=9))
-timestamp = datetime.now(tz_kst).strftime("%Y-%m-%d %H:%M:%S")
-total_normal = sum(len(n) for _, _, n, _ in source_blocks)
-total_trusted = sum(len(t) for _, _, _, t in source_blocks)
+# ---- 통계 ----
+KST = timezone(timedelta(hours=9))
+now = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
 
-# ==================== 상태 리포트 ====================
+total_normal = sum(len(b[2]) for b in source_blocks)
+total_trusted = sum(len(b[3]) for b in source_blocks)
+total_all = total_normal + total_trusted
 ok_count = sum(1 for r in results if r["status"] == "OK")
 fail_count = len(results) - ok_count
 
-report_lines = [
-    "# Filter Status Report", "",
-    f"Updated: {timestamp} (KST)", "",
-    f"Total: {len(results)} sources | OK: {ok_count} | Failed: {fail_count}", "",
-    f"Normal rules: {total_normal:,} → combined_filters.txt (URL로 구독)", "",
-    f"Trusted rules: {total_trusted:,} → trusted_filters.txt (내 필터에 붙여넣기)", "",
-    f"Incompatible rules removed: {total_incompatible:,} (:-abp-properties 등 uBO 미지원)", "",
-    "| Status | Code | Rules | Trusted | Removed | URL |",
-    "|--------|------|-------|---------|---------|-----|",
-]
-for r in results:
-    icon = "✅" if r["status"] == "OK" else "❌"
-    report_lines.append(f"| {icon} {r['status']} | {r['code']} | {r['rules']:,} | {r['trusted']:,} | {r['incompatible']:,} | {r['url']} |")
+# ========================================
+# 1) uBlock Origin용: combined_ublock.txt (일반 규칙만)
+# ========================================
+ublock_header = (
+    f"! Title: My Combined Filter (uBlock Origin)\n"
+    f"! Description: uBlock Origin + EasyList + EasyPrivacy + 기타 필터 통합 (일반 규칙)\n"
+    f"! Expires: 12 hours\n"
+    f"! Generated: {now} (KST)\n"
+    f"! Total rules: {total_normal}\n"
+    f"! Sources: {ok_count}/{len(results)} filter lists OK\n"
+    f"! Note: trusted 규칙은 trusted_ublock.txt 에 별도 분리\n"
+)
 
-if fail_count > 0:
-    report_lines += ["", "## ⚠️ Failed Sources", ""]
-    for r in results:
-        if r["status"] != "OK":
-            report_lines.append(f"- **{r['status']}** (code: {r['code']}): {r['url']}")
-
-with open("filter_status.md", "w", encoding="utf-8") as f:
-    f.write("\n".join(report_lines) + "\n")
-
-# ==================== 일반 필터 파일 ====================
-header_normal = f"""! Title: My Combined Filter
-! Description: uBlock Origin + EasyList + EasyPrivacy + ListKR + AdGuard Japanese
-! Generated: {timestamp} (KST)
-! Total rules: {total_normal}
-! Sources: {ok_count}/{len(results)} filter lists OK
-"""
-
-with open("combined_filters.txt", "w", encoding="utf-8") as f:
-    f.write(header_normal)
-    for source_name, url, normal_rules, _ in source_blocks:
+with open("combined_ublock.txt", "w", encoding="utf-8") as f:
+    f.write(ublock_header)
+    for name, url, normal_rules, trusted_rules in source_blocks:
         if not normal_rules:
             continue
         f.write(f"\n! ========================================\n")
-        f.write(f"! >>> {source_name}\n")
+        f.write(f"! >>> {name}\n")
         f.write(f"! >>> {url}\n")
         f.write(f"! >>> Rules: {len(normal_rules)}\n")
         f.write(f"! ========================================\n")
         for rule in normal_rules:
             f.write(rule + "\n")
 
-# ==================== trusted 필터 파일 ====================
-header_trusted = f"""! Title: My Combined Filter - Trusted Rules
-! Description: trusted 전용 규칙 (uBlock Origin "내 필터"에 붙여넣기)
-! Generated: {timestamp} (KST)
-! Total rules: {total_trusted}
-! 포함 대상: trusted- scriptlet, rpnt, $replace, $uritransform, $urlskip
-! 사용법: 이 내용을 uBlock Origin 대시보드 > 내 필터에 붙여넣기
-!         "Allow custom filters requiring trust" 체크 필수
-"""
+# ========================================
+# 2) uBlock Origin용: trusted_ublock.txt (trusted 규칙만)
+# ========================================
+trusted_header = (
+    f"! Title: My Combined Filter - Trusted Rules (uBlock Origin)\n"
+    f"! Description: trusted scriptlet / replace / uritransform / urlskip 규칙\n"
+    f"! Generated: {now} (KST)\n"
+    f"! Total trusted rules: {total_trusted}\n"
+    f"! Usage: uBO 대시보드 → 내 필터에 붙여넣기\n"
+    f"!        \"Allow custom filters requiring trust\" 체크 필요\n"
+)
 
-with open("trusted_filters.txt", "w", encoding="utf-8") as f:
-    f.write(header_trusted)
-    for source_name, url, _, trusted_rules in source_blocks:
+with open("trusted_ublock.txt", "w", encoding="utf-8") as f:
+    f.write(trusted_header)
+    for name, url, normal_rules, trusted_rules in source_blocks:
         if not trusted_rules:
             continue
         f.write(f"\n! ========================================\n")
-        f.write(f"! >>> {source_name}\n")
+        f.write(f"! >>> {name}\n")
         f.write(f"! >>> {url}\n")
         f.write(f"! >>> Trusted Rules: {len(trusted_rules)}\n")
         f.write(f"! ========================================\n")
         for rule in trusted_rules:
             f.write(rule + "\n")
 
-# ==================== 결과 출력 ====================
-print(f"\n{'='*50}")
-print(f"완료!")
-print(f"  combined_filters.txt  -> 일반 규칙: {total_normal:,}")
-print(f"  trusted_filters.txt   -> trusted 규칙: {total_trusted:,}")
-print(f"  제외된 미지원 규칙     -> {total_incompatible:,}")
-print(f"성공: {ok_count}/{len(results)}")
+# ========================================
+# 3) AdGuard용: combined_adguard.txt (전체 규칙 포함)
+# ========================================
+adguard_header = (
+    f"! Title: My Combined Filter (AdGuard)\n"
+    f"! Description: uBlock Origin + EasyList + EasyPrivacy + 기타 필터 통합 (전체)\n"
+    f"! Expires: 12 hours\n"
+    f"! Generated: {now} (KST)\n"
+    f"! Total rules: {total_all}\n"
+    f"! Sources: {ok_count}/{len(results)} filter lists OK\n"
+    f"! Note: AdGuard 데스크톱 앱에서 커스텀 필터 추가 시 'Trusted' 체크 필요\n"
+)
+
+with open("combined_adguard.txt", "w", encoding="utf-8") as f:
+    f.write(adguard_header)
+    for name, url, normal_rules, trusted_rules in source_blocks:
+        all_rules = normal_rules + trusted_rules
+        if not all_rules:
+            continue
+        f.write(f"\n! ========================================\n")
+        f.write(f"! >>> {name}\n")
+        f.write(f"! >>> {url}\n")
+        f.write(f"! >>> Rules: {len(all_rules)} (normal: {len(normal_rules)}, trusted: {len(trusted_rules)})\n")
+        f.write(f"! ========================================\n")
+        for rule in all_rules:
+            f.write(rule + "\n")
+
+# ========================================
+# 4) 상태 보고서: filter_status.md
+# ========================================
+report = [
+    "# Filter Status Report", "",
+    f"**Updated:** {now} (KST)", "",
+    f"**Sources:** {len(results)} total | ✅ {ok_count} OK | ❌ {fail_count} Failed", "",
+    "| File | Rules |",
+    "|------|-------|",
+    f"| `combined_ublock.txt` | {total_normal:,} (일반 규칙) |",
+    f"| `trusted_ublock.txt` | {total_trusted:,} (trusted 규칙) |",
+    f"| `combined_adguard.txt` | {total_all:,} (전체) |",
+    "",
+    "## Source Details", "",
+    "| Status | Code | Normal | Trusted | Total | Source |",
+    "|--------|------|--------|---------|-------|--------|",
+]
+for r in results:
+    icon = "✅" if r["status"] == "OK" else "❌"
+    report.append(
+        f"| {icon} {r['status']} | {r['code']} | "
+        f"{r['normal']:,} | {r['trusted']:,} | {r['total']:,} | {r['name']} |"
+    )
+
 if fail_count > 0:
-    print(f"\n⚠️  {fail_count}개 소스 실패:")
+    report.append("")
+    report.append("## Failed Sources")
+    report.append("")
     for r in results:
         if r["status"] != "OK":
-            print(f"  [{r['code']}] {r['url']}")
+            report.append(f"- ❌ **{r['name']}**: {r['status']} ({r['url']})")
 
-print(f"\n📌 사용법:")
-print(f"  1. combined_filters.txt → uBlock Origin 필터 목록에 URL로 구독")
-print(f"  2. trusted_filters.txt  → 내용 복사 → uBlock Origin '내 필터'에 붙여넣기")
-print(f"     ⚠️  '내 필터' 탭에서 'Allow custom filters requiring trust' 체크 필수")
+with open("filter_status.md", "w", encoding="utf-8") as f:
+    f.write("\n".join(report))
+
+# ---- 최종 출력 ----
+print("\n" + "=" * 55)
+print(f"  Generated: {now} (KST)")
+print(f"  Sources: {ok_count}/{len(results)} OK")
+print(f"")
+print(f"  combined_ublock.txt  -> {total_normal:,} rules (일반)")
+print(f"  trusted_ublock.txt   -> {total_trusted:,} rules (trusted)")
+print(f"  combined_adguard.txt -> {total_all:,} rules (전체)")
+print(f"  filter_status.md     -> 상태 보고서")
+print(f"=" * 55)
+print()
+print("📌 uBlock Origin 사용법:")
+print("   1. combined_ublock.txt → URL로 구독")
+print("   2. trusted_ublock.txt  → '내 필터'에 붙여넣기")
+print("      + 'Allow custom filters requiring trust' 체크")
+print()
+print("📌 AdGuard 데스크톱 앱 사용법:")
+print("   1. combined_adguard.txt → 커스텀 필터로 URL 구독")
+print("      + 추가할 때 'Trusted' 체크박스 활성화")
