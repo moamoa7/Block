@@ -158,14 +158,17 @@ def get_source_name(url):
         return "uBlock Origin - " + url.split("/")[-1]
     if "uAssets/thirdparties/" in url:
         return "uBlock Origin (3rd) - " + url.split("/")[-1]
-    if "list-kr" in url or "List-KR" in url:
-        fname = url.split("/")[-1]
-        tag = fname.replace("filterslist-AdGuard-", "").replace(".txt", "")
-        return f"List-KR - {tag}"
     if "adtidy.org" in url:
-        return "AdGuard - " + url.split("/")[-1]
-    if "easylist.to" in url:
-        return "EasyList - " + url.split("/")[-1]
+        fid = url.split("/")[-1]
+        names = {
+            "2.txt":   "AdGuard Base filter (EasyList + AdGuard English filter)",
+            "7.txt":   "AdGuard Japanese filter",
+            "11.txt":  "AdGuard Mobile Ads filter",
+            "14.txt":  "AdGuard Annoyances filter",
+            "17.txt":  "AdGuard URL Tracking filter",
+            "227.txt": "List-KR Classic filter list",
+        }
+        return names.get(fid, "AdGuard - " + fid)
     return url.split("/")[-1]
 
 
