@@ -104,6 +104,8 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 
 ※ uBlock Origin에 적합한 필터들 : https://github.com/yokoffing/filterlists
 
+※  아래 필터들을 하나로 합친 파일 : https://raw.githubusercontent.com/moamoa7/adblock/main/combined_filters.txt
+
 ※ uBlock filters
 https://ublockorigin.github.io/uAssets/filters/filters.txt
 
