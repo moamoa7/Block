@@ -16,11 +16,6 @@ except ImportError:
 
 # ---- 필터 소스 URL ----
 urls = [
-    "https://ublockorigin.github.io/uAssets/filters/filters.txt",
-    "https://ublockorigin.github.io/uAssets/filters/badware.txt",
-    "https://ublockorigin.github.io/uAssets/filters/privacy.txt",
-    "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt",
-    "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
     "https://filters.adtidy.org/windows/filters/2.txt",
     "https://filters.adtidy.org/windows/filters/11.txt",
