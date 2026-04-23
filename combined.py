@@ -141,7 +141,6 @@ urls = [
     "https://filters.adtidy.org/windows/filters/17.txt",
     "https://filters.adtidy.org/windows/filters/7.txt",
     # EasyList 계열 (안정적인 미러 사용)
-    "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
     # uBlock Origin 필터 (부분 호환)
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
@@ -251,7 +250,7 @@ fail_count = len(results) - ok_count
 # ✅ 수정: \\n → \n (실제 개행문자)
 header = (
     f"! Title: My Combined Filter (AdGuard)\n"
-    f"! Description: uBlock + EasyList + EasyPrivacy + AdGuard + List-KR 통합 필터\n"
+    f"! Description: AdGuard + uBlock 필터\n"
     f"! Expires: 12 hours\n"
     f"! Generated: {now} (KST)\n"
     f"! Total rules: {total_rules:,}\n"
