@@ -2,12 +2,18 @@ name: Update Filters
 
 on:
   schedule:
-    - cron: '0 */2 * * *'   # 6시간마다 실행
-  workflow_dispatch:          # 수동 실행 버튼
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true    # Node.js 경고 해결
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write                          # push 권한 부여 (exit code 2 해결)
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,7 +23,7 @@ jobs:
 
       - run: pip install requests
 
-      - run: python merge_filters.py
+      - run: python combined.py
 
       - name: Commit & Push
         run: |
