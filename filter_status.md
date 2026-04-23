@@ -1,9 +1,9 @@
 # Filter Status Report
 
-**Updated:** 2026-04-23 12:17:12 (KST)
+**Updated:** 2026-04-23 12:30:28 (KST)
 
-**Sources:** 12 total | ✅ 12 OK | ❌ 0 Failed
-**Total rules:** 319,892
+**Sources:** 13 total | ✅ 13 OK | ❌ 0 Failed
+**Total rules:** 323,943
 
 ## Source Details
 
@@ -19,5 +19,6 @@
 | ✅ OK | 200 | 7,591 | AdGuard - 11.txt |
 | ✅ OK | 200 | 55,332 | uBlock Origin (3rd) - easyprivacy.txt |
 | ✅ OK | 200 | 2,475 | AdGuard - 17.txt |
+| ✅ OK | 200 | 4,051 | List-KR - unified |
 | ✅ OK | 200 | 4,032 | List-KR - unified |
 | ✅ OK | 200 | 11,821 | AdGuard - 7.txt |
