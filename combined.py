@@ -121,7 +121,7 @@ adguard_header = (
     f"! Generated: {now} (KST)\n"
     f"! Total rules: {total_rules}\n"
     f"! Sources: {ok_count}/{len(results)} filter lists OK\n"
-    f"! Note: AdGuard 데스크톱 앱에서 커스텀 필터 추가 시 'Trusted' 체크 필요\n"
+    f"! Note: 필터 추가 시 '신뢰할 수 있는 필터임' 체크 필수\n"
 )
 
 with open("combined_filters.txt", "w", encoding="utf-8") as f:
