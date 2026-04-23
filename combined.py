@@ -18,7 +18,7 @@ except ImportError:
 urls = [
     "https://filters.adtidy.org/windows/filters/2.txt",
     "https://filters.adtidy.org/windows/filters/11.txt",
-    "https://easylist.to/easylist/easylist.txt"
+    "https://easylist.to/easylist/easylist.txt",
     "https://easylist.to/easylist/easyprivacy.txt",
     "https://filters.adtidy.org/windows/filters/17.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
