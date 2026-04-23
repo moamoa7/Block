@@ -16,10 +16,10 @@ except ImportError:
 
 # ---- 필터 소스 URL ----
 urls = [
-    "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
     "https://filters.adtidy.org/windows/filters/2.txt",
     "https://filters.adtidy.org/windows/filters/11.txt",
-    "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
+    "https://easylist.to/easylist/easylist.txt"
+    "https://easylist.to/easylist/easyprivacy.txt",
     "https://filters.adtidy.org/windows/filters/17.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt",
