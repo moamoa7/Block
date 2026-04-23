@@ -1,6 +1,6 @@
 # Filter Status Report
 
-**Updated:** 2026-04-23 14:42:26 (KST)
+**Updated:** 2026-04-23 14:46:18 (KST)
 
 **Sources:** 7 total | ✅ 6 OK | ❌ 1 Failed
 **Total rules:** 170,469
