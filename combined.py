@@ -19,7 +19,6 @@ urls = [
     "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
-    "https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt",
     "https://filters.adtidy.org/extension/ublock/filters/7.txt",
 ]
