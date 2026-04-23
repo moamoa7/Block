@@ -26,6 +26,7 @@ urls = [
     "https://filters.adtidy.org/extension/ublock/filters/11.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
     "https://filters.adtidy.org/extension/ublock/filters/17.txt",
+    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt",
     "https://filters.adtidy.org/extension/ublock/filters/7.txt",
 ]
