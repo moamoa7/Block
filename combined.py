@@ -38,40 +38,43 @@ def is_skip_line(line: str) -> bool:
         return True
     return False
 
-# trusted 전용 scriptlet (공식 Resources Library 기준)
-# trusted- 접두사가 붙은 것 + 약어(alias)로 trusted인 것
-_TRUSTED_SCRIPTLETS = (
-    'trusted-',                          # trusted- 접두사 전부 포괄
-    'rpnt,',   'rpnt)',                  # trusted-replace-node-text 약어
-    'trusted-rpnt,', 'trusted-rpnt)',
-    'trusted-rpfr,', 'trusted-rpfr)',    # trusted-replace-fetch-response 약어
-    'trusted-rpot,', 'trusted-rpot)',    # trusted-replace-outbound-text 약어
-)
+# ==================== uBO 미지원 문법 (제거 대상) ====================
+def is_incompatible(line: str) -> bool:
+    if ':-abp-' in line:
+        return True
+    return False
 
-# scriptlet 이름 추출용 정규식
-_JS_SCRIPTLET_RE = re.compile(r'#\+js\(([^,)]+)')
+# ==================== trusted 전용 규칙 판별 ====================
+_JS_SCRIPTLET_RE = re.compile(r'#@?\+js\(([^,)]+)')
+
+_TRUSTED_SCRIPTLET_NAMES = (
+    'trusted-',
+    'rpnt',
+    'trusted-rpnt',
+    'trusted-rpfr',
+    'trusted-rpot',
+)
 
 def is_trusted_only(line: str) -> bool:
     """신뢰된 소스에서만 동작하는 규칙인지 판별"""
 
-    # 1) scriptlet 검사: ##+js(이름, ...) 또는 #@#+js(이름, ...)
+    # 1) scriptlet 검사
     m = _JS_SCRIPTLET_RE.search(line)
     if m:
         scriptlet_name = m.group(1).strip()
-        for t in _TRUSTED_SCRIPTLETS:
-            if scriptlet_name.startswith(t.rstrip(',)')):
+        for t in _TRUSTED_SCRIPTLET_NAMES:
+            if scriptlet_name == t or scriptlet_name.startswith(t):
                 return True
 
-    # 2) 네트워크 필터 옵션 검사: $replace=, $uritransform=, $urlskip=
-    if '$' in line:
-        dollar_pos = line.rfind('$')
-        options_part = line[dollar_pos:]
-        if 'replace=' in options_part:
-            return True
-        if 'uritransform=' in options_part:
-            return True
-        if 'urlskip=' in options_part:
-            return True
+    # 2) 네트워크 필터: $replace=, $uritransform=, $urlskip=
+    #    $ 또는 , 뒤에 옵션이 오는 두 패턴 모두 검사
+    #    (정규식 내부에 $가 있어서 rfind 방식은 실패하므로 직접 검색)
+    if '$replace=' in line or ',replace=' in line:
+        return True
+    if '$uritransform=' in line or ',uritransform=' in line:
+        return True
+    if '$urlskip=' in line or ',urlskip=' in line:
+        return True
 
     return False
 
@@ -92,6 +95,7 @@ def get_source_name(url: str) -> str:
 # ==================== 다운로드 및 병합 ====================
 source_blocks = []
 results = []
+total_incompatible = 0
 
 for url in urls:
     try:
@@ -102,10 +106,14 @@ for url in urls:
         source_name = get_source_name(url)
         normal_rules = []
         trusted_rules = []
+        incompatible_count = 0
 
         for line in response.text.splitlines():
             stripped = line.strip()
             if is_skip_line(stripped):
+                continue
+            if is_incompatible(stripped):
+                incompatible_count += 1
                 continue
             if is_trusted_only(stripped):
                 trusted_rules.append(stripped)
@@ -114,27 +122,29 @@ for url in urls:
 
         source_blocks.append((source_name, url, normal_rules, trusted_rules))
         total = len(normal_rules) + len(trusted_rules)
-        print(f"  -> {total}개 (일반: {len(normal_rules)}, trusted: {len(trusted_rules)})")
+        total_incompatible += incompatible_count
+        print(f"  -> {total}개 (일반: {len(normal_rules)}, trusted: {len(trusted_rules)}, 제외: {incompatible_count})")
         results.append({
             "url": url,
             "status": "OK",
             "code": response.status_code,
             "rules": total,
             "trusted": len(trusted_rules),
+            "incompatible": incompatible_count,
         })
 
     except requests.exceptions.HTTPError as e:
         code = e.response.status_code if e.response is not None else "N/A"
         print(f"  -> HTTP 에러: {code}")
-        results.append({"url": url, "status": "HTTP_ERROR", "code": code, "rules": 0, "trusted": 0})
+        results.append({"url": url, "status": "HTTP_ERROR", "code": code, "rules": 0, "trusted": 0, "incompatible": 0})
 
     except requests.exceptions.Timeout:
         print(f"  -> 타임아웃")
-        results.append({"url": url, "status": "TIMEOUT", "code": "N/A", "rules": 0, "trusted": 0})
+        results.append({"url": url, "status": "TIMEOUT", "code": "N/A", "rules": 0, "trusted": 0, "incompatible": 0})
 
     except Exception as e:
         print(f"  -> 실패: {e}")
-        results.append({"url": url, "status": "ERROR", "code": "N/A", "rules": 0, "trusted": 0})
+        results.append({"url": url, "status": "ERROR", "code": "N/A", "rules": 0, "trusted": 0, "incompatible": 0})
 
 # ==================== 타임스탬프 ====================
 tz_kst = timezone(timedelta(hours=9))
@@ -152,12 +162,13 @@ report_lines = [
     f"Total: {len(results)} sources | OK: {ok_count} | Failed: {fail_count}", "",
     f"Normal rules: {total_normal:,} → combined_filters.txt (URL로 구독)", "",
     f"Trusted rules: {total_trusted:,} → trusted_filters.txt (내 필터에 붙여넣기)", "",
-    "| Status | Code | Rules | Trusted | URL |",
-    "|--------|------|-------|---------|-----|",
+    f"Incompatible rules removed: {total_incompatible:,} (:-abp-properties 등 uBO 미지원)", "",
+    "| Status | Code | Rules | Trusted | Removed | URL |",
+    "|--------|------|-------|---------|---------|-----|",
 ]
 for r in results:
     icon = "✅" if r["status"] == "OK" else "❌"
-    report_lines.append(f"| {icon} {r['status']} | {r['code']} | {r['rules']:,} | {r['trusted']:,} | {r['url']} |")
+    report_lines.append(f"| {icon} {r['status']} | {r['code']} | {r['rules']:,} | {r['trusted']:,} | {r['incompatible']:,} | {r['url']} |")
 
 if fail_count > 0:
     report_lines += ["", "## ⚠️ Failed Sources", ""]
@@ -217,6 +228,7 @@ print(f"\n{'='*50}")
 print(f"완료!")
 print(f"  combined_filters.txt  -> 일반 규칙: {total_normal:,}")
 print(f"  trusted_filters.txt   -> trusted 규칙: {total_trusted:,}")
+print(f"  제외된 미지원 규칙     -> {total_incompatible:,}")
 print(f"성공: {ok_count}/{len(results)}")
 if fail_count > 0:
     print(f"\n⚠️  {fail_count}개 소스 실패:")
