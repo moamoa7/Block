@@ -19,6 +19,7 @@ urls = [
     "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
+    "https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt",
     "https://filters.adtidy.org/extension/ublock/filters/7.txt",
 ]
@@ -37,11 +38,11 @@ def is_metadata(line: str) -> bool:
         return True
     return False
 
-def is_pure_comment(line: str) -> bool:
+def is_skip_line(line: str) -> bool:
+    """주석, 메타데이터, 전처리 지시문 전부 제거"""
     if not line:
         return True
-    if line.startswith('!#'):
-        return False
+    # ! 로 시작하는 모든 줄 제거 (!#if, !#endif 포함)
     if line.startswith('!'):
         return True
     if line.startswith('['):
@@ -79,9 +80,7 @@ for url in urls:
 
         for line in response.text.splitlines():
             stripped = line.strip()
-            if not stripped or is_metadata(stripped):
-                continue
-            if is_pure_comment(stripped):
+            if is_skip_line(stripped):
                 continue
             block_rules.append(stripped)
 
@@ -139,7 +138,7 @@ with open("filter_status.md", "w", encoding="utf-8") as f:
 
 # ==================== 필터 파일 생성 ====================
 header = f"""! Title: My Combined Filter
-! Description: uBlock Origin + EasyList + EasyPrivacy + 기타 필터 통합
+! Description: uBlock Origin + EasyList + EasyPrivacy + ListKR + AdGuard Japanese
 ! Generated: {timestamp} (KST)
 ! Total rules: {total_rules}
 ! Sources: {ok_count}/{len(results)} filter lists OK
