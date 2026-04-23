@@ -257,7 +257,7 @@ header = (
     f"! Generated: {now} (KST)\n"
     f"! Total rules: {total_rules:,}\n"
     f"! Sources: {ok_count}/{len(results)} filter lists OK\n"
-    f"! Preprocessor: AdGuard for Windows 환경으로 !#if 지시문 평가됨\n"
+    f"! Preprocessor: uBlock Origin 필터의 !#if 지시문을 AdGuard for Windows 기준으로 평가\n"
     f"! Note: 필터 추가 시 '신뢰할 수 있는 필터임(Trusted)' 체크 필수\n"
 )
 
