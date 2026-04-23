@@ -22,7 +22,7 @@ urls = [
     "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt",
     "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
-    ""https://filters.adtidy.org/windows/filters/2.txt"",
+    "https://filters.adtidy.org/windows/filters/2.txt",
     "https://filters.adtidy.org/windows/filters/11.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
     "https://filters.adtidy.org/windwos/filters/17.txt",
