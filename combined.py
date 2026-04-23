@@ -115,7 +115,7 @@ fail_count = len(results) - ok_count
 # ========================================
 adguard_header = (
     f"! Title: My Combined Filter (AdGuard)\n"
-    f"! Description: uBlock Origin + EasyList + EasyPrivacy + 기타 필터 통합\n"
+    f"! Description: EasyList + EasyPrivacy + 기타 필터 통합\n"
     f"! Expires: 12 hours\n"
     f"! Generated: {now} (KST)\n"
     f"! Total rules: {total_rules}\n"
