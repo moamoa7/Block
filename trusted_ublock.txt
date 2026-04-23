@@ -1,7 +1,7 @@
 ! Title: My Combined Filter - Trusted Rules (uBlock Origin)
 ! Description: trusted scriptlet / replace / uritransform / urlskip 규칙
-! Generated: 2026-04-23 11:55:29 (KST)
-! Total trusted rules: 350
+! Generated: 2026-04-23 12:02:29 (KST)
+! Total trusted rules: 351
 ! Usage: uBO 대시보드 → 내 필터에 붙여넣기
 !        "Allow custom filters requiring trust" 체크 필요
 
@@ -381,6 +381,13 @@ nvidia.com##+js(trusted-set-cookie, ak_bmsc, , 0, , domain, .nvidia.com)
 dragonnest.com##+js(rpnt, script, gtag != null, false)
 damndelicious.net##+js(trusted-replace-argument, Object.defineProperty, 1, json:"_adsEnabled", condition, _adsDisabled)
 daily.co.jp##+js(trusted-rpnt, script, /(window\.AdObserverManager\.register\('ds[ps][cp]-bottomRecommend'\);)/, (()=>{window.addEventListener("load"\,(()=>{const t=document.querySelector("#openwebSection")\,e=document.querySelector("div[data-spot-id]");if(!e||!t)return;const d=e.getAttribute("data-spot-id");if(!d)return;var o;((t\,e\,d)=>{const o=document.createElement("div");o.setAttribute("data-spotim-module"\,"conversation")\,o.setAttribute("data-spot-id"\,t)\,o.setAttribute("data-post-id"\,e)\,d.appendChild(o)})(d\,Math.abs((o=document.title\,[...o].reduce(((t\,e)=>Math.imul(31\,t)+e.charCodeAt(0)|0)\,0)))\,t);const a=document.createElement("script");a.setAttribute("src"\,`https://launcher.spot.im/spot/${d}`)\,a.setAttribute("async"\,"")\,document.head.appendChild(a)}));})();$1, sedCount, 1)
+
+! ========================================
+! >>> AdGuard - 11.txt
+! >>> https://filters.adtidy.org/extension/ublock/filters/11.txt
+! >>> Trusted Rules: 1
+! ========================================
+||ads.adfox.ru/*/getCode?p1=$domain=auth.wi-fi.ru,replace=/(<VAST[\s\S]*?>)[\s\S]*<\/VAST>/\$1<\/VAST>/,important
 
 ! ========================================
 ! >>> List-KR - unified
