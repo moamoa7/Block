@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 import subprocess
 import sys
-import re
 from datetime import datetime, timezone, timedelta
 
-# ==================== 의존성 설치 ====================
 try:
     import requests
 except ImportError:
@@ -21,6 +19,7 @@ urls = [
     "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
+    "https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt",
     "https://filters.adtidy.org/extension/ublock/filters/7.txt",
 ]
@@ -29,7 +28,6 @@ urls = [
 _VALID_HASH_PREFIXES = ("##", "#@#", "#$#", "#$@#", "#?#", "#@?#", "#%#")
 
 def is_comment_line(line: str) -> bool:
-    """주석이나 메타데이터인지 판별"""
     if line.startswith('!'):
         return True
     if line.startswith('['):
@@ -40,7 +38,7 @@ def is_comment_line(line: str) -> bool:
 
 # ==================== 필터 다운로드 및 병합 ====================
 rules = set()
-failed = []
+results = []  # 각 URL별 상태 기록
 
 for url in urls:
     try:
@@ -56,36 +54,101 @@ for url in urls:
                 count += 1
 
         print(f"  -> {count}개 규칙 수집")
+        results.append({
+            "url": url,
+            "status": "OK",
+            "code": response.status_code,
+            "rules": count,
+        })
+
+    except requests.exceptions.HTTPError as e:
+        code = e.response.status_code if e.response is not None else "N/A"
+        print(f"  -> HTTP 에러: {code}")
+        results.append({
+            "url": url,
+            "status": "HTTP_ERROR",
+            "code": code,
+            "rules": 0,
+        })
+
+    except requests.exceptions.Timeout:
+        print(f"  -> 타임아웃")
+        results.append({
+            "url": url,
+            "status": "TIMEOUT",
+            "code": "N/A",
+            "rules": 0,
+        })
 
     except Exception as e:
         print(f"  -> 실패: {e}")
-        failed.append(url)
+        results.append({
+            "url": url,
+            "status": "ERROR",
+            "code": "N/A",
+            "rules": 0,
+        })
 
-# ==================== 헤더 생성 ====================
-tz_utc9 = timezone(timedelta(hours=9))  # KST
-timestamp = datetime.now(tz_utc9).strftime("%Y-%m-%d %H:%M:%S")
+# ==================== 타임스탬프 ====================
+tz_kst = timezone(timedelta(hours=9))
+timestamp = datetime.now(tz_kst).strftime("%Y-%m-%d %H:%M:%S")
 
+# ==================== 상태 리포트 생성 ====================
+ok_count = sum(1 for r in results if r["status"] == "OK")
+fail_count = len(results) - ok_count
+
+report_lines = []
+report_lines.append(f"# Filter Status Report")
+report_lines.append(f"")
+report_lines.append(f"Updated: {timestamp} (KST)")
+report_lines.append(f"")
+report_lines.append(f"Total: {len(results)} sources | OK: {ok_count} | Failed: {fail_count}")
+report_lines.append(f"")
+report_lines.append(f"Total unique rules: {len(rules):,}")
+report_lines.append(f"")
+report_lines.append(f"| Status | Code | Rules | URL |")
+report_lines.append(f"|--------|------|-------|-----|")
+
+for r in results:
+    icon = "✅" if r["status"] == "OK" else "❌"
+    report_lines.append(f"| {icon} {r['status']} | {r['code']} | {r['rules']:,} | {r['url']} |")
+
+# 실패 항목만 따로 강조
+if fail_count > 0:
+    report_lines.append(f"")
+    report_lines.append(f"## ⚠️ Failed Sources")
+    report_lines.append(f"")
+    for r in results:
+        if r["status"] != "OK":
+            report_lines.append(f"- **{r['status']}** (code: {r['code']}): {r['url']}")
+
+report_text = "\n".join(report_lines) + "\n"
+
+with open("filter_status.md", "w", encoding="utf-8") as f:
+    f.write(report_text)
+
+print(f"\n상태 리포트 저장: filter_status.md")
+
+# ==================== 필터 파일 생성 ====================
 header = f"""! Title: My Combined Filter
-! Description: uBlock Origin + EasyList + EasyPrivacy + 기타 필터 통합
+! Description: uBlock Origin + EasyList + EasyPrivacy + ListKR + AdGuard Japanese
 ! Generated: {timestamp} (KST)
 ! Total unique rules: {len(rules)}
-! Sources: {len(urls)} filter lists
+! Sources: {ok_count}/{len(results)} filter lists OK
 """
 
-# ==================== 파일 출력 ====================
-output_file = "combined_filters.txt"
-
-with open(output_file, "w", encoding="utf-8") as f:
+with open("combined_filters.txt", "w", encoding="utf-8") as f:
     f.write(header)
     for rule in sorted(rules):
         f.write(rule + "\n")
 
 # ==================== 결과 출력 ====================
 print(f"\n{'='*50}")
-print(f"완료! -> {output_file}")
+print(f"완료! -> combined_filters.txt")
 print(f"총 고유 규칙 수: {len(rules):,}")
-print(f"생성 시각: {timestamp} (KST)")
-if failed:
-    print(f"실패한 URL ({len(failed)}개):")
-    for u in failed:
-        print(f"  - {u}")
+print(f"성공: {ok_count}/{len(results)}")
+if fail_count > 0:
+    print(f"\n⚠️  {fail_count}개 소스 실패:")
+    for r in results:
+        if r["status"] != "OK":
+            print(f"  [{r['code']}] {r['url']}")
