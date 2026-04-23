@@ -19,6 +19,7 @@ urls = [
     "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
     "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
+    "https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt",
     "https://filters.adtidy.org/extension/ublock/filters/7.txt",
 ]
@@ -35,9 +36,37 @@ def is_comment_line(line: str) -> bool:
         return True
     return False
 
+def join_continuation_lines(text: str) -> list:
+    """
+    백슬래시(\\)로 끝나는 줄을 다음 줄과 이어붙인다.
+    uBlock Origin의 line continuation 문법 처리.
+    """
+    raw_lines = text.splitlines()
+    joined = []
+    buffer = ""
+
+    for line in raw_lines:
+        stripped = line.rstrip()
+        if stripped.endswith('\\'):
+            # 백슬래시 제거하고 다음 줄과 연결
+            buffer += stripped[:-1]
+        else:
+            if buffer:
+                buffer += stripped
+                joined.append(buffer)
+                buffer = ""
+            else:
+                joined.append(stripped)
+
+    # 마지막 줄이 백슬래시로 끝난 경우 처리
+    if buffer:
+        joined.append(buffer)
+
+    return joined
+
 # ==================== 필터 다운로드 및 병합 ====================
 rules = set()
-results = []  # 각 URL별 상태 기록
+results = []
 
 for url in urls:
     try:
@@ -45,8 +74,11 @@ for url in urls:
         response = requests.get(url, timeout=15)
         response.raise_for_status()
 
+        # 줄 연속 문법 먼저 처리한 뒤 파싱
+        lines = join_continuation_lines(response.text)
+
         count = 0
-        for line in response.text.splitlines():
+        for line in lines:
             stripped = line.strip()
             if stripped and not is_comment_line(stripped):
                 rules.add(stripped)
@@ -112,7 +144,6 @@ for r in results:
     icon = "✅" if r["status"] == "OK" else "❌"
     report_lines.append(f"| {icon} {r['status']} | {r['code']} | {r['rules']:,} | {r['url']} |")
 
-# 실패 항목만 따로 강조
 if fail_count > 0:
     report_lines.append(f"")
     report_lines.append(f"## ⚠️ Failed Sources")
@@ -130,7 +161,7 @@ print(f"\n상태 리포트 저장: filter_status.md")
 
 # ==================== 필터 파일 생성 ====================
 header = f"""! Title: My Combined Filter
-! Description: uBlock Origin + EasyList + EasyPrivacy + ListKR + AdGuard Japanese
+! Description: uBlock Origin + EasyList + EasyPrivacy + 기타 필터 통합
 ! Generated: {timestamp} (KST)
 ! Total unique rules: {len(rules)}
 ! Sources: {ok_count}/{len(results)} filter lists OK
