@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import subprocess
 import sys
+import re
 from datetime import datetime, timezone, timedelta
 
 try:
@@ -37,14 +38,32 @@ def is_skip_line(line: str) -> bool:
         return True
     return False
 
+# trusted 전용 scriptlet (공식 Resources Library 기준)
+# trusted- 접두사가 붙은 것 + 약어(alias)로 trusted인 것
+_TRUSTED_SCRIPTLETS = (
+    'trusted-',                          # trusted- 접두사 전부 포괄
+    'rpnt,',   'rpnt)',                  # trusted-replace-node-text 약어
+    'trusted-rpnt,', 'trusted-rpnt)',
+    'trusted-rpfr,', 'trusted-rpfr)',    # trusted-replace-fetch-response 약어
+    'trusted-rpot,', 'trusted-rpot)',    # trusted-replace-outbound-text 약어
+)
+
+# scriptlet 이름 추출용 정규식
+_JS_SCRIPTLET_RE = re.compile(r'#\+js\(([^,)]+)')
+
 def is_trusted_only(line: str) -> bool:
     """신뢰된 소스에서만 동작하는 규칙인지 판별"""
-    # trusted- scriptlet
-    if '##+js(trusted-' in line or '#@#+js(trusted-' in line:
-        return True
-    # $replace=, $uritransform=, $urlskip= 옵션
+
+    # 1) scriptlet 검사: ##+js(이름, ...) 또는 #@#+js(이름, ...)
+    m = _JS_SCRIPTLET_RE.search(line)
+    if m:
+        scriptlet_name = m.group(1).strip()
+        for t in _TRUSTED_SCRIPTLETS:
+            if scriptlet_name.startswith(t.rstrip(',)')):
+                return True
+
+    # 2) 네트워크 필터 옵션 검사: $replace=, $uritransform=, $urlskip=
     if '$' in line:
-        # $ 뒤의 옵션 부분에서 확인
         dollar_pos = line.rfind('$')
         options_part = line[dollar_pos:]
         if 'replace=' in options_part:
@@ -53,6 +72,7 @@ def is_trusted_only(line: str) -> bool:
             return True
         if 'urlskip=' in options_part:
             return True
+
     return False
 
 def get_source_name(url: str) -> str:
@@ -174,7 +194,9 @@ header_trusted = f"""! Title: My Combined Filter - Trusted Rules
 ! Description: trusted 전용 규칙 (uBlock Origin "내 필터"에 붙여넣기)
 ! Generated: {timestamp} (KST)
 ! Total rules: {total_trusted}
-! 포함 대상: trusted- scriptlet, $replace, $uritransform, $urlskip
+! 포함 대상: trusted- scriptlet, rpnt, $replace, $uritransform, $urlskip
+! 사용법: 이 내용을 uBlock Origin 대시보드 > 내 필터에 붙여넣기
+!         "Allow custom filters requiring trust" 체크 필수
 """
 
 with open("trusted_filters.txt", "w", encoding="utf-8") as f:
@@ -205,3 +227,4 @@ if fail_count > 0:
 print(f"\n📌 사용법:")
 print(f"  1. combined_filters.txt → uBlock Origin 필터 목록에 URL로 구독")
 print(f"  2. trusted_filters.txt  → 내용 복사 → uBlock Origin '내 필터'에 붙여넣기")
+print(f"     ⚠️  '내 필터' 탭에서 'Allow custom filters requiring trust' 체크 필수")
