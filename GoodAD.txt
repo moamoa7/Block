@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260422
+! Version: 20260423
 !
 !
 !
@@ -2296,6 +2296,8 @@ javgg.net##.home_iframead
 !
 !
 ! Javsubs91 (https://j91.asia/)
+! - 영상 하단 배너
+##.dark-banner-group
 !  - 팝업 방지
 !||adxadserv.com^$popup
 ! - 차단 사이트
