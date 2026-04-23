@@ -142,7 +142,6 @@ urls = [
     "https://filters.adtidy.org/windows/filters/17.txt",
     "https://filters.adtidy.org/windows/filters/118.txt",
     "https://filters.adtidy.org/windows/filters/227.txt",
-    "https://filters.adtidy.org/windows/filters/244.txt"
     
     # uBlock Origin 필터 (부분 호환)
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
@@ -168,7 +167,6 @@ def get_source_name(url):
             "17.txt":  "AdGuard URL Tracking filter",
             "118.txt": "EasyPrivacy",
             "227.txt": "List-KR Classic filter list",
-            "244.txt": "YousList",
         }
         return names.get(fid, "AdGuard - " + fid)
     return url.split("/")[-1]
