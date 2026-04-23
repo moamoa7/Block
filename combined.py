@@ -140,10 +140,9 @@ urls = [
     "https://filters.adtidy.org/windows/filters/11.txt",
     "https://filters.adtidy.org/windows/filters/14.txt",
     "https://filters.adtidy.org/windows/filters/17.txt",
+    "https://filters.adtidy.org/windows/filters/118.txt",
     "https://filters.adtidy.org/windows/filters/227.txt",
-
-    # EasyList 계열 (안정적인 미러 사용)
-    "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
+    
     # uBlock Origin 필터 (부분 호환)
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
     "https://ublockorigin.github.io/uAssets/filters/badware.txt",
@@ -166,6 +165,7 @@ def get_source_name(url):
             "11.txt":  "AdGuard Mobile Ads filter",
             "14.txt":  "AdGuard Annoyances filter",
             "17.txt":  "AdGuard URL Tracking filter",
+            "118.txt": "EasyPrivacy",
             "227.txt": "List-KR Classic filter list",
         }
         return names.get(fid, "AdGuard - " + fid)
