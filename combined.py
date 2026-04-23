@@ -21,6 +21,7 @@ urls = [
     "https://easylist.to/easylist/easylist.txt",
     "https://easylist.to/easylist/easyprivacy.txt",
     "https://filters.adtidy.org/windows/filters/17.txt",
+    "https://filters.adtidy.org/windows/filters/14.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-unified.txt",
     "https://filters.adtidy.org/windows/filters/7.txt",
