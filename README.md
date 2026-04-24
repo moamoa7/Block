@@ -102,12 +102,18 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 
 # 사용중인 Filter 목록
 
-※  아래 필터들을 하나로 합친 파일 : https://raw.githubusercontent.com/moamoa7/adblock/main/combined_filters.txt
-<br/>
+※  아래 필터들을 하나로 합친 파일
 -- 중복 체크없이 아래 필터들을 단순하게 하나로 묶은것입니다
-
+<br/>
+((PC))
+<br/>
+https://raw.githubusercontent.com/moamoa7/adblock/main/combined_filters_pc.txt
+((모바일))
+<br/>
+https://raw.githubusercontent.com/moamoa7/adblock/main/combined_filters_mobile.txt
+<br/>
+<br/>
 ※ 필터 목록 (PC)
-
 ```
 https://filters.adtidy.org/windows/filters/2.txt
 https://filters.adtidy.org/windows/filters/4.txt
