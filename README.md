@@ -102,57 +102,36 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 
 # 사용중인 Filter 목록
 
-※ uBlock Origin에 적합한 필터들 : https://github.com/yokoffing/filterlists
-
 ※  아래 필터들을 하나로 합친 파일 : https://raw.githubusercontent.com/moamoa7/adblock/main/combined_filters.txt
 <br/>
 -- 중복 체크없이 아래 필터들을 단순하게 하나로 묶은것입니다
 
-※ uBlock filters
-https://ublockorigin.github.io/uAssets/filters/filters.txt
-
-※ uBlock filters – Badware risks
-https://ublockorigin.github.io/uAssets/filters/badware.txt
-
-※ uBlock filters – Privacy
-https://ublockorigin.github.io/uAssets/filters/privacy.txt
-
-※ uBlock filters – Quick fixes
-https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt
-
-※ uBlock filters – Unbreak
-https://ublockorigin.github.io/uAssets/filters/unbreak.txt
-
-※ Easy List
-https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt
-
-※ EasyPrivacy
-https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt
-
-
-(언어) 필터
-
-※ List-KR (https://github.com/List-KR/List-KR)
-- List-KR filters list Unified for uBlock Origin
-https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt
-
-※ AdGuard Japanese filter
-https://filters.adtidy.org/extension/ublock/filters/7.txt
-
-<br/>
-
-※ 필터 주소 목록 모음
+※ 필터 목록 (PC)
 
 ```
-https://ublockorigin.github.io/uAssets/filters/filters.txt
-https://ublockorigin.github.io/uAssets/filters/badware.txt
-https://ublockorigin.github.io/uAssets/filters/privacy.txt
-https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt
-https://ublockorigin.github.io/uAssets/filters/unbreak.txt
-https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt
-https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt
-https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-unified.txt
-https://filters.adtidy.org/extension/ublock/filters/7.txt
+https://filters.adtidy.org/windows/filters/2.txt
+https://filters.adtidy.org/windows/filters/4.txt
+https://filters.adtidy.org/windows/filters/7.txt
+https://filters.adtidy.org/windows/filters/11.txt
+https://filters.adtidy.org/windows/filters/18.txt
+https://filters.adtidy.org/windows/filters/19.txt
+https://filters.adtidy.org/windows/filters/20.txt
+https://filters.adtidy.org/windows/filters/21.txt
+https://filters.adtidy.org/windows/filters/22.txt
+https://filters.adtidy.org/windows/filters/227.txt
+```
+※ 필터 목록 (모바일)
+```
+https://filters.adtidy.org/android/filters/2_optimized.txt
+https://filters.adtidy.org/android/filters/4_optimized.txt
+https://filters.adtidy.org/android/filters/7_optimized.txt
+https://filters.adtidy.org/android/filters/11_optimized.txt
+https://filters.adtidy.org/android/filters/18_optimized.txt
+https://filters.adtidy.org/android/filters/19_optimized.txt
+https://filters.adtidy.org/android/filters/20_optimized.txt
+https://filters.adtidy.org/android/filters/21_optimized.txt
+https://filters.adtidy.org/android/filters/22_optimized.txt
+https://filters.adtidy.org/android/filters/227_optimized.txt
 ```
 
 
