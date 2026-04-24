@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260423
+! Version: 20260425
 !
 !
 !
@@ -418,62 +418,62 @@ dcinside.com##.stickyunit
 gall.dcinside.com##.dctrend_ranking
 ! 디시갤러리 댓글 디시트렌드 (List-KR)
 ! - - -  유니콘Pro에는 없음
-dcinside.com##ul.cmt_list > li[id^="comment_li_"].ub-content.dory
+!dcinside.com##ul.cmt_list > li[id^="comment_li_"].ub-content.dory
 ! - IP차단 후 애드가드로 안보이게
 ! - - - 출처 : https://gall.dcinside.com/adguard/2814
 ! - - - - - PC
-gall.dcinside.com##.block-disable
+!gall.dcinside.com##.block-disable
 ! - - - - - 모바일
-m.dcinside.com##.block-disable
-gall.dcinside.com##li.block-disable
+!m.dcinside.com##.block-disable
+!gall.dcinside.com##li.block-disable
 ! 디시 뉴스 없애기 (중앙일보)
 ! - - - PC
 !dcinside.com##.news_result.integrate_cont
 ! - - - 모바일
 !dcinside.com##.news-schthum-lst
 ! - PC에서 필요없는거 다 없애기
-dcinside.com##.time_best
-dcinside.com##.concept_con.content
-dcinside.com##.gallmain.pageing_box
-dcinside.com##.recomImg.img.cont_list
-dcinside.com##.cont_head
-dcinside.com##.recomTxt.txt.cont_list
+!dcinside.com##.time_best
+!dcinside.com##.concept_con.content
+!dcinside.com##.gallmain.pageing_box
+!dcinside.com##.recomImg.img.cont_list
+!dcinside.com##.cont_head
+!dcinside.com##.recomTxt.txt.cont_list
 ! - 모바일에서 필요없는거 다 없애기
-dcinside.com##.view-btm-con
-dcinside.com##section.grid:nth-of-type(9)
-dcinside.com##section.livebest-group
-dcinside.com##.dna-group.grid
-dcinside.com##.gall-group.grid
-dcinside.com##.media-group.grid
-dcinside.com##section.grid:nth-of-type(4)
-dcinside.com##section.grid:nth-of-type(8)
-dcinside.com##section.grid:nth-of-type(7)
-dcinside.com##.news-schthum-lst
+!dcinside.com##.view-btm-con
+!dcinside.com##section.grid:nth-of-type(9)
+!dcinside.com##section.livebest-group
+!dcinside.com##.dna-group.grid
+!dcinside.com##.gall-group.grid
+!dcinside.com##.media-group.grid
+!dcinside.com##section.grid:nth-of-type(4)
+!dcinside.com##section.grid:nth-of-type(8)
+!dcinside.com##section.grid:nth-of-type(7)
+!dcinside.com##.news-schthum-lst
 ! 추가
 ! 출처 : https://raw.githubusercontent.com/green1052/GreenList/master/filter.txt
-||dctrend.ai
-||cdn.trend.rankify.best/dctrend/
-||cdn.inappnews.net
-||gall.dcinside.com/_js/survey.js
-dcinside.com###pop_bg
-dcinside.com##.closure-lightpop
-dcinside.com###opt_use_pop_bg
-dcinside.com###opt_use_pop
-dcinside.com##.r_timebest
-dcinside.com##.r_dcmedia
-dcinside.com##.trend
-dcinside.com##.dcmedia
-dcinside.com##.news_con
-dcinside.com##.r_only_daum
-dcinside.com##.r_recommend
-dcinside.com##.gall_exposure
-dcinside.com##.news_result
+!||dctrend.ai
+!||cdn.trend.rankify.best/dctrend/
+!||cdn.inappnews.net
+!||gall.dcinside.com/_js/survey.js
+!dcinside.com###pop_bg
+!dcinside.com##.closure-lightpop
+!dcinside.com###opt_use_pop_bg
+!dcinside.com###opt_use_pop
+!dcinside.com##.r_timebest
+!dcinside.com##.r_dcmedia
+!dcinside.com##.trend
+!dcinside.com##.dcmedia
+!dcinside.com##.news_con
+!dcinside.com##.r_only_daum
+!dcinside.com##.r_recommend
+!dcinside.com##.gall_exposure
+!dcinside.com##.news_result
 ! 위 내용에서 개별 추가
-dctrend.ai##*
-||h5.dcinside.com
-h5.dcinside.com##*
-||wiki.dcinside.com
-wiki.dcinside.com##*
+!dctrend.ai##*
+!||h5.dcinside.com
+!h5.dcinside.com##*
+!||wiki.dcinside.com
+!wiki.dcinside.com##*
 ! - 갤주소복사 안나오는거 해결
 gall.dcinside.com#@#[class^="ad"]
 ! - 기타
@@ -6039,4 +6039,8 @@ trand.co.kr#@#[id][style*="background"][style]
 
 ! - 잘못된 구문 해제 (Adblock-Rule-Collection-Lite) (26.04.09)
 @@^$generichide,badfilter
+
+! 도박랜드 (https://dblove.net/)
+! - 배너 이미지
+##[ class*="banner-item"]
 
