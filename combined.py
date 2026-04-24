@@ -32,14 +32,14 @@ ADGUARD_PC_URLS = [
 
 ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/2_optimized.txt",    # Base (EasyList 포함)
-    "https://filters.adtidy.org/windows/filters/4_optimized.txt",    # Social Media
+    "https://filters.adtidy.org/android/filters/4_optimized.txt",    # Social Media
     "https://filters.adtidy.org/android/filters/7_optimized.txt",    # Japanese
     "https://filters.adtidy.org/android/filters/11_optimized.txt",   # Mobile Ads
-    "https://filters.adtidy.org/windows/filters/18_optimized.txt",   # Cookie Notices
-    "https://filters.adtidy.org/windows/filters/19_optimized.txt",   # Popups
-    "https://filters.adtidy.org/windows/filters/20_optimized.txt",   # Mobile App Banners
-    "https://filters.adtidy.org/windows/filters/21_optimized.txt",   # Other Annoyances
-    "https://filters.adtidy.org/windows/filters/22_optimized.txt",   # Widgets
+    "https://filters.adtidy.org/android/filters/18_optimized.txt",   # Cookie Notices
+    "https://filters.adtidy.org/android/filters/19_optimized.txt",   # Popups
+    "https://filters.adtidy.org/android/filters/20_optimized.txt",   # Mobile App Banners
+    "https://filters.adtidy.org/android/filters/21_optimized.txt",   # Other Annoyances
+    "https://filters.adtidy.org/android/filters/22_optimized.txt",   # Widgets
     "https://filters.adtidy.org/android/filters/227_optimized.txt",  # List-KR (Korean)
 ]
 
