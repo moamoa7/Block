@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      67.07.0
-// @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: iframe 나체 video 더블탭 전체화면 수정)
+// @version      67.03.0
+// @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
 // @author       Gemini & Claude
 // @license      MIT
 // @match        *://*/*
@@ -40,15 +40,6 @@
     let enforceStateUntil = 0;
     let enforceTarget = null;
 
-    // ★ FIX: CSS 가로모드 fallback 상태 추적
-    let isCssLandscape = false;
-
-    // ★ FIX: iframe 감지
-    const isInsideIframe = () => {
-        try { return window.self !== window.top; } catch(e) { return true; }
-    };
-    const inIframe = isInsideIframe();
-
     const lockOrientation = (dir) => {
         if (screen.orientation?.lock) {
             screen.orientation.lock(dir).catch(() => {
@@ -68,46 +59,15 @@
         return (v && v.videoWidth > 0 && v.videoWidth < v.videoHeight) ? 'portrait' : 'landscape';
     };
 
-    // ★ FIX: 부모 페이지에서 iframe fullscreen 메시지 수신 포함
     window.addEventListener('message', (e) => {
         if (e.data && e.data.type === 'gt_lock_orientation') {
             if (screen.orientation && screen.orientation.lock) screen.orientation.lock(e.data.dir).catch(()=>{});
         } else if (e.data && e.data.type === 'gt_unlock_orientation') {
             if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
-        } else if (e.data && e.data.type === 'gt-iframe-fullscreen') {
-            // ★ FIX: iframe 내부에서 부모에게 요청 → 부모가 iframe 자체를 fullscreen
-            const iframes = document.querySelectorAll('iframe');
-            for (const iframe of iframes) {
-                try {
-                    if (iframe.contentWindow === e.source) {
-                        const reqFs = iframe.requestFullscreen || iframe.webkitRequestFullscreen || iframe.mozRequestFullScreen;
-                        if (reqFs) {
-                            const p = reqFs.call(iframe);
-                            if (p && p.then) {
-                                p.then(() => {
-                                    try {
-                                        const v = iframe.contentDocument?.querySelector('video');
-                                        if (v) lockOrientation(getVideoOrientationDir(v));
-                                        else lockOrientation('landscape');
-                                    } catch(ex) { lockOrientation('landscape'); }
-                                }).catch(() => {});
-                            }
-                        }
-                        break;
-                    }
-                } catch(ex) {}
-            }
-        } else if (e.data && e.data.type === 'gt-iframe-exitfullscreen') {
-            // ★ FIX: iframe 내부에서 부모에게 fullscreen 해제 요청
-            if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-            unlockOrientation();
         }
     });
 
     const VIP_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], [data-testid="video-container"], .player-wrapper, .one-video-player_display-w, .one-video-player, vk-video-player, [aria-label="Видео плеер"], [aria-label="Video Player"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, iframe';
-
-    const KNOWN_PLAYERS = '.video-js, .vjs-custom-skin, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, .plyr, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer';
 
     const IGNORE_TOUCH_SELECTORS = '[data-vsc-ui="1"], .gt-btn-base, .dplayer-controller, .dplayer-bar-wrap, .vjs-control-bar, .art-bottom, .art-controls, .bpx-player-control-wrap, .plyr__controls, .xgplayer-controls, .tcplayer-controls, .prism-controlbar, .mui-player-controls, .wrapper-bottom, [data-testid="player_controls"], [data-testid="progress_bar"], [data-testid="volume-slider"], input[type="range"], .buttons-bar, .progress-bar-container';
 
@@ -170,14 +130,6 @@
         if (btn.dataset.gtIcon !== key) { btn.innerHTML = key; btn.dataset.gtIcon = key; }
     };
 
-    // ★ FIX: "나체 비디오" 감지 - 플레이어 라이브러리 래퍼 없이 video만 있는 경우
-    const isNakedVideo = (container, video) => {
-        if (!container || !video) return true;
-        if (container.matches && container.matches(KNOWN_PLAYERS)) return false;
-        if (findUp(container, KNOWN_PLAYERS)) return false;
-        return true;
-    };
-
     const hijackFullscreenAPI = () => {
         const fsMethods = ['requestFullscreen', 'webkitRequestFullscreen', 'mozRequestFullScreen', 'msRequestFullscreen'];
         fsMethods.forEach(method => {
@@ -202,136 +154,31 @@
     };
     hijackFullscreenAPI();
 
-    // ★ FIX: CSS 가로모드 fallback
-    const fallbackCssLandscape = (video) => {
-        if (!video) return;
-
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-
-        let overlay = document.getElementById('gt-css-landscape-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'gt-css-landscape-overlay';
-            overlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:#000!important;z-index:2147483645!important;pointer-events:none!important;';
-            document.body.appendChild(overlay);
-        }
-
-        video.dataset.gtOrigStyle = video.getAttribute('style') || '';
-
-        video.style.cssText = `position:fixed!important;top:0!important;left:0!important;width:${vh}px!important;height:${vw}px!important;transform:rotate(90deg) translateY(-100%)!important;transform-origin:top left!important;object-fit:contain!important;z-index:2147483646!important;background:#000!important;`;
-
-        isCssLandscape = true;
-        showMsg('가로 모드 (CSS)');
-    };
-
-    const exitCssLandscape = (video) => {
-        if (!video) return;
-
-        const origStyle = video.dataset.gtOrigStyle;
-        if (origStyle !== undefined) {
-            if (origStyle) video.setAttribute('style', origStyle);
-            else video.removeAttribute('style');
-            delete video.dataset.gtOrigStyle;
-        } else {
-            video.removeAttribute('style');
-        }
-
-        const overlay = document.getElementById('gt-css-landscape-overlay');
-        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-
-        isCssLandscape = false;
-        showMsg('세로 모드');
-    };
-
-    // ★ FIX: iframe 내부에서 부모에게 fullscreen 해제 요청을 보냈는지 추적
-    let iframeFullscreenRequested = false;
-
     const toggleNativeFullscreen = (container, video) => {
-        // CSS 가로모드 상태이면 해제
-        if (isCssLandscape) {
-            exitCssLandscape(video);
-            return;
-        }
-
         const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement) || container.classList.contains('gt-fullscreen-active');
         const fsBtn = container.querySelector('.art-icon-fullscreenOn, .art-control-fullscreen, .dplayer-full-icon, .plyr__control[data-plyr="fullscreen"], .vjs-fullscreen-control, .xgplayer-fullscreen, .tcplayer-fullscreen-btn, .prism-fullscreen-btn, [aria-label*="全屏"], [title*="全屏"], [aria-label*="전체 화면"], [title*="전체화면"], .fullscreen-btn, .bilibili-player-video-btn-fullscreen');
-
-        // ★ FIX: 부모에게 요청해서 fullscreen 된 상태 → 부모에게 해제 요청
-        if (iframeFullscreenRequested) {
-            try { window.parent.postMessage({ type: 'gt-iframe-exitfullscreen' }, '*'); } catch(e) {}
-            iframeFullscreenRequested = false;
-            container.classList.remove('gt-fullscreen-active');
-            return;
-        }
-
         if (isFS) {
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
             if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             container.classList.remove('gt-fullscreen-active');
             unlockOrientation();
-            return;
-        }
-
-        // ★ FIX: iframe 내부 + 나체 video인 경우 → container fullscreen 하지 않음
-        if (inIframe && isNakedVideo(container, video)) {
-            // 1순위: 부모에게 iframe 자체를 fullscreen 요청
-            try {
-                window.parent.postMessage({ type: 'gt-iframe-fullscreen' }, '*');
-                iframeFullscreenRequested = true;
-            } catch(e) {}
-
-            // 2순위: video 자체 fullscreen (iOS Safari 등)
-            if (video.webkitEnterFullscreen) {
-                try {
-                    video.webkitEnterFullscreen();
-                    lockOrientation(getVideoOrientationDir(video));
-                    return;
-                } catch(e) {}
-            }
-
-            // 부모 메시지가 성공했으면 잠시 기다려봄
-            setTimeout(() => {
-                // 부모가 fullscreen을 성공했는지 확인할 방법이 없으므로
-                // 300ms 후에도 fullscreen 아니면 CSS fallback
-                if (!document.fullscreenElement && !document.webkitFullscreenElement && !isCssLandscape) {
-                    // postMessage가 실패했을 수 있음 → CSS fallback
-                    // 하지만 부모가 성공했을 수도 있으므로 약간 더 기다림
-                    setTimeout(() => {
-                        if (!document.fullscreenElement && !document.webkitFullscreenElement && !isCssLandscape) {
-                            iframeFullscreenRequested = false;
-                            fallbackCssLandscape(video);
-                        }
-                    }, 300);
-                }
-            }, 300);
-            return;
-        }
-
-        // ===== 일반 로직 (기존 67.03.0과 동일) =====
-        const forceLockLandscape = () => { lockOrientation(getVideoOrientationDir(video)); };
-        if (fsBtn) { try { fsBtn.click(); } catch(e){} }
-        container.classList.add('gt-fullscreen-active');
-        const reqFs = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen;
-        if (reqFs) {
-            const p = reqFs.call(container);
-            if (p && p.then) {
-                p.then(() => setTimeout(forceLockLandscape, 150)).catch(() => {
-                    if (video.webkitEnterFullscreen) {
-                        video.webkitEnterFullscreen();
-                        setTimeout(forceLockLandscape, 150);
-                    } else {
-                        container.classList.remove('gt-fullscreen-active');
-                        fallbackCssLandscape(video);
-                    }
-                });
-            } else { setTimeout(forceLockLandscape, 150); }
-        } else if (video.webkitEnterFullscreen) {
-            video.webkitEnterFullscreen(); setTimeout(forceLockLandscape, 150);
         } else {
-            container.classList.remove('gt-fullscreen-active');
-            fallbackCssLandscape(video);
+            const forceLockLandscape = () => { lockOrientation(getVideoOrientationDir(video)); };
+            if (fsBtn) { try { fsBtn.click(); } catch(e){} }
+            container.classList.add('gt-fullscreen-active');
+            const reqFs = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen;
+            if (reqFs) {
+                const p = reqFs.call(container);
+                if (p && p.then) {
+                    p.then(() => setTimeout(forceLockLandscape, 150)).catch(()=>{
+                        if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+                        setTimeout(forceLockLandscape, 150);
+                    });
+                } else { setTimeout(forceLockLandscape, 150); }
+            } else if (video.webkitEnterFullscreen) {
+                video.webkitEnterFullscreen(); setTimeout(forceLockLandscape, 150);
+            }
         }
     };
 
@@ -365,8 +212,6 @@
         @keyframes gt-slide-l { 0% { transform: translateX(4px); opacity: 0; } 40% { opacity: 1; } 100% { transform: translateX(-4px); opacity: 0; } }
         :fullscreen { background-color: #000 !important; }
 
-        #gt-css-landscape-overlay { touch-action: none !important; }
-
         .gt-ui-layer { position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none !important; z-index: 2147483647 !important; }
         .gt-mini-progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: rgba(255,255,255,0.2); z-index: 2147483640; pointer-events: none; overflow: hidden; opacity: 0.9; transition: height 0.2s, opacity 0.3s; box-shadow: 0 -1px 1px rgba(0,0,0,0.2); }
         .gt-mini-progress .gt-fill { height: 100%; width: 0%; background: ${CFG.progressBarColor}; transition: width 0.1s linear; box-shadow: 0 0 4px ${CFG.progressBarColor}; }
@@ -383,31 +228,49 @@
         .gt-ui-visible .gt-btn-base.hidden-by-state { display: none !important; pointer-events: none !important; }
         .gt-btn-base:active { opacity: 0.9 !important; color: #fff; }
 
+        /* ===== 일반 모드 배치 ===== */
+        /* 왼쪽 상단: PIP, 스크린샷 */
         .gt-pip-btn { top: 40px; left: 10px; }
         .gt-shot-btn { top: calc(40px + 32px); left: 10px; }
+
+        /* 오른쪽 상단: 탐색모드, 탐색값 */
         .gt-seek-mode-btn { top: 40px; right: 10px; }
         .gt-seek-val-btn { top: calc(40px + 32px); right: 10px; }
+
+        /* 오른쪽 하단: 잠금, 모드(속도/줌) */
         .gt-lock-btn { bottom: 48px; right: 10px; }
         .gt-mode-btn { bottom: calc(48px + 32px); right: 10px; }
+
+        /* 하단 중앙: 화면비율, 회전 (상시) + 속도리셋, 줌리셋 (조건부) */
         .gt-fit-btn { bottom: 32px; left: 33%; transform: translateX(-50%); }
         .gt-rotate-btn { bottom: 32px; left: 67%; transform: translateX(-50%); }
         .gt-reset-speed-btn { bottom: 32px; left: calc(33% - 36px); transform: translateX(-50%); }
         .gt-reset-zoom-btn { bottom: 32px; left: calc(67% + 36px); transform: translateX(-50%); }
 
+        /* ===== 전체화면 배치 ===== */
         :fullscreen .gt-btn-base, .gt-fullscreen-active .gt-btn-base { width: 38px; height: 38px; }
         :fullscreen .gt-ui-visible .gt-btn-base, .gt-fullscreen-active .gt-ui-visible .gt-btn-base { opacity: 0.5 !important; }
         :fullscreen .gt-btn-base svg, .gt-fullscreen-active .gt-btn-base svg { width: 22px; height: 22px; }
         :fullscreen .gt-btn-base span, .gt-fullscreen-active .gt-btn-base span { font-size: 14px; }
+
+        /* 왼쪽 상단 */
         :fullscreen .gt-pip-btn, .gt-fullscreen-active .gt-pip-btn { top: 55px; left: 20px; }
         :fullscreen .gt-shot-btn, .gt-fullscreen-active .gt-shot-btn { top: calc(55px + 50px); left: 20px; }
+
+        /* 오른쪽 상단 */
         :fullscreen .gt-seek-mode-btn, .gt-fullscreen-active .gt-seek-mode-btn { top: 55px; right: 20px; }
         :fullscreen .gt-seek-val-btn, .gt-fullscreen-active .gt-seek-val-btn { top: calc(55px + 50px); right: 20px; }
+
+        /* 오른쪽 하단 */
         :fullscreen .gt-lock-btn, .gt-fullscreen-active .gt-lock-btn { bottom: 60px; right: 20px; }
         :fullscreen .gt-mode-btn, .gt-fullscreen-active .gt-mode-btn { bottom: calc(60px + 50px); right: 20px; }
+
+        /* 하단 중앙 */
         :fullscreen .gt-fit-btn, .gt-fullscreen-active .gt-fit-btn { bottom: 40px; left: 33%; transform: translateX(-50%); }
         :fullscreen .gt-rotate-btn, .gt-fullscreen-active .gt-rotate-btn { bottom: 40px; left: 67%; transform: translateX(-50%); }
         :fullscreen .gt-reset-speed-btn, .gt-fullscreen-active .gt-reset-speed-btn { bottom: 40px; left: calc(33% - 48px); transform: translateX(-50%); }
         :fullscreen .gt-reset-zoom-btn, .gt-fullscreen-active .gt-reset-zoom-btn { bottom: 40px; left: calc(67% + 48px); transform: translateX(-50%); }
+
     `);
 
     const SVG_LOCK = `<svg viewBox="0 0 24 24" width="100%" height="100%"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`;
@@ -488,7 +351,7 @@
 
         if (e.touches && e.touches.length > 0) {
             const isFS = !!getFS() || (rootContainer && rootContainer.classList.contains('gt-fullscreen-active'));
-            if (!isFS && !isCssLandscape) {
+            if (!isFS) {
                 const checkBox = rootContainer || targetVideo;
                 const rect = checkBox.getBoundingClientRect();
                 const touch = e.touches[0];
@@ -531,7 +394,8 @@
             [btnMode, btnRot, btnRst, btnZoomRst, btnSeekMode, btnSeekVal, btnFit, btnShot, btnPip].forEach(b => b?.classList.add('hidden-by-state'));
         } else {
             if(shield) shield.style.display = 'none';
-            const isFS = !!getFS() || (root && root.classList && root.classList.contains('gt-fullscreen-active')) || isCssLandscape;
+            // ★ 회전 버튼: 전체화면 조건 제거, 항상 표시 (하단 중앙에 배치됨)
+            const isFS = !!getFS() || (root && root.classList && root.classList.contains('gt-fullscreen-active'));
             [btnMode, btnSeekMode, btnSeekVal, btnShot, btnPip].forEach(b => b?.classList.remove('hidden-by-state'));
             if (btnRot) { if (isFS) btnRot.classList.remove('hidden-by-state'); else btnRot.classList.add('hidden-by-state'); }
             if (btnFit) { if (isFS) btnFit.classList.remove('hidden-by-state'); else btnFit.classList.add('hidden-by-state'); }
@@ -600,7 +464,6 @@
 
     const ensureUIAndWrapper = (hit) => {
         let { root, video, isNaked } = hit;
-        if (!video) return root;
         if (isNaked) { video.setAttribute('controlslist', 'nofullscreen'); }
 
         let uiLayer = root.querySelector('.gt-ui-layer');
@@ -615,20 +478,21 @@
             ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'dblclick', 'touchstart', 'touchend'].forEach(evt => shield.addEventListener(evt, blk, {capture:true, passive:false}));
             uiLayer.appendChild(shield);
 
+            // 왼쪽 상단: PIP
             if (document.pictureInPictureEnabled) {
                 const pipBtn = document.createElement('div'); pipBtn.className = 'gt-btn-base gt-pip-btn'; pipBtn.innerHTML = SVG_PIP;
                 bindTap(pipBtn, () => {
                     if (document.pictureInPictureElement) document.exitPictureInPicture();
-                    else if (video) video.requestPictureInPicture().catch(() => showMsg('PIP 모드 실행 실패'));
+                    else video.requestPictureInPicture().catch(() => showMsg('PIP 모드 실행 실패'));
                     wakeUpUI(root, video);
                 });
                 uiLayer.appendChild(pipBtn);
             }
 
+            // 왼쪽 상단: 스크린샷
             const shotBtn = document.createElement('div'); shotBtn.className = 'gt-btn-base gt-shot-btn'; shotBtn.innerHTML = SVG_SHOT;
             bindTap(shotBtn, () => {
                 try {
-                    if (!video) return;
                     const canvas = document.createElement('canvas');
                     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
                     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -641,21 +505,25 @@
             });
             uiLayer.appendChild(shotBtn);
 
+            // 오른쪽 상단: 탐색 모드
             const smBtn = document.createElement('div'); smBtn.className = 'gt-btn-base gt-seek-mode-btn';
             bindTap(smBtn, () => { seekMode = seekMode === 'sec' ? 'frame' : 'sec'; GM_setValue('gt_seek_mode', seekMode); updateUIState(root, video); showMsg(`탐색 모드: ${seekMode==='sec'?'초 단위':'프레임 단위'}`); wakeUpUI(root, video); }); uiLayer.appendChild(smBtn);
 
+            // 오른쪽 상단: 탐색 값
             const svBtn = document.createElement('div'); svBtn.className = 'gt-btn-base gt-seek-val-btn';
             bindTap(svBtn, () => { if(seekMode==='sec'){ const a=[10,15,30,1,5]; seekSec=a[(a.indexOf(seekSec)+1)%a.length]; GM_setValue('gt_seek_sec', seekSec); showMsg(`이동 간격: ${seekSec}초`);} else { fpsMode=fpsMode===30?60:30; GM_setValue('gt_fps', fpsMode); showMsg(`프레임 레이트: ${fpsMode}`);} updateUIState(root, video); wakeUpUI(root, video); }); uiLayer.appendChild(svBtn);
 
+            // 오른쪽 하단: 잠금
             const lBtn = document.createElement('div'); lBtn.className = 'gt-btn-base gt-lock-btn';
-            bindTap(lBtn, () => { state.isScreenLocked = !state.isScreenLocked; if(state.isScreenLocked && video){ const r=video.getBoundingClientRect(); const clk=new MouseEvent('click', {bubbles:true, cancelable:true, clientX:r.left+r.width/2, clientY:r.top+r.height/2}); video.dispatchEvent(clk); } wakeUpUI(root, video); }); uiLayer.appendChild(lBtn);
+            bindTap(lBtn, () => { state.isScreenLocked = !state.isScreenLocked; if(state.isScreenLocked){ const r=video.getBoundingClientRect(); const clk=new MouseEvent('click', {bubbles:true, cancelable:true, clientX:r.left+r.width/2, clientY:r.top+r.height/2}); video.dispatchEvent(clk); } wakeUpUI(root, video); }); uiLayer.appendChild(lBtn);
 
+            // 오른쪽 하단: 모드 (속도/줌)
             const mBtn = document.createElement('div'); mBtn.className = 'gt-btn-base gt-mode-btn';
             bindTap(mBtn, () => { state.pinchMode = state.pinchMode==='speed'?'zoom':'speed'; wakeUpUI(root, video); showMsg(state.pinchMode==='speed'?'두 손가락: 재생 속도 조절':'두 손가락: 화면 확대/이동'); }); uiLayer.appendChild(mBtn);
 
+            // 하단 중앙: 화면 비율
             const fitBtn = document.createElement('div'); fitBtn.className = 'gt-btn-base gt-fit-btn'; fitBtn.innerHTML = SVG_FIT;
             bindTap(fitBtn, () => {
-                if (!video) return;
                 const fits = ['contain', 'cover', 'fill'];
                 const current = video.style.objectFit || 'contain';
                 const next = fits[(fits.indexOf(current) + 1) % fits.length];
@@ -665,21 +533,24 @@
             });
             uiLayer.appendChild(fitBtn);
 
+            // 하단 중앙: 회전
             const rBtn = document.createElement('div'); rBtn.className = 'gt-btn-base gt-rotate-btn'; rBtn.innerHTML = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>`;
             bindTap(rBtn, () => { toggleOrientation(); wakeUpUI(root, video); }); uiLayer.appendChild(rBtn);
 
+            // 하단 중앙: 속도 리셋 (조건부)
             const rstBtn = document.createElement('div'); rstBtn.className = 'gt-btn-base gt-reset-speed-btn'; rstBtn.innerHTML = `<span>1.0x</span>`;
-            bindTap(rstBtn, () => { if (video) video.playbackRate = 1.0; showMsg('원래 속도로 복구'); wakeUpUI(root, video); }); uiLayer.appendChild(rstBtn);
+            bindTap(rstBtn, () => { video.playbackRate = 1.0; showMsg('원래 속도로 복구'); wakeUpUI(root, video); }); uiLayer.appendChild(rstBtn);
 
+            // 하단 중앙: 줌 리셋 (조건부)
             const zoomRstBtn = document.createElement('div'); zoomRstBtn.className = 'gt-btn-base gt-reset-zoom-btn'; zoomRstBtn.innerHTML = SVG_RESET_ZOOM;
-            bindTap(zoomRstBtn, () => { state.scale = 1.0; state.panX = 0; state.panY = 0; if (video && video.parentNode && video.parentNode.dataset.gtOverflow) { video.parentNode.style.overflow = video.parentNode.dataset.gtOverflow; } if (video) video.style.transform = `translate(0px, 0px) scale(1)`; showMsg('원래 크기로 복구'); wakeUpUI(root, video); }); uiLayer.appendChild(zoomRstBtn);
+            bindTap(zoomRstBtn, () => { state.scale = 1.0; state.panX = 0; state.panY = 0; if (video.parentNode && video.parentNode.dataset.gtOverflow) { video.parentNode.style.overflow = video.parentNode.dataset.gtOverflow; } if (video) video.style.transform = `translate(0px, 0px) scale(1)`; showMsg('원래 크기로 복구'); wakeUpUI(root, video); }); uiLayer.appendChild(zoomRstBtn);
 
             const style = window.getComputedStyle(root);
             if (style.position === 'static') root.style.position = 'relative';
             root.appendChild(uiLayer);
         }
 
-        if (video && !video.dataset.gtTimeupdate) {
+        if (!video.dataset.gtTimeupdate) {
             video.addEventListener('timeupdate', () => {
                 let ul = null;
                 if (root.shadowRoot) ul = root.shadowRoot.querySelector('.gt-ui-layer');
@@ -691,7 +562,7 @@
             }); video.dataset.gtTimeupdate = 'true';
         }
 
-        if (video && !video.dataset.gtStateLock) {
+        if (!video.dataset.gtStateLock) {
             let enforceDepth = 0;
             const MAX_ENFORCE_DEPTH = 2;
             video.addEventListener('pause', () => {
@@ -719,7 +590,6 @@
     };
 
     const handleAccumulatedSeek = (dir, uiLayer, video) => {
-        if (!video) return;
         activeSeekSide = dir;
         let stepVal, displayText;
         if (seekMode === 'sec') { stepVal = seekSec; seekAccumulator += stepVal; displayText = `${seekAccumulator}초`; }
@@ -744,10 +614,10 @@
         }, 800);
     };
 
-    const isInFullscreen = () => !!getFS() || !!(targetP && targetP.classList.contains('gt-fullscreen-active')) || isCssLandscape;
+    const isInFullscreen = () => !!getFS() || !!(targetP && targetP.classList.contains('gt-fullscreen-active'));
 
     const onStart = (e) => {
-        if (!getFS() && !isCssLandscape) { document.querySelectorAll('.gt-fullscreen-active').forEach(el => { el.classList.remove('gt-fullscreen-active'); }); }
+        if (!getFS()) { document.querySelectorAll('.gt-fullscreen-active').forEach(el => { el.classList.remove('gt-fullscreen-active'); }); }
 
         const isEx = isExcludedZone(e);
         const currentIsFS = isInFullscreen();
@@ -764,7 +634,7 @@
         let hit = identify(e); if (!hit || !hit.video) return;
         targetP = ensureUIAndWrapper(hit); targetV = hit.video;
 
-        const isFS = !!getFS() || targetP.classList.contains('gt-fullscreen-active') || isCssLandscape;
+        const isFS = !!getFS() || targetP.classList.contains('gt-fullscreen-active');
         if (isFS) {
             if (!targetP.classList.contains('gt-lock-touch-full')) targetP.classList.add('gt-lock-touch-full');
             if (!targetV.classList.contains('gt-lock-touch-full')) targetV.classList.add('gt-lock-touch-full');
@@ -816,14 +686,12 @@
 
         if (!e.touches || e.touches.length === 0) { isTouch = false; return; }
         isTouch = true; action = null; startX = e.touches[0].clientX; startY = e.touches[0].clientY;
-        if (targetV) { initTime = targetV.currentTime; initRate = targetV.playbackRate; }
+        initTime = targetV.currentTime; initRate = targetV.playbackRate;
 
         if (e.touches.length === 2) {
             const p = getPinchData(e.touches); initPinchDist = p.dist; initCenterX = p.cx; initCenterY = p.cy;
-            initScale = state.scale; initPanX = state.panX; initPanY = state.panY; initSpeed = targetV ? targetV.playbackRate : 1.0;
-            if (targetV) {
-                const rect = targetV.getBoundingClientRect(); originDx = initCenterX - (rect.left + rect.width/2 - initPanX); originDy = initCenterY - (rect.top + rect.height/2 - initPanY);
-            }
+            initScale = state.scale; initPanX = state.panX; initPanY = state.panY; initSpeed = targetV.playbackRate;
+            const rect = targetV.getBoundingClientRect(); originDx = initCenterX - (rect.left + rect.width/2 - initPanX); originDy = initCenterY - (rect.top + rect.height/2 - initPanY);
             action = 'pinch'; if (getFS()) hideUI(targetP);
         } else if (e.touches.length === 1 && state.scale === 1.0) {
             lpTimer = setTimeout(() => {
@@ -834,7 +702,7 @@
 
     const onMove = (e) => {
         if (state.isScreenLocked) {
-            if (!isExcludedZone(e) && (!!getFS() || isCssLandscape || (targetP && targetP.contains(e.target)))) {
+            if (!isExcludedZone(e) && (!!getFS() || (targetP && targetP.contains(e.target)))) {
                 if (e.cancelable) e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
             } return;
         }
@@ -895,7 +763,7 @@
         }
 
         if (state.isScreenLocked) {
-            if (!isEx && (!!getFS() || isCssLandscape || (targetP && targetP.contains(e.target)))) { e.stopPropagation(); e.stopImmediatePropagation(); }
+            if (!isEx && (!!getFS() || (targetP && targetP.contains(e.target)))) { e.stopPropagation(); e.stopImmediatePropagation(); }
             isTouch = false; return;
         }
         if (!isTouch) return;
@@ -934,7 +802,7 @@
             if (Date.now() < blockGestureUntil) {
                 if (!isEx) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
             } else if (evt === 'click') {
-                const isL = state.isScreenLocked && !isEx && ((!!getFS()) || isCssLandscape || (targetP && targetP.contains(e.target)));
+                const isL = state.isScreenLocked && !isEx && ((!!getFS()) || (targetP && targetP.contains(e.target)));
                 if (activeSeekSide || isL) { e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault(); if (isL && targetP && targetV) wakeUpUI(targetP, targetV); }
             }
         }, { capture: true, passive: false });
@@ -947,8 +815,6 @@
                 hideUI(targetP);
                 document.querySelectorAll('.gt-lock-touch-full').forEach(el => el.classList.remove('gt-lock-touch-full'));
                 unlockOrientation();
-                // ★ FIX: 부모가 fullscreen 해제 → iframe 내부도 상태 리셋
-                iframeFullscreenRequested = false;
                 if (state.scale !== 1.0) {
                     state.scale = 1.0; state.panX = 0; state.panY = 0;
                     const v = targetV || document.querySelector('video');
@@ -973,18 +839,5 @@
                 }, 200);
             }
         });
-    });
-
-    // ★ FIX: CSS 가로모드 중 화면 크기 변경 대응
-    window.addEventListener('resize', () => {
-        if (isCssLandscape) {
-            const video = targetV || document.querySelector('video');
-            if (video && video.dataset.gtOrigStyle !== undefined) {
-                const vw = window.innerWidth;
-                const vh = window.innerHeight;
-                video.style.width = `${vh}px`;
-                video.style.height = `${vw}px`;
-            }
-        }
     });
 })();
