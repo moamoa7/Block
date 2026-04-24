@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      67.06.0
-// @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: iframe 더블탭 CSS 가로모드 전환)
+// @version      67.07.0
+// @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: iframe 나체 video 더블탭 전체화면 수정)
 // @author       Gemini & Claude
 // @license      MIT
 // @match        *://*/*
@@ -43,6 +43,12 @@
     // ★ FIX: CSS 가로모드 fallback 상태 추적
     let isCssLandscape = false;
 
+    // ★ FIX: iframe 감지
+    const isInsideIframe = () => {
+        try { return window.self !== window.top; } catch(e) { return true; }
+    };
+    const inIframe = isInsideIframe();
+
     const lockOrientation = (dir) => {
         if (screen.orientation?.lock) {
             screen.orientation.lock(dir).catch(() => {
@@ -62,15 +68,46 @@
         return (v && v.videoWidth > 0 && v.videoWidth < v.videoHeight) ? 'portrait' : 'landscape';
     };
 
+    // ★ FIX: 부모 페이지에서 iframe fullscreen 메시지 수신 포함
     window.addEventListener('message', (e) => {
         if (e.data && e.data.type === 'gt_lock_orientation') {
             if (screen.orientation && screen.orientation.lock) screen.orientation.lock(e.data.dir).catch(()=>{});
         } else if (e.data && e.data.type === 'gt_unlock_orientation') {
             if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+        } else if (e.data && e.data.type === 'gt-iframe-fullscreen') {
+            // ★ FIX: iframe 내부에서 부모에게 요청 → 부모가 iframe 자체를 fullscreen
+            const iframes = document.querySelectorAll('iframe');
+            for (const iframe of iframes) {
+                try {
+                    if (iframe.contentWindow === e.source) {
+                        const reqFs = iframe.requestFullscreen || iframe.webkitRequestFullscreen || iframe.mozRequestFullScreen;
+                        if (reqFs) {
+                            const p = reqFs.call(iframe);
+                            if (p && p.then) {
+                                p.then(() => {
+                                    try {
+                                        const v = iframe.contentDocument?.querySelector('video');
+                                        if (v) lockOrientation(getVideoOrientationDir(v));
+                                        else lockOrientation('landscape');
+                                    } catch(ex) { lockOrientation('landscape'); }
+                                }).catch(() => {});
+                            }
+                        }
+                        break;
+                    }
+                } catch(ex) {}
+            }
+        } else if (e.data && e.data.type === 'gt-iframe-exitfullscreen') {
+            // ★ FIX: iframe 내부에서 부모에게 fullscreen 해제 요청
+            if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            unlockOrientation();
         }
     });
 
     const VIP_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], [data-testid="video-container"], .player-wrapper, .one-video-player_display-w, .one-video-player, vk-video-player, [aria-label="Видео плеер"], [aria-label="Video Player"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, iframe';
+
+    const KNOWN_PLAYERS = '.video-js, .vjs-custom-skin, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, .plyr, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer';
 
     const IGNORE_TOUCH_SELECTORS = '[data-vsc-ui="1"], .gt-btn-base, .dplayer-controller, .dplayer-bar-wrap, .vjs-control-bar, .art-bottom, .art-controls, .bpx-player-control-wrap, .plyr__controls, .xgplayer-controls, .tcplayer-controls, .prism-controlbar, .mui-player-controls, .wrapper-bottom, [data-testid="player_controls"], [data-testid="progress_bar"], [data-testid="volume-slider"], input[type="range"], .buttons-bar, .progress-bar-container';
 
@@ -133,6 +170,14 @@
         if (btn.dataset.gtIcon !== key) { btn.innerHTML = key; btn.dataset.gtIcon = key; }
     };
 
+    // ★ FIX: "나체 비디오" 감지 - 플레이어 라이브러리 래퍼 없이 video만 있는 경우
+    const isNakedVideo = (container, video) => {
+        if (!container || !video) return true;
+        if (container.matches && container.matches(KNOWN_PLAYERS)) return false;
+        if (findUp(container, KNOWN_PLAYERS)) return false;
+        return true;
+    };
+
     const hijackFullscreenAPI = () => {
         const fsMethods = ['requestFullscreen', 'webkitRequestFullscreen', 'mozRequestFullScreen', 'msRequestFullscreen'];
         fsMethods.forEach(method => {
@@ -157,72 +202,41 @@
     };
     hijackFullscreenAPI();
 
-    // ★ FIX: iframe 안에 있는지 감지
-    const isInsideIframe = () => {
-        try { return window.self !== window.top; } catch(e) { return true; }
-    };
-    const inIframe = isInsideIframe();
-
-    // ★ FIX: CSS 가로모드 fallback 함수
+    // ★ FIX: CSS 가로모드 fallback
     const fallbackCssLandscape = (video) => {
         if (!video) return;
 
         const vw = window.innerWidth;
         const vh = window.innerHeight;
 
-        // 오버레이 생성 (검은 배경)
         let overlay = document.getElementById('gt-css-landscape-overlay');
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.id = 'gt-css-landscape-overlay';
-            overlay.style.cssText = `
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                background: #000 !important;
-                z-index: 2147483645 !important;
-                pointer-events: none !important;
-            `;
+            overlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:#000!important;z-index:2147483645!important;pointer-events:none!important;';
             document.body.appendChild(overlay);
         }
 
-        // 원래 스타일 저장
         video.dataset.gtOrigStyle = video.getAttribute('style') || '';
 
-        // 비디오를 90도 회전하여 가로 모드처럼 표시
-        video.style.cssText = `
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: ${vh}px !important;
-            height: ${vw}px !important;
-            transform: rotate(90deg) translateY(-100%) !important;
-            transform-origin: top left !important;
-            object-fit: contain !important;
-            z-index: 2147483646 !important;
-            background: #000 !important;
-        `;
+        video.style.cssText = `position:fixed!important;top:0!important;left:0!important;width:${vh}px!important;height:${vw}px!important;transform:rotate(90deg) translateY(-100%)!important;transform-origin:top left!important;object-fit:contain!important;z-index:2147483646!important;background:#000!important;`;
 
         isCssLandscape = true;
         showMsg('가로 모드 (CSS)');
     };
 
-    // ★ FIX: CSS 가로모드 해제
     const exitCssLandscape = (video) => {
         if (!video) return;
 
-        // 원래 스타일 복원
         const origStyle = video.dataset.gtOrigStyle;
         if (origStyle !== undefined) {
-            video.setAttribute('style', origStyle);
+            if (origStyle) video.setAttribute('style', origStyle);
+            else video.removeAttribute('style');
             delete video.dataset.gtOrigStyle;
         } else {
             video.removeAttribute('style');
         }
 
-        // 오버레이 제거
         const overlay = document.getElementById('gt-css-landscape-overlay');
         if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
 
@@ -230,17 +244,26 @@
         showMsg('세로 모드');
     };
 
+    // ★ FIX: iframe 내부에서 부모에게 fullscreen 해제 요청을 보냈는지 추적
+    let iframeFullscreenRequested = false;
+
     const toggleNativeFullscreen = (container, video) => {
-        // ★ FIX: CSS 가로모드 상태이면 먼저 해제
+        // CSS 가로모드 상태이면 해제
         if (isCssLandscape) {
             exitCssLandscape(video);
-            container.classList.remove('gt-fullscreen-active');
-            unlockOrientation();
             return;
         }
 
         const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement) || container.classList.contains('gt-fullscreen-active');
         const fsBtn = container.querySelector('.art-icon-fullscreenOn, .art-control-fullscreen, .dplayer-full-icon, .plyr__control[data-plyr="fullscreen"], .vjs-fullscreen-control, .xgplayer-fullscreen, .tcplayer-fullscreen-btn, .prism-fullscreen-btn, [aria-label*="全屏"], [title*="全屏"], [aria-label*="전체 화면"], [title*="전체화면"], .fullscreen-btn, .bilibili-player-video-btn-fullscreen');
+
+        // ★ FIX: 부모에게 요청해서 fullscreen 된 상태 → 부모에게 해제 요청
+        if (iframeFullscreenRequested) {
+            try { window.parent.postMessage({ type: 'gt-iframe-exitfullscreen' }, '*'); } catch(e) {}
+            iframeFullscreenRequested = false;
+            container.classList.remove('gt-fullscreen-active');
+            return;
+        }
 
         if (isFS) {
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
@@ -248,65 +271,67 @@
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             container.classList.remove('gt-fullscreen-active');
             unlockOrientation();
-        } else {
-            const forceLockLandscape = () => { lockOrientation(getVideoOrientationDir(video)); };
+            return;
+        }
 
-            // ★ FIX: 항상 fullscreen을 먼저 시도, 실패 시 CSS fallback
-            if (fsBtn) { try { fsBtn.click(); } catch(e){} }
-            container.classList.add('gt-fullscreen-active');
+        // ★ FIX: iframe 내부 + 나체 video인 경우 → container fullscreen 하지 않음
+        if (inIframe && isNakedVideo(container, video)) {
+            // 1순위: 부모에게 iframe 자체를 fullscreen 요청
+            try {
+                window.parent.postMessage({ type: 'gt-iframe-fullscreen' }, '*');
+                iframeFullscreenRequested = true;
+            } catch(e) {}
 
-            const reqFs = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen;
-            if (reqFs) {
-                const p = reqFs.call(container);
-                if (p && p.then) {
-                    p.then(() => {
-                        setTimeout(forceLockLandscape, 150);
-                    }).catch(() => {
-                        // fullscreen 실패 → webkitEnterFullscreen 시도
-                        if (video && video.webkitEnterFullscreen) {
-                            try {
-                                video.webkitEnterFullscreen();
-                                setTimeout(forceLockLandscape, 150);
-                                return;
-                            } catch(e2) {}
-                        }
-                        // 그것도 실패 → orientation.lock 시도
-                        if (screen.orientation && screen.orientation.lock) {
-                            screen.orientation.lock('landscape').then(() => {
-                                showMsg('가로 모드');
-                                container.classList.remove('gt-fullscreen-active');
-                            }).catch(() => {
-                                // orientation.lock도 실패 → CSS fallback
-                                container.classList.remove('gt-fullscreen-active');
-                                fallbackCssLandscape(video);
-                            });
-                        } else {
-                            // orientation API 없음 → CSS fallback
-                            container.classList.remove('gt-fullscreen-active');
+            // 2순위: video 자체 fullscreen (iOS Safari 등)
+            if (video.webkitEnterFullscreen) {
+                try {
+                    video.webkitEnterFullscreen();
+                    lockOrientation(getVideoOrientationDir(video));
+                    return;
+                } catch(e) {}
+            }
+
+            // 부모 메시지가 성공했으면 잠시 기다려봄
+            setTimeout(() => {
+                // 부모가 fullscreen을 성공했는지 확인할 방법이 없으므로
+                // 300ms 후에도 fullscreen 아니면 CSS fallback
+                if (!document.fullscreenElement && !document.webkitFullscreenElement && !isCssLandscape) {
+                    // postMessage가 실패했을 수 있음 → CSS fallback
+                    // 하지만 부모가 성공했을 수도 있으므로 약간 더 기다림
+                    setTimeout(() => {
+                        if (!document.fullscreenElement && !document.webkitFullscreenElement && !isCssLandscape) {
+                            iframeFullscreenRequested = false;
                             fallbackCssLandscape(video);
                         }
-                    });
-                } else {
-                    setTimeout(forceLockLandscape, 150);
+                    }, 300);
                 }
-            } else if (video && video.webkitEnterFullscreen) {
-                video.webkitEnterFullscreen();
-                setTimeout(forceLockLandscape, 150);
-            } else {
-                // 어떤 fullscreen API도 없음 → orientation.lock 시도 → CSS fallback
-                if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock('landscape').then(() => {
-                        showMsg('가로 모드');
-                        container.classList.remove('gt-fullscreen-active');
-                    }).catch(() => {
+            }, 300);
+            return;
+        }
+
+        // ===== 일반 로직 (기존 67.03.0과 동일) =====
+        const forceLockLandscape = () => { lockOrientation(getVideoOrientationDir(video)); };
+        if (fsBtn) { try { fsBtn.click(); } catch(e){} }
+        container.classList.add('gt-fullscreen-active');
+        const reqFs = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen;
+        if (reqFs) {
+            const p = reqFs.call(container);
+            if (p && p.then) {
+                p.then(() => setTimeout(forceLockLandscape, 150)).catch(() => {
+                    if (video.webkitEnterFullscreen) {
+                        video.webkitEnterFullscreen();
+                        setTimeout(forceLockLandscape, 150);
+                    } else {
                         container.classList.remove('gt-fullscreen-active');
                         fallbackCssLandscape(video);
-                    });
-                } else {
-                    container.classList.remove('gt-fullscreen-active');
-                    fallbackCssLandscape(video);
-                }
-            }
+                    }
+                });
+            } else { setTimeout(forceLockLandscape, 150); }
+        } else if (video.webkitEnterFullscreen) {
+            video.webkitEnterFullscreen(); setTimeout(forceLockLandscape, 150);
+        } else {
+            container.classList.remove('gt-fullscreen-active');
+            fallbackCssLandscape(video);
         }
     };
 
@@ -340,7 +365,6 @@
         @keyframes gt-slide-l { 0% { transform: translateX(4px); opacity: 0; } 40% { opacity: 1; } 100% { transform: translateX(-4px); opacity: 0; } }
         :fullscreen { background-color: #000 !important; }
 
-        /* ★ FIX: CSS 가로모드 시 터치 제어 */
         #gt-css-landscape-overlay { touch-action: none !important; }
 
         .gt-ui-layer { position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none !important; z-index: 2147483647 !important; }
@@ -359,7 +383,6 @@
         .gt-ui-visible .gt-btn-base.hidden-by-state { display: none !important; pointer-events: none !important; }
         .gt-btn-base:active { opacity: 0.9 !important; color: #fff; }
 
-        /* ===== 일반 모드 배치 ===== */
         .gt-pip-btn { top: 40px; left: 10px; }
         .gt-shot-btn { top: calc(40px + 32px); left: 10px; }
         .gt-seek-mode-btn { top: 40px; right: 10px; }
@@ -371,7 +394,6 @@
         .gt-reset-speed-btn { bottom: 32px; left: calc(33% - 36px); transform: translateX(-50%); }
         .gt-reset-zoom-btn { bottom: 32px; left: calc(67% + 36px); transform: translateX(-50%); }
 
-        /* ===== 전체화면 배치 ===== */
         :fullscreen .gt-btn-base, .gt-fullscreen-active .gt-btn-base { width: 38px; height: 38px; }
         :fullscreen .gt-ui-visible .gt-btn-base, .gt-fullscreen-active .gt-ui-visible .gt-btn-base { opacity: 0.5 !important; }
         :fullscreen .gt-btn-base svg, .gt-fullscreen-active .gt-btn-base svg { width: 22px; height: 22px; }
@@ -925,6 +947,8 @@
                 hideUI(targetP);
                 document.querySelectorAll('.gt-lock-touch-full').forEach(el => el.classList.remove('gt-lock-touch-full'));
                 unlockOrientation();
+                // ★ FIX: 부모가 fullscreen 해제 → iframe 내부도 상태 리셋
+                iframeFullscreenRequested = false;
                 if (state.scale !== 1.0) {
                     state.scale = 1.0; state.panX = 0; state.panY = 0;
                     const v = targetV || document.querySelector('video');
@@ -951,7 +975,7 @@
         });
     });
 
-    // ★ FIX: 화면 회전 시 CSS 가로모드 업데이트
+    // ★ FIX: CSS 가로모드 중 화면 크기 변경 대응
     window.addEventListener('resize', () => {
         if (isCssLandscape) {
             const video = targetV || document.querySelector('video');
