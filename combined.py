@@ -22,7 +22,6 @@ ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/7.txt",    # Japanese
     "https://filters.adtidy.org/windows/filters/11.txt",   # Mobile Ads
     "https://filters.adtidy.org/windows/filters/14.txt",   # Annoyances
-    "https://filters.adtidy.org/windows/filters/118.txt",  # EasyPrivacy
     "https://filters.adtidy.org/windows/filters/227.txt",  # List-KR (Korean)
 ]
 
@@ -31,7 +30,6 @@ ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/7_optimized.txt",
     "https://filters.adtidy.org/android/filters/11_optimized.txt",
     "https://filters.adtidy.org/android/filters/14_optimized.txt",
-    "https://filters.adtidy.org/android/filters/118_optimized.txt",
     "https://filters.adtidy.org/android/filters/227_optimized.txt",
 ]
 
@@ -47,8 +45,6 @@ FILTER_NAMES = {
     "11_optimized.txt":  "AdGuard Mobile Ads filter",
     "14.txt":            "AdGuard Annoyances filter",
     "14_optimized.txt":  "AdGuard Annoyances filter",
-    "118.txt":           "EasyPrivacy",
-    "118_optimized.txt": "EasyPrivacy",
     "227.txt":           "List-KR Classic filter list",
     "227_optimized.txt": "List-KR Classic filter list",    
 }
