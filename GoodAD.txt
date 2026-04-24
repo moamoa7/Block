@@ -411,8 +411,8 @@ aagag.com#$#.la { position: absolute !important; left: -3000px !important; width
 ! 디시인사이드 (https://gall.dcinside.com)
 ! - 오른쪽 배너 공간
 ! - - - 유니콘Pro에 없는거 (List-KR)
-!##[class*="rightbanner"]
-!dcinside.com##.stickyunit
+##[class*="rightbanner"]
+dcinside.com##.stickyunit
 ! - 게시물 하단 배너
 !||dctrend.ai/widget/widget.html
 !gall.dcinside.com##.dctrend_ranking
