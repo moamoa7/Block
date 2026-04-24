@@ -19,18 +19,28 @@ except ImportError:
 # ============================================================
 ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/2.txt",    # Base (EasyList 포함)
+    "https://filters.adtidy.org/windows/filters/4.txt",    # Social Media
     "https://filters.adtidy.org/windows/filters/7.txt",    # Japanese
     "https://filters.adtidy.org/windows/filters/11.txt",   # Mobile Ads
-    "https://filters.adtidy.org/windows/filters/14.txt",   # Annoyances
+    "https://filters.adtidy.org/windows/filters/18.txt",   # Cookie Notices
+    "https://filters.adtidy.org/windows/filters/19.txt",   # Popups
+    "https://filters.adtidy.org/windows/filters/20.txt",   # Mobile App Banners
+    "https://filters.adtidy.org/windows/filters/21.txt",   # Other Annoyances
+    "https://filters.adtidy.org/windows/filters/22.txt",   # Widgets
     "https://filters.adtidy.org/windows/filters/227.txt",  # List-KR (Korean)
 ]
 
 ADGUARD_MOBILE_URLS = [
-    "https://filters.adtidy.org/android/filters/2_optimized.txt",
-    "https://filters.adtidy.org/android/filters/7_optimized.txt",
-    "https://filters.adtidy.org/android/filters/11_optimized.txt",
-    "https://filters.adtidy.org/android/filters/14_optimized.txt",
-    "https://filters.adtidy.org/android/filters/227_optimized.txt",
+    "https://filters.adtidy.org/android/filters/2_optimized.txt",    # Base (EasyList 포함)
+    "https://filters.adtidy.org/windows/filters/4_optimized.txt",    # Social Media
+    "https://filters.adtidy.org/android/filters/7_optimized.txt",    # Japanese
+    "https://filters.adtidy.org/android/filters/11_optimized.txt",   # Mobile Ads
+    "https://filters.adtidy.org/windows/filters/18_optimized.txt",   # Cookie Notices
+    "https://filters.adtidy.org/windows/filters/19_optimized.txt",   # Popups
+    "https://filters.adtidy.org/windows/filters/20_optimized.txt",   # Mobile App Banners
+    "https://filters.adtidy.org/windows/filters/21_optimized.txt",   # Other Annoyances
+    "https://filters.adtidy.org/windows/filters/22_optimized.txt",   # Widgets
+    "https://filters.adtidy.org/android/filters/227_optimized.txt",  # List-KR (Korean)
 ]
 
 # ============================================================
@@ -39,12 +49,22 @@ ADGUARD_MOBILE_URLS = [
 FILTER_NAMES = {
     "2.txt":             "AdGuard Base filter (EasyList + AdGuard English filter)",
     "2_optimized.txt":   "AdGuard Base filter (EasyList + AdGuard English filter)",
+    "4.txt":             "AdGuard Social Media filter",
+    "4_optimized.txt":   "AdGuard Social Media filter",
     "7.txt":             "AdGuard Japanese filter",
     "7_optimized.txt":   "AdGuard Japanese filter",
     "11.txt":            "AdGuard Mobile Ads filter",
     "11_optimized.txt":  "AdGuard Mobile Ads filter",
-    "14.txt":            "AdGuard Annoyances filter",
-    "14_optimized.txt":  "AdGuard Annoyances filter",
+    "18.txt":            "AdGuard Cookie Notices filter",
+    "18_optimized.txt":  "AdGuard Cookie Notices filter",
+    "19.txt":            "AdGuard Popups filter",
+    "19_optimized.txt":  "AdGuard Popups filter",    
+    "20.txt":            "AdGuard Mobile App Banners filter",
+    "20_optimized.txt":  "AdGuard Mobile App Banners filter",
+    "21.txt":            "AdGuard Other Annoyances filter",
+    "21_optimized.txt":  "AdGuard Other Annoyances filter",
+    "22.txt":            "AdGuard Widgets filter",
+    "22_optimized.txt":  "AdGuard Widgets filter",
     "227.txt":           "List-KR Classic filter list",
     "227_optimized.txt": "List-KR Classic filter list",    
 }
