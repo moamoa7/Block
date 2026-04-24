@@ -54,10 +54,7 @@ FILTER_NAMES = {
     "118.txt":           "EasyPrivacy",
     "118_optimized.txt": "EasyPrivacy",
     "227.txt":           "List-KR Classic filter list",
-    "227_optimized.txt": "List-KR Classic filter list",
-    "244.txt":           "YousList (Korean filter)",
-    "244_optimized.txt": "YousList (Korean filter)",
-    
+    "227_optimized.txt": "List-KR Classic filter list",    
 }
 
 def get_source_name(url):
