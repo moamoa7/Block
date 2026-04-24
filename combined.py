@@ -24,7 +24,8 @@ ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/14.txt",   # Annoyances
     "https://filters.adtidy.org/windows/filters/17.txt",   # URL Tracking
     "https://filters.adtidy.org/windows/filters/118.txt",  # EasyPrivacy
-    "https://filters.adtidy.org/windows/filters/227.txt",  # List-KR
+    "https://filters.adtidy.org/windows/filters/227.txt",  # List-KR (Korean)
+    "https://filters.adtidy.org/windows/filters/244.txt",  # YousList (Korean)
 ]
 
 ADGUARD_MOBILE_URLS = [
@@ -35,6 +36,7 @@ ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/17_optimized.txt",
     "https://filters.adtidy.org/android/filters/118_optimized.txt",
     "https://filters.adtidy.org/android/filters/227_optimized.txt",
+    "https://filters.adtidy.org/android/filters/244_optimized.txt",
 ]
 
 # ============================================================
@@ -55,6 +57,9 @@ FILTER_NAMES = {
     "118_optimized.txt": "EasyPrivacy",
     "227.txt":           "List-KR Classic filter list",
     "227_optimized.txt": "List-KR Classic filter list",
+    "244.txt":           "YousList (Korean filter)",
+    "244_optimized.txt": "YousList (Korean filter)",
+    
 }
 
 def get_source_name(url):
