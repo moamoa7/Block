@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      10.2.4
+// @version      10.2.5
 // @description  영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + 좌우 반전 + 확대/축소
 // @match        *://*/*
+// @exclude      *://challenges.cloudflare.com/*
 // @grant        none
 // @run-at       document-start
 // ==/UserScript==
@@ -11,13 +12,16 @@
 (() => {
   'use strict';
 
+  // Cloudflare CDN-CGI 경로도 조기 차단
+  if (location.pathname.startsWith('/cdn-cgi/')) return;
+
   if (window.__ytd_booted) return;
   window.__ytd_booted = true;
 
   let ttPolicy = null;
   if (typeof trustedTypes !== 'undefined' && trustedTypes.createPolicy) {
     try { ttPolicy = trustedTypes.createPolicy('ytd-tint-detector', { createHTML: s => s }); }
-    catch (_) { try { ttPolicy = trustedTypes.createPolicy('default', { createHTML: s => s }); } catch (__) {} }
+    catch (_) { /* default 정책은 건드리지 않음 — Cloudflare 등 외부 서비스 충돌 방지 */ }
   }
   function safeHTML(str) { return ttPolicy ? ttPolicy.createHTML(str) : str; }
 
@@ -87,11 +91,12 @@
 
 
   /* ═══════════════════════════════════════════════════════
-     ★ Video Maximizer 모듈 (v10.2.4)
+     ★ Video Maximizer 모듈 (v10.2.5)
      ─────────────────────────────────────────────────────
      v10.2.4: wrapper 분기 완전 제거.
               항상 video를 body로 이동 + position:fixed.
               어떤 사이트든 video만 뽑아서 화면에 꽉 채움.
+     v10.2.5: Cloudflare 챌린지 충돌 방지.
   ═══════════════════════════════════════════════════════ */
   const Maximizer = (() => {
     const MAX_CLASS = 'ytd-vmax-max';
