@@ -2,7 +2,7 @@
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
 // @version      67.05.0
-// @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: iframe 전체화면 수정)
+// @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: iframe 더블탭 가로모드 전환)
 // @author       Gemini & Claude
 // @license      MIT
 // @match        *://*/*
@@ -154,6 +154,12 @@
     };
     hijackFullscreenAPI();
 
+    // ★ FIX: iframe 안에 있는지 감지
+    const isInsideIframe = () => {
+        try { return window.self !== window.top; } catch(e) { return true; }
+    };
+    const inIframe = isInsideIframe();
+
     const toggleNativeFullscreen = (container, video) => {
         const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement) || container.classList.contains('gt-fullscreen-active');
         const fsBtn = container.querySelector('.art-icon-fullscreenOn, .art-control-fullscreen, .dplayer-full-icon, .plyr__control[data-plyr="fullscreen"], .vjs-fullscreen-control, .xgplayer-fullscreen, .tcplayer-fullscreen-btn, .prism-fullscreen-btn, [aria-label*="全屏"], [title*="全屏"], [aria-label*="전체 화면"], [title*="전체화면"], .fullscreen-btn, .bilibili-player-video-btn-fullscreen');
@@ -164,6 +170,19 @@
             container.classList.remove('gt-fullscreen-active');
             unlockOrientation();
         } else {
+            // ★ FIX: iframe 내부에서 실행 중이면, requestFullscreen 대신 가로모드 토글
+            if (inIframe) {
+                const isLandscape = screen.orientation && screen.orientation.type.startsWith('landscape');
+                if (isLandscape) {
+                    unlockOrientation();
+                    showMsg('세로 모드');
+                } else {
+                    lockOrientation('landscape');
+                    showMsg('가로 모드');
+                }
+                return;
+            }
+
             const forceLockLandscape = () => { lockOrientation(getVideoOrientationDir(video)); };
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
             container.classList.add('gt-fullscreen-active');
@@ -172,12 +191,19 @@
                 const p = reqFs.call(container);
                 if (p && p.then) {
                     p.then(() => setTimeout(forceLockLandscape, 150)).catch(()=>{
-                        if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
-                        setTimeout(forceLockLandscape, 150);
+                        // ★ FIX: fullscreen 실패 시에도 가로모드 전환으로 fallback
+                        lockOrientation('landscape');
+                        showMsg('가로 모드');
+                        container.classList.remove('gt-fullscreen-active');
                     });
                 } else { setTimeout(forceLockLandscape, 150); }
             } else if (video.webkitEnterFullscreen) {
                 video.webkitEnterFullscreen(); setTimeout(forceLockLandscape, 150);
+            } else {
+                // ★ FIX: 어떤 fullscreen API도 없으면 가로모드 전환
+                lockOrientation('landscape');
+                showMsg('가로 모드');
+                container.classList.remove('gt-fullscreen-active');
             }
         }
     };
@@ -270,20 +296,6 @@
 
     const getFS = () => document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
 
-    // ★ FIX: 터치 좌표에 iframe이 있는지 확인하는 헬퍼
-    const isTouchOnIframe = (e) => {
-        let cx, cy;
-        if (e.touches && e.touches.length > 0) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
-        else if (e.changedTouches && e.changedTouches.length > 0) { cx = e.changedTouches[0].clientX; cy = e.changedTouches[0].clientY; }
-        else { cx = e.clientX; cy = e.clientY; }
-        if (cx === undefined || cy === undefined) return false;
-        const els = document.elementsFromPoint(cx, cy) || [];
-        for (let el of els) {
-            if (el.tagName === 'IFRAME') return true;
-        }
-        return false;
-    };
-
     const identify = (e) => {
         let targetVideo = null;
         let rootContainer = null;
@@ -321,13 +333,6 @@
                 return null;
             };
             targetVideo = deepSearch(document);
-        }
-
-        // ★ FIX: iframe 위를 터치했는데 video를 못 찾으면(= cross-origin iframe 내부 video),
-        // 부모 페이지에서는 null을 반환하여 이벤트를 가로채지 않도록 함.
-        // iframe 내부에서 실행되는 스크립트 인스턴스가 대신 처리함.
-        if (!targetVideo && cx !== undefined && cy !== undefined) {
-            if (isTouchOnIframe(e)) return null; // ★ FIX: iframe 위면 바로 null 반환
         }
 
         if (!targetVideo) {
@@ -625,7 +630,7 @@
 
         if (isEx) { clearTimeout(lpTimer); return; }
 
-        let hit = identify(e); if (!hit || !hit.video) return; // ★ FIX: identify가 null이면(iframe 위) 아무것도 안 함 → 이벤트가 iframe으로 전달됨
+        let hit = identify(e); if (!hit || !hit.video) return;
         targetP = ensureUIAndWrapper(hit); targetV = hit.video;
 
         const isFS = !!getFS() || targetP.classList.contains('gt-fullscreen-active');
