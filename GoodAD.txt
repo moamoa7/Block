@@ -411,11 +411,11 @@ aagag.com#$#.la { position: absolute !important; left: -3000px !important; width
 ! 디시인사이드 (https://gall.dcinside.com)
 ! - 오른쪽 배너 공간
 ! - - - 유니콘Pro에 없는거 (List-KR)
-##[class*="rightbanner"]
-dcinside.com##.stickyunit
+!##[class*="rightbanner"]
+!dcinside.com##.stickyunit
 ! - 게시물 하단 배너
-||dctrend.ai/widget/widget.html
-gall.dcinside.com##.dctrend_ranking
+!||dctrend.ai/widget/widget.html
+!gall.dcinside.com##.dctrend_ranking
 ! 디시갤러리 댓글 디시트렌드 (List-KR)
 ! - - -  유니콘Pro에는 없음
 !dcinside.com##ul.cmt_list > li[id^="comment_li_"].ub-content.dory
