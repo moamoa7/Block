@@ -1,14 +1,14 @@
 # Filter Status Report
 
-**Updated:** 2026-04-25 08:49:35 (KST)
+**Updated:** 2026-04-25 12:19:49 (KST)
 
 ## PC
 **Sources:** 10 total | ✅ 10 OK | ❌ 0 Failed
-**Total rules:** 235,998
+**Total rules:** 236,035
 
 | Status | Code | Rules | Source |
 |--------|------|-------|--------|
-| ✅ OK | 200 | 140,299 | AdGuard Base filter (EasyList + AdGuard English filter) |
+| ✅ OK | 200 | 140,336 | AdGuard Base filter (EasyList + AdGuard English filter) |
 | ✅ OK | 200 | 15,879 | AdGuard Social Media filter |
 | ✅ OK | 200 | 11,818 | AdGuard Japanese filter |
 | ✅ OK | 200 | 8,338 | AdGuard Mobile Ads filter |
@@ -21,11 +21,11 @@
 
 ## Mobile
 **Sources:** 10 total | ✅ 10 OK | ❌ 0 Failed
-**Total rules:** 115,504
+**Total rules:** 115,541
 
 | Status | Code | Rules | Source |
 |--------|------|-------|--------|
-| ✅ OK | 200 | 49,063 | AdGuard Base filter (EasyList + AdGuard English filter) |
+| ✅ OK | 200 | 49,100 | AdGuard Base filter (EasyList + AdGuard English filter) |
 | ✅ OK | 200 | 10,799 | AdGuard Social Media filter |
 | ✅ OK | 200 | 11,822 | AdGuard Japanese filter |
 | ✅ OK | 200 | 8,360 | AdGuard Mobile Ads filter |
