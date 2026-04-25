@@ -36,10 +36,9 @@
 ! - 국내 사이트 접속 안되는거 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 @@||*kr^$stealth=dpi
-@@||*com^$stealth=dpi
-!@@||lgtwins.com^$stealth=dpi
-!@@||koreainvestment.com$stealth=dpi
-!@@||truefriend.com$stealth=dpi
+@@||lgtwins.com^$stealth=dpi
+@@||koreainvestment.com$stealth=dpi
+@@||truefriend.com$stealth=dpi
 !
 !
 !
