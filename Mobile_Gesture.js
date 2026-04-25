@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      68.07.0
+// @version      68.08.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 전체화면 전용)
 // @author       Gemini & Claude
 // @license      MIT
@@ -47,7 +47,7 @@
             || (root && root.classList.contains('gt-fullscreen-active'));
     };
 
-    // ★ 핵심 수정: 전체화면 아닐 때 touch-action을 완전히 제거
+    // ★ 수정: 전체화면/확대 시에만 touch-action:none, 그 외엔 완전 제거
     const updateTouchAction = (video, root) => {
         const isFS = isFullscreenActive(root);
         const isZoomed = video && video.gtState && video.gtState.scale > 1.0;
@@ -58,6 +58,34 @@
         } else {
             if (video) video.style.removeProperty('touch-action');
             if (root && root !== document.body) root.style.removeProperty('touch-action');
+        }
+    };
+
+    // ★ 수정: 전체화면/확대 시에만 overscroll-behavior 적용
+    const updateOverscrollBehavior = (video, root) => {
+        const isFS = isFullscreenActive(root);
+        const isZoomed = video && video.gtState && video.gtState.scale > 1.0;
+
+        if (isFS || isZoomed) {
+            if (video) video.style.setProperty('overscroll-behavior', 'none', 'important');
+            if (root && root !== document.body) root.style.setProperty('overscroll-behavior', 'none', 'important');
+        } else {
+            if (video) video.style.removeProperty('overscroll-behavior');
+            if (root && root !== document.body) root.style.removeProperty('overscroll-behavior');
+        }
+    };
+
+    // ★ 수정: wrapper overflow도 확대 시에만 hidden
+    const updateWrapperOverflow = (video) => {
+        const wrapper = video && video.parentNode;
+        if (!wrapper || !wrapper.classList.contains('gt-video-wrapper')) return;
+        const isZoomed = video.gtState && video.gtState.scale > 1.0;
+        const isFS = isFullscreenActive(video.gtRoot);
+
+        if (isFS || isZoomed) {
+            wrapper.style.overflow = 'hidden';
+        } else {
+            wrapper.style.overflow = wrapper.dataset.gtOverflow || 'visible';
         }
     };
 
@@ -257,6 +285,7 @@
 
                         if (v) {
                             updateTouchAction(v, v.gtRoot || target);
+                            updateOverscrollBehavior(v, v.gtRoot || target);
                         }
 
                         const promise = originalMethod.apply(target, args);
@@ -269,7 +298,7 @@
     };
     hijackFullscreenAPI();
 
-    // ★ 핵심 수정: restoreVideoStyle – touch-action 완전 제거
+    // ★ 수정: 모든 제한 스타일을 완전히 제거
     const restoreVideoStyle = (video) => {
         if (!video) return;
 
@@ -288,18 +317,16 @@
             video.style.transform = '';
         }
 
-        // ★ touch-action 완전 제거
         video.style.removeProperty('touch-action');
+        video.style.removeProperty('overscroll-behavior');
 
         const wrapper = video.parentNode;
         if (wrapper && wrapper.classList.contains('gt-video-wrapper')) {
             wrapper.style.height = 'auto';
             wrapper.style.maxWidth = '100%';
             wrapper.style.removeProperty('touch-action');
-
-            if (wrapper.dataset.gtOverflow) {
-                wrapper.style.overflow = wrapper.dataset.gtOverflow;
-            }
+            wrapper.style.removeProperty('overscroll-behavior');
+            wrapper.style.overflow = wrapper.dataset.gtOverflow || 'visible';
 
             if (wrapper.dataset.gtOrigW) {
                 const origW = wrapper.dataset.gtOrigW;
@@ -309,6 +336,26 @@
             video.style.width = '100%';
             video.style.height = 'auto';
             video.style.maxWidth = '100%';
+        }
+    };
+
+    // ★ 수정: 모든 스크롤 차단 스타일을 한꺼번에 제거하는 헬퍼
+    const clearAllBlockingStyles = (video) => {
+        if (!video) return;
+        video.style.removeProperty('touch-action');
+        video.style.removeProperty('overscroll-behavior');
+
+        const root = video.gtRoot;
+        if (root && root !== document.body) {
+            root.style.removeProperty('touch-action');
+            root.style.removeProperty('overscroll-behavior');
+        }
+
+        const wrapper = video.parentNode;
+        if (wrapper && wrapper.classList.contains('gt-video-wrapper')) {
+            wrapper.style.removeProperty('touch-action');
+            wrapper.style.removeProperty('overscroll-behavior');
+            wrapper.style.overflow = wrapper.dataset.gtOverflow || 'visible';
         }
     };
 
@@ -331,7 +378,7 @@
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             container.classList.remove('gt-fullscreen-active');
             unlockOrientation();
-            updateTouchAction(video, container);
+            clearAllBlockingStyles(video);
         } else {
             backupVideoStyle(video);
 
@@ -339,6 +386,7 @@
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
             container.classList.add('gt-fullscreen-active');
             updateTouchAction(video, container);
+            updateOverscrollBehavior(video, container);
             const reqFs = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen;
             if (reqFs) {
                 const p = reqFs.call(container);
@@ -611,6 +659,7 @@
         video.style.setProperty('will-change', 'transform', 'important');
         video.style.transform = `translate(${vState.panX}px, ${vState.panY}px) scale(${vState.scale})`;
         updateTouchAction(video, video.gtRoot);
+        updateWrapperOverflow(video);
     };
 
     let pendingRate = null; let lastRateUpdateTime = 0;
@@ -708,7 +757,7 @@
         bindTap(rstBtn, () => { video.playbackRate = 1.0; showMsg('원래 속도로 복구', video); wakeUpUI(root, video); }); uiLayer.appendChild(rstBtn);
 
         const zoomRstBtn = document.createElement('div'); zoomRstBtn.className = 'gt-btn-base gt-reset-zoom-btn'; zoomRstBtn.innerHTML = SVG_RESET_ZOOM;
-        bindTap(zoomRstBtn, () => { if(!video.gtState)return; video.gtState.scale = 1.0; video.gtState.panX = 0; video.gtState.panY = 0; if (video.parentNode && video.parentNode.dataset.gtOverflow) { video.parentNode.style.overflow = video.parentNode.dataset.gtOverflow; } video.style.transform = `translate(0px, 0px) scale(1)`; updateTouchAction(video, video.gtRoot); showMsg('원래 크기로 복구', video); wakeUpUI(root, video); }); uiLayer.appendChild(zoomRstBtn);
+        bindTap(zoomRstBtn, () => { if(!video.gtState)return; video.gtState.scale = 1.0; video.gtState.panX = 0; video.gtState.panY = 0; video.style.transform = `translate(0px, 0px) scale(1)`; updateTouchAction(video, video.gtRoot); updateWrapperOverflow(video); showMsg('원래 크기로 복구', video); wakeUpUI(root, video); }); uiLayer.appendChild(zoomRstBtn);
 
         if (root.shadowRoot) {
             root.shadowRoot.appendChild(uiLayer);
@@ -758,6 +807,7 @@
             video.gtRoot = root;
             checkAndBuildUI(root, video);
             updateTouchAction(video, root);
+            updateOverscrollBehavior(video, root);
         }
 
         video.addEventListener('timeupdate', () => {
@@ -802,7 +852,7 @@
     });
     scanAndInitCore();
 
-    // ★ 수정: setupPlayer – wrapper에 gtOverflow 백업 추가, overflow:hidden 설정
+    // ★ 수정: setupPlayer – overscroll-behavior, overflow를 전체화면/확대 시에만 적용
     const setupPlayer = (video) => {
         if (!video) return false;
 
@@ -812,7 +862,7 @@
         const isPreview = isPreviewVideo(video);
         video.dataset.gtIsPreview = isPreview ? 'true' : 'false';
 
-        video.style.setProperty('overscroll-behavior', 'none', 'important');
+        // ★ 수정: overscroll-behavior는 여기서 무조건 적용하지 않음
         video.style.setProperty('transition', 'none', 'important');
         video.style.setProperty('will-change', 'transform', 'important');
 
@@ -845,10 +895,11 @@
             wrapper.style.width = (!w || w === 'auto' || w === '0px') ? '100%' : w;
             wrapper.style.maxWidth = '100%';
             wrapper.style.height = 'auto';
-            wrapper.style.overflow = 'hidden';
+            // ★ 수정: 기본은 visible, 확대/전체화면 시에만 hidden으로 전환
+            wrapper.style.overflow = 'visible';
             wrapper.style.margin = cStyle.margin;
 
-            wrapper.style.setProperty('overscroll-behavior', 'none', 'important');
+            // ★ 수정: overscroll-behavior 제거 (전체화면 시에만 적용)
             wrapper.style.background = '#000';
 
             video.parentNode.insertBefore(wrapper, video);
@@ -864,10 +915,7 @@
             video.setAttribute('controlslist', 'nofullscreen');
         }
 
-        if (!isNaked) {
-            root.style.setProperty('overscroll-behavior', 'none', 'important');
-        }
-
+        // ★ 수정: 비전체화면에서는 overscroll-behavior 적용하지 않음
         if (video.dataset.gtOrigObjectFit === undefined) {
             video.dataset.gtOrigObjectFit = video.style.objectFit || '';
         }
@@ -879,6 +927,7 @@
         }
 
         updateTouchAction(video, root);
+        updateOverscrollBehavior(video, root);
 
         checkAndBuildUI(root, video);
         return true;
@@ -1072,6 +1121,7 @@
                 clearTimeout(lpTimer);
 
                 if (!isFS) {
+                    // ★ 수정: 전체화면이 아니면 무조건 브라우저 기본 동작(스크롤 등)에 위임
                     action = 'scroll_pass';
                     isTouch = false;
                     return;
@@ -1155,7 +1205,7 @@
         }, 100);
     };
 
-        const pOpt = { passive: false, capture: true };
+    const pOpt = { passive: false, capture: true };
     document.addEventListener('touchstart', onStart, pOpt); document.addEventListener('touchmove', onMove, pOpt); document.addEventListener('touchend', onEnd, pOpt); document.addEventListener('touchcancel', onEnd, pOpt);
 
     ['pointerdown', 'pointerup', 'pointercancel', 'click', 'dblclick'].forEach(evt => {
@@ -1173,7 +1223,7 @@
         }, { capture: true, passive: false });
     });
 
-    // ★ 핵심 수정: fullscreenchange – touch-action 완전 제거 + 딜레이 후 재확인
+    // ★ 수정: fullscreenchange – 모든 차단 스타일 완전 제거
     ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
         document.addEventListener(evt, () => {
             let fsEl = getFS();
@@ -1187,19 +1237,16 @@
                         v.gtRoot = v.parentNode;
                     }
                     restoreVideoStyle(v);
-                    updateTouchAction(v, v.gtRoot);
+                    clearAllBlockingStyles(v);
                 });
 
                 // 딜레이 후 한번 더 강제 제거
                 setTimeout(() => {
                     document.querySelectorAll('video').forEach(v => {
-                        v.style.removeProperty('touch-action');
-                        if (v.gtRoot && v.gtRoot !== document.body) {
-                            v.gtRoot.style.removeProperty('touch-action');
-                        }
+                        clearAllBlockingStyles(v);
+
                         const wrapper = v.parentNode;
                         if (wrapper && wrapper.classList.contains('gt-video-wrapper')) {
-                            wrapper.style.removeProperty('touch-action');
                             wrapper.style.height = 'auto';
                             wrapper.style.maxWidth = '100%';
                             v.style.width = '100%';
@@ -1230,6 +1277,7 @@
                             v.gtRoot = root;
                         }
                         updateTouchAction(v, v.gtRoot || root);
+                        updateOverscrollBehavior(v, v.gtRoot || root);
                         applyFixedScale(v.gtRoot || root, v, v.gtUI);
                         wakeUpUI(v.gtRoot || root, v);
                         lockOrientation(getVideoOrientationDir(v));
