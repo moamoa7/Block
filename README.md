@@ -155,7 +155,6 @@ Violentmonkey 확장프로그램 설치 후 사용
 <br><br>
 
 ※ NamuLink
-
 - 나무위키에 있는 파워링크 광고를 차단합니다.
 
 홈페이지 : https://github.com/List-KR/NamuLink
@@ -164,7 +163,6 @@ Violentmonkey 확장프로그램 설치 후 사용
 <br><br>
 
 ※ tinyShield
-
 - Ad-Shield 불안정 광고를 차단하고 Ad-Shield의 가상 무결성 계층을 우회합니다.
 
 홈페이지 : https://github.com/List-KR/tinyShield
@@ -173,7 +171,6 @@ Violentmonkey 확장프로그램 설치 후 사용
 <br><br>
 
 ※ Bypass All Shortlinks Debloated
-
 - 모든 짧은 링크 사이트 우회는 성가신 링크 단축기를 자동으로 건너뛰고 목적지로 직접 이동합니다
 
 홈페이지 : https://codeberg.org/Amm0ni4/bypass-all-shortlinks-debloated
@@ -183,7 +180,6 @@ Violentmonkey 확장프로그램 설치 후 사용
 
 
 ※ AdGuard Extra
-
 - 점점 더 보편화되고 있는 광고 차단 우회 시도를 차단하기 위한 사용자 스크립트(또는 브라우저 확장 프로그램)입니다
 
 홈페이지 : https://github.com/AdguardTeam/AdGuardExtra
@@ -200,7 +196,6 @@ Violentmonkey 확장프로그램 설치 후 사용
 <br><br>
 
 ※ Youtube HD Premium
-
 - 미리 선택한 해상도로 자동 전환합니다. 가능한 경우 프리미엄을 활성화합니다.
 
 홈페이지 : https://greasyfork.org/en/scripts/498145-youtube-hd-premium
@@ -208,13 +203,13 @@ Violentmonkey 확장프로그램 설치 후 사용
 설치주소 : https://update.greasyfork.org/scripts/498145/Youtube%20HD%20Premium.user.js
 <br><br>
 
-※ Mobile Element Selector
+※ Picky
 
-- 모바일 요소 선택기
+- 모바일 요소 차단기
 
-홈페이지 : https://greasyfork.org/en/scripts/532907-mobile-element-selector
+홈페이지 : https://github.com/hooray804/Picky
 
-설치주소 : https://update.greasyfork.org/scripts/532907/Mobile%20Element%20Selector.user.js
+설치주소 : https://raw.githubusercontent.com/hooray804/Picky/main/PickyAdvanced.user.js
 
 
 <br>
