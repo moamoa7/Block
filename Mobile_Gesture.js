@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      69.00.0
+// @version      68.00.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
 // @author       Gemini & Claude
 // @license      MIT
