@@ -26,20 +26,21 @@
 !
 ! - start.klauncher.kr 우측 여백 해결
 ! - 출처 : https://gall.dcinside.com/adguard/6656
-klauncher.kr##.main-content,[style*="/images/background/main.jpg"]:style(background-image:none!important)
-klauncher.kr##.auxiliary-section,.language-settings-container,.browser-exit-notice-container:style(display:none!important)
-klauncher.kr##.layout-container>.main-content:style(width:88.5%!important;padding:0!important)
+!klauncher.kr##.main-content,[style*="/images/background/main.jpg"]:style(background-image:none!important)
+!klauncher.kr##.auxiliary-section,.language-settings-container,.browser-exit-notice-container:style(display:none!important)
+!klauncher.kr##.layout-container>.main-content:style(width:88.5%!important;padding:0!important)
 !
 !
 !
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-@@||*kr^$stealth=dpi
-@@||lgtwins.com^$stealth=dpi
+!@@||*kr^$stealth=dpi
+!@@||lgtwins.com^$stealth=dpi
 ! - 국내 및 모든 접속 안될걸 대비 해제 (stealth 및 stealth=dpi)
 @@||*^$stealth=dpi
 @@||*^$stealth
+@@||*^$stealth=referrer
 !
 !
 !
@@ -69,12 +70,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-slot]
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
 ! YousLis 무력화
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
-!
-!
-!
-!!! 애드가드 문제 해결?
-@@||challenges.cloudflare.com^$stealth
-@@||youtube.googleapis.com/embed^$stealth=referrer
 !
 !
 !
