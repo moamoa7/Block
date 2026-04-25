@@ -42,13 +42,11 @@
     let virtualTime = null;
     let lastThrottledTime = 0;
 
-    // ───── 전체화면 여부 판별 헬퍼 ─────
     const isFullscreenActive = (root) => {
         return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement)
             || (root && root.classList.contains('gt-fullscreen-active'));
     };
 
-    // ───── touch-action 동적 설정 ─────
     const updateTouchAction = (video, root) => {
         const isFS = isFullscreenActive(root);
         const isZoomed = video && video.gtState && video.gtState.scale > 1.0;
@@ -270,7 +268,7 @@
     };
     hijackFullscreenAPI();
 
-    // ───── ★ 비디오 스타일 복원 헬퍼 ─────
+    // ───── ★ 비디오 스타일 복원 헬퍼 (수정됨) ─────
     const restoreVideoStyle = (video) => {
         if (!video) return;
 
@@ -291,16 +289,35 @@
             video.style.transform = '';
         }
 
-        // 래퍼가 있으면 래퍼 overflow 복원
-        if (video.parentNode && video.parentNode.dataset.gtOverflow) {
-            video.parentNode.style.overflow = video.parentNode.dataset.gtOverflow;
+        // ★ 래퍼 복원 (세로 영상 크기 문제 해결)
+        const wrapper = video.parentNode;
+        if (wrapper && wrapper.classList.contains('gt-video-wrapper')) {
+            // wrapper height를 auto로 강제 → aspect-ratio가 높이를 결정
+            wrapper.style.height = 'auto';
+            wrapper.style.maxWidth = '100%';
+
+            // wrapper에 저장된 원래 width 복원
+            if (wrapper.dataset.gtOrigW) {
+                const origW = wrapper.dataset.gtOrigW;
+                wrapper.style.width = (!origW || origW === 'auto' || origW === '0px') ? '100%' : origW;
+            }
+
+            if (wrapper.dataset.gtOverflow) {
+                wrapper.style.overflow = wrapper.dataset.gtOverflow;
+            }
+        }
+
+        // ★ naked 비디오는 height auto로 복원 → aspect-ratio 유지
+        if (video.dataset.gtIsNaked === 'true') {
+            video.style.width = '100%';
+            video.style.height = 'auto';
+            video.style.maxWidth = '100%';
         }
     };
 
     // ───── ★ 전체화면 진입 전 스타일 백업 ─────
     const backupVideoStyle = (video) => {
         if (!video) return;
-        // 이미 백업된 적 없을 때만 저장 (최초 1회)
         if (video.dataset.gtOrigObjectFit === undefined) {
             video.dataset.gtOrigObjectFit = video.style.objectFit || '';
         }
@@ -311,7 +328,6 @@
         const fsBtn = container.querySelector(FS_BTN_SELECTORS);
 
         if (isFS) {
-            // ★ 전체화면 해제: 스타일 복원
             restoreVideoStyle(video);
 
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
@@ -321,7 +337,6 @@
             unlockOrientation();
             updateTouchAction(video, container);
         } else {
-            // ★ 전체화면 진입: 스타일 백업
             backupVideoStyle(video);
 
             const forceLockLandscape = () => { lockOrientation(getVideoOrientationDir(video)); };
@@ -358,7 +373,6 @@
         return `
         #${uid} { position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none !important; z-index: 2147483647 !important; }
 
-        /* ★ 미니 프로그레스 바: 기본 숨김, 전체화면에서만 표시 */
         #${uid} .gt-mini-progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: rgba(255,255,255,0.2); z-index: 2147483640; pointer-events: none; overflow: hidden; opacity: 0; transition: height 0.2s, opacity 0.3s; box-shadow: 0 -1px 1px rgba(0,0,0,0.2); display: none; }
         #${uid} .gt-mini-progress .gt-fill { height: 100%; width: 0%; background: ${CFG.progressBarColor}; transition: width 0.1s linear; box-shadow: 0 0 4px ${CFG.progressBarColor}; }
         :fullscreen #${uid} .gt-mini-progress, .gt-fullscreen-active #${uid} .gt-mini-progress { display: block !important; opacity: 0.9 !important; height: 3px !important; }
@@ -366,14 +380,12 @@
         #${uid} .gt-lock-shield { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2147483645; background: rgba(0,0,0,0); touch-action: none; display: none; pointer-events: auto; }
         :fullscreen #${uid} .gt-lock-shield, .gt-fullscreen-active #${uid} .gt-lock-shield { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; }
 
-        /* ★ 버튼: 기본 숨김, 전체화면에서만 표시 가능 */
         #${uid} .gt-btn-base { position: absolute; width: ${26 * S}px; height: ${26 * S}px; display: none; align-items: center; justify-content: center; z-index: 2147483647; opacity: 0; pointer-events: none; transition: opacity 0.3s ease, transform 0.15s ease; border: none; background: transparent; color: rgba(255, 255, 255, 0.95); filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.8)); }
         #${uid} .gt-btn-base * { pointer-events: none !important; }
         #${uid} .gt-btn-base svg { width: ${15 * S}px; height: ${15 * S}px; transition: all 0.2s ease; transform-origin: center center; fill: none !important; stroke: currentColor !important; stroke-width: 2 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
         #${uid} .gt-btn-base svg * { fill: none !important; stroke: currentColor !important; stroke-width: 2 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
         #${uid} .gt-btn-base span { font-size: ${11 * S}px; font-weight: 800; font-family: system-ui; letter-spacing: 0.5px; transform-origin: center center; display: inline-block; }
 
-        /* ★ 전체화면에서만 버튼이 flex로 표시됨 */
         :fullscreen #${uid} .gt-btn-base, .gt-fullscreen-active #${uid} .gt-btn-base { display: flex !important; }
         :fullscreen #${uid}.gt-ui-visible .gt-btn-base, .gt-fullscreen-active #${uid}.gt-ui-visible .gt-btn-base { opacity: 0.5 !important; pointer-events: auto !important; }
         :fullscreen #${uid}.gt-ui-visible .gt-btn-base.hidden-by-state, .gt-fullscreen-active #${uid}.gt-ui-visible .gt-btn-base.hidden-by-state { display: none !important; pointer-events: none !important; }
@@ -411,7 +423,6 @@
         :fullscreen #${uid} .gt-reset-speed-btn, .gt-fullscreen-active #${uid} .gt-reset-speed-btn { bottom: 40px; left: calc(33% - 48px); transform: translateX(-50%); }
         :fullscreen #${uid} .gt-reset-zoom-btn, .gt-fullscreen-active #${uid} .gt-reset-zoom-btn { bottom: 40px; left: calc(67% + 48px); transform: translateX(-50%); }
 
-        /* ★ 시크 메시지, 토스트도 전체화면에서만 */
         #${uid} .gt-seek-msg { position: absolute !important; top: 45% !important; color: rgba(255, 255, 255, 0.95) !important; z-index: 2147483647 !important; pointer-events: none !important; opacity: 0; transition: opacity 0.15s ease-out; display: none !important; flex-direction: row !important; flex-wrap: nowrap !important; align-items: center !important; justify-content: center !important; gap: ${6 * TS}px !important; font-family: system-ui, -apple-system, sans-serif !important; white-space: nowrap !important; text-shadow: 0 0 ${10 * TS}px rgba(0,0,0,0.8), 0 0 ${4 * TS}px rgba(0,0,0,0.6), 0 ${2 * TS}px ${4 * TS}px rgba(0,0,0,0.5) !important; }
         :fullscreen #${uid} .gt-seek-msg, .gt-fullscreen-active #${uid} .gt-seek-msg { display: flex !important; }
         #${uid} .gt-seek-msg.left { left: 15%; transform: translateY(-50%); }
@@ -421,7 +432,6 @@
         #${uid} .gt-arrows { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; align-items: center !important; justify-content: center !important; font-size: ${22 * TS}px !important; font-weight: 400 !important; line-height: 1 !important; }
         #${uid} .gt-arrows span { display: block !important; line-height: 1 !important; white-space: nowrap !important; }
 
-        /* ★ 토스트: 전체화면에서만 ui-layer 내부 토스트 표시 */
         #${uid} .gt-toast { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.15); color: #fff; padding: ${4 * TS}px ${10 * TS}px; border-radius: ${4 * TS}px; font: 700 ${14 * TS}px system-ui; z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.2s; text-shadow: 0 0 ${2 * TS}px #000; border: 1px solid rgba(255,255,255,0.05); display: none; }
         :fullscreen #${uid} .gt-toast, .gt-fullscreen-active #${uid} .gt-toast { display: block !important; }
         #${uid} .gt-toast.show { opacity: 1; }
@@ -454,7 +464,7 @@
     const SVG_FRAME = `<svg viewBox="0 0 24 24" width="100%" height="100%"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>`;
     const SVG_FIT = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M4 8V4h4m8 0h4v4m0 8v4h-4m-8 0H4v-4"></path></svg>`;
     const SVG_SHOT = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`;
-    const SVG_PIP = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"></path></svg>`;
+    const SVG_PIP = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"></path></svg>`;
 
     const showMsg = (txt, video = null) => {
         let uiLayer = (video && video.gtUI) ? video.gtUI : (targetV && targetV.gtUI ? targetV.gtUI : null);
@@ -576,7 +586,6 @@
 
     const wakeUpUI = (root, video) => {
         if (!video || !video.gtUI) return;
-        // ★ 전체화면이 아니면 UI를 깨우지 않음
         const isFS = isFullscreenActive(root);
         if (!isFS) return;
 
@@ -819,7 +828,6 @@
 
             const cStyle = window.getComputedStyle(video);
 
-            // ★ 원래 스타일 저장 (래퍼 생성 전)
             video.dataset.gtOrigWidth = video.style.width || '';
             video.dataset.gtOrigHeight = video.style.height || '';
             video.dataset.gtOrigMargin = video.style.margin || '';
@@ -831,14 +839,14 @@
             let w = video.style.width || video.getAttribute('width') || cStyle.width;
             let h = video.style.height || video.getAttribute('height') || cStyle.height;
 
-            // ★ 래퍼에 원래 크기 저장
             wrapper.dataset.gtOrigW = w || '';
             wrapper.dataset.gtOrigH = h || '';
             wrapper.dataset.gtComputedW = cStyle.width;
             wrapper.dataset.gtComputedH = cStyle.height;
 
             wrapper.style.width = (!w || w === 'auto' || w === '0px') ? '100%' : w;
-            wrapper.style.height = (!h || h === 'auto' || h === '0px') ? '100%' : h;
+            wrapper.style.maxWidth = '100%';               // ★ 추가: 뷰포트 넘침 방지
+            wrapper.style.height = 'auto';                  // ★ 변경: 고정값 대신 auto → aspect-ratio로 높이 결정
             wrapper.style.margin = cStyle.margin;
 
             wrapper.style.setProperty('overscroll-behavior', 'none', 'important');
@@ -849,7 +857,7 @@
 
             video.style.margin = '0';
             video.style.width = '100%';
-            video.style.height = '100%';
+            video.style.height = 'auto';                    // ★ 변경: 100% → auto → aspect-ratio 유지
             if (!video.style.objectFit) video.style.objectFit = 'contain';
 
             root = wrapper;
@@ -860,7 +868,6 @@
             root.style.setProperty('overscroll-behavior', 'none', 'important');
         }
 
-        // ★ 비래퍼 비디오도 objectFit 백업 (아직 안 된 경우)
         if (video.dataset.gtOrigObjectFit === undefined) {
             video.dataset.gtOrigObjectFit = video.style.objectFit || '';
         }
@@ -914,7 +921,6 @@
         }, 800);
     };
 
-    // ───── 터치 이벤트 핸들러 ─────
     const onStart = (e) => {
         if (!getFS()) { document.querySelectorAll('.gt-fullscreen-active').forEach(el => { el.classList.remove('gt-fullscreen-active'); }); }
 
@@ -951,13 +957,11 @@
         if (!isRapid) {
             tapCount = 1;
             wasPlayingBeforeSequence = targetV ? !targetV.paused : false;
-            // ★ 전체화면일 때만 UI 깨우기
             if (curIsFS) wakeUpUI(targetP, targetV);
         } else { tapCount++; }
         lastTapTime = now;
 
         if (e.touches && e.touches.length > 1) {
-            // ★ 핀치: 전체화면에서만 작동
             if (!curIsFS) { isTouch = false; return; }
             if (e.cancelable) e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
             tapCount = 0;
@@ -973,7 +977,6 @@
             const rLeft = rRect.width ? rRect.left : 0;
             const r = (rClientX - rLeft) / rWidth;
 
-            // ★ 더블탭 좌/우 시크: 전체화면에서만 작동
             if (r < 0.3) {
                 if (!curIsFS) { isTouch = false; return; }
                 blockGestureUntil = now + TAP_PROTECT_DURATION;
@@ -987,7 +990,6 @@
                 e.stopPropagation(); e.stopImmediatePropagation();
                 handleAccumulatedSeek('right', uiLayer, targetV);
             } else if (tapCount === 2 && targetV.dataset.gtIsPreview !== 'true') {
-                // ★ 더블탭 가운데 = 전체화면 토글: 항상 작동
                 blockGestureUntil = now + TAP_PROTECT_DURATION;
                 if (e.cancelable) e.preventDefault();
                 e.stopPropagation(); e.stopImmediatePropagation();
@@ -1009,7 +1011,6 @@
         virtualTime = null;
 
         if (e.touches.length === 2) {
-            // ★ 핀치: 전체화면에서만 (위에서 이미 체크했지만 안전장치)
             if (!curIsFS) { isTouch = false; return; }
             const vState = targetV.gtState;
             const p = getPinchData(e.touches); initPinchDist = p.dist; initCenterX = p.cx; initCenterY = p.cy;
@@ -1017,13 +1018,11 @@
             const rect = targetV.getBoundingClientRect(); originDx = initCenterX - (rect.left + rect.width/2 - initPanX); originDy = initCenterY - (rect.top + rect.height/2 - initPanY);
             action = 'pinch'; hideUI(targetV);
         } else if (e.touches.length === 1) {
-            // ★ 롱프레스, 드래그 시크: 전체화면에서만
             if (curIsFS) {
                 lpTimer = setTimeout(() => {
                     if (isTouch && targetV) { action = 'rate'; targetV.playbackRate = Math.max(0.1, initRate + CFG.rateBase - 1.0); showMsg(`${targetV.playbackRate.toFixed(1)}x`, targetV); hideUI(targetV); }
                 }, CFG.longPress);
             }
-            // 전체화면 아닐 때는 롱프레스/드래그 제스처 없음 → 브라우저 기본 동작
         }
     };
 
@@ -1072,7 +1071,6 @@
             if (Math.abs(dx) > CFG.minDist || Math.abs(dy) > CFG.minDist) {
                 clearTimeout(lpTimer);
 
-                // ★ 전체화면이 아니면 모든 드래그 제스처 무시
                 if (!isFS) {
                     action = 'scroll_pass';
                     isTouch = false;
@@ -1179,16 +1177,13 @@
         document.addEventListener(evt, () => {
             let fsEl = getFS();
             if (!fsEl) {
-                // ★ 전체화면 해제: 모든 상태 클린업
                 document.querySelectorAll('.gt-lock-touch-full').forEach(el => el.classList.remove('gt-lock-touch-full'));
-                // ★ gt-fullscreen-active 확실히 제거
                 document.querySelectorAll('.gt-fullscreen-active').forEach(el => el.classList.remove('gt-fullscreen-active'));
                 unlockOrientation();
 
                 document.querySelectorAll('video').forEach(v => {
-                    // ★ 스타일 복원 (objectFit, transform, overflow 등)
                     restoreVideoStyle(v);
-                    updateTouchAction(v, v.gtRoot);
+                                        updateTouchAction(v, v.gtRoot);
                 });
 
                 setTimeout(() => {
@@ -1207,8 +1202,7 @@
                     let root = fsEl;
                     if (root && root.tagName === 'VIDEO') root = root.parentNode;
 
-                        if (v) {
-                        // ★ 전체화면 진입 시 스타일 백업
+                    if (v) {
                         backupVideoStyle(v);
 
                         if (v.gtUI && root && !root.contains(v.gtUI)) {
