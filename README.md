@@ -26,6 +26,22 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 ```
 <br>
 
+※ Mobile Gesture
+- 모바일에서만 사용가능한 영상내 제스처
+- HTML5视频手势 스크립트에서 필요없는거 제거하고 만든 스크립트
+- 원 스크립트 주소 : https://greasyfork.org/zh-CN/scripts/570331-html5%E8%A7%86%E9%A2%91%E6%89%8B%E5%8A%BF
+- 한 손가락 좌우 드래그:영상 탐색
+- 한 손가락 길게 누르기 (롱프레스) : 재생속도 조절
+- 더블탭(좌우) : 설정한 간격만큼 재생시간 이동 및 되감기
+- 두 손가락 핀치 (속도 모드) : 재생속도 증가 (0.1~4.0)
+- 두 손가락 핀치 (줌 모드)  : 화면 확대 (최대 8배)
+- 기타 버튼들
+
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/Mobile_Gesture.js
+```
+<br>
+
 ※ Delay-meter.js
 - 유튜브 / 트위치 / 숲 / 치지직 등 안정적인 딜레이를 위한 장치
 
