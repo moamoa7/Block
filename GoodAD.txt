@@ -35,11 +35,10 @@
 !!! 애드가드 dpi 우회 설정으로 인한 오류 해결
 ! - 국내 사이트 접속 안되는거 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-!@@||*kr^$stealth=dpi
-!@@||lgtwins.com^$stealth=dpi
-! - 국내 및 모든 접속 안될걸 대비 해제 (stealth 및 stealth=dpi)
-@@||*^$stealth=dpi
-!@@||*^$stealth=referrer
+@@||*kr^$stealth=dpi
+@@||lgtwins.com^$stealth=dpi
+@@||koreainvestment.com$stealth=dpi
+@@||truefriend.com$stealth=dpi
 !
 !
 !
