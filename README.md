@@ -103,6 +103,7 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 # 사용중인 Filter 목록
 
 ※  아래 필터들을 하나로 합친 파일
+-- 애드가드 필터로만 구성된것으로 애드가드에서만 사용 권장
 -- 중복 체크없이 아래 필터들을 단순하게 하나로 묶은것입니다
 <br/>
 ((PC))
