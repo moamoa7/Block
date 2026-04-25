@@ -37,6 +37,8 @@ klauncher.kr##.layout-container>.main-content:style(width:88.5%!important;paddin
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
+! - 국내 및 모든 접속 안될걸 대비 해제
+@@||*^$stealth=dpi
 !
 !
 !
