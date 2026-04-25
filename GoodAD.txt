@@ -38,7 +38,7 @@
 @@||*kr^$stealth=dpi
 @@||lgtwins.com^$stealth=dpi
 @@||koreainvestment.com$stealth=dpi
-!@@||truefriend.com$stealth=dpi
+@@||truefriend.com$stealth=dpi
 !
 !
 !
