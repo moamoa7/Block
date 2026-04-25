@@ -16,20 +16,21 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 ```
 <br>
 
+※ Video_Tools.js
+- Video_Control.js의 보조 성격의 스크립트
+- 영상의 노란끼/청색끼 감지 + 항상 보이는 시계 + 비디오 브라우저내 최대화 + 좌우 반전 + 확대/축소
+- 영상의 노란끼/청색끼 감지 + 항상 보이는 시계는 모바일에서는 전체화면에서만 작동
+- 확대/축소는 PC에서만 작동
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
+```
+<br>
+
 ※ Delay-meter.js
 - 유튜브 / 트위치 / 숲 / 치지직 등 안정적인 딜레이를 위한 장치
 
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
-```
-<br>
-
-※ Video_Tools.js
-- 영상의 노란끼/청색끼 감지 + 비디오 최대화 + 항상 보이는 시계 + 좌우 반전 + 확대/축소
-- 영상의 노란끼/청색끼 감지 + 항상 보이는 시계는 모바일에서는 전체화면에서만 작동
-- 확대/축소는 PC에서만 작동
-```
-https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 ```
 <br>
 
