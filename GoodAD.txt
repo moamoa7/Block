@@ -623,7 +623,9 @@ theqoo.net##.theqoo-counter
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
-! - 게시물 하다 배너?
+! - 오른쪽 배너 공간
+inven.co.kr##.commu-right > div
+! - 게시물 하단 배너?
 inven.co.kr###inventory-skin-800
 ! - 로딩 없애기
 !inven.co.kr##[id="loading"]
