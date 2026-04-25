@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v32.0.1)
+// @name         Video_Control (v32.0.2)
 // @namespace    https://github.com/moamoa7
-// @version      32.0.1
-// @description  v32.0.1: FMKorea 등 CORS 오디오 문제 수정
+// @version      32.0.2
+// @description  v32.0.2: 강도 믹스 UI 제거, presetMix 1.0 고정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '32.0.1';
+  const VSC_VERSION = '32.0.2';
   const DEBUG = false;
 
   const log = {
@@ -146,7 +146,7 @@
   ];
 
   const DEFAULTS = {
-    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, manualPreGain: 100 },
+    video: { presetS: 'off', manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, manualPreGain: 100 },
     audio: { enabled: false, strength: 50, surroundWidth: 0, clarity: 0, boost: 100 },
     playback: { rate: 1.0, enabled: false },
     radio: { enabled: false },
@@ -154,7 +154,7 @@
   };
   const P = {
     APP_ACT: 'app.active', APP_UI: 'app.uiVisible',
-    V_PRE_S: 'video.presetS', V_PRE_MIX: 'video.presetMix',
+    V_PRE_S: 'video.presetS',
     V_MAN_SHAD: 'video.manualShadow', V_MAN_REC: 'video.manualRecovery',
     V_MAN_BRT: 'video.manualBright', V_MAN_TEMP: 'video.manualTemp',
     V_MAN_TINT: 'video.manualTint', V_MAN_SAT: 'video.manualSat',
@@ -1189,7 +1189,7 @@
         if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH && cached.dpr === dpr) return cached.out; }
         const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1, _needsSvg: false, _sharpCap: SHARP_CAP_DEFAULT, _diagRatio: 0.707, _preGain: 1 };
         const presetS = Store.get(P.V_PRE_S);
-        const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
+        const mix = 1.0;
         const { mul, autoBase, rawAutoBase, sharpProfile } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(0) };
         const platformScale = IS_MOBILE ? 0.85 : 1.0;
         const finalMul      = mul * platformScale;
@@ -1866,7 +1866,6 @@
         { type: 'widget', build: buildRadioCard },
         { type: 'sep' },
         { type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S, items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) },
-        { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.1 },
         { type: 'sep' },
         { type: 'widget', build: buildPresetGrid },
         { type: 'sep' },
