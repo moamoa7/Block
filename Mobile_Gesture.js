@@ -1087,28 +1087,27 @@
         }, { capture: true, passive: false });
     });
 
-    // ───── 전체화면 변경 감지 ─────
+        // ───── 전체화면 변경 감지 ─────
     ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
         document.addEventListener(evt, () => {
             let fsEl = getFS();
             if (!fsEl) {
-    document.querySelectorAll('.gt-lock-touch-full').forEach(el => el.classList.remove('gt-lock-touch-full'));
-    unlockOrientation();
+                document.querySelectorAll('.gt-lock-touch-full').forEach(el => el.classList.remove('gt-lock-touch-full'));
+                unlockOrientation();
 
-    document.querySelectorAll('video').forEach(v => {
-        if (v.gtState && v.gtState.scale !== 1.0) {
-            v.gtState.scale = 1.0; v.gtState.panX = 0; v.gtState.panY = 0;
-            v.style.transform = '';
-        }
-        // 전체화면 해제 시 UI 스케일을 원래 크기로 복구
-        if (v.gtUI && v.gtRoot) {
-            applyFixedScale(v.gtRoot, v, v.gtUI);
-        }
-    });
+                document.querySelectorAll('video').forEach(v => {
+                    if (v.gtState && v.gtState.scale !== 1.0) {
+                        v.gtState.scale = 1.0; v.gtState.panX = 0; v.gtState.panY = 0;
+                        v.style.transform = '';
+                    }
+                    // 전체화면 해제 시 UI 스케일을 원래 크기로 복구
+                    if (v.gtUI && v.gtRoot) {
+                        applyFixedScale(v.gtRoot, v, v.gtUI);
+                    }
+                });
 
-    const toast = document.getElementById('gt-toast-global');
-    if (toast && toast.parentNode !== document.body) { if (toast.parentNode) toast.parentNode.removeChild(toast); document.body.appendChild(toast); }
-}
+                const toast = document.getElementById('gt-toast-global');
+                if (toast && toast.parentNode !== document.body) { if (toast.parentNode) toast.parentNode.removeChild(toast); document.body.appendChild(toast); }
             } else {
                 setTimeout(() => {
                     let v = targetV || findDeepVid(fsEl) || document.querySelector('video');
