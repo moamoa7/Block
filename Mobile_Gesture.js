@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      68.05.0
+// @version      68.06.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 전체화면 전용)
 // @author       Gemini & Claude
 // @license      MIT
@@ -270,11 +270,50 @@
     };
     hijackFullscreenAPI();
 
+    // ───── ★ 비디오 스타일 복원 헬퍼 ─────
+    const restoreVideoStyle = (video) => {
+        if (!video) return;
+
+        // objectFit 복원
+        if (video.dataset.gtOrigObjectFit !== undefined) {
+            if (video.dataset.gtOrigObjectFit === '') {
+                video.style.removeProperty('object-fit');
+            } else {
+                video.style.objectFit = video.dataset.gtOrigObjectFit;
+            }
+        }
+
+        // transform 리셋
+        if (video.gtState) {
+            video.gtState.scale = 1.0;
+            video.gtState.panX = 0;
+            video.gtState.panY = 0;
+            video.style.transform = '';
+        }
+
+        // 래퍼가 있으면 래퍼 overflow 복원
+        if (video.parentNode && video.parentNode.dataset.gtOverflow) {
+            video.parentNode.style.overflow = video.parentNode.dataset.gtOverflow;
+        }
+    };
+
+    // ───── ★ 전체화면 진입 전 스타일 백업 ─────
+    const backupVideoStyle = (video) => {
+        if (!video) return;
+        // 이미 백업된 적 없을 때만 저장 (최초 1회)
+        if (video.dataset.gtOrigObjectFit === undefined) {
+            video.dataset.gtOrigObjectFit = video.style.objectFit || '';
+        }
+    };
+
     const toggleNativeFullscreen = (container, video) => {
         const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement) || container.classList.contains('gt-fullscreen-active');
         const fsBtn = container.querySelector(FS_BTN_SELECTORS);
 
         if (isFS) {
+            // ★ 전체화면 해제: 스타일 복원
+            restoreVideoStyle(video);
+
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
             if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
@@ -282,6 +321,9 @@
             unlockOrientation();
             updateTouchAction(video, container);
         } else {
+            // ★ 전체화면 진입: 스타일 백업
+            backupVideoStyle(video);
+
             const forceLockLandscape = () => { lockOrientation(getVideoOrientationDir(video)); };
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
             container.classList.add('gt-fullscreen-active');
@@ -776,11 +818,25 @@
             wrapper.className = 'gt-video-wrapper';
 
             const cStyle = window.getComputedStyle(video);
+
+            // ★ 원래 스타일 저장 (래퍼 생성 전)
+            video.dataset.gtOrigWidth = video.style.width || '';
+            video.dataset.gtOrigHeight = video.style.height || '';
+            video.dataset.gtOrigMargin = video.style.margin || '';
+            video.dataset.gtOrigObjectFit = video.style.objectFit || '';
+
             wrapper.style.position = 'relative';
             wrapper.style.display = (cStyle.display === 'inline' || cStyle.display === 'inline-block') ? 'inline-block' : 'block';
 
             let w = video.style.width || video.getAttribute('width') || cStyle.width;
             let h = video.style.height || video.getAttribute('height') || cStyle.height;
+
+            // ★ 래퍼에 원래 크기 저장
+            wrapper.dataset.gtOrigW = w || '';
+            wrapper.dataset.gtOrigH = h || '';
+            wrapper.dataset.gtComputedW = cStyle.width;
+            wrapper.dataset.gtComputedH = cStyle.height;
+
             wrapper.style.width = (!w || w === 'auto' || w === '0px') ? '100%' : w;
             wrapper.style.height = (!h || h === 'auto' || h === '0px') ? '100%' : h;
             wrapper.style.margin = cStyle.margin;
@@ -802,6 +858,11 @@
 
         if (!isNaked) {
             root.style.setProperty('overscroll-behavior', 'none', 'important');
+        }
+
+        // ★ 비래퍼 비디오도 objectFit 백업 (아직 안 된 경우)
+        if (video.dataset.gtOrigObjectFit === undefined) {
+            video.dataset.gtOrigObjectFit = video.style.objectFit || '';
         }
 
         if (!video.dataset.gtSetupDone || video.gtRoot !== root) {
@@ -1118,14 +1179,15 @@
         document.addEventListener(evt, () => {
             let fsEl = getFS();
             if (!fsEl) {
+                // ★ 전체화면 해제: 모든 상태 클린업
                 document.querySelectorAll('.gt-lock-touch-full').forEach(el => el.classList.remove('gt-lock-touch-full'));
+                // ★ gt-fullscreen-active 확실히 제거
+                document.querySelectorAll('.gt-fullscreen-active').forEach(el => el.classList.remove('gt-fullscreen-active'));
                 unlockOrientation();
 
                 document.querySelectorAll('video').forEach(v => {
-                    if (v.gtState && v.gtState.scale !== 1.0) {
-                        v.gtState.scale = 1.0; v.gtState.panX = 0; v.gtState.panY = 0;
-                        v.style.transform = '';
-                    }
+                    // ★ 스타일 복원 (objectFit, transform, overflow 등)
+                    restoreVideoStyle(v);
                     updateTouchAction(v, v.gtRoot);
                 });
 
@@ -1145,7 +1207,10 @@
                     let root = fsEl;
                     if (root && root.tagName === 'VIDEO') root = root.parentNode;
 
-                    if (v) {
+                        if (v) {
+                        // ★ 전체화면 진입 시 스타일 백업
+                        backupVideoStyle(v);
+
                         if (v.gtUI && root && !root.contains(v.gtUI)) {
                             const style = window.getComputedStyle(root);
                             if (style.position === 'static') root.style.position = 'relative';
