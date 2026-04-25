@@ -270,50 +270,44 @@
 
     // ───── ★ 비디오 스타일 복원 헬퍼 (수정됨) ─────
     const restoreVideoStyle = (video) => {
-        if (!video) return;
+    if (!video) return;
 
-        // objectFit 복원
-        if (video.dataset.gtOrigObjectFit !== undefined) {
-            if (video.dataset.gtOrigObjectFit === '') {
-                video.style.removeProperty('object-fit');
-            } else {
-                video.style.objectFit = video.dataset.gtOrigObjectFit;
-            }
+    // objectFit 복원
+    if (video.dataset.gtOrigObjectFit !== undefined) {
+        if (video.dataset.gtOrigObjectFit === '') {
+            video.style.removeProperty('object-fit');
+        } else {
+            video.style.objectFit = video.dataset.gtOrigObjectFit;
+        }
+    }
+
+    // transform 리셋
+    if (video.gtState) {
+        video.gtState.scale = 1.0;
+        video.gtState.panX = 0;
+        video.gtState.panY = 0;
+        video.style.transform = '';
+    }
+
+    // ★ 래퍼 복원
+    const wrapper = video.parentNode;
+    if (wrapper && wrapper.classList.contains('gt-video-wrapper')) {
+        wrapper.style.height = 'auto';
+        wrapper.style.maxWidth = '100%';
+
+        if (wrapper.dataset.gtOrigW) {
+            const origW = wrapper.dataset.gtOrigW;
+            wrapper.style.width = (!origW || origW === 'auto' || origW === '0px') ? '100%' : origW;
         }
 
-        // transform 리셋
-        if (video.gtState) {
-            video.gtState.scale = 1.0;
-            video.gtState.panX = 0;
-            video.gtState.panY = 0;
-            video.style.transform = '';
+        if (wrapper.dataset.gtOverflow) {
+            wrapper.style.overflow = wrapper.dataset.gtOverflow;
         }
 
-        // ★ 래퍼 복원 (세로 영상 크기 문제 해결)
-        const wrapper = video.parentNode;
-        if (wrapper && wrapper.classList.contains('gt-video-wrapper')) {
-            // wrapper height를 auto로 강제 → aspect-ratio가 높이를 결정
-            wrapper.style.height = 'auto';
-            wrapper.style.maxWidth = '100%';
-
-            // wrapper에 저장된 원래 width 복원
-            if (wrapper.dataset.gtOrigW) {
-                const origW = wrapper.dataset.gtOrigW;
-                wrapper.style.width = (!origW || origW === 'auto' || origW === '0px') ? '100%' : origW;
-            }
-
-            if (wrapper.dataset.gtOverflow) {
-                wrapper.style.overflow = wrapper.dataset.gtOverflow;
-            }
-        }
-
-        // ★ naked 비디오는 height auto로 복원 → aspect-ratio 유지
-        if (video.dataset.gtIsNaked === 'true') {
-            video.style.width = '100%';
-            video.style.height = 'auto';
-            video.style.maxWidth = '100%';
-        }
-    };
+        // ★ video 스타일은 setupPlayer에서 설정한 그대로 유지 (width:100%, height:auto)
+        // 추가 덮어쓰기 하지 않음
+    }
+};
 
     // ───── ★ 전체화면 진입 전 스타일 백업 ─────
     const backupVideoStyle = (video) => {
