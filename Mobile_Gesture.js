@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      68.01.0
+// @version      68.02.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
 // @author       Gemini & Claude
 // @license      MIT
@@ -325,8 +325,8 @@
         #${uid} .gt-seek-val-btn  { top: ${(40 + 32) * S}px; right: ${10 * S}px; }
 
         /* 일반 모드: 오른쪽 하단 */
-        #${uid} .gt-mode-btn      { top: ${(40 + 64) * S}px; right: ${10 * S}px; }
-        #${uid} .gt-lock-btn      { top: ${(40 + 96) * S}px; right: ${10 * S}px; }
+        #${uid} .gt-mode-btn { top: ${(40 + 64) * S}px; right: ${10 * S}px; }
+        #${uid} .gt-lock-btn { top: ${(40 + 96) * S}px; right: ${10 * S}px; }
 
         /* 일반 모드: 하단 중앙 */
         #${uid} .gt-fit-btn { bottom: ${32 * S}px; left: 33%; transform: translateX(-50%); }
@@ -1092,19 +1092,23 @@
         document.addEventListener(evt, () => {
             let fsEl = getFS();
             if (!fsEl) {
-                document.querySelectorAll('.gt-lock-touch-full').forEach(el => el.classList.remove('gt-lock-touch-full'));
-                unlockOrientation();
+    document.querySelectorAll('.gt-lock-touch-full').forEach(el => el.classList.remove('gt-lock-touch-full'));
+    unlockOrientation();
 
-                // 전체화면 해제 시 모든 비디오의 줌 리셋
-                document.querySelectorAll('video').forEach(v => {
-                    if (v.gtState && v.gtState.scale !== 1.0) {
-                        v.gtState.scale = 1.0; v.gtState.panX = 0; v.gtState.panY = 0;
-                        v.style.transform = '';
-                    }
-                });
+    document.querySelectorAll('video').forEach(v => {
+        if (v.gtState && v.gtState.scale !== 1.0) {
+            v.gtState.scale = 1.0; v.gtState.panX = 0; v.gtState.panY = 0;
+            v.style.transform = '';
+        }
+        // 전체화면 해제 시 UI 스케일을 원래 크기로 복구
+        if (v.gtUI && v.gtRoot) {
+            applyFixedScale(v.gtRoot, v, v.gtUI);
+        }
+    });
 
-                const toast = document.getElementById('gt-toast-global');
-                if (toast && toast.parentNode !== document.body) { if (toast.parentNode) toast.parentNode.removeChild(toast); document.body.appendChild(toast); }
+    const toast = document.getElementById('gt-toast-global');
+    if (toast && toast.parentNode !== document.body) { if (toast.parentNode) toast.parentNode.removeChild(toast); document.body.appendChild(toast); }
+}
             } else {
                 setTimeout(() => {
                     let v = targetV || findDeepVid(fsEl) || document.querySelector('video');
