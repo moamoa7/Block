@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      68.00.0
+// @version      68.01.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
 // @author       Gemini & Claude
 // @license      MIT
@@ -322,11 +322,11 @@
 
         /* 일반 모드: 오른쪽 상단 */
         #${uid} .gt-seek-mode-btn { top: ${40 * S}px; right: ${10 * S}px; }
-        #${uid} .gt-seek-val-btn { top: ${(40 + 32) * S}px; right: ${10 * S}px; }
+        #${uid} .gt-seek-val-btn  { top: ${(40 + 32) * S}px; right: ${10 * S}px; }
 
         /* 일반 모드: 오른쪽 하단 */
-        #${uid} .gt-lock-btn { bottom: ${48 * S}px; right: ${10 * S}px; }
-        #${uid} .gt-mode-btn { bottom: ${(48 + 32) * S}px; right: ${10 * S}px; }
+        #${uid} .gt-mode-btn      { top: ${(40 + 64) * S}px; right: ${10 * S}px; }
+        #${uid} .gt-lock-btn      { top: ${(40 + 96) * S}px; right: ${10 * S}px; }
 
         /* 일반 모드: 하단 중앙 */
         #${uid} .gt-fit-btn { bottom: ${32 * S}px; left: 33%; transform: translateX(-50%); }
@@ -346,8 +346,8 @@
         :fullscreen #${uid} .gt-seek-mode-btn, .gt-fullscreen-active #${uid} .gt-seek-mode-btn { top: 55px; right: 20px; }
         :fullscreen #${uid} .gt-seek-val-btn, .gt-fullscreen-active #${uid} .gt-seek-val-btn { top: calc(55px + 50px); right: 20px; }
 
-        :fullscreen #${uid} .gt-lock-btn, .gt-fullscreen-active #${uid} .gt-lock-btn { bottom: 60px; right: 20px; }
-        :fullscreen #${uid} .gt-mode-btn, .gt-fullscreen-active #${uid} .gt-mode-btn { bottom: calc(60px + 50px); right: 20px; }
+        :fullscreen #${uid} .gt-mode-btn, .gt-fullscreen-active #${uid} .gt-mode-btn { top: calc(55px + 100px); right: 20px; }
+        :fullscreen #${uid} .gt-lock-btn, .gt-fullscreen-active #${uid} .gt-lock-btn { top: calc(55px + 150px); right: 20px; }
 
         :fullscreen #${uid} .gt-fit-btn, .gt-fullscreen-active #${uid} .gt-fit-btn { bottom: 40px; left: 33%; transform: translateX(-50%); }
         :fullscreen #${uid} .gt-rotate-btn, .gt-fullscreen-active #${uid} .gt-rotate-btn { bottom: 40px; left: 67%; transform: translateX(-50%); }
