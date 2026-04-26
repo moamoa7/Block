@@ -120,7 +120,6 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 <br/>
 
 # 사용중인 Filter 목록
-
 ※  아래 필터들을 하나로 합친 파일
 <br/>
 -- 애드가드 필터로만 구성된것으로 애드가드에서만 사용 권장
