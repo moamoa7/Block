@@ -28,8 +28,8 @@ ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/20.txt",   # Mobile App Banners
     "https://filters.adtidy.org/windows/filters/21.txt",   # Other Annoyances
     "https://filters.adtidy.org/windows/filters/22.txt",   # Widgets
-    "https://filters.adtidy.org/windows/filters/208.txt"   # Online Malicious URL
-    "https://filters.adtidy.org/windows/filters/224.txt"   # Chinese
+    "https://filters.adtidy.org/windows/filters/208.txt",  # Online Malicious URL
+    "https://filters.adtidy.org/windows/filters/224.txt",  # Chinese
     "https://filters.adtidy.org/windows/filters/227.txt",  # List-KR (Korean)
 ]
 
@@ -44,8 +44,8 @@ ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/20_optimized.txt",   # Mobile App Banners
     "https://filters.adtidy.org/android/filters/21_optimized.txt",   # Other Annoyances
     "https://filters.adtidy.org/android/filters/22_optimized.txt",   # Widgets
-    "https://filters.adtidy.org/windows/filters/208_optimized.txt"   # Online Malicious URL
-    "https://filters.adtidy.org/windows/filters/224_optimized.txt"   # Chinese
+    "https://filters.adtidy.org/windows/filters/208_optimized.txt",  # Online Malicious URL
+    "https://filters.adtidy.org/windows/filters/224_optimized.txt",  # Chinese
     "https://filters.adtidy.org/android/filters/227_optimized.txt",  # List-KR (Korean)
 ]
 
