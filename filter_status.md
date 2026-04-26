@@ -1,10 +1,10 @@
 # Filter Status Report
 
-**Updated:** 2026-04-26 08:52:29 (KST)
+**Updated:** 2026-04-26 09:04:48 (KST)
 
 ## PC
 **Sources:** 10 total | ✅ 10 OK | ❌ 0 Failed
-**Total rules:** 240,330
+**Total rules:** 236,298
 
 | Status | Code | Rules | Source |
 |--------|------|-------|--------|
@@ -17,11 +17,11 @@
 | ✅ OK | 200 | 3,894 | AdGuard Mobile App Banners filter |
 | ✅ OK | 200 | 8,018 | AdGuard Other Annoyances filter |
 | ✅ OK | 200 | 2,573 | AdGuard Widgets filter |
-| ✅ OK | 200 | 7,777 | YousList |
+| ✅ OK | 200 | 3,745 | List-KR Classic filter list |
 
 ## Mobile
 **Sources:** 10 total | ✅ 10 OK | ❌ 0 Failed
-**Total rules:** 119,684
+**Total rules:** 115,647
 
 | Status | Code | Rules | Source |
 |--------|------|-------|--------|
@@ -34,4 +34,4 @@
 | ✅ OK | 200 | 3,115 | AdGuard Mobile App Banners filter |
 | ✅ OK | 200 | 4,845 | AdGuard Other Annoyances filter |
 | ✅ OK | 200 | 1,560 | AdGuard Widgets filter |
-| ✅ OK | 200 | 7,777 | YousList |
+| ✅ OK | 200 | 3,740 | List-KR Classic filter list |
