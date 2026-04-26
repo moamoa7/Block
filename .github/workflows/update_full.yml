@@ -1,4 +1,4 @@
-name: Update Filters
+name: Update Filters (FULL)
 on:
   schedule:
     - cron: '0 */1 * * *'
