@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 combined.py
-- PC용:     combined_filters_pc.txt
-- 모바일용: combined_filters_mobile.txt
+- PC용:     combined_pc_full.txt
+- 모바일용: combined_mobile_full.txt
 - 상태 보고서: filter_status.md
 """
 import subprocess, sys
@@ -217,12 +217,12 @@ with open("filter_status.md", "w", encoding="utf-8") as f:
 # ============================================================
 print("\n" + "=" * 60)
 print(f"  Generated: {now} (KST)")
-print(f"  PC     : combined_filters_pc.txt     -> {pc_total:,} rules")
-print(f"  Mobile : combined_filters_mobile.txt -> {mob_total:,} rules")
+print(f"  PC     : combined_pc_full.txt     -> {pc_total:,} rules")
+print(f"  Mobile : combined_mobile_full.txt -> {mob_total:,} rules")
 print(f"  filter_status.md -> 상태 보고서")
 print("=" * 60)
 print()
 print("📌 AdGuard 사용법:")
-print("   PC     -> combined_filters_pc.txt 구독")
-print("   Mobile -> combined_filters_mobile.txt 구독")
+print("   PC     -> combined_pc_full.txt 구독")
+print("   Mobile -> combined_mobile_full.txt 구독")
 print("   + 추가할 때 'Trusted(신뢰할 수 있음)' 체크박스 활성화")
