@@ -209,7 +209,7 @@ for platform, results in all_results:
                 report.append(f"- ❌ **{r['name']}**: {r['status']} (`{r['url']}`)")
     report.append("")
 
-with open("filter_status.md", "w", encoding="utf-8") as f:
+with open("filter_status_full.md", "w", encoding="utf-8") as f:
     f.write("\n".join(report))
 
 # ============================================================
