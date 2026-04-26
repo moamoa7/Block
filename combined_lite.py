@@ -159,9 +159,9 @@ print("\n=== 모바일 필터 컴파일 ===")
 mob_blocks, mob_results = download_filters(ADGUARD_MOBILE_URLS)
 
 pc_total, pc_ok = write_filter_file(
-    "combined_filters_pc.txt", pc_blocks, pc_results, "AdGuard PC", now)
+    "combined_pc_lite.txt", pc_blocks, pc_results, "AdGuard PC", now)
 mob_total, mob_ok = write_filter_file(
-    "combined_filters_mobile.txt", mob_blocks, mob_results, "AdGuard Mobile", now)
+    "combined_mobile_lite.txt", mob_blocks, mob_results, "AdGuard Mobile", now)
 
 # ============================================================
 # filter_status.md
@@ -193,7 +193,7 @@ for platform, results in all_results:
                 report.append(f"- ❌ **{r['name']}**: {r['status']} (`{r['url']}`)")
     report.append("")
 
-with open("filter_status.md", "w", encoding="utf-8") as f:
+with open("filter_status_lite.md", "w", encoding="utf-8") as f:
     f.write("\n".join(report))
 
 # ============================================================
@@ -203,7 +203,7 @@ print("\n" + "=" * 60)
 print(f"  Generated: {now} (KST)")
 print(f"  PC     : combined_pc_lite.txt     -> {pc_total:,} rules")
 print(f"  Mobile : combined_mobile_lite.txt -> {mob_total:,} rules")
-print(f"  filter_status.md -> 상태 보고서")
+print(f"  filter_status_lite.md -> 상태 보고서")
 print("=" * 60)
 print()
 print("📌 AdGuard 사용법:")
