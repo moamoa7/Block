@@ -528,6 +528,8 @@ ddanzi.com#@#[class*="ad_"] [style]
 etoland.co.kr#@#[class*="ad_"] [style]
 ! https://humoruniv.com/ - 모바일에서 게시물 제목 안나옴
 humoruniv.com#@#[class*="ad_"] [style]
+! ruliweb.com -  게시몰 내용 일부 사라짐
+ruliweb.com#@#[class*="ad_"] [style]
 ! https://n.news.naver.com/ - 일부 사라짐
 naver.com#@#[class*="ad_"] [style]
 ! https://v.daum.net/ - 일부 아이콘이 사라짐 / 스크롤이 안내려감
