@@ -1,10 +1,10 @@
 # Filter Status Report
 
-**Updated:** 2026-04-26 15:29:57 (KST)
+**Updated:** 2026-04-26 15:32:49 (KST)
 
 ## PC
-**Sources:** 11 total | ✅ 10 OK | ❌ 1 Failed
-**Total rules:** 427,053
+**Sources:** 13 total | ✅ 13 OK | ❌ 0 Failed
+**Total rules:** 458,886
 
 | Status | Code | Rules | Source |
 |--------|------|-------|--------|
@@ -18,14 +18,13 @@
 | ✅ OK | 200 | 3,894 | AdGuard Mobile App Banners filter |
 | ✅ OK | 200 | 8,018 | AdGuard Other Annoyances filter |
 | ✅ OK | 200 | 2,573 | AdGuard Widgets filter |
-| ❌ HTTP_ERROR | 404 | 0 | List-KR Classic filter list |
-
-### Failed Sources
-- ❌ **List-KR Classic filter list**: HTTP_ERROR (`https://filters.adtidy.org/windows/filters/208.txthttps://filters.adtidy.org/windows/filters/224.txthttps://filters.adtidy.org/windows/filters/227.txt`)
+| ✅ OK | 200 | 5,829 | Online Malicious URL Blocklist |
+| ✅ OK | 200 | 22,259 | AdGuard Chinese filter |
+| ✅ OK | 200 | 3,745 | List-KR Classic filter list |
 
 ## Mobile
-**Sources:** 11 total | ✅ 10 OK | ❌ 1 Failed
-**Total rules:** 306,185
+**Sources:** 13 total | ✅ 13 OK | ❌ 0 Failed
+**Total rules:** 338,013
 
 | Status | Code | Rules | Source |
 |--------|------|-------|--------|
@@ -39,7 +38,6 @@
 | ✅ OK | 200 | 3,112 | AdGuard Mobile App Banners filter |
 | ✅ OK | 200 | 4,846 | AdGuard Other Annoyances filter |
 | ✅ OK | 200 | 1,559 | AdGuard Widgets filter |
-| ❌ HTTP_ERROR | 404 | 0 | List-KR Classic filter list |
-
-### Failed Sources
-- ❌ **List-KR Classic filter list**: HTTP_ERROR (`https://filters.adtidy.org/windows/filters/208_optimized.txthttps://filters.adtidy.org/windows/filters/224_optimized.txthttps://filters.adtidy.org/android/filters/227_optimized.txt`)
+| ✅ OK | 200 | 5,829 | Online Malicious URL Blocklist |
+| ✅ OK | 200 | 22,259 | AdGuard Chinese filter |
+| ✅ OK | 200 | 3,740 | List-KR Classic filter list |
