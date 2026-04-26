@@ -19,6 +19,7 @@ except ImportError:
 # ============================================================
 ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/2.txt",    # Base (EasyList 포함)
+    "https://filters.adtidy.org/windows/filters/3.txt",    # Tracking Protection
     "https://filters.adtidy.org/windows/filters/4.txt",    # Social Media
     "https://filters.adtidy.org/windows/filters/7.txt",    # Japanese
     "https://filters.adtidy.org/windows/filters/11.txt",   # Mobile Ads
@@ -27,11 +28,14 @@ ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/20.txt",   # Mobile App Banners
     "https://filters.adtidy.org/windows/filters/21.txt",   # Other Annoyances
     "https://filters.adtidy.org/windows/filters/22.txt",   # Widgets
+    "https://filters.adtidy.org/windows/filters/208.txt"   # Online Malicious URL
+    "https://filters.adtidy.org/windows/filters/224.txt"   # Chinese
     "https://filters.adtidy.org/windows/filters/227.txt",  # List-KR (Korean)
 ]
 
 ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/2_optimized.txt",    # Base (EasyList 포함)
+    "https://filters.adtidy.org/windows/filters/3_optimized.txt",    # Tracking Protection
     "https://filters.adtidy.org/android/filters/4_optimized.txt",    # Social Media
     "https://filters.adtidy.org/android/filters/7_optimized.txt",    # Japanese
     "https://filters.adtidy.org/android/filters/11_optimized.txt",   # Mobile Ads
@@ -40,6 +44,8 @@ ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/20_optimized.txt",   # Mobile App Banners
     "https://filters.adtidy.org/android/filters/21_optimized.txt",   # Other Annoyances
     "https://filters.adtidy.org/android/filters/22_optimized.txt",   # Widgets
+    "https://filters.adtidy.org/windows/filters/208_optimized.txt"   # Online Malicious URL
+    "https://filters.adtidy.org/windows/filters/224_optimized.txt"   # Chinese
     "https://filters.adtidy.org/android/filters/227_optimized.txt",  # List-KR (Korean)
 ]
 
@@ -49,6 +55,8 @@ ADGUARD_MOBILE_URLS = [
 FILTER_NAMES = {
     "2.txt":             "AdGuard Base filter (EasyList + AdGuard English filter)",
     "2_optimized.txt":   "AdGuard Base filter (EasyList + AdGuard English filter)",
+    "3.txt":             "AdGuard Tracking Protection filter",
+    "3_optimized.txt":   "AdGuard Tracking Protection filter",
     "4.txt":             "AdGuard Social Media filter",
     "4_optimized.txt":   "AdGuard Social Media filter",
     "7.txt":             "AdGuard Japanese filter",
@@ -65,6 +73,10 @@ FILTER_NAMES = {
     "21_optimized.txt":  "AdGuard Other Annoyances filter",
     "22.txt":            "AdGuard Widgets filter",
     "22_optimized.txt":  "AdGuard Widgets filter",
+    "208.txt":           "Online Malicious URL Blocklist",
+    "208_optimized.txt": "Online Malicious URL Blocklist",
+    "224.txt":           "AdGuard Chinese filter",
+    "224_optimized.txt": "AdGuard Chinese filter",
     "227.txt":           "List-KR Classic filter list",
     "227_optimized.txt": "List-KR Classic filter list",    
 }
