@@ -6064,3 +6064,11 @@ trand.co.kr#@#[id][style*="background"][style]
 ! - 배너 이미지
 ##[ class*="banner-item"]
 
+! 광고
+##[class*="adsense"]
+##[id*="adsense"]
+##[id*="adSense"]
+##[id*="Adsense"]
+##[id*="AdSense"]
+
+
