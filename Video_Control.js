@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Control (v32.0.2)
 // @namespace    https://github.com/moamoa7
-// @version      32.0.2
-// @description  v32.0.2: 강도 믹스 UI 제거, presetMix 1.0 고정
+// @version      32.0.3
+// @description  v32.0.3: 강도 상향
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '32.0.2';
+  const VSC_VERSION = '32.0.3';
   const DEBUG = false;
 
   const log = {
@@ -43,12 +43,12 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
   function getSharpProfile(nW) {
-    if (nW > 2560) return { cap: 0.32, diagRatio: 0.58, autoBase: 0.15 };
-    if (nW > 1920) return { cap: 0.27, diagRatio: 0.63, autoBase: 0.13 };
+    if (nW > 2560) return { cap: 0.40, diagRatio: 0.58, autoBase: 0.15 };
+    if (nW > 1920) return { cap: 0.34, diagRatio: 0.63, autoBase: 0.13 };
     const autoBase = nW <= 640 ? 0.14 : 0.12;
-    return { cap: 0.24, diagRatio: 0.68, autoBase };
+    return { cap: 0.30, diagRatio: 0.68, autoBase };
   }
-  const SHARP_CAP_DEFAULT = 0.20;
+  const SHARP_CAP_DEFAULT = 0.26;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -90,10 +90,10 @@
     detail: {
       none: { label: 'OFF' },
       off:  { label: 'AUTO' },
-      S:  { sharpAdd: 4,  sharp2Add: 2,  clarityAdd: 2,  label: '1단' },
-      M:  { sharpAdd: 7,  sharp2Add: 4,  clarityAdd: 3,  label: '2단' },
-      L:  { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 4,  label: '3단' },
-      XL: { sharpAdd: 13, sharp2Add: 6,  clarityAdd: 5,  label: '4단' },
+      S:  { sharpAdd: 6,   sharp2Add: 3,   clarityAdd: 3,   label: '1단' },
+      M:  { sharpAdd: 10,  sharp2Add: 6,   clarityAdd: 5,   label: '2단' },
+      L:  { sharpAdd: 15,  sharp2Add: 8,   clarityAdd: 7,   label: '3단' },
+      XL: { sharpAdd: 20,  sharp2Add: 10,  clarityAdd: 9,   label: '4단' },
     }
   });
   const _PRESET_SHARP_LUT = {};
