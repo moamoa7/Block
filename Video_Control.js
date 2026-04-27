@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v32.0.3)
+// @name         Video_Control (v32.0.4)
 // @namespace    https://github.com/moamoa7
-// @version      32.0.3
-// @description  v32.0.3: 강도 상향
+// @version      32.0.4
+// @description  v32.0.4: 강도 상향 (모바일 대폭 상향)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '32.0.3';
+  const VSC_VERSION = '32.0.4';
   const DEBUG = false;
 
   const log = {
@@ -43,12 +43,18 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
   function getSharpProfile(nW) {
-    if (nW > 2560) return { cap: 0.50, diagRatio: 0.58, autoBase: 0.18 };
-    if (nW > 1920) return { cap: 0.44, diagRatio: 0.63, autoBase: 0.16 };
-    const autoBase = nW <= 640 ? 0.16 : 0.14;
-    return { cap: 0.38, diagRatio: 0.68, autoBase };
+    if (IS_MOBILE) {
+      if (nW > 2560) return { cap: 0.60, diagRatio: 0.55, autoBase: 0.20 };
+      if (nW > 1920) return { cap: 0.52, diagRatio: 0.60, autoBase: 0.18 };
+      const autoBase = nW <= 640 ? 0.18 : 0.16;
+      return { cap: 0.45, diagRatio: 0.65, autoBase };
+    }
+    if (nW > 2560) return { cap: 0.32, diagRatio: 0.58, autoBase: 0.15 };
+    if (nW > 1920) return { cap: 0.27, diagRatio: 0.63, autoBase: 0.13 };
+    const autoBase = nW <= 640 ? 0.14 : 0.12;
+    return { cap: 0.24, diagRatio: 0.68, autoBase };
   }
-  const SHARP_CAP_DEFAULT = 0.32;
+  const SHARP_CAP_DEFAULT = IS_MOBILE ? 0.38 : 0.20;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -90,12 +96,33 @@
     detail: {
       none: { label: 'OFF' },
       off:  { label: 'AUTO' },
-      S:  { sharpAdd: 8,   sharp2Add: 5,   clarityAdd: 4,   label: '1단' },
-      M:  { sharpAdd: 14,  sharp2Add: 8,   clarityAdd: 6,   label: '2단' },
-      L:  { sharpAdd: 22,  sharp2Add: 12,  clarityAdd: 9,   label: '3단' },
-      XL: { sharpAdd: 30,  sharp2Add: 16,  clarityAdd: 12,  label: '4단' },
+      S:  {
+        sharpAdd:    IS_MOBILE ? 10 : 6,
+        sharp2Add:   IS_MOBILE ? 6  : 3,
+        clarityAdd:  IS_MOBILE ? 5  : 3,
+        label: '1단'
+      },
+      M:  {
+        sharpAdd:    IS_MOBILE ? 18 : 10,
+        sharp2Add:   IS_MOBILE ? 10 : 6,
+        clarityAdd:  IS_MOBILE ? 8  : 5,
+        label: '2단'
+      },
+      L:  {
+        sharpAdd:    IS_MOBILE ? 28 : 15,
+        sharp2Add:   IS_MOBILE ? 15 : 8,
+        clarityAdd:  IS_MOBILE ? 11 : 7,
+        label: '3단'
+      },
+      XL: {
+        sharpAdd:    IS_MOBILE ? 38 : 20,
+        sharp2Add:   IS_MOBILE ? 20 : 10,
+        clarityAdd:  IS_MOBILE ? 14 : 9,
+        label: '4단'
+      },
     }
   });
+
   const _PRESET_SHARP_LUT = {};
   for (const [key, d] of Object.entries(PRESETS.detail)) {
     if (key === 'none' || key === 'off') continue;
@@ -1176,7 +1203,7 @@
       const nH = video.videoHeight | 0; const ratioW = (dW * dpr) / nW; const ratioH = (nH > 16 && dH > 16) ? (dH * dpr) / nH : ratioW; const ratio = Math.min(ratioW, ratioH);
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
       const sharpProfile = getSharpProfile(nW); const rawAutoBase = sharpProfile.autoBase;
-      if (IS_MOBILE) mul = Math.max(mul, 0.82);
+      if (IS_MOBILE) mul = Math.max(mul, 0.85);
       return { mul: CLAMP(mul, 0, 1), autoBase: CLAMP(rawAutoBase * mul, 0, sharpProfile.cap), rawAutoBase, sharpProfile };
     }
     return {
@@ -1191,7 +1218,7 @@
         const presetS = Store.get(P.V_PRE_S);
         const mix = 1.0;
         const { mul, autoBase, rawAutoBase, sharpProfile } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(0) };
-        const platformScale = IS_MOBILE ? 1.0 : 1.0;
+        const platformScale = 1.0;
         const finalMul      = mul * platformScale;
         out._sharpCap  = sharpProfile.cap;
         out._diagRatio = sharpProfile.diagRatio;
