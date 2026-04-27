@@ -2967,10 +2967,6 @@ jamakyadong.me##[class*="g-col"]
 ![$domain=/^yargasm\d+.top/],[$domain=/^darkgg\d+.top/]##li.gnb_1dli:nth-of-type(8)
 ! - 영상 상단 배너 공간
 ###main-banner
-! - ||*/*/ads/* 예외 (영상 안나옴) - 광고 와 같은 디렉토리에 있음
-@@||zxcasdqwezxcasdqwe.com/ads/*$media
-! - https://ofw.adison.co/
-@@||ofw.adison.co/*/ads/*
 !
 !
 ! 야동허브 (https://ydhub11.net/)
@@ -4274,7 +4270,9 @@ fc-info.com##[class*="videoContainer"]
 !@@||avsee.ru/data/member_image/ad/*$image
 ! - 예외 (아바타 아이콘) (https://damoang.net/)
 !@@cdn.damoang.net/data/member_image/ad/*$image
+
 !||*/*/AD/*
+
 !||*/*/ad-*
 ! - 예외 (레딧 시간흐름 및 댓글 안보임 해결 - 스크립트 차단 문제)
 !@@||redditstatic.com/*/ad-*$script
@@ -4292,11 +4290,19 @@ fc-info.com##[class*="videoContainer"]
 !@@maps-service.pstatic.net/*/ad-*$image
 !@@map.pstatic.net/*/ad-*$image
 
-! - 예외 (텍스트 안보임 해결)
-@@github.com*$xhr
 !||*/*/AD-*/*
+
 ||*/*/ads/*
+! - ||*/*/ads/* 예외 (영상 안나옴) - 광고 와 같은 디렉토리에 있음
+!@@||zxcasdqwezxcasdqwe.com/ads/*$media
+! - https://ofw.adison.co/
+!@@||ofw.adison.co/*/ads/*
+
+
 ||*/*/ADS/*
+
+
+
 
 
 ! - 레딧 알부 이미지 안나옴
