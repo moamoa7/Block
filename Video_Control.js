@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Video_Control (v32.0.2)
+// @name         Video_Control (v32.0.3)
 // @namespace    https://github.com/moamoa7
 // @version      32.0.3
 // @description  v32.0.3: 강도 상향
@@ -43,12 +43,12 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
   function getSharpProfile(nW) {
-    if (nW > 2560) return { cap: 0.40, diagRatio: 0.58, autoBase: 0.15 };
-    if (nW > 1920) return { cap: 0.34, diagRatio: 0.63, autoBase: 0.13 };
-    const autoBase = nW <= 640 ? 0.14 : 0.12;
-    return { cap: 0.30, diagRatio: 0.68, autoBase };
+    if (nW > 2560) return { cap: 0.50, diagRatio: 0.58, autoBase: 0.18 };
+    if (nW > 1920) return { cap: 0.44, diagRatio: 0.63, autoBase: 0.16 };
+    const autoBase = nW <= 640 ? 0.16 : 0.14;
+    return { cap: 0.38, diagRatio: 0.68, autoBase };
   }
-  const SHARP_CAP_DEFAULT = 0.26;
+  const SHARP_CAP_DEFAULT = 0.32;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -90,10 +90,10 @@
     detail: {
       none: { label: 'OFF' },
       off:  { label: 'AUTO' },
-      S:  { sharpAdd: 6,   sharp2Add: 3,   clarityAdd: 3,   label: '1단' },
-      M:  { sharpAdd: 10,  sharp2Add: 6,   clarityAdd: 5,   label: '2단' },
-      L:  { sharpAdd: 15,  sharp2Add: 8,   clarityAdd: 7,   label: '3단' },
-      XL: { sharpAdd: 20,  sharp2Add: 10,  clarityAdd: 9,   label: '4단' },
+      S:  { sharpAdd: 8,   sharp2Add: 5,   clarityAdd: 4,   label: '1단' },
+      M:  { sharpAdd: 14,  sharp2Add: 8,   clarityAdd: 6,   label: '2단' },
+      L:  { sharpAdd: 22,  sharp2Add: 12,  clarityAdd: 9,   label: '3단' },
+      XL: { sharpAdd: 30,  sharp2Add: 16,  clarityAdd: 12,  label: '4단' },
     }
   });
   const _PRESET_SHARP_LUT = {};
@@ -1176,7 +1176,7 @@
       const nH = video.videoHeight | 0; const ratioW = (dW * dpr) / nW; const ratioH = (nH > 16 && dH > 16) ? (dH * dpr) / nH : ratioW; const ratio = Math.min(ratioW, ratioH);
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
       const sharpProfile = getSharpProfile(nW); const rawAutoBase = sharpProfile.autoBase;
-      if (IS_MOBILE) mul = Math.max(mul, 0.60);
+      if (IS_MOBILE) mul = Math.max(mul, 0.82);
       return { mul: CLAMP(mul, 0, 1), autoBase: CLAMP(rawAutoBase * mul, 0, sharpProfile.cap), rawAutoBase, sharpProfile };
     }
     return {
@@ -1191,7 +1191,7 @@
         const presetS = Store.get(P.V_PRE_S);
         const mix = 1.0;
         const { mul, autoBase, rawAutoBase, sharpProfile } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(0) };
-        const platformScale = IS_MOBILE ? 0.85 : 1.0;
+        const platformScale = IS_MOBILE ? 1.0 : 1.0;
         const finalMul      = mul * platformScale;
         out._sharpCap  = sharpProfile.cap;
         out._diagRatio = sharpProfile.diagRatio;
