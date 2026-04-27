@@ -224,8 +224,6 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ! 네이버 스토어 (https://smartstore.naver.com/)
 ! 네이버 스토어 오류 해결
 @@||smartstore.naver.com^$stealth
-! - 차단 목록 해제 (Adblock-Rule-Collection-Lite) - 네어버 상품 검색 후 클릭시 정보 안나옴 해결
-@@||*$removeparam=NaPm,from=msearch.shopping.naver.com|search.shopping.naver.com
 ! - -  광고 배너 안보이는거 해결 (kr: List-KR)
 ||ssl.pstatic.net/tveta/libs/$badfilter
 !
@@ -1057,16 +1055,16 @@ rgo4.com##div.xe-widget-wrapper.xe_content:nth-of-type(1)
 !
 !
 ! ZUM (https://zum.com/)
-! - 일부 요소 차단
-! - - - 쇼핑
-zum.com###shopping_contents
-! - - -  오른쪽 새로로 긴 쇼핑 배너
-zum.com##.wide.favorite_site
-! - 일부 요소 깨진거 차단 (유니콘Pro에 맞춤)
-! - - -  오늘의 스토리
-zum.com##.subcont_wrap
-! - - - TV
-zum.com##.tv_wrap
+! -  왼쪽 배너?
+##.ticker-banner
+! - 오른쪽 배너
+##.shopping_links
+! - 오른쪽 배너 밑 공간
+###right_top
+! - 검색 하단 광고
+##[class*="PowerLinkContainer"]
+##[class*="PowerShoppingList"]
+##[class*="CoupangContainer"]
 !
 !
 ! 벅스 (https://music.bugs.co.kr/)
@@ -2355,15 +2353,6 @@ javgg.net##.home_iframead
 ##[class*="-ad-"] img
 !
 !
-! https://123av.com/
-! - 팝업 방지
-||www.koreagirl1999.vip^$popup
-!||alarmenvious.com^$popup
-! - 지저분한거
-! - - - https://today-sports7.com/ - 상단 검색 부분 사라짐
-123av.com##.d-lg-block
-!
-!
 ! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
 ! - 입장시 18세 물어보는 팝업
@@ -2690,14 +2679,10 @@ avdbs.com##.__b-popup1__.b-modal
 !||apologiesoccursdepressed.com^$popup
 !
 !
-! 123AV (https://www1.123av.com/)
-! - 광고 차단? (EasyList)
-!||123av.*/assets/ad/
-!||*/*/ad/*
-! -오른쪽 따라다니는 배너 (EasyList)
-##.ad-floating
-! - 팝업 방지
-!||prefecturesuggestions.com^$popup
+! 123AV (https://123av.com/)
+! - 지저분한거
+! - - - https://today-sports7.com/ - 상단 검색란 등 사라짐으로 도메인 한정으로 변경
+123av.com##.d-lg-block
 !
 !
 ! https://herexxx.com/
@@ -6070,3 +6055,4 @@ trand.co.kr#@#[id][style*="background"][style]
 ##[id*="adSense"]
 ##[id*="Adsense"]
 ##[id*="AdSense"]
+
