@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260427
+! Version: 20260428
 !
 !
 !
@@ -318,6 +318,9 @@ sooplive.com##.event_tooltip
 sooplive.com#@#[class*="AD"]
 ! ##[class^="ad"] 해제
 point.sooplive.com#@#[class^="ad"]
+! - 19금 다시보기 시청시 로그인 하라고 나오는거 해결 (애드가드만 해당)
+! - - -  출처 : https://gall.dcinside.com/adguard/9365 댓글
+sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
