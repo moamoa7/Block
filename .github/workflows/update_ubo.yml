@@ -2,7 +2,7 @@ name: Update uBO Converted Filters
 
 on:
   schedule:
-    - cron: '0 */6 * * *'    # 6시간마다 (uBO는 자주 안 바뀌니까)
+    - cron: '*/30 * * * *'    # 30분마다
   workflow_dispatch:           # 수동 실행
 
 jobs:
