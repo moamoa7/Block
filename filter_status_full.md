@@ -1,14 +1,14 @@
 # Filter Status Report
 
-**Updated:** 2026-04-28 02:06:09 (KST)
+**Updated:** 2026-04-28 03:49:04 (KST)
 
 ## PC
 **Sources:** 13 total | ✅ 13 OK | ❌ 0 Failed
-**Total rules:** 459,414
+**Total rules:** 459,426
 
 | Status | Code | Rules | Source |
 |--------|------|-------|--------|
-| ✅ OK | 200 | 141,086 | AdGuard Base filter (EasyList + AdGuard English filter) |
+| ✅ OK | 200 | 141,096 | AdGuard Base filter (EasyList + AdGuard English filter) |
 | ✅ OK | 200 | 194,434 | AdGuard Tracking Protection filter |
 | ✅ OK | 200 | 15,884 | AdGuard Social Media filter |
 | ✅ OK | 200 | 11,821 | AdGuard Japanese filter |
@@ -16,19 +16,19 @@
 | ✅ OK | 200 | 20,774 | AdGuard Cookie Notices filter |
 | ✅ OK | 200 | 20,680 | AdGuard Popups filter |
 | ✅ OK | 200 | 3,896 | AdGuard Mobile App Banners filter |
-| ✅ OK | 200 | 8,019 | AdGuard Other Annoyances filter |
+| ✅ OK | 200 | 8,020 | AdGuard Other Annoyances filter |
 | ✅ OK | 200 | 2,573 | AdGuard Widgets filter |
 | ✅ OK | 200 | 5,877 | Online Malicious URL Blocklist |
-| ✅ OK | 200 | 22,277 | AdGuard Chinese filter |
+| ✅ OK | 200 | 22,278 | AdGuard Chinese filter |
 | ✅ OK | 200 | 3,747 | List-KR Classic filter list |
 
 ## Mobile
 **Sources:** 13 total | ✅ 13 OK | ❌ 0 Failed
-**Total rules:** 338,275
+**Total rules:** 338,287
 
 | Status | Code | Rules | Source |
 |--------|------|-------|--------|
-| ✅ OK | 200 | 49,106 | AdGuard Base filter (EasyList + AdGuard English filter) |
+| ✅ OK | 200 | 49,116 | AdGuard Base filter (EasyList + AdGuard English filter) |
 | ✅ OK | 200 | 194,434 | AdGuard Tracking Protection filter |
 | ✅ OK | 200 | 10,841 | AdGuard Social Media filter |
 | ✅ OK | 200 | 11,825 | AdGuard Japanese filter |
@@ -36,8 +36,8 @@
 | ✅ OK | 200 | 11,438 | AdGuard Cookie Notices filter |
 | ✅ OK | 200 | 10,851 | AdGuard Popups filter |
 | ✅ OK | 200 | 3,115 | AdGuard Mobile App Banners filter |
-| ✅ OK | 200 | 4,842 | AdGuard Other Annoyances filter |
+| ✅ OK | 200 | 4,843 | AdGuard Other Annoyances filter |
 | ✅ OK | 200 | 1,559 | AdGuard Widgets filter |
 | ✅ OK | 200 | 5,877 | Online Malicious URL Blocklist |
-| ✅ OK | 200 | 22,277 | AdGuard Chinese filter |
+| ✅ OK | 200 | 22,278 | AdGuard Chinese filter |
 | ✅ OK | 200 | 3,742 | List-KR Classic filter list |
