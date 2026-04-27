@@ -770,8 +770,6 @@ ddanzi.com##.add_display2
 ! 보배드림 (https://www.bobaedream.co.kr/)
 ! - 오늘의 회원 랭킹
 bobaedream.co.kr##.todayRanking
-! - 댓글 바로 위 차 광고 (List-KR)
-bobaedream.co.kr##body.body-community div[class*="Car"]
 ! - 차단 사이트
 ||googletagservices.com^
 ! - ##[class^="ad"] 복원 - 하단 사업자 정보 등 회사 정보 사라짐
@@ -994,8 +992,6 @@ damoang.net##.d-block.lh-1.end-0.bottom-0.position-fixed
 ! - 이미지 복구
 !@@||damoang.net//data/editor/*$image
 !@@||cdn.damoang.net/img/*$image
-! 홍보글 (List-KR)
-damoang.net##li.list-group-item:has(a[href*="promotion"])
 ! - 차단 사이트
 !||fundingchoicesmessages.google.com^$3p
 ! - 차단사이트 안내 하단 팝업
@@ -1873,8 +1869,6 @@ mtn.co.kr##.w_308px
 ##.special_area
 ! - 팝업형식 유튜브 배너
 edaily.co.kr##.show.hover.special_box
-! - 상단 여백 공간 (List-KR)
-edaily.co.kr###edailywrap > #headers ~ div[style*="height: "]
 ! - 오른쪽 공간 전부 삭제
 edaily.co.kr###right-sticky
 ! - 하단 쓸데없는거 삭제
