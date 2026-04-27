@@ -36,21 +36,20 @@
 ! - 국내 사이트 접속 안되는거 해결
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
-@@||*^$stealth=dpi
-!@@||192.168.$stealth=dpi
-!@@||code-pia.com^$stealth=dpi
-!@@||fs2.joycity.com^$stealth=dpi
-!@@||glonmall.com^$stealth=dpi
-!@@||hanaroetf.com^$stealth=dpi
-!@@||isplus.$stealth=dpi
-!@@||koreainvestment.com^$stealth=dpi
-!@@||lgtwins.com^$stealth=dpi
-!@@||pincrux.com^$stealth=dpi
+@@||192.168.$stealth=dpi
+@@||code-pia.com^$stealth=dpi
+@@||fs2.joycity.com^$stealth=dpi
+@@||glonmall.com^$stealth=dpi
+@@||hanaroetf.com^$stealth=dpi
+@@||isplus.$stealth=dpi
+@@||koreainvestment.com^$stealth=dpi
+@@||kr^$stealth=dpi
+@@||pincrux.com^$stealth=dpi
 @@||shopping.naver.com^$stealth
 @@||smartstore.naver.com^$stealth
-!@@||sofrano.com^$stealth=dpi
-!@@||termeden.com^$stealth=dpi
-!@@||truefriend.com^$stealth=dpi
+@@||sofrano.com^$stealth=dpi
+@@||termeden.com^$stealth=dpi
+@@||truefriend.com^$stealth=dpi
 !
 !
 !
