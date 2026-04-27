@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v32.0.4)
+// @name         Video_Control (v32.0.5)
 // @namespace    https://github.com/moamoa7
-// @version      32.0.4
-// @description  v32.0.4: 강도 상향 (모바일 대폭 상향)
+// @version      32.0.5
+// @description  v32.0.5: 샤프 강도 조정 (단계별 증가폭 조정)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '32.0.4';
+  const VSC_VERSION = '32.0.5';
   const DEBUG = false;
 
   const log = {
@@ -44,17 +44,17 @@
 
   function getSharpProfile(nW) {
     if (IS_MOBILE) {
-      if (nW > 2560) return { cap: 0.60, diagRatio: 0.55, autoBase: 0.20 };
-      if (nW > 1920) return { cap: 0.52, diagRatio: 0.60, autoBase: 0.18 };
+      if (nW > 2560) return { cap: 0.70, diagRatio: 0.55, autoBase: 0.20 };
+      if (nW > 1920) return { cap: 0.62, diagRatio: 0.60, autoBase: 0.18 };
       const autoBase = nW <= 640 ? 0.18 : 0.16;
-      return { cap: 0.45, diagRatio: 0.65, autoBase };
+      return { cap: 0.55, diagRatio: 0.65, autoBase };
     }
-    if (nW > 2560) return { cap: 0.32, diagRatio: 0.58, autoBase: 0.15 };
-    if (nW > 1920) return { cap: 0.27, diagRatio: 0.63, autoBase: 0.13 };
+    if (nW > 2560) return { cap: 0.42, diagRatio: 0.58, autoBase: 0.15 };
+    if (nW > 1920) return { cap: 0.36, diagRatio: 0.63, autoBase: 0.13 };
     const autoBase = nW <= 640 ? 0.14 : 0.12;
-    return { cap: 0.24, diagRatio: 0.68, autoBase };
+    return { cap: 0.32, diagRatio: 0.68, autoBase };
   }
-  const SHARP_CAP_DEFAULT = IS_MOBILE ? 0.38 : 0.20;
+  const SHARP_CAP_DEFAULT = IS_MOBILE ? 0.48 : 0.28;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -97,27 +97,27 @@
       none: { label: 'OFF' },
       off:  { label: 'AUTO' },
       S:  {
-        sharpAdd:    IS_MOBILE ? 10 : 6,
-        sharp2Add:   IS_MOBILE ? 6  : 3,
-        clarityAdd:  IS_MOBILE ? 5  : 3,
+        sharpAdd:    IS_MOBILE ? 8  : 5,
+        sharp2Add:   IS_MOBILE ? 4  : 2,
+        clarityAdd:  IS_MOBILE ? 3  : 2,
         label: '1단'
       },
       M:  {
-        sharpAdd:    IS_MOBILE ? 18 : 10,
-        sharp2Add:   IS_MOBILE ? 10 : 6,
-        clarityAdd:  IS_MOBILE ? 8  : 5,
+        sharpAdd:    IS_MOBILE ? 16 : 10,
+        sharp2Add:   IS_MOBILE ? 9  : 5,
+        clarityAdd:  IS_MOBILE ? 7  : 4,
         label: '2단'
       },
       L:  {
-        sharpAdd:    IS_MOBILE ? 28 : 15,
-        sharp2Add:   IS_MOBILE ? 15 : 8,
-        clarityAdd:  IS_MOBILE ? 11 : 7,
+        sharpAdd:    IS_MOBILE ? 25 : 16,
+        sharp2Add:   IS_MOBILE ? 14 : 8,
+        clarityAdd:  IS_MOBILE ? 10 : 5,
         label: '3단'
       },
       XL: {
-        sharpAdd:    IS_MOBILE ? 38 : 20,
-        sharp2Add:   IS_MOBILE ? 20 : 10,
-        clarityAdd:  IS_MOBILE ? 14 : 9,
+        sharpAdd:    IS_MOBILE ? 34 : 22,
+        sharp2Add:   IS_MOBILE ? 19 : 10,
+        clarityAdd:  IS_MOBILE ? 14 : 7,
         label: '4단'
       },
     }
