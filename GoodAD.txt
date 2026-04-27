@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260426
+! Version: 20260427
 !
 !
 !
@@ -72,17 +72,6 @@
 !
 !
 !
-! 아이피 위치추적 (https://mylocation.co.kr/)
-! - AdBlock, AdGuard 등의 광고차단기가 감지되어 검색기능을 제한합니다 풀기
-! List-KR / EasyList / AdGuard – Ads 무력화
-mylocation.co.kr#@#ins.adsbygoogle[data-ad-slot]
-! EasyList 무력화
-mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
-! YousLis 무력화
-mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
-!
-!
-!
 !
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -111,7 +100,25 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !@@||localhost^$badfilter
 !
 ! - https://wonforecast.com/ 환율 가져오기
-@@||tradingview.com/socket.io/websocket
+!@@||tradingview.com/socket.io/websocket
+!
+!
+! 구글 광고 차단
+##ins.adsbygoogle
+! - - - 일부 해제
+! - - - - - 아이피 위치추적 (https://mylocation.co.kr/)
+! - - - - - AdBlock, AdGuard 등의 광고차단기가 감지되어 검색기능을 제한합니다 풀기
+! - - - - - List-KR / EasyList / AdGuard – Ads 무력화
+mylocation.co.kr#@#ins.adsbygoogle[data-ad-slot]
+! EasyList 무력화
+mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
+! YousLis 무력화
+mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
+||*adsbygoogle.js
+##div[class*="google-ad"]
+##iframe[src*="doubleclick.net"]
+##iframe[src*="googleadservices.com"]
+##div[data-google-av-ad-container]
 !
 !
 ! 유튜브 (https://www.youtube.com/)
