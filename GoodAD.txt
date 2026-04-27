@@ -6070,8 +6070,3 @@ trand.co.kr#@#[id][style*="background"][style]
 ##[id*="adSense"]
 ##[id*="Adsense"]
 ##[id*="AdSense"]
-
-! - 광고 DNS 차단 (oisd small) - AdGuard DNS filter에는 있음
-! - - - ||applvn.com로 차단인데 애드가드에서 차단을 안하네
-||rt.applvn.com
-
