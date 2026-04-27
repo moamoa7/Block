@@ -1,0 +1,31 @@
+name: Update uBO Converted Filters
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'    # 6시간마다 (uBO는 자주 안 바뀌니까)
+  workflow_dispatch:           # 수동 실행
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - run: pip install requests
+
+      - run: python ubo_to_adguard.py
+        continue-on-error: true
+
+      - name: Commit & Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ubo_converted.txt ubo_convert_status.md
+          git diff --staged --quiet || git commit -m "Update uBO converted filters $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
