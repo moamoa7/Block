@@ -4,6 +4,10 @@ on:
     - cron: '*/30 * * * *'
   workflow_dispatch:
 
+concurrency:                         # ← 이거 추가
+  group: filter-update               # ← 같은 그룹명
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
