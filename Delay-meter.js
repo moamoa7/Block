@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      16.2.1
+// @version      16.2.2
 // @description  라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -38,7 +38,7 @@
   const PLATFORM_DEFAULTS = {
     youtube: { target: 10, min: 2,   max: 30, barMax: 35 },
     chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15 },
-    soop:    { target: 3.5,  min: 1,   max: 10, barMax: 15 },
+    soop:    { target: 3,  min: 1,   max: 10, barMax: 15 },
     twitch:  { target: 3,  min: 1,   max: 10, barMax: 15 },
     default: { target: 3,  min: 1,   max: 10, barMax: 15 },
   };
@@ -329,8 +329,8 @@
   const computeDesiredGear = buf => {
     const ex = buf - target;
     const hyst = getHyst();
-    if (ex > target * 1.2) return R_HIGH;
-    if (ex > target * 0.7) return R_MED;
+    if (ex > target * 0.50) return R_HIGH;
+    if (ex > target * 0.25) return R_MED;
     if (ex < -hyst)        return R_NORM;
     if (ex < hyst)         return control.gear;
     return control.gear;
