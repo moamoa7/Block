@@ -131,14 +131,14 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 https://raw.githubusercontent.com/moamoa7/adblock/main/combined_pc_full.txt
 https://raw.githubusercontent.com/moamoa7/adblock/main/combined_pc_lite.txt
 ```
-<br/>
 ((모바일))
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/combined_mobile_full.txt
 https://raw.githubusercontent.com/moamoa7/adblock/main/combined_mobile_lite.txt
 ```
+
 <br/>
-<br/>
+
 ※ 필터 목록
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/combined_full.py
