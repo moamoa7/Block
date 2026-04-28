@@ -26,7 +26,7 @@ ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/20.txt",   # Mobile App Banners
     "https://filters.adtidy.org/windows/filters/21.txt",   # Other Annoyances
     "https://filters.adtidy.org/windows/filters/22.txt",   # Widgets
-    "https://filters.adtidy.org/windows/filters/227.txt",  # List-KR (Korean)
+    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",  # List-KR (Korean)
 ]
 
 ADGUARD_MOBILE_URLS = [
@@ -38,7 +38,7 @@ ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/20_optimized.txt",   # Mobile App Banners
     "https://filters.adtidy.org/android/filters/21_optimized.txt",   # Other Annoyances
     "https://filters.adtidy.org/android/filters/22_optimized.txt",   # Widgets
-    "https://filters.adtidy.org/android/filters/227_optimized.txt",  # List-KR (Korean)
+    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",  # List-KR (Korean)
 ]
 
 # ============================================================
@@ -61,8 +61,7 @@ FILTER_NAMES = {
     "21_optimized.txt":  "AdGuard Other Annoyances filter",
     "22.txt":            "AdGuard Widgets filter",
     "22_optimized.txt":  "AdGuard Widgets filter",
-    "227.txt":           "List-KR Classic filter list",
-    "227_optimized.txt": "List-KR Classic filter list",    
+    "filterslist-AdGuard-classic.txt": "List-KR Classic filter list", 
 }
 
 def get_source_name(url):
