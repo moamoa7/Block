@@ -328,7 +328,7 @@ sooplive.com##.event_tooltip
 sooplive.com#@#[class*="AD"]
 ! ##[class^="ad"] 해제
 point.sooplive.com#@#[class^="ad"]
-! -무한 버퍼링 해결?  (AdGuard DNS filter 필터)
+! -무한 버퍼링 해결?  (AdGuard DNS filter 필터 해제)
 ! - -- 출처 : https://gall.dcinside.com/adguard/9010
 @@||exlogcollector.sooplive.com^
 ! - 19금 다시보기 시청시 로그인 하라고 나오는거 해결 (애드가드만 해당)
