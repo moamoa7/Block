@@ -127,39 +127,22 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 -- 중복 체크없이 아래 필터들을 단순하게 하나로 묶은것입니다
 <br/><br/>
 ((PC))
-<br/>
-https://raw.githubusercontent.com/moamoa7/adblock/main/combined_filters_pc.txt
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/combined_pc_full.txt
+https://raw.githubusercontent.com/moamoa7/adblock/main/combined_pc_lite.txt
+```
 <br/>
 ((모바일))
-<br/>
-https://raw.githubusercontent.com/moamoa7/adblock/main/combined_filters_mobile.txt
-<br/>
-<br/>
-※ 필터 목록 (PC)
 ```
-https://filters.adtidy.org/windows/filters/2.txt
-https://filters.adtidy.org/windows/filters/4.txt
-https://filters.adtidy.org/windows/filters/7.txt
-https://filters.adtidy.org/windows/filters/11.txt
-https://filters.adtidy.org/windows/filters/18.txt
-https://filters.adtidy.org/windows/filters/19.txt
-https://filters.adtidy.org/windows/filters/20.txt
-https://filters.adtidy.org/windows/filters/21.txt
-https://filters.adtidy.org/windows/filters/22.txt
-https://filters.adtidy.org/windows/filters/227.txt
+https://raw.githubusercontent.com/moamoa7/adblock/main/combined_mobile_full.txt
+https://raw.githubusercontent.com/moamoa7/adblock/main/combined_mobile_lite.txt
 ```
-※ 필터 목록 (모바일)
+<br/>
+<br/>
+※ 필터 목록
 ```
-https://filters.adtidy.org/android/filters/2_optimized.txt
-https://filters.adtidy.org/android/filters/4_optimized.txt
-https://filters.adtidy.org/android/filters/7_optimized.txt
-https://filters.adtidy.org/android/filters/11_optimized.txt
-https://filters.adtidy.org/android/filters/18_optimized.txt
-https://filters.adtidy.org/android/filters/19_optimized.txt
-https://filters.adtidy.org/android/filters/20_optimized.txt
-https://filters.adtidy.org/android/filters/21_optimized.txt
-https://filters.adtidy.org/android/filters/22_optimized.txt
-https://filters.adtidy.org/android/filters/227_optimized.txt
+https://raw.githubusercontent.com/moamoa7/adblock/main/combined_full.py
+https://raw.githubusercontent.com/moamoa7/adblock/main/combined_lite.py
 ```
 
 
