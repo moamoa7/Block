@@ -120,9 +120,7 @@ https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%
 <br/>
 
 # 사용중인 Filter 목록
-※  아래 필터들을 하나로 합친 파일
-<br/>
--- 애드가드 필터로만 구성된것으로 애드가드에서만 사용 권장
+※  애드가드 필터로만 구성된것으로 애드가드에서만 사용 권장
 <br/>
 -- 중복 체크없이 아래 필터들을 단순하게 하나로 묶은것입니다
 <br/><br/>
@@ -136,10 +134,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/combined_pc_lite.txt
 https://raw.githubusercontent.com/moamoa7/adblock/main/combined_mobile_full.txt
 https://raw.githubusercontent.com/moamoa7/adblock/main/combined_mobile_lite.txt
 ```
-
-<br/>
-
-※ 필터 목록
+((필터 목록))
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/combined_full.py
 https://raw.githubusercontent.com/moamoa7/adblock/main/combined_lite.py
