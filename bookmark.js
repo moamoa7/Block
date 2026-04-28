@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v26.2)
-// @version      26.2
-// @description  v26.1 기반 — toggle 닫기 시 saveNow 누락 수정, _col 가비지 정리, rerender RAF 병합, findLocs 이중순회 제거, favicon sz=64, Fragment 분기 제거, 건강체크 405 허용
+// @name         북마크 (Glassmorphism v27)
+// @version      27.0
+// @description  v26.2 기반 — CSP img-src 차단 우회: GM_xmlhttpRequest + data:URI 변환, 파비콘 메모리+디스크 캐시
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -102,18 +102,89 @@
         } catch { return s; }
     };
 
-    /* 파비콘 */
+    /* ═══════════════════════════════════
+       파비콘 (CSP 우회: GM_xmlhttpRequest → data:URI)
+       ═══════════════════════════════════ */
     const FALLBACK_ICON = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-    /* [패치] sz=128 → sz=64: 표시 크기 34~40px 대비 2x면 충분, 네트워크 절약 */
-    const faviconUrl = url => {
-        try {
-            const h = new URL(url).hostname;
-            if (!h) return FALLBACK_ICON;
-            return `https://www.google.com/s2/favicons?domain=${h}&sz=64`;
-        } catch { return FALLBACK_ICON; }
+
+    const _favMemCache = new Map();
+    const _favInflight = new Map();
+    let _favDisk = null;
+    const _FAV_DISK_KEY = 'bm_fav_cache_v1';
+    const _FAV_MAX = 800;
+
+    const loadFavDisk = () => {
+        if (_favDisk) return _favDisk;
+        try { _favDisk = JSON.parse(GM_getValue(_FAV_DISK_KEY, '{}')); } catch { _favDisk = {}; }
+        return _favDisk;
     };
 
-    /* 네트워크 */
+    const saveFavDisk = () => {
+        try {
+            const keys = Object.keys(_favDisk);
+            if (keys.length > _FAV_MAX) {
+                const cut = keys.slice(0, keys.length - _FAV_MAX);
+                for (const k of cut) delete _favDisk[k];
+            }
+            GM_setValue(_FAV_DISK_KEY, JSON.stringify(_favDisk));
+        } catch {}
+    };
+
+    let _favSaveTimer = 0;
+    const saveFavDiskLazy = () => {
+        clearTimeout(_favSaveTimer);
+        _favSaveTimer = setTimeout(saveFavDisk, 2000);
+    };
+
+    const fetchFaviconDataUrl = host => {
+        if (_favInflight.has(host)) return _favInflight.get(host);
+        const p = new Promise(resolve => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: `https://www.google.com/s2/favicons?domain=${host}&sz=64`,
+                responseType: 'blob',
+                timeout: 6000,
+                onload: res => {
+                    _favInflight.delete(host);
+                    if (res.status >= 200 && res.status < 400 && res.response && res.response.size > 0) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            const dataUrl = reader.result;
+                            _favMemCache.set(host, dataUrl);
+                            loadFavDisk()[host] = dataUrl;
+                            saveFavDiskLazy();
+                            resolve(dataUrl);
+                        };
+                        reader.onerror = () => resolve(FALLBACK_ICON);
+                        reader.readAsDataURL(res.response);
+                    } else {
+                        resolve(FALLBACK_ICON);
+                    }
+                },
+                onerror: () => { _favInflight.delete(host); resolve(FALLBACK_ICON); },
+                ontimeout: () => { _favInflight.delete(host); resolve(FALLBACK_ICON); }
+            });
+        });
+        _favInflight.set(host, p);
+        return p;
+    };
+
+    const setFavicon = (imgEl, url) => {
+        const host = (() => { try { return new URL(url).hostname; } catch { return ''; } })();
+        if (!host) { imgEl.src = FALLBACK_ICON; return; }
+
+        if (_favMemCache.has(host)) { imgEl.src = _favMemCache.get(host); return; }
+
+        const disk = loadFavDisk();
+        if (disk[host]) { _favMemCache.set(host, disk[host]); imgEl.src = disk[host]; return; }
+
+        imgEl.src = FALLBACK_ICON;
+        fetchFaviconDataUrl(host).then(src => { if (imgEl.isConnected) imgEl.src = src; });
+    };
+
+    /* ═══════════════════════════════════
+       네트워크
+       ═══════════════════════════════════ */
     const gmFetchText = (url, timeout = 5000) => new Promise(r =>
         GM_xmlhttpRequest({
             method: 'GET', url, timeout,
@@ -232,7 +303,7 @@
         return true;
     };
 
-    /* [패치] URL 중복 체크 + 위치 정보 통합 — findLocs 이중 순회 제거 */
+    /* URL 중복 체크 + 위치 정보 */
     const buildUrlSet = () => {
         _urlSet = new Map();
         _urlLocs = new Map();
@@ -246,7 +317,6 @@
     const addUrl = u => {
         if (!_urlSet) buildUrlSet();
         _urlSet.set(u, (_urlSet.get(u) || 0) + 1);
-        /* _urlLocs는 정밀 위치가 필요하므로 무효화하여 다음 조회 시 재구축 */
         _urlLocs = null;
     };
     const delUrl = u => {
@@ -298,7 +368,6 @@
         saveCol();
     };
 
-    /* [패치] _col 가비지 정리 — 존재하지 않는 페이지::그룹 키 제거 */
     const cleanCol = () => {
         let changed = false;
         for (const k of _col) {
@@ -516,7 +585,6 @@
                         const ok = await new Promise(r =>
                             GM_xmlhttpRequest({
                                 method: 'HEAD', url: it.url, timeout: 5000,
-                                /* [패치] 405 허용 — HEAD를 거부하지만 실제로는 살아있는 사이트 오탐 방지 */
                                 onload: res => r(res.status < 400 || res.status === 405),
                                 onerror: () => r(false), ontimeout: () => r(false)
                             })
@@ -639,12 +707,19 @@
        ═══════════════════════════════════ */
     let _sTimer = null, _ctr = null;
 
-    /* [패치] rerender RAF 병합 — 연속 호출 시 마지막 1회만 실행 */
     let _renderRaf = 0;
     const rerender = () => {
         if (!_isOpen) return;
         cancelAnimationFrame(_renderRaf);
         _renderRaf = requestAnimationFrame(renderDash);
+    };
+
+    /* 파비콘 img 헬퍼 */
+    const mkFavImg = url => {
+        const img = $('img', { loading: 'lazy' });
+        setFavicon(img, url);
+        img.onerror = () => { img.onerror = null; img.src = FALLBACK_ICON; img.style.opacity = '0.3'; };
+        return img;
     };
 
     function renderDash() {
@@ -704,19 +779,17 @@
                             }),
                             $('div', { cls: 'bm-grid' },
                                 res.map(r => {
-                                    const icon = faviconUrl(r.url);
-                                    const img = $('img', { loading: 'lazy', src: icon });
-                                    img.onerror = () => { img.onerror = null; img.src = FALLBACK_ICON; img.style.opacity = '0.3'; };
+                                    const img = mkFavImg(r.url);
                                     return $('a', {
-    cls: 'bm-wrap', href: r.url,
-    title: `${r.pn} > ${r.gn}`,
-    onclick: e => {
-        if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-            e.preventDefault();
-            window.open(r.url, '_blank');
-        }
-    }
-}, [$('div', { cls: 'bm-item' }, [img, $('span', { text: r.name })])]);
+                                        cls: 'bm-wrap', href: r.url,
+                                        title: `${r.pn} > ${r.gn}`,
+                                        onclick: e => {
+                                            if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                                                e.preventDefault();
+                                                window.open(r.url, '_blank');
+                                            }
+                                        }
+                                    }, [$('div', { cls: 'bm-item' }, [img, $('span', { text: r.name })])]);
                                 })
                             )
                         ]));
@@ -748,6 +821,13 @@
                         const all = ks.every(k => _col.has(k));
                         ks.forEach(k => all ? _col.delete(k) : _col.add(k));
                         saveCol();
+                        renderDash();
+                    }},
+                    { i: '🗑', t: '파비콘 캐시 초기화', fn: () => {
+                        _favMemCache.clear();
+                        _favDisk = {};
+                        saveFavDisk();
+                        toast('🗑 파비콘 캐시 초기화됨');
                         renderDash();
                     }},
                     { i: '💾', t: '백업 (JSON)', fn: exportJSON },
@@ -844,21 +924,19 @@
             for (let idx = 0; idx < items.length; idx++) {
                 const it = items[idx];
                 const w = $('a', {
-    cls: 'bm-wrap', href: it.url,
-    title: it.addedAt ? `추가: ${new Date(it.addedAt).toLocaleDateString()}` : '',
-    onclick: e => {
-        if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-            e.preventDefault();
-            window.open(it.url, '_blank');
-        }
-    }
-});
+                    cls: 'bm-wrap', href: it.url,
+                    title: it.addedAt ? `추가: ${new Date(it.addedAt).toLocaleDateString()}` : '',
+                    onclick: e => {
+                        if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                            e.preventDefault();
+                            window.open(it.url, '_blank');
+                        }
+                    }
+                });
                 w.oncontextmenu = e => ctxMenu(e, it, gn, idx);
                 bindLP(w, e => ctxMenu(e, it, gn, idx));
 
-                const icon = faviconUrl(it.url);
-                const img = $('img', { loading: 'lazy', src: icon });
-                img.onerror = () => { img.onerror = null; img.src = FALLBACK_ICON; img.style.opacity = '0.3'; };
+                const img = mkFavImg(it.url);
                 w.append($('div', { cls: 'bm-item' }, [img, $('span', { text: it.name })]));
                 gEl.append(w);
             }
@@ -1057,7 +1135,6 @@
             btn('🗑 그룹 삭제', 'bm-btn-red', () => {
                 if (items.length && !confirm(`"${gn}" 삭제?`)) return;
                 pushUndo(); delete curPage()[gn];
-                /* [패치] 그룹 삭제 시 _col 가비지 정리 */
                 _col.delete(colKey(gn)); saveCol();
                 _urlSet = null; _urlLocs = null; save(); rerender(); m.close();
             }, { width: '100%', marginTop: '10px', padding: '10px' })
@@ -1099,7 +1176,6 @@
                             if (Object.keys(db.pages).length < 2) return alert('최소 1개');
                             if (!confirm(`"${tn}" 삭제?`)) return;
                             pushUndo();
-                            /* [패치] 페이지 삭제 시 _col 가비지 정리 */
                             for (const g of Object.keys(db.pages[tn] || {})) _col.delete(`${tn}::${g}`);
                             saveCol();
                             delete db.pages[tn];
@@ -1254,7 +1330,6 @@
             fab.firstChild.textContent = '✕';
             _isOpen = true;
         } else {
-            /* [패치] 닫기 시 미저장 데이터 즉시 flush — saveLazy 타이머 잔존 방지 */
             if (_dirty) saveNow();
             document.body.classList.remove('bm-overlay-open');
             ov.style.display = 'none';
@@ -1571,7 +1646,7 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
         const fab = $('div', { id: 'bm-fab', role: 'button', 'aria-label': '북마크' }, [document.createTextNode('🔖')]);
         shadow.append($('style', { text: GLASS_CSS }), ov, fab);
 
-        /* [패치] 초기화 시 _col 가비지 정리 */
+        /* 초기화 시 _col 가비지 정리 */
         cleanCol();
 
         /* ── FAB 제스처 ── */
