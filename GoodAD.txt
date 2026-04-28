@@ -4312,7 +4312,7 @@ fc-info.com##[class*="videoContainer"]
 
 !||*/*/AD-*/*
 
-||*/*/ads/*
+!||*/*/ads/*
 ! - ||*/*/ads/* 예외 (영상 안나옴) - 광고 와 같은 디렉토리에 있음
 !@@||zxcasdqwezxcasdqwe.com/ads/*$media
 ! - https://ofw.adison.co/
