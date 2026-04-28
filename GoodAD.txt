@@ -200,8 +200,6 @@ baidu.com###s-hotsearch-wrapper
 
 ! 네이버 본인 인증 페이지 일부 안보임 해결
 nid.naver.com#@#[class^="ad"]
-
-
 !
 !
 ! 네이버 뉴스 (https://news.naver.com/)
@@ -231,8 +229,6 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !
 !
 ! 네이버 스토어 (https://smartstore.naver.com/)
-! 네이버 스토어 오류 해결
-@@||smartstore.naver.com^$stealth
 ! - -  광고 배너 안보이는거 해결 (kr: List-KR)
 ||ssl.pstatic.net/tveta/libs/$badfilter
 !
@@ -244,7 +240,7 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !
 ! 네이버 지도 (https://map.naver.com/)
 ! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-##div[class^="AD"][style]
+map.naver.com##div[class^="AD"][style]
 !
 !
 ! 네이트 (https://www.nate.com/)
@@ -320,12 +316,8 @@ sooplive.com###FeedLayerToolTip
 ##.shopProduct_banner
 ! - 구독버튼 내 버플 안내문구
 sooplive.com##.event_tooltip
-! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
-@@||*stimg.sooplive.com/LOGO/gg/*.webp
-! - 차단 목록 (AdVoid.Full) 해제 - 픽팍 등에서 공유 안보임
-#@#.share
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
-sooplive.com#@#[class*="AD"]
+!sooplive.com#@#[class*="AD"]
 ! ##[class^="ad"] 해제
 point.sooplive.com#@#[class^="ad"]
 ! -무한 버퍼링 해결?  (AdGuard DNS filter 필터 해제)
@@ -339,10 +331,10 @@ sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'st
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! - 해제 목록
 cinety.sooplive.com#@##main_banner
-cinety.sooplive.com#@#a[href]:has(img[src*="banner"])
-cinety.sooplive.com#@#[class*="_banner"]
+!cinety.sooplive.com#@#a[href]:has(img[src*="banner"])
+!cinety.sooplive.com#@#[class*="_banner"]
 cinety.sooplive.com#@#[id*="banner"]
-cinety.sooplive.com#@#[id^="banner_"]
+!cinety.sooplive.com#@#[id^="banner_"]
 cinety.sooplive.com#@#.banner
 cinety.sooplive.com#@#.banner_list
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 시네티 영상 새창 차단 해제
@@ -390,7 +382,7 @@ twitch.tv##.video-player__inactive
 !
 ! WAVVE (https://www.wavve.com/)
 ! - 본인 인증시 필요
-member.wavve.com#@#.popup
+!member.wavve.com#@#.popup
 ! - - - ##[class^="ad"] 해제 (성인 인증시 내용 안보임)
 member.wavve.com#@#[class^="ad"]
 pcc.siren24.com#@#[class^="ad"]
@@ -668,26 +660,26 @@ inven.co.kr#@#.ad
 ! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
 !##[class*="Ad"]
 ! - - - 예외 (https://play.google.com/) - 제목 날라감
-play.google.com#@#[class*="Ad"]
+!play.google.com#@#[class*="Ad"]
 ! - -  한국경제TV (https://www.wowtv.co.kr/) 기사 내용 사라짐
-wowtv.co.kr#@#[class*="Ad"]
+!wowtv.co.kr#@#[class*="Ad"]
 ! - - https://www.pornhub.com/ - 상단 사라짐
-pornhub.com#@#[class*="Ad"]
+!pornhub.com#@#[class*="Ad"]
 ! -https://namu.wiki/ - SNS 아이콘 사라짐
-namu.wiki#@#[class*="Ad"]
+!namu.wiki#@#[class*="Ad"]
 ! - - point.pay.naver.com - 팝업 차단으로 인한 뿌연 화면 발생
-point.pay.naver.com#@#[class*="Ad"]
+!point.pay.naver.com#@#[class*="Ad"]
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 ! - https://duckduckgo.com/ - 일부 이미지 및 텍스트 사라짐
-duckduckgo.com#@#[class*="Ad"]
+!duckduckgo.com#@#[class*="Ad"]
 ! - https://addons.mozilla.org/ - 검색 결과 안보임
-addons.mozilla.org#@#[class*="Ad"]
+!addons.mozilla.org#@#[class*="Ad"]
 ! - https://one.google.com/  - 화면 안보임
-one.google.com#@#[class*="Ad"]
+!one.google.com#@#[class*="Ad"]
+! - - - map.naver.com - 검색란에 내용 안보임
+!map.naver.com#@#[class*="Ad"]
 ! https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 inven.co.kr##.inven-games.menuGroup
-! - - - map.naver.com - 검색란에 내용 안보임
-map.naver.com#@#[class*="Ad"]
 ! - - - PC
 !inven.co.kr##.new-board
 ! - - - 모바일
@@ -811,10 +803,6 @@ todayhumor.co.kr##.under_ad_div
 ! -하단 제보 배너
 !##[class="call_banner"] - ##[class*="banner"]:has(img) 로 대체
 ##.call_banner
-! - 차단 사이트
-!||mediacategory.com^
-! - 차단 목록 (Adblock-Rule-Collection-Lite) 해제 - 영상 안보임 해결
-@@||media.$frame,3p,from=~ted.com$domain=fomos.co.kr
 !
 !
 ! 와이고수 (https://ygosu.com/)
@@ -3889,17 +3877,17 @@ linknnn.com##.wst-post-gl
 !
 ! - GOODTV 기독교 복음방송 (https://goodtv.co.kr/)
 ! - 팝업
-##.popup
+goodtv.co.kr##.popup
 ! - - - 예외 (WAVVE - 스크롤이 안됨)
-www.wavve.com#@#.popup
+!www.wavve.com#@#.popup
 ! - - - 예외 (https://kr80.sogirl.so) (https://kr29.4kjav.co/) - 예전 도메인이면 안보임
-[$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#.popup
+![$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#.popup
 ! - - - 예외 (nid.naver.com) - 네이버로 타사 회원가입시 필요
-nid.naver.com#@#.popup
+!nid.naver.com#@#.popup
 ! - - - https://www.melon.com/ - 해지 등 팝업 뜰때 내용 안보임
-melon.com#@#.popup
+!melon.com#@#.popup
 !  - -- https://oo.ai/
-oo.ai#@#.popup
+!oo.ai#@#.popup
 
 
 ! 사이 사이 마다 있는 배너
