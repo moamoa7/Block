@@ -1636,9 +1636,9 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! - 이미지 복원
 !@@||tkor*.com/img/*$image
 ! - 게시물내 하단 배너
-##.clearfix
+!##.clearfix
 ! - - - 예외 (https://kilho.net/) - 게시물 안보임
-kilho.net#@#.clearfix
+!kilho.net#@#.clearfix
 !
 !
 ! 늑대닷컴 (https://xn--ph1bph0az41x.com/)
