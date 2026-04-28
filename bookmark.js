@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v27)
-// @version      27.0
-// @description  v26.2 기반 — CSP img-src 차단 우회: GM_xmlhttpRequest + data:URI 변환, 파비콘 메모리+디스크 캐시
+// @name         북마크 (Glassmorphism v27.1)
+// @version      27.1
+// @description  v27 기반 — 파비콘 없는 URL에 호스트명 첫 글자 + 해시 컬러 플레이스홀더 SVG 생성
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -103,15 +103,51 @@
     };
 
     /* ═══════════════════════════════════
-       파비콘 (CSP 우회: GM_xmlhttpRequest → data:URI)
+       파비콘 (CSP 우회 + 플레이스홀더)
        ═══════════════════════════════════ */
     const FALLBACK_ICON = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
+    /* 호스트명 기반 컬러 플레이스홀더 SVG */
+    const _placeholderCache = new Map();
+    const _phColors = [
+        '#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7',
+        '#DDA0DD','#98D8C8','#F7DC6F','#BB8FCE','#85C1E9',
+        '#F0B27A','#82E0AA','#F1948A','#AED6F1','#D7BDE2',
+        '#A3E4D7','#FAD7A0','#A9CCE3','#D5DBDB','#EDBB99'
+    ];
+    const genPlaceholder = url => {
+        let host = '';
+        try { host = new URL(url).hostname; } catch { host = 'x'; }
+        if (_placeholderCache.has(host)) return _placeholderCache.get(host);
+
+        /* 첫 의미있는 글자 추출 */
+        const cleaned = host.replace(/^www\./, '');
+        const letter = (cleaned[0] || '?').toUpperCase();
+
+        /* 해시로 색상 결정 */
+        let hash = 0;
+        for (let i = 0; i < host.length; i++) hash = ((hash << 5) - hash + host.charCodeAt(i)) | 0;
+        const color = _phColors[Math.abs(hash) % _phColors.length];
+
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">` +
+            `<rect width="64" height="64" rx="14" fill="${color}"/>` +
+            `<text x="32" y="32" dy=".35em" text-anchor="middle" ` +
+            `font-family="-apple-system,BlinkMacSystemFont,sans-serif" ` +
+            `font-size="30" font-weight="700" fill="#fff">${letter}</text></svg>`;
+        const dataUrl = 'data:image/svg+xml,' + encodeURIComponent(svg);
+        _placeholderCache.set(host, dataUrl);
+        return dataUrl;
+    };
+
+    /* 파비콘 캐시 */
     const _favMemCache = new Map();
     const _favInflight = new Map();
     let _favDisk = null;
     const _FAV_DISK_KEY = 'bm_fav_cache_v1';
     const _FAV_MAX = 800;
+
+    /* Google 기본 지구본 아이콘 감지용 — 크기가 매우 작으면 파비콘 없는 사이트 */
+    const _GFAV_MIN_SIZE = 200;
 
     const loadFavDisk = () => {
         if (_favDisk) return _favDisk;
@@ -136,8 +172,9 @@
         _favSaveTimer = setTimeout(saveFavDisk, 2000);
     };
 
-    const fetchFaviconDataUrl = host => {
+    const fetchFaviconDataUrl = (host, url) => {
         if (_favInflight.has(host)) return _favInflight.get(host);
+        const placeholder = genPlaceholder(url);
         const p = new Promise(resolve => {
             GM_xmlhttpRequest({
                 method: 'GET',
@@ -146,7 +183,7 @@
                 timeout: 6000,
                 onload: res => {
                     _favInflight.delete(host);
-                    if (res.status >= 200 && res.status < 400 && res.response && res.response.size > 0) {
+                    if (res.status >= 200 && res.status < 400 && res.response && res.response.size > _GFAV_MIN_SIZE) {
                         const reader = new FileReader();
                         reader.onloadend = () => {
                             const dataUrl = reader.result;
@@ -155,14 +192,18 @@
                             saveFavDiskLazy();
                             resolve(dataUrl);
                         };
-                        reader.onerror = () => resolve(FALLBACK_ICON);
+                        reader.onerror = () => resolve(placeholder);
                         reader.readAsDataURL(res.response);
                     } else {
-                        resolve(FALLBACK_ICON);
+                        /* 파비콘 없음 → 플레이스홀더를 캐시하여 재요청 방지 */
+                        _favMemCache.set(host, placeholder);
+                        loadFavDisk()[host] = placeholder;
+                        saveFavDiskLazy();
+                        resolve(placeholder);
                     }
                 },
-                onerror: () => { _favInflight.delete(host); resolve(FALLBACK_ICON); },
-                ontimeout: () => { _favInflight.delete(host); resolve(FALLBACK_ICON); }
+                onerror: () => { _favInflight.delete(host); resolve(placeholder); },
+                ontimeout: () => { _favInflight.delete(host); resolve(placeholder); }
             });
         });
         _favInflight.set(host, p);
@@ -171,15 +212,15 @@
 
     const setFavicon = (imgEl, url) => {
         const host = (() => { try { return new URL(url).hostname; } catch { return ''; } })();
-        if (!host) { imgEl.src = FALLBACK_ICON; return; }
+        if (!host) { imgEl.src = genPlaceholder(url); return; }
 
         if (_favMemCache.has(host)) { imgEl.src = _favMemCache.get(host); return; }
 
         const disk = loadFavDisk();
         if (disk[host]) { _favMemCache.set(host, disk[host]); imgEl.src = disk[host]; return; }
 
-        imgEl.src = FALLBACK_ICON;
-        fetchFaviconDataUrl(host).then(src => { if (imgEl.isConnected) imgEl.src = src; });
+        imgEl.src = genPlaceholder(url);
+        fetchFaviconDataUrl(host, url).then(src => { if (imgEl.isConnected) imgEl.src = src; });
     };
 
     /* ═══════════════════════════════════
@@ -718,7 +759,10 @@
     const mkFavImg = url => {
         const img = $('img', { loading: 'lazy' });
         setFavicon(img, url);
-        img.onerror = () => { img.onerror = null; img.src = FALLBACK_ICON; img.style.opacity = '0.3'; };
+        img.onerror = () => {
+            img.onerror = null;
+            img.src = genPlaceholder(url);
+        };
         return img;
     };
 
@@ -826,6 +870,7 @@
                     { i: '🗑', t: '파비콘 캐시 초기화', fn: () => {
                         _favMemCache.clear();
                         _favDisk = {};
+                        _placeholderCache.clear();
                         saveFavDisk();
                         toast('🗑 파비콘 캐시 초기화됨');
                         renderDash();
@@ -1646,7 +1691,6 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
         const fab = $('div', { id: 'bm-fab', role: 'button', 'aria-label': '북마크' }, [document.createTextNode('🔖')]);
         shadow.append($('style', { text: GLASS_CSS }), ov, fab);
 
-        /* 초기화 시 _col 가비지 정리 */
         cleanCol();
 
         /* ── FAB 제스처 ── */
