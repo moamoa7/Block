@@ -1609,16 +1609,16 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ![$domain=/^nocatv\d+.com/]##a[href^="https://nocatv3.com/bbs/link.php"]:nth-of-type(2)
 !
 !
-! 호두코믹스 시즌2 (https://hdhd425.net/)
+! 호두코믹스 시즌2 (https://hdhd501.net/)
 ! 툰코 (https://tkr416.com/)
 ! - 팝업
-##.alert_windows
+!##.alert_windows
 ! - 이미지 복원
 !@@||img.asfsadfimiim.com/img/*$image
 !
 !
-! 툰코 (https://tkor023.com/)
-! 펀비 (https://funbe531.com/)
+! 툰코 (https://tkor114.com/)
+! 펀비 (https://funbe632.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -1628,9 +1628,6 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !||funbe*.com/bann/*$image
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
 !#@#.mobile-banner
-!
-!
-! 툰코 (https://tkor019.com/)
 ! - 토토보증업체 글자
 ![$domain=/^tkor\d+.com/]##.text-center.hidden-xs.navbar-nav.nav > li > [href="https://tkor020.com/토토보증업체"]
 ! - 이미지 복원
@@ -1670,19 +1667,19 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !##.thumbnail
 !
 !
-! 야툰 (https://yatoon203.com/)
+! 야툰 (https://yatoon228.com/)
 ! 뉴툰 (https://newtoon274.com/)
 ! - 배너
-##.cate.row
+!##.cate.row
 !
 ! 나미툰 (https://namee77.com/)
 ! - 배너
 ![$domain=/^namee\d+.com/]##div.container_full:nth-of-type(1)
 !
 !
-! 조아툰 (https://joatoon67.com/)
+! 조아툰 (https://joatoon69.com/)
 ! - 배너 이미지
-||*/storage/ad/*.webp
+!||*/storage/ad/*.webp
 ![$domain=/^joatoon\d+.com/]##.grid-cols-2.mt-2.grid
 ! - 뿌연거 해결 (광역시 사용시 레딧 검색 사라짐)
 ![$domain=/^joatoon\d+.com/]##.fixed
@@ -1695,6 +1692,10 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ###userHistory
 ! - 하단 움직이는 광고
 !##.slideAnimation--K36g6.bottomRight--sO8K2.root--ujvuu
+! - 이미지 게시물내 배너
+## div > a[target="_blank"] > picture
+! - 박스형 배너
+###category-Ad
 !
 !
 ! 만화방 (https://manhwabang.org/)
@@ -1715,7 +1716,7 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! 망가망가 (https://mgmg2.com/)
 ! 툰넷 (https://toon01.net/)
 ! - 상단 배너 공간
-[$domain=/^ani\d+.net/],[$domain=/^nan\d+.net/],[$domain=/^nanlink\d+.com/],[$domain=/^mgmg\d+.com/],[$domain=/^toon\d+.net/]##.guanggao1
+![$domain=/^ani\d+.net/],[$domain=/^nan\d+.net/],[$domain=/^nanlink\d+.com/],[$domain=/^mgmg\d+.com/],[$domain=/^toon\d+.net/]##.guanggao1
 !
 !
 ! 망가망가 (https://mgmg2.com/)
@@ -1725,11 +1726,11 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !@@||mgmg*.com/img/ico/logo88.png
 !
 !
-! 망가조아 (https://mangajoa5.com/)
+! 망가조아 (https://mangajoa6.com/)
 ! 상단배너 공간
-[$domain=/^mangajoa\d+.com/]##.widget-index.at-container > div > .basic-post-gallery
+[$domain=/^mangajoa\d+.com/]##.basic-post-gallery
 ! - 왼쪽.오른쪽 배너
-!##.SideBanner
+##.SideBanner
 ! - 동맹 글자
 ![$domain=/^mangajoa\d+.com/]##.on.menu-li
 ! - 로고 복원
@@ -1768,9 +1769,9 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !
 ! 툰브로 (https://b17.toon-bro.xyz/)
 ! - 팝업
-[$domain=/^b\d+.toon-bro.xyz/]##.inset-x-0.fixed
+![$domain=/^b\d+.toon-bro.xyz/]##.inset-x-0.fixed
 ! - 화면 뿌옇거 해결
-[$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
+![$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
 ! - 상단 배너
 ![$domain=/^b\d+.toon-bro.xyz/]##.gap-\[0px\].flex-col.flex
 !
@@ -1793,7 +1794,7 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !
 ! 연합뉴스 (https://www.yna.co.kr/)
 ! - 메인 상단 배너
-yna.co.kr##.wrap-header01
+yna.co.kr##.header01
 !- 메인 필요없는 부분
 !yna.co.kr##.main-ynalounge01.content03
 ! - 메인 오른쪽 필요없는 부분
@@ -4332,3 +4333,4 @@ momoiroadult.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+
