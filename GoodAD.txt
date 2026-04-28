@@ -536,30 +536,30 @@ m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 ! - - - https://sports.daum.net/
 kakaotv.daum.net#@#[class^="ads"]
 ! - - - 파워 링크
-##[class*="ad_"] [style]
+!##[class*="ad_"] [style]
 ! - - - 예외
 ! - - - https://theqoo.net/- 프레임 깨짐
-theqoo.net#@#[class*="ad_"] [style]
+!theqoo.net#@#[class*="ad_"] [style]
 ! - - - https://www.ddanzi.com/ 본문 일부 사라짐
-ddanzi.com#@#[class*="ad_"] [style]
+!ddanzi.com#@#[class*="ad_"] [style]
 ! - - - 야동코리아 (https://yako4.net/) - 상단 지워짐
-[$domain=/^yako\d+.net/]#@#[class*="ad_"] [style]
+![$domain=/^yako\d+.net/]#@#[class*="ad_"] [style]
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
-etoland.co.kr#@#[class*="ad_"] [style]
+!etoland.co.kr#@#[class*="ad_"] [style]
 ! https://humoruniv.com/ - 모바일에서 게시물 제목 안나옴
-humoruniv.com#@#[class*="ad_"] [style]
+!humoruniv.com#@#[class*="ad_"] [style]
 ! ruliweb.com -  게시몰 내용 일부 사라짐
-ruliweb.com#@#[class*="ad_"] [style]
+!ruliweb.com#@#[class*="ad_"] [style]
 ! https://n.news.naver.com/ - 일부 사라짐
-naver.com#@#[class*="ad_"] [style]
+!naver.com#@#[class*="ad_"] [style]
 ! https://v.daum.net/ - 일부 아이콘이 사라짐 / 스크롤이 안내려감
-v.daum.net#@#[class*="ad_"] [style]
+!v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
-www.baidu.com#@#[class*="ad_"] [style]
+!www.baidu.com#@#[class*="ad_"] [style]
 ! 펀비 (https://funbe536.com/) - 이미지 목록 사라짐
-[$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
+![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
-platinmods.com#@#[class*="ad_"] [style]
+!platinmods.com#@#[class*="ad_"] [style]
 ##.adpost
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
@@ -3439,7 +3439,7 @@ jusogall.com#@#.rainbow-text
 ! - - - 광역으로 변환해봄
 !##[class*="overlay"]
 !##[class$="overlay"]
-##[class$="verlay"]
+!##[class$="verlay"]
 ! - 예외
 ! - - - chaturbate.com - 팝업이 자동 사라지나 실시간 영상 이미지가 흐리게 나옴 (스크롤도 안됨)
 !chaturbate.com#@#.overlay
@@ -3448,30 +3448,30 @@ jusogall.com#@#.rainbow-text
 ! - - - ##[class*="overlay"] 로 하면 숲 영상 차단됨 (티비위키 등 도 안나옴)
 !play.sooplive.con#@#[class*="overlay"]
 ! - - - 픽팍 로그인 팝업 안뜸
-mypikpak.com#@#[class$="verlay"]
-google.com/recaptcha/#@#[class$="verlay"]
+!mypikpak.com#@#[class$="verlay"]
+!google.com/recaptcha/#@#[class$="verlay"]
 ! - - - https://www.91porn.com/ 영상 이미지 사라짐
-91porn.com#@#[class$="verlay"]
+!91porn.com#@#[class$="verlay"]
 ! - - - https://platinmods.com/ 로그인 창 안뜸
-platinmods.com#@#[class$="verlay"]
+!platinmods.com#@#[class$="verlay"]
 ! - - - https://porn78.info/ - 이미지 안뜸
-porn78.info#@#[class$="verlay"]
+!porn78.info#@#[class$="verlay"]
 ! - - - https://st.sweettracker.co.kr/ - 배송조회 안나옴
-sweettracker.co.kr#@#[class$="verlay"]
+!sweettracker.co.kr#@#[class$="verlay"]
 ! - - - 유튜브 (https://www.youtube.com/) - 프레임 영상에서 이미지 사라짐
-youtube.com#@#[class$="verlay"]
+!youtube.com#@#[class$="verlay"]
 ! - - - https://javbraze.com/ - 영상 이미지 사라짐
-javbraze.com#@#[class$="verlay"]
+!javbraze.com#@#[class$="verlay"]
 ! - - - https://www.melon.com/
-melon.com#@#[class$="verlay"]
+!melon.com#@#[class$="verlay"]
 ! - - - https://www.tokyomotion.net/ - 이미지 안보임
-tokyomotion.net#@#[class$="verlay"]
+!tokyomotion.net#@#[class$="verlay"]
 ! - - - https://chaturbate.com/ - 이미지 안보임
-chaturbate.com#@#[class$="verlay"]
+!chaturbate.com#@#[class$="verlay"]
 ! - - - https://www.twitch.tv/ - 영상플레이어 설정 버튼 안보임
-twitch.tv#@#[class$="verlay"]
+!twitch.tv#@#[class$="verlay"]
 ! - - - https://javtiful.com/ - 영상 플레이 버튼 안보임
-javtiful.com#@#[class$="verlay"]
+!javtiful.com#@#[class$="verlay"]
 
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
@@ -4175,3 +4175,4 @@ noonnu.cc##.fc-dialog-container
 ##[id*="adSense"]
 ##[id*="Adsense"]
 ##[id*="AdSense"]
+
