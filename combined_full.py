@@ -30,7 +30,7 @@ ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/22.txt",   # Widgets
     "https://filters.adtidy.org/windows/filters/208.txt",  # Online Malicious URL
     "https://filters.adtidy.org/windows/filters/224.txt",  # Chinese
-    "https://filters.adtidy.org/windows/filters/227.txt",  # List-KR (Korean)
+    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",  # List-KR (Korean)
 ]
 
 ADGUARD_MOBILE_URLS = [
@@ -46,7 +46,7 @@ ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/22_optimized.txt",   # Widgets
     "https://filters.adtidy.org/windows/filters/208_optimized.txt",  # Online Malicious URL
     "https://filters.adtidy.org/windows/filters/224_optimized.txt",  # Chinese
-    "https://filters.adtidy.org/android/filters/227_optimized.txt",  # List-KR (Korean)
+    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",  # List-KR (Korean)
 ]
 
 # ============================================================
@@ -77,8 +77,7 @@ FILTER_NAMES = {
     "208_optimized.txt": "Online Malicious URL Blocklist",
     "224.txt":           "AdGuard Chinese filter",
     "224_optimized.txt": "AdGuard Chinese filter",
-    "227.txt":           "List-KR Classic filter list",
-    "227_optimized.txt": "List-KR Classic filter list",    
+    "filterslist-AdGuard-classic.txt": "List-KR Classic filter list",    
 }
 
 def get_source_name(url):
