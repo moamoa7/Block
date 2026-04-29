@@ -2327,16 +2327,13 @@ sextb.date##.hidden-md.right.col-3
 ! JAVFC2.XYZ (https://javfc2.xyz/)
 ! - 상단 배너 이미지 공간 (유니콘Pro)
 ###ads
-! - 팝업 방지
-!||lwirirvpo.com^$popup
-!||illustriousreserve.pro^$popup
-! - 차단 사이트
-!||acscdn.com^
-!||chaseherbalpasty.com^
-!||bobsleddomesticglandular.com^
-!||popcash.net^
-!/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
-!||diagramjawlineunhappy.com^
+! - 배너
+##iframe[src^="https://creative."][src*="/widgets/v4/Universal?"]
+!
+!
+! https://ko.javfc2.live/
+! - 배너
+##.cookies-banner
 !
 !
 ! FUNLOVE (https://funlove.info/)
@@ -4288,6 +4285,9 @@ _ads_
 !
 !
 ###totop
+!
+!
+##.go-top
 !
 !
 !
