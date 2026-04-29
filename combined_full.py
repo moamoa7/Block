@@ -33,7 +33,7 @@ ADGUARD_PC_URLS = [
 ]
 
 ADGUARD_MOBILE_URLS = [
-    "https://easylist-downloads.adblockplus.org/easylist.txt",           # EasyList
+    "https://easylist-downloads.adblockplus.org/easylist.txt",          # EasyList
     "https://filters.adtidy.org/android/filters/3_optimized.txt",       # Tracking Protection
     "https://filters.adtidy.org/android/filters/4_optimized.txt",       # Social Media
     "https://filters.adtidy.org/android/filters/7_optimized.txt",       # Japanese
