@@ -1976,6 +1976,8 @@ auction.co.kr##.component--sponsor_link.component
 ! G마켓 (https://www.gmarket.co.kr/)
 ! - 광고 차단? (출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 !gmarket.co.kr##.section__main-banner.section__main
+! - 배너 이미지 복원 (List KR)
+www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 !
 !
 ! 11번가 (https://www.11st.co.kr/)
