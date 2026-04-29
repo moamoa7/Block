@@ -25,7 +25,7 @@ ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/20.txt",        # Mobile App Banners
     "https://filters.adtidy.org/windows/filters/21.txt",        # Other Annoyances
     "https://filters.adtidy.org/windows/filters/22.txt",        # Widgets
-    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
+    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",    # List-KR (Korean)
 ]
 
 ADGUARD_MOBILE_URLS = [
@@ -36,7 +36,7 @@ ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/20_optimized.txt",   # Mobile App Banners
     "https://filters.adtidy.org/android/filters/21_optimized.txt",   # Other Annoyances
     "https://filters.adtidy.org/android/filters/22_optimized.txt",   # Widgets
-    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
+    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",    # List-KR (Korean)
 ]
 
 # ============================================================
