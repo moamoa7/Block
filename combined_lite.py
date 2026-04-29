@@ -3,7 +3,7 @@
 combined.py
 - PC용:     combined_pc_lite.txt
 - 모바일용: combined_mobile_lite.txt
-- 상태 보고서: filter_status.md
+- 상태 보고서: filter_status_lite.md
 """
 import subprocess, sys
 from datetime import datetime, timezone, timedelta
@@ -18,55 +18,50 @@ except ImportError:
 # 필터 소스 URL
 # ============================================================
 ADGUARD_PC_URLS = [
-    "https://filters.adtidy.org/windows/filters/2.txt",    # Base (EasyList 포함)
-    "https://filters.adtidy.org/windows/filters/7.txt",    # Japanese
-    "https://filters.adtidy.org/windows/filters/11.txt",   # Mobile Ads
-    "https://filters.adtidy.org/windows/filters/18.txt",   # Cookie Notices
-    "https://filters.adtidy.org/windows/filters/19.txt",   # Popups
-    "https://filters.adtidy.org/windows/filters/20.txt",   # Mobile App Banners
-    "https://filters.adtidy.org/windows/filters/21.txt",   # Other Annoyances
-    "https://filters.adtidy.org/windows/filters/22.txt",   # Widgets
-    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",  # List-KR (Korean)
+    "https://easylist-downloads.adblockplus.org/easylist.txt",  # EasyList
+    "https://filters.adtidy.org/windows/filters/7.txt",         # Japanese
+    "https://filters.adtidy.org/windows/filters/18.txt",        # Cookie Notices
+    "https://filters.adtidy.org/windows/filters/19.txt",        # Popups
+    "https://filters.adtidy.org/windows/filters/20.txt",        # Mobile App Banners
+    "https://filters.adtidy.org/windows/filters/21.txt",        # Other Annoyances
+    "https://filters.adtidy.org/windows/filters/22.txt",        # Widgets
+    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
 ]
 
 ADGUARD_MOBILE_URLS = [
-    "https://filters.adtidy.org/android/filters/2_optimized.txt",    # Base (EasyList 포함)
+    "https://easylist-downloads.adblockplus.org/easylist.txt",       # EasyList
     "https://filters.adtidy.org/android/filters/7_optimized.txt",    # Japanese
-    "https://filters.adtidy.org/android/filters/11_optimized.txt",   # Mobile Ads
     "https://filters.adtidy.org/android/filters/18_optimized.txt",   # Cookie Notices
     "https://filters.adtidy.org/android/filters/19_optimized.txt",   # Popups
     "https://filters.adtidy.org/android/filters/20_optimized.txt",   # Mobile App Banners
     "https://filters.adtidy.org/android/filters/21_optimized.txt",   # Other Annoyances
     "https://filters.adtidy.org/android/filters/22_optimized.txt",   # Widgets
-    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",  # List-KR (Korean)
+    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
 ]
 
 # ============================================================
 # 소스 이름
 # ============================================================
 FILTER_NAMES = {
-    "2.txt":             "AdGuard Base filter (EasyList + AdGuard English filter)",
-    "2_optimized.txt":   "AdGuard Base filter (EasyList + AdGuard English filter)",
+    "easylist.txt":      "EasyList",
     "7.txt":             "AdGuard Japanese filter",
     "7_optimized.txt":   "AdGuard Japanese filter",
-    "11.txt":            "AdGuard Mobile Ads filter",
-    "11_optimized.txt":  "AdGuard Mobile Ads filter",
     "18.txt":            "AdGuard Cookie Notices filter",
     "18_optimized.txt":  "AdGuard Cookie Notices filter",
     "19.txt":            "AdGuard Popups filter",
-    "19_optimized.txt":  "AdGuard Popups filter",    
+    "19_optimized.txt":  "AdGuard Popups filter",
     "20.txt":            "AdGuard Mobile App Banners filter",
     "20_optimized.txt":  "AdGuard Mobile App Banners filter",
     "21.txt":            "AdGuard Other Annoyances filter",
     "21_optimized.txt":  "AdGuard Other Annoyances filter",
     "22.txt":            "AdGuard Widgets filter",
     "22_optimized.txt":  "AdGuard Widgets filter",
-    "filterslist-AdGuard-classic.txt": "List-KR Classic filter list", 
+    "filterslist-AdGuard-classic.txt": "List-KR Classic filter list",
 }
 
 def get_source_name(url):
     fid = url.split("/")[-1]
-    return FILTER_NAMES.get(fid, "AdGuard - " + fid)
+    return FILTER_NAMES.get(fid, "Unknown - " + fid)
 
 # ============================================================
 # 필터링 함수 (주석/빈줄 제거)
@@ -117,14 +112,24 @@ def download_filters(urls):
     return source_blocks, results
 
 # ============================================================
-# 파일 출력 함수
+# 파일 출력 함수 (중복 제거 포함)
 # ============================================================
 def write_filter_file(filename, source_blocks, results, platform_label, now):
-    total = sum(len(b[2]) for b in source_blocks)
+    seen = set()
+    unique_blocks = []
+    for name, url, rules in source_blocks:
+        unique_rules = []
+        for r in rules:
+            if r not in seen:
+                seen.add(r)
+                unique_rules.append(r)
+        unique_blocks.append((name, url, unique_rules))
+
+    total = sum(len(b[2]) for b in unique_blocks)
     ok = sum(1 for r in results if r["status"] == "OK")
     header = (
         f"! Title: My Combined Filter ({platform_label})\n"
-        f"! Description: AdGuard 통합 필터\n"
+        f"! Description: EasyList + AdGuard 보조 필터 통합\n"
         f"! Expires: 12 hours\n"
         f"! Generated: {now} (KST)\n"
         f"! Total rules: {total:,}\n"
@@ -133,7 +138,7 @@ def write_filter_file(filename, source_blocks, results, platform_label, now):
     )
     with open(filename, "w", encoding="utf-8") as f:
         f.write(header)
-        for name, url, rules in source_blocks:
+        for name, url, rules in unique_blocks:
             if not rules:
                 continue
             f.write(f"\n! ========================================\n")
@@ -163,7 +168,7 @@ mob_total, mob_ok = write_filter_file(
     "combined_mobile_lite.txt", mob_blocks, mob_results, "AdGuard Mobile", now)
 
 # ============================================================
-# filter_status.md
+# filter_status_lite.md
 # ============================================================
 all_results = [("PC", pc_results), ("Mobile", mob_results)]
 report = [
