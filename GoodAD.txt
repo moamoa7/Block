@@ -2786,7 +2786,7 @@ javlemon.com##style\=\"text-align\:center\;\"
 !
 ! https://shittokuadult.net/
 ! - 배너
-##[id*="Banner"]
+!##[id*="Banner"]
 ###onlineBanner
 !
 !
@@ -4315,7 +4315,8 @@ auction.co.kr#@#[class*="banner"] :has(img)
 shopping.naver.com#@#[class*="banner"] :has(img)
 ! - - - https://www.gmarket.co.kr/ - 배너 이미지 사라짐
 gmarket.co.kr#@#[class*="banner"] :has(img)
-
+! - - - https://www.11st.co.kr/ - 배너 이미지 사라짐
+11st.co.kr#@#[class*="banner"] :has(img)
 
 
 !!! - 광역 3
