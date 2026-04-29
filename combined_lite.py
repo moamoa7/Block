@@ -39,6 +39,10 @@ ADGUARD_MOBILE_URLS = [
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",    # List-KR (Korean)
 ]
 
+UBLOCK_URLS = [
+    "https://ublockorigin.github.io/uAssets/filters/filters.txt"   # uBlock filters
+]
+
 # ============================================================
 # 소스 이름
 # ============================================================
@@ -57,6 +61,7 @@ FILTER_NAMES = {
     "22.txt":            "AdGuard Widgets filter",
     "22_optimized.txt":  "AdGuard Widgets filter",
     "filterslist-AdGuard-classic.txt": "List-KR Classic filter list",
+    "filters.txt":  "uBlock filters"
 }
 
 def get_source_name(url):
