@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.04.27
+! Version: 2026.04.29
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -62,12 +62,14 @@ gall.dcinside.com##.gnb_list.clear > li:has(> [onclick])
 gmarket.co.kr##.js-impressionable.box__head-ad
 harpi.in##div:has(> script[src])
 hygall.com##div[style='display: flex;justify-content: center; width:100%;height:100px;']
+hygall.com##li.admanager-row
 instiz.net##.view_top
 instiz.net##div[class^='hot_u']
 inven.co.kr,mt.co.kr##[class$='ads']
 inven.co.kr,wowtv.co.kr,damoang.net##[class*='-banner']
 jusoya.com##div.banner-widget:has(a.secure-banner-link[data-original-url])
 k-hentai.org##.my-3.container
+khan.co.kr##div[class*="banner"]:has(div[class*="ad-wrapper"])
 litomi.in##[data-juicy-ads-slot]
 m.bobaedream.co.kr##div[style$='height:50px;']
 m.cafe.daum.net##[class*='_banner']
@@ -79,6 +81,7 @@ m.dcinside.com##.menu-scroll-lst.swiper-wrapper > li.swiper-slide:nth-of-type(n+
 m.dcinside.com##.view-btm-con
 m.dcinside.com#$##notice_list > li:has(.ct):not(:has(.ntc-line-pink.round)) { display: table !important; }
 m.ppomppu.co.kr##.js-ad_slot.JS-div_gpt_ad
+m.ppomppu.co.kr##div:has(> ins.adsbygoogle)
 m.ppomppu.co.kr##div[style^='text-align:center;']
 m.ruliweb.com##tr:has(.nbp_container)
 m.wowtv.co.kr##.container > div[style]
@@ -93,6 +96,7 @@ naver.com###sb-kh-shortents-wrap
 naver.com##.sa_mw.sa_empty_ad
 news.jtbc.co.kr##.print-hide:has-text(AD)
 nexon.com,gg,ps,xyz,loawa.com,or.kr,go.kr,ai,chat#@#[target='_blank']:has([src*='/banner/'])
+orbi.kr##div[x-data="advertisement"]
 pay.naver.com##div[class^='BottomAds_article']
 postype.com##div[data-sentry-component="RecommendFeedGoogleAd"]:upward(1)
 ppomppu.co.kr##.bottom > div[style]
