@@ -26,6 +26,7 @@ ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/21.txt",        # Other Annoyances
     "https://filters.adtidy.org/windows/filters/22.txt",        # Widgets
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",    # List-KR (Korean)
+    "https://ublockorigin.github.io/uAssets/filters/filters.txt",   # uBlock filters
 ]
 
 ADGUARD_MOBILE_URLS = [
@@ -37,10 +38,7 @@ ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/21_optimized.txt",   # Other Annoyances
     "https://filters.adtidy.org/android/filters/22_optimized.txt",   # Widgets
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",    # List-KR (Korean)
-]
-
-UBLOCK_URLS = [
-    "https://ublockorigin.github.io/uAssets/filters/filters.txt"   # uBlock filters
+    "https://ublockorigin.github.io/uAssets/filters/filters.txt",   # uBlock filters
 ]
 
 # ============================================================
