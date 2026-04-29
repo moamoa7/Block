@@ -257,8 +257,12 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !
 !
 ! 네이버 스토어 (https://smartstore.naver.com/)
+! - 배너
+##.ad-container
 ! - -  광고 배너 안보이는거 해결 (kr: List-KR)
 ||ssl.pstatic.net/tveta/libs/$badfilter
+! - 해제
+@@||connect.facebook.net/*/fbevents.js$from=smartstore.naver.com
 !
 !
 ! 네이버 카페 (https://cafe.naver.com/)
@@ -1251,13 +1255,6 @@ tvhot.store##.object-cover
 ! 코리아 맥스 티비 (https://krmaxtv102.com/)
 ! - 상단 배너
 ![$domain=/^krmaxtv\d+.com/]##.clearfix.yk-pannela
-!
-!
-! 티비착 (https://tvchak148.com/)
-! - 상단 배너
-!##.ad-container
-! - 성인 글자
-![$domain=/^tvchak\d+.com/]###nav-dongman3
 !
 !
 ! 짭플릭스 (https://zzap148.com/)
@@ -4285,6 +4282,9 @@ _ads_
 !
 !
 -ads.$badfilter
+!
+!
+##.ads
 !
 !
 ###totop
