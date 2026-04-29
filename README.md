@@ -92,34 +92,6 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/ma
 
 <br/>
 
-# 광고 차단 확장프로그램
-
-※ uBlock Origin
-
-홈페이지 : https://github.com/gorhill/uBlock
-
-설치주소
-
-https://github.com/gorhill/uBlock/releases/
-
-https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm
-<br><br>
-
-※ ADGUARD
-
-홈페이지 : https://adguard.com/
-
-구매주소 : https://www.stacksocial.com/sales/adguard-family-plan-lifetime-subscription
-
-설치주소
-
-- 윈도우 확장<br/>
-https://chromewebstore.google.com/detail/adguard-%EA%B4%91%EA%B3%A0%EC%B0%A8%EB%8B%A8%EA%B8%B0/bgnkhhnnamicmpeenaelnjfhikgbkllg
-
-
-<br/>
-
-
 # 유저 스크립트
 
 Violentmonkey 확장프로그램 설치 후 사용
