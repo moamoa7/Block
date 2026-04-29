@@ -360,9 +360,9 @@ chzzk.naver.com##.top_banner_container__Nk\+98
 ! - 첫 구매 이벤트 중 알림
 chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! 치트키 구매하기 툴팁
-##.tooltip
+!##.tooltip
 ! - - - 예외 - 차단리스트 내용 안나옴
-my.nextdns.io#@#.tooltip
+!my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
 chzzk.naver.com##.pzp-pc__loading-indicator
 !
@@ -376,6 +376,9 @@ twitch.tv###twilight-sticky-footer-root
 twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 광고 차단 문구 (터보 사용 권장 문구)
 twitch.tv##.video-player__inactive
+! - 광고인지 배너인지?
+||*-banner.*.js
+||*-banner.*.css
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -2647,12 +2650,25 @@ javtiful.com##.v3sb-box
 javtiful.com##div.pb-3.col:nth-of-type(1)
 !
 !
-! 야통령 (https://xn--4-v10fo35av1l.com/)
+! 야통령 (https://xn--6-v10fo35av1l.com/)
 ! - 오른쪽 배너
 !##[class="happy-sidebar"]
 ##.happy-sidebar
+! - 영상 하단 배너글자
+###tracking-url
 ! - 동맹 글자
 !xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
+!
+!
+! 야애니24 (https://www.aniya24.com/)
+! - 배너 이미지 공간
+##.elementor-section-height-default.elementor-section-full_width.elementor-element-f203eb4.elementor-element.elementor-top-section.elementor-section
+##.elementor-section-height-default.elementor-section-full_width.elementor-element-b29b8a9.elementor-element.elementor-top-section.elementor-section
+##.elementor-section-height-default.elementor-section-full_width.elementor-element-f4e8358.elementor-element.elementor-top-section.elementor-section
+##.elementor-section-height-default.elementor-section-boxed.elementor-element-06d558e.elementor-element.elementor-top-section.elementor-section
+##.elementor-section-height-default.elementor-section-boxed.elementor-element-9229706.elementor-element.elementor-top-section.elementor-section
+! - 영상 플레이시 재생되는 광고 차단
+||bkcdn.net
 !
 !
 ! ManyMV (https://manymv.com/)
@@ -3393,6 +3409,11 @@ sexygirl.cc##div.overflow-auto
 ! - - - 예외
 ! - - - 주소개럴리 (https://jusogall.com/) - 1위 사라짐
 jusogall.com#@#.rainbow-text
+!
+!
+! 딥페이크 (https://dfkor4.com/)
+! - 상단 배너
+[$domain=/^dfkor\d+.com/]##.banner-img
 !
 !
 ! 썸질라 (https://somez3.com/)
