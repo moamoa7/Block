@@ -74,7 +74,7 @@ FILTER_NAMES = {
     "224.txt":           "AdGuard Chinese filter",
     "224_optimized.txt": "AdGuard Chinese filter",
     "filterslist-AdGuard-classic.txt": "List-KR Classic filter list",
-    "filters.txt": "uBlock filters
+    "filters.txt": "uBlock filters"
 }
 
 def get_source_name(url):
