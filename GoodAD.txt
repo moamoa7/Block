@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260429
+! Version: 20260430
 !
 !
 !
@@ -984,6 +984,10 @@ ppomppu.co.kr##.hot-imgBoard
 ppomppu.co.kr###ask_app_usage_popup
 ! - ##[class^="ad"] 복원 - 첨부파일 / 댓글주소복사 기능 등 몇가지 사라짐
 ppomppu.co.kr#@#[class^="ad"]
+! - 본문 내용 하단 공백 (모바일)
+##.js-ad_slot
+! - 사이트 최하단 공백 (모바일)
+ppomppu.co.kr###m_view_bottom_f_1
 !
 !
 ! SLR (https://www.slrclub.com/)
@@ -4429,6 +4433,6 @@ emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
-! Adblock-Rule-Collection-Lite 필터 오류 해결
+! Adblock-Rule-Collection-Lite 필터 오류 해결 (일분만)
 @@^$generichide@badfilter
-
+@@/fontawesome-$font,3p
