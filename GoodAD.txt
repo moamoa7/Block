@@ -2276,17 +2276,6 @@ avsee.ru#@#.tabs
 ##[class*="slideAnimation"]
 ! - 일부 영상 재생 차단 방지
 @@||tiktokcdn.com/obj/$xhr
-!@@||p.jwpcdn.com^$script
-! 일부 iframe 차단
-!jilliandescribecompany.com##iframe
-! - 로고 이미지 복원
-!@@||supjav.com/img/*$image
-! 팝업 방지
-!||profitableratecpm.com^$popup
-!||fractionfridgejudiciary.com^$popup
-!||depreciatorybollocksupkitchen.com^$popup
-! 해제 목록 (Adblock-Rule-Collection-Lite) - 차단하면 TV 영상 안나옴
-@@||p.jwpcdn.com^$script
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -2331,9 +2320,23 @@ sextb.date##.hidden-md.right.col-3
 ##iframe[src^="https://creative."][src*="/widgets/v4/Universal?"]
 !
 !
-! https://ko.javfc2.live/
+! - https://ko.javfc2.live/
+! - https://myavlive.com/
+! - https://ko.sextb.live/
+! - https://ko.19sex.live/
 ! - 배너
 ##.cookies-banner
+! - 영상 가운데  플러그인 버튼
+##.plugin-panel__iframe
+! - 영상내 하단 무료로 가입하세요 버튼
+##.player-join-button
+! - 다음번에는 저를 놓치지 마세요! 알림 툴팁
+##.view-cam-notification
+!
+! 
+! https://momoiroadult.com/
+! - 배너
+momoiroadult.com##.pc-header
 !
 !
 ! FUNLOVE (https://funlove.info/)
@@ -4282,12 +4285,6 @@ _ads_
 !
 !
 ##.ads
-!
-!
-###totop
-!
-!
-##.go-top
 !
 !
 !
