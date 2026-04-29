@@ -58,7 +58,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 ```
-<br><br>
+<br>
 
 ※ adguard_gallery.txt
 - 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
