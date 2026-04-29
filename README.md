@@ -90,76 +90,7 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/ma
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt
 ```
 
-<br/>
-
-# 유저 스크립트
-
-Violentmonkey 확장프로그램 설치 후 사용
-
-홈페이지 : https://violentmonkey.github.io/
-
-설치주소 : https://violentmonkey.github.io/get-it/
 <br><br>
-
-※ NamuLink
-- 나무위키에 있는 파워링크 광고를 차단합니다.
-
-홈페이지 : https://github.com/List-KR/NamuLink
-
-설치주소 : https://cdn.jsdelivr.net/npm/@list-kr/namulink@latest/dist/NamuLink.user.js
-<br><br>
-
-※ tinyShield
-- Ad-Shield 불안정 광고를 차단하고 Ad-Shield의 가상 무결성 계층을 우회합니다.
-
-홈페이지 : https://github.com/List-KR/tinyShield
-
-설치주소 : https://cdn.jsdelivr.net/npm/@list-kr/tinyshield@latest/dist/tinyShield.user.js
-<br><br>
-
-※ Bypass All Shortlinks Debloated
-- 모든 짧은 링크 사이트 우회는 성가신 링크 단축기를 자동으로 건너뛰고 목적지로 직접 이동합니다
-
-홈페이지 : https://codeberg.org/Amm0ni4/bypass-all-shortlinks-debloated
-
-설치주소 : https://codeberg.org/Amm0ni4/bypass-all-shortlinks-debloated/raw/branch/main/Bypass_All_Shortlinks.user.js
-<br><br>
-
-
-※ AdGuard Extra
-- 점점 더 보편화되고 있는 광고 차단 우회 시도를 차단하기 위한 사용자 스크립트(또는 브라우저 확장 프로그램)입니다
-
-홈페이지 : https://github.com/AdguardTeam/AdGuardExtra
-
-설치주소 : https://userscripts.adtidy.org/release/adguard-extra/1.0/adguard-extra.user.js
-<br><br>
-
-※ AMP 비활성화 by AdGuard
-- Google 검색 결과 페이지에서 AMP 페이지를 비활성화하는 매우 간단한 사용자 스크립트입니다
-
-홈페이지 : https://github.com/AdguardTeam/DisableAMP
-
-설치주소 : https://userscripts.adtidy.org/release/disable-amp/1.0/disable-amp.user.js
-<br><br>
-
-※ Youtube HD Premium
-- 미리 선택한 해상도로 자동 전환합니다. 가능한 경우 프리미엄을 활성화합니다.
-
-홈페이지 : https://greasyfork.org/en/scripts/498145-youtube-hd-premium
-
-설치주소 : https://update.greasyfork.org/scripts/498145/Youtube%20HD%20Premium.user.js
-<br><br>
-
-※ Picky
-
-- 모바일 요소 차단기
-
-홈페이지 : https://github.com/hooray804/Picky
-
-설치주소 : https://raw.githubusercontent.com/hooray804/Picky/main/PickyAdvanced.user.js
-
-
-<br>
 
 # 추천 브라우저 (모바일)
 
