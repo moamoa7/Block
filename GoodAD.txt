@@ -101,6 +101,14 @@
 !
 !
 !
+! - 내가 어떤 광고를 타고 왔는지 Google이 알 수 없게 흔적을 지우는 규칙
+*$removeparam=gtm
+!
+!
+! tracker라는 이름이 붙은 서버가 WebSocket으로 몰래 나를 실시간 감시하는 것을 막는 규칙
+||tracker.$websocket
+!
+!
 ! 3자 ping / websocket 차단
 !||*$ping,websocket,third-party
 ! - 3자 websocket 차단 해제
