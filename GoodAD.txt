@@ -108,9 +108,14 @@
 ! - 내가 어떤 광고를 타고 왔는지 Google이 알 수 없게 흔적을 지우는 규칙
 $removeparam=gtm
 ! - 내 행동을 추적하기 위해 URL에 몰래 붙여놓은 꼬리표를 떼어버리는 규칙
-! - - - 인스타
+! - - - 인스타 (https://www.instagram.com/)
 $removeparam=__hs
 $removeparam=/^__s=[A-Za-z0-9]{6\,}/,domain=~univis.uni-erlangen.de|~univis.uni-bamberg.de|~univis.uni-luebeck.de|~univis.uni-kiel.de|~univis.th-koeln.de
+!
+! - - - 틱톡 (https://www.tiktok.com/)
+*$removeparam=btag
+! - 내가 링크를 클릭할 때 외부 추적 서버에 몰래 '얘가 클릭했어요'라고 고자질하는 것을 막는 규칙
+$ping,third-party
 !
 !
 ! tracker라는 이름이 붙은 서버가 WebSocket으로 몰래 나를 실시간 감시하는 것을 막는 규칙
