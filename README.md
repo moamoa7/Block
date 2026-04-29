@@ -89,35 +89,3 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/ma
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt
 ```
-
-<br><br>
-
-# 추천 브라우저 (모바일)
-
-
-※ Microsoft Edge: AI 브라우저
-
-홈페이지 : https://www.microsoft.com/edge
-
-설치주소
-
-https://play.google.com/store/apps/details?id=com.microsoft.emmx
-
-<br/><br/>
-
-※ Ultimatum Browser
-
-https://github.com/gonzazoid/Ultimatum/releases/
-
-<br/><br/>
-
-※ Quetta Browser
-
-홈페이지 : https://www.quetta.net/
-
-설치주소
-
-https://play.google.com/store/apps/details?id=net.quetta.browser
-
-https://apps.apple.com/us/app/quetta-ad-free-video-browser/id6504077999
-<br/><br/>
