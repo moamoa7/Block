@@ -30,6 +30,7 @@ ADGUARD_PC_URLS = [
     "https://filters.adtidy.org/windows/filters/208.txt",           # Online Malicious URL
     "https://filters.adtidy.org/windows/filters/224.txt",           # Chinese
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",    # List-KR (Korean)
+    "https://ublockorigin.github.io/uAssets/filters/filters.txt",   # uBlock filters
 ]
 
 ADGUARD_MOBILE_URLS = [
@@ -45,6 +46,7 @@ ADGUARD_MOBILE_URLS = [
     "https://filters.adtidy.org/android/filters/208_optimized.txt",     # Online Malicious URL
     "https://filters.adtidy.org/android/filters/224_optimized.txt",     # Chinese
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",    # List-KR (Korean)
+    "https://ublockorigin.github.io/uAssets/filters/filters.txt",   # uBlock filters
 ]
 
 # ============================================================
@@ -72,6 +74,7 @@ FILTER_NAMES = {
     "224.txt":           "AdGuard Chinese filter",
     "224_optimized.txt": "AdGuard Chinese filter",
     "filterslist-AdGuard-classic.txt": "List-KR Classic filter list",
+    "filters.txt": "uBlock filters
 }
 
 def get_source_name(url):
