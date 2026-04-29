@@ -380,15 +380,21 @@ tonghrencomics.net##a[href][target*="blank"]:has(img[src*='.svg'])
 ! 풍투데이 (https://poong.today/)
 ! - 작은 AD 배너
 ##[class*="adCard"]
+! - 좌우 배너
+poong.today##._mainWingBannerArea_tck4v_537
+!- 중간 배너
+poong.today##._mainBannerAd_tck4v_534
+! - 하단 배너
+poong.today##._mainLiveArea_tck4v_535
 !
 !
 ! 치지직 (https://chzzk.naver.com/)
 ! - 상단 배너
-chzzk.naver.com##.top_banner_container__Nk\+98
+!chzzk.naver.com##.top_banner_container__Nk\+98
 ! -- 로그인 팝업 차단되서 해제
 !##.popup_modal__hRwfq.popup_container__Aqx-3
 ! - 첫 구매 이벤트 중 알림
-chzzk.naver.com##.toolbar_tooltip__\+upC-
+!chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! 치트키 구매하기 툴팁
 !##.tooltip
 ! - - - 예외 - 차단리스트 내용 안나옴
@@ -2710,6 +2716,8 @@ javtiful.com##div.pb-3.col:nth-of-type(1)
 !
 !
 ! AVDBS (https://www.avdbs.com/)
+! - 상단 배너
+avdbs.com##.dbs-bnr-wrp
 ! - 이미지 복원
 !- - - ||*.com/img/*
 !@@||avdbs.com/img/*$image
@@ -4156,14 +4164,6 @@ xfree.com#@#[class^="ad"]
 ! - 안생도박 보증업체 테이블 (이미지)
 [$domain=/^dobaklife\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
 !
-
-!
-!
-! https://platinmods.com/
-! - 해제 목록 (Adblock-Rule-Collection-Lite) - 사이트 틀 깨짐 방지
-@@_ads_$domain=platinmods.com
-
-!
 !
 ! https://thepinkstuff.co.kr/
 thepinkstuff.co.kr,cafe24.com#@#.ad
@@ -4257,11 +4257,18 @@ noonnu.cc##.fc-dialog-container
 
 
 *##.ad
+!
+!
 /ad_
+!
+!
 ||ad-
+!
+!
 /ad/*$script
+!
+!
 /ads/*
-!||*/*/ads/*
 ! - -- 예외
 ! - - - 옥션 (https://www.auction.co.kr/)
 @@||*ad-img.gmarket.com/ADS*
@@ -4269,10 +4276,23 @@ noonnu.cc##.fc-dialog-container
 !@@||zxcasdqwezxcasdqwe.com/ads/*$media
 ! - https://ofw.adison.co/
 !@@||ofw.adison.co/*/ads/*
+!
+!
 _ads_
+! - 예외
+! - - - https://platinmods.com/ - 사이트 틀 깨짐
+@@_ads_$domain=platinmods.com
+!
+!
 -ads.$badfilter
-
-
+!
+!
+###totop
+!
+!
+!
+!
+!
 ! 기타
 ! - - -  https://glimmory.io/%ED%88%B0%EC%BD%94-%EC%B5%9C%EC%8B%A0%EC%A3%BC%EC%86%8C/
 ! - - - 배너
