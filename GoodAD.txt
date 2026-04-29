@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260428
+! Version: 20260429
 !
 !
 !
@@ -29,6 +29,16 @@
 !klauncher.kr##.main-content,[style*="/images/background/main.jpg"]:style(background-image:none!important)
 !klauncher.kr##.auxiliary-section,.language-settings-container,.browser-exit-notice-container:style(display:none!important)
 !klauncher.kr##.layout-container>.main-content:style(width:88.5%!important;padding:0!important)
+!
+!
+!
+! - 다른 필터 규칙들이 URL에서 추적용 쿼리 파라미터를 제거하려 할 때, WebSocket 연결에는 그 파라미터 제거를 하지 않도록 예외 처리
+! - WebSocket 연결은 실시간 통신(채팅, 알림, 게임 등)에 사용되는데, 쿼리 파라미터를 함부로 제거하면 연결이 끊기거나 서비스가 정상 작동하지 않을 수 있기 때문
+@@|wss://$removeparam
+!
+!
+! - 광고는 막되, 사이트가 고장 나지 않도록 꼭 필요한 요청은 예외로 풀어주는 규칙
+@@://www3.doubleclick.net^|$xhr
 !
 !
 !
@@ -110,6 +120,9 @@
 !
 ! - https://wonforecast.com/ 환율 가져오기
 !@@||tradingview.com/socket.io/websocket
+!
+!
+!
 !
 !
 ! 구글 광고 차단
@@ -365,6 +378,10 @@ chzzk.naver.com##.toolbar_tooltip__\+upC-
 !my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
 chzzk.naver.com##.pzp-pc__loading-indicator
+! - 해제
+@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
+@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
+@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -376,9 +393,6 @@ twitch.tv###twilight-sticky-footer-root
 twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 광고 차단 문구 (터보 사용 권장 문구)
 twitch.tv##.video-player__inactive
-! - 광고인지 배너인지?
-||*-banner.*.js
-||*-banner.*.css
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -563,79 +577,79 @@ fmkorea.com###fm_alert
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! -팝업
-etoland.co.kr###main_popup
+!etoland.co.kr###main_popup
 ! - 로그인 팝업
-etoland.co.kr###login_popup
+!etoland.co.kr###login_popup
 ! - 왼쪽. 오른쪽. 가운데 HIT인기/최신글
 !etoland.co.kr##[class$="_ad"]
 ! - - - 가운데 HIT인기/최신글 사라짐으로 해제 (List-KR)
-etoland.co.kr#@#div[class$="_ad"]
+!etoland.co.kr#@#div[class$="_ad"]
 ! - 오른쪽 따라다니는 메뉴
-etoland.co.kr##.main_right_ad
+!etoland.co.kr##.main_right_ad
 ! - 왼쪽 따라다니는 메뉴
-etoland.co.kr##.main_left_ad
+!etoland.co.kr##.main_left_ad
 ! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너 - 일부 게시판에서 이미지 안보임 발생 (해제 해야함)
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
 ! - - -- 이미지 안나오는 예시 : https://etoland.co.kr/link.php?n=11063617
-etoland.co.kr#@#[src*="/data/daumeditor"]
+!etoland.co.kr#@#[src*="/data/daumeditor"]
 ! - 왼쪽 통합검색 바로 아래 배너
 ! - - - 티비착 (https://tvchak148.com/) 영상란 배너
-etoland.co.kr##.banner-box
+!etoland.co.kr##.banner-box
 ! - 오늘의 HIT 아래 상담실 등 배너
-etoland.co.kr###consult_list
+!etoland.co.kr###consult_list
 ! - 무료충전소
-etoland.co.kr##.reward_v2
+!etoland.co.kr##.reward_v2
 ! - 최신 댓글
-etoland.co.kr###main_latest_comment
+!etoland.co.kr###main_latest_comment
 ! - 왼쪽 비밀 상점
-etoland.co.kr##.secret_aside_box
+!etoland.co.kr##.secret_aside_box
 ! - 알뜰 공간
-etoland.co.kr##.market.menu_wrapper
-##.sponsor
+!etoland.co.kr##.market.menu_wrapper
+!##.sponsor
 ! - 오른쪽 상단 텍스트 배너
-etoland.co.kr##.v2_top_menu_right
+!etoland.co.kr##.v2_top_menu_right
 ! - 포인트 승부 예측
-etoland.co.kr##.box.sports-bet-section
+!etoland.co.kr##.box.sports-bet-section
 ! - 승부 예측
-etoland.co.kr##.box.main-sports
+!etoland.co.kr##.box.main-sports
 ! - 회원 랭킹
-etoland.co.kr##section.box:nth-of-type(7)
+!etoland.co.kr##section.box:nth-of-type(7)
 ! - 각 게시판 배너
 !||www.etoland.co.kr/data/daumeditor10/*$image
 ! - 게시물 상단 비밀상점 배너
-##[href^="https://etoland.co.kr/pages/short.php"]
-##[href^="https://www.etoland.co.kr/pages/short.php"]
+!##[href^="https://etoland.co.kr/pages/short.php"]
+!##[href^="https://www.etoland.co.kr/pages/short.php"]
 ! - 게시물 상단 배너 공간 (모바일) - 게시물내 이미지를 지울수 있어 해제
 !etoland.co.kr##div:nth-of-type(5) > div:nth-of-type(3)
 ! - 이토랜드 광고 게시물 배너
-||*/img/market/ajd/ajd_banner*$image
+!||*/img/market/ajd/ajd_banner*$image
 ! - 게시물 내 하단 배너
-www.etoland.co.kr##.etoad_under_goods
+!www.etoland.co.kr##.etoad_under_goods
 ! - 게시물 내 하단 배너 (모바일)
-www.etoland.co.kr###under_goodbtn_ad
+!www.etoland.co.kr###under_goodbtn_ad
 ! - 포인트 충전소 이미지 복원 (List-KR 무력화)
-@@||www.etoland.co.kr/data/file0207/point1/
+!@@||www.etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
 etoland.co.kr###underGoodBtn_freeRecharge
 ! - 게시물 글 상단 비밀상점 광고글 (PC)
 !etoland.co.kr##.ad_list.hit_item
 ! - 게시물 글 내 이토 광고글 (PC)
-etoland.co.kr##li.ad_list
+!etoland.co.kr##li.ad_list
 ! - 게시물 글 상단 비밀상점 광고글 (모바일)
 !etoland.co.kr##.view_content_top_ad_v1
 ! - 게시물 내 댓글 광고글 (모바일)
-etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
+!etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
 ! - 최신글 (NEW) 감추기
 ! - - - PC
-etoland.co.kr##.freebbs_latest_list_section
+!etoland.co.kr##.freebbs_latest_list_section
 ! - - - 모바일
-etoland.co.kr###latest_m_main
+!etoland.co.kr###latest_m_main
 ! - 실시간 정보 게시판 감추기 (모바일)
-etoland.co.kr###info_recent_list_wrap
+!etoland.co.kr###info_recent_list_wrap
 ! - 이미지 복원
 !@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
-etoland.co.kr#@#[class^="ad"]
+!etoland.co.kr#@#[class^="ad"]
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -1087,7 +1101,7 @@ music.bugs.co.kr##.topBanner
 ! 넷플릭스 (https://www.netflix.com/)
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
-||logs.netflix.com
+||logs.netflix.com^
 !
 !
 ! 티빙 (https://www.tving.com/)
@@ -2031,7 +2045,7 @@ web.joongna.com##div.max-md\:gap-3.flex-nowrap
 ! - 팝업 오른쪽
 !bananamall.co.kr###pop_gevent
 ! - 배너
-##[id^="banner_"]
+!##[id^="banner_"]
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
@@ -2702,8 +2716,6 @@ avdbs.com##.__b-popup1__.b-modal
 ! MISSAV (https://missvod4.com/)
 ! - 배너
 ![$domain=/^missvod\d+.com/]###banner-list.banner-list
-!  BadBlock+ (ABP) 해제 - 영상 이미지 안보임
-@@||recombee.com^
 ! - 영상 하단 배너
 ##.under_player
 !
@@ -3991,8 +4003,6 @@ mypikpak.com##.coupon-top-banner
 mypikpak.com##.operation-container
 ! - 확장프로그램 설치 안내 팝업
 mypikpak.com##div.el-overlay:nth-of-type(23)
-! - 차단 목록 해제 (Adblock-Rule-Collection-Lite) - 네이버 검색에서 상품 클릭시 정보 안나옴
-@@||*$document,removeparam=/^(sp|ut|fro?)m(_|\b)/
 !
 !
 ! 제타 (https://zeta-ai.io)
@@ -4226,7 +4236,13 @@ noonnu.cc##.fc-dialog-container
 ##[id*="AdSense"]
 
 
-||*/*/ads/*
+
+*##.ad
+/ad_
+||ad-
+/ad/*$script
+/ads/*
+!||*/*/ads/*
 ! - -- 예외
 ! - - - 옥션 (https://www.auction.co.kr/)
 @@||*ad-img.gmarket.com/ADS*
@@ -4234,7 +4250,8 @@ noonnu.cc##.fc-dialog-container
 !@@||zxcasdqwezxcasdqwe.com/ads/*$media
 ! - https://ofw.adison.co/
 !@@||ofw.adison.co/*/ads/*
-
+_ads_
+-ads.$badfilter
 
 
 ! 기타
@@ -4332,32 +4349,6 @@ noonnu.cc##.fc-dialog-container
 
 !!! - 광역 2
 ! - - - 광역으로 사용
-##[class*="banner"] :has(img)
-! - -- 예외
-! - - - https://www.coupang.com/ - 배너 이미지 사라짐
-coupang.com#@#[class*="banner"] :has(img)
-! - - - https://www.auction.co.kr/- 배너 이미지 사라짐
-auction.co.kr#@#[class*="banner"] :has(img)
-! - - -  https://shopping.naver.com/ - 배너 이미지 사라짐
-shopping.naver.com#@#[class*="banner"] :has(img)
-! - - - https://shoppinglive.naver.com/ - 배너 이미지 사라짐
-shoppinglive.naver.com#@#[class*="banner"] :has(img)
-! - - - https://nid.naver.com/ - 배너 이미지 사라짐
-nid.naver.com#@#[class*="banner"] :has(img)
-! - - - https://www.gmarket.co.kr/ - 배너 이미지 사라짐
-gmarket.co.kr#@#[class*="banner"] :has(img)
-! - - - https://www.11st.co.kr/ - 배너 이미지 사라짐
-11st.co.kr#@#[class*="banner"] :has(img)
-! - - - https://market.ddanzi.com/ -  - 배너 이미지 사라짐
-market.ddanzi.com#@#[class*="banner"] :has(img)
-
-
-
-
-
-
-!!! - 광역 3
-! - - - 광역으로 사용
 ! - - - AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너 / 영상내 큰 배너
 ![$domain=/^wfwf\d+.com/]##a[href][target] img[src*="/wp-content/uploads/"]
 !##[id*="imgDiv"] img[src*="/wp-content/uploads/"] 하면 영상 이미지 사라짐
@@ -4396,4 +4387,7 @@ momoiroadult.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+
+! Adblock-Rule-Collection-Lite 필터 오류 해결
+@@^$generichide@badfilter
 
