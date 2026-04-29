@@ -18,23 +18,23 @@ except ImportError:
 # 필터 소스 URL
 # ============================================================
 ADGUARD_PC_URLS = [
-    "https://easylist-downloads.adblockplus.org/easylist.txt",  # EasyList
-    "https://filters.adtidy.org/windows/filters/3.txt",         # Tracking Protection
-    "https://filters.adtidy.org/windows/filters/4.txt",         # Social Media
-    "https://filters.adtidy.org/windows/filters/7.txt",         # Japanese
-    "https://filters.adtidy.org/windows/filters/18.txt",        # Cookie Notices
-    "https://filters.adtidy.org/windows/filters/19.txt",        # Popups
-    "https://filters.adtidy.org/windows/filters/20.txt",        # Mobile App Banners
-    "https://filters.adtidy.org/windows/filters/21.txt",        # Other Annoyances
-    "https://filters.adtidy.org/windows/filters/22.txt",        # Widgets
-    "https://filters.adtidy.org/windows/filters/208.txt",       # Online Malicious URL
-    "https://filters.adtidy.org/windows/filters/224.txt",       # Chinese
+    "https://easylist-downloads.adblockplus.org/easylist.txt",      # EasyList
+    "https://easylist-downloads.adblockplus.org/easyprivacy.txt",   # EasyPrivacy
+    "https://filters.adtidy.org/windows/filters/4.txt",             # Social Media
+    "https://filters.adtidy.org/windows/filters/7.txt",             # Japanese
+    "https://filters.adtidy.org/windows/filters/18.txt",            # Cookie Notices
+    "https://filters.adtidy.org/windows/filters/19.txt",            # Popups
+    "https://filters.adtidy.org/windows/filters/20.txt",            # Mobile App Banners
+    "https://filters.adtidy.org/windows/filters/21.txt",            # Other Annoyances
+    "https://filters.adtidy.org/windows/filters/22.txt",            # Widgets
+    "https://filters.adtidy.org/windows/filters/208.txt",           # Online Malicious URL
+    "https://filters.adtidy.org/windows/filters/224.txt",           # Chinese
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
 ]
 
 ADGUARD_MOBILE_URLS = [
     "https://easylist-downloads.adblockplus.org/easylist.txt",          # EasyList
-    "https://filters.adtidy.org/android/filters/3_optimized.txt",       # Tracking Protection
+    "https://easylist-downloads.adblockplus.org/easyprivacy.txt",       # EasyPrivacy
     "https://filters.adtidy.org/android/filters/4_optimized.txt",       # Social Media
     "https://filters.adtidy.org/android/filters/7_optimized.txt",       # Japanese
     "https://filters.adtidy.org/android/filters/18_optimized.txt",      # Cookie Notices
@@ -52,8 +52,7 @@ ADGUARD_MOBILE_URLS = [
 # ============================================================
 FILTER_NAMES = {
     "easylist.txt":      "EasyList",
-    "3.txt":             "AdGuard Tracking Protection filter",
-    "3_optimized.txt":   "AdGuard Tracking Protection filter",
+    "easyprivacy.txt":   "EasyPrivacy",
     "4.txt":             "AdGuard Social Media filter",
     "4_optimized.txt":   "AdGuard Social Media filter",
     "7.txt":             "AdGuard Japanese filter",
@@ -145,7 +144,7 @@ def write_filter_file(filename, source_blocks, results, platform_label, now):
     ok = sum(1 for r in results if r["status"] == "OK")
     header = (
         f"! Title: My Combined Filter ({platform_label})\n"
-        f"! Description: EasyList + AdGuard 보조 필터 통합\n"
+        f"! Description: EasyList + EasyPrivacy + AdGuard 보조 필터 통합\n"
         f"! Expires: 12 hours\n"
         f"! Generated: {now} (KST)\n"
         f"! Total rules: {total:,}\n"
