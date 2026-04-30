@@ -1137,6 +1137,11 @@ music.bugs.co.kr##.topBanner
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com^
+! - 푸쉬 광고 (일시정지시 나타나는 광고)
+/push.
+! - - - 출처 : uBlock filters – Ads
+!netflix.com##+js(json-prune, result.adverts)
+!netflix.com##+js(json-prune, data.pinotPausedPlaybackPage)
 !
 !
 ! 티빙 (https://www.tving.com/)
