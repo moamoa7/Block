@@ -107,6 +107,12 @@
 !
 ! - 내가 어떤 광고를 타고 왔는지 Google이 알 수 없게 흔적을 지우는 규칙
 $removeparam=gtm
+! - Google 로그인 페이지에서 세션 식별 및 추적 용도로 사용되는 것을 막는 규칙
+||accounts.google.com^$document,removeparam=dsh
+! - Google의 로깅/추적 요청을 빈 텍스트로 리다이렉트해서 사용자 행동 추적을 차단하는 규칙
+||google.com/log?$redirect-rule=nooptext
+!
+!
 ! - 내 행동을 추적하기 위해 URL에 몰래 붙여놓은 꼬리표를 떼어버리는 규칙
 ! - - - 인스타 (https://www.instagram.com/)
 $removeparam=__hs
@@ -128,6 +134,10 @@ $ping,third-party
 !
 !Netflix가 내가 뭘 보고 뭘 클릭하는지 상세하게 기록해서 서버로 보내는 것을 막는 규칙 (시청내역을 막는건 아닌듯)
 ||netflix.com/log/
+!
+!
+! - 쿠키 동의 팝업 귀찮은 거 안 뜨게 하는 규칙
+||geolocation.onetrust.com/cookieconsentpub/*/geo/location$xmlhttprequest,redirect-rule=noopjson
 !
 !
 ! 3자 ping / websocket 차단
@@ -419,7 +429,7 @@ poong.today##._mainLiveArea_tck4v_535
 ! - 첫 구매 이벤트 중 알림
 !chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! 치트키 구매하기 툴팁
-!##.tooltip
+chzzk.naver.com##.tooltip
 ! - - - 예외 - 차단리스트 내용 안나옴
 !my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
@@ -4309,6 +4319,9 @@ noonnu.cc##.fc-dialog-container
 !
 !
 /ad_
+!
+!
+/adbanner
 !
 !
 ||ad-
