@@ -1151,9 +1151,13 @@ music.bugs.co.kr##.topBanner
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com^
+! - - - 출처 : https://github.com/ajstrick81/Netflix-Ads
+! - - - - - 광고 콘텐츠를 전송하는 서브도메인 차단 (Ublock) 및 우회(ADGUARD)
+! - - - - - 푸쉬 광고는 차단되는거 확인
+! - - - - - 넷플릭스 앱은 콘텐츠와 동일한 도메인에서 광고를 게재하기 때문에 모든 광고를 차단하는 것은 매우 어려움
 ||ad.akamaized.net^
-||ad.akamaized.net^$dnsrewrite=0.0.0.0
 ||ads.akamaized.net^
+||ad.akamaized.net^$dnsrewrite=0.0.0.0
 ||ads.akamaized.net^$dnsrewrite=0.0.0.0
 ! - - - 출처 : uBlock filters – Ads
 netflix.com##+js(json-prune, result.adverts)
