@@ -1154,8 +1154,7 @@ music.bugs.co.kr##.topBanner
 ! - - - 출처 : uBlock filters – Ads
 netflix.com##+js(json-prune, result.adverts)
 ! - 푸쉬 광고 (일시정지시 나타나는 광고)
-!/push.
-push.prod.netflix.com
+/push.
 ! - - - 출처 : uBlock filters – Ads
 netflix.com##+js(json-prune, data.pinotPausedPlaybackPage)
 !
