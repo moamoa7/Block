@@ -4459,15 +4459,3 @@ momoiroadult.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
-
-
-
-
-
-
-! Adblock-Rule-Collection-Lite 필터 오류 해결 (일부)
-@@^$generichide@badfilter
-@@/fontawesome-$font,3p
-coupang.com#@#+js(json-prune-xhr-response, tracking, feeds, n-api/recommend/feeds)
-@@||bamgrid.com^$domain=disneyplus.com
-
