@@ -88,10 +88,6 @@
 !||jsdelivr.net/npm/disable-devtool
 !
 !
-! 디스코드 차단 해제
-||discord.com^$badfilter
-!
-!
 !
 !
 !
@@ -186,7 +182,13 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ##iframe[src*="doubleclick.net"]
 ##iframe[src*="googleadservices.com"]
 ##div[data-google-av-ad-container]
+! 구글 광고 차단 (추가)
 /adsense/*
+##[class*="adsense"]
+##[id*="adsense"]
+##[id*="adSense"]
+##[id*="Adsense"]
+##[id*="AdSense"]
 !
 !
 ! 유튜브 (https://www.youtube.com/)
@@ -4303,12 +4305,7 @@ noonnu.cc##.fc-dialog-container
 ##[ class*="banner-item"]
 !
 !
-! 광고
-##[class*="adsense"]
-##[id*="adsense"]
-##[id*="adSense"]
-##[id*="Adsense"]
-##[id*="AdSense"]
+
 
 
 
