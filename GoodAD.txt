@@ -1151,30 +1151,10 @@ music.bugs.co.kr##.topBanner
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com^
-||flxvideo.net^
-||flxso.net^
-||flxext.com^
+||ad.akamaized.net^
 ||ad.akamaized.net^$dnsrewrite=0.0.0.0
+||ads.akamaized.net^
 ||ads.akamaized.net^$dnsrewrite=0.0.0.0
-||ichnaea.netflix.com^
-||ichnaea-web.netflix.com^
-||darnuid.netflix.com^
-||ingest.sentry.io^
-||mobile-collector.newrelic.com^
-*netflix.com/playapi/cadmium/manifest/*$removeparam=adBreak
-*netflix.com/playapi/cadmium/manifest/*$removeparam=ad_break
-*netflix.com/playapi/cadmium/manifest/*$removeparam=adTag
-*netflix.com/playapi/cadmium/manifest/*$removeparam=trackingToken
-*netflix.com/playapi/cadmium/manifest/*$removeparam=adPosition
-*netflix.com/playapi/cadmium/manifest/*$removeparam=adModel
-*netflix.com/playapi/cadmium/manifest/*$removeparam=adTier
-*netflix.com/playapi/cadmium/licensedmanifest/*$removeparam=adBreak
-*netflix.com/playapi/cadmium/licensedmanifest/*$removeparam=ad_break
-*netflix.com/playapi/cadmium/licensedmanifest/*$removeparam=adTag
-*netflix.com/playapi/cadmium/licensedmanifest/*$removeparam=trackingToken
-*netflix.com/playapi/cadmium/licensedmanifest/*$removeparam=adPosition
-*netflix.com/playapi/cadmium/licensedmanifest/*$removeparam=adModel
-*netflix.com/playapi/cadmium/licensedmanifest/*$removeparam=adTier
 ! - - - 출처 : uBlock filters – Ads
 netflix.com##+js(json-prune, result.adverts)
 ! - 푸쉬 광고 (일시정지시 나타나는 광고)
