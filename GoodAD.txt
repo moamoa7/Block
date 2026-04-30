@@ -696,6 +696,13 @@ etoland.co.kr###underGoodBtn_freeRecharge
 !@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
 !etoland.co.kr#@#[class^="ad"]
+! - 상단 배너?
+etoland.co.kr##section > .w-full
+! - 게시물 하단 남는 공간 (모바일)
+etoland.co.kr##div.justify-center.w-full
+! - 전체 광고 글?
+etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex
+!
 !
 !
 ! 더쿠 (https://theqoo.net/)
