@@ -676,7 +676,7 @@ fmkorea.com###fm_alert
 ! - 포인트 충전소 이미지 복원 (List-KR 무력화)
 !@@||www.etoland.co.kr/data/file0207/point1/
 ! - 모바일 게시물 하단 광고 배너 (3칸짜리)
-etoland.co.kr###underGoodBtn_freeRecharge
+!etoland.co.kr###underGoodBtn_freeRecharge
 ! - 게시물 글 상단 비밀상점 광고글 (PC)
 !etoland.co.kr##.ad_list.hit_item
 ! - 게시물 글 내 이토 광고글 (PC)
@@ -696,12 +696,17 @@ etoland.co.kr###underGoodBtn_freeRecharge
 !@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
 !etoland.co.kr#@#[class^="ad"]
-! - 상단 배너?
-etoland.co.kr##section > .w-full
+! - - - - - - - - 신버젼
 ! - 게시물 하단 남는 공간 (모바일)
 etoland.co.kr##div.justify-center.w-full
-! - 전체 광고 글?
-etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex
+! Etoland 네이버 광고 차단 (공용)
+!etoland.co.kr##li:has(a[href*="ader.naver.com"])
+!etoland.co.kr##a[href*="ader.naver.com"]
+||ader.naver.com
+! Etoland 네이버 광고 차단 (PC)
+!etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
+! Etoland 네이버 광고 차단 (모바일)
+!etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 !
 !
 !
@@ -4487,15 +4492,3 @@ momoiroadult.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
-
-
-
-
-
-
-! Adblock-Rule-Collection-Lite 필터 오류 해결 (일부)
-@@^$generichide@badfilter
-@@/fontawesome-$font,3p
-coupang.com#@#+js(json-prune-xhr-response, tracking, feeds, n-api/recommend/feeds)
-@@||bamgrid.com^$domain=disneyplus.com
-
