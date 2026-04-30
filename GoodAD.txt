@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260430
+! Version: 20260501
 !
 !
 !
@@ -716,7 +716,7 @@ etoland.co.kr##div.justify-center.w-full
 !etoland.co.kr##a[href*="ader.naver.com"]
 !||ader.naver.com
 ! Etoland 네이버 광고 차단 (PC)
-!etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
+etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
 ! Etoland 네이버 광고 차단 (모바일)
 etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 !
@@ -3506,6 +3506,7 @@ sexygirl.cc##div.overflow-auto
 ! - - - 예외
 ! - - - 주소개럴리 (https://jusogall.com/) - 1위 사라짐
 jusogall.com#@#.rainbow-text
+! - - - 여기여 (https://www.yugiyu.com/) - 카지노/토토 링크 지워진거라 그냥 둘 것
 !
 !
 ! 딥페이크 (https://dfkor4.com/)
@@ -3823,10 +3824,11 @@ xn--9l4b15e2td.com##.widget-box
 ##.wixui-gallery
 !
 !
-! 여기요 (https://www.yugiyu.com/)
-! - 배너 이미지
-!||*upload_files/banner/*$image
-|!|*files/banner/*$image
+! 여기여 (https://www.yugiyu.com/)
+! - 팝업
+##.popup_wrap
+! - 배너
+##.banner_top_box
 ! - 검증 삭제
 !yugiyu.com##div.main_link.f9_box01:nth-of-type(6)
 ! - 카지노 삭제
@@ -3895,27 +3897,24 @@ jusojula.com##.slide-container
 !||linktaxi.net/img/*.jpg
 !
 !
-! 주소골라 (https://jusopick.com/)
+! 18모아 (https://xn--1843-cs8qi32c.com/)
+! - 오른쪽 배너
+[$domain=/^xn--18\d+-cs8qi32c.com/]##.mb-4.mt-3
+! - 보증업체 타이틀
+[$domain=/^xn--18\d+-cs8qi32c.com/]##.en.f-lg.h3
+! - 보증업체 목록
+[$domain=/^xn--18\d+-cs8qi32c.com/]##.mx-n2.row-cols-xl-3
+
+!
+!
+! 주소골라 (https://jusopick01.com/)
 ! - 팝업
-jusopick.com##.fixed:nth-of-type(5)
-jusopick.com##.bg-black.flex-col
+[$domain=/^jusopick.\d+.com/]##.md\:w-\[400px\].md\:ml-56.max-md\:hidden.max-md\:ml-12.z-50.fixed
 !
 !
-! 주소탑 (https://jusotop03.com/)
+! 주소탑 (https://jusotop05.org/)
 ! - 상단 배너
-[$domain=/^jusotop\d+.com/]##.main_banner_6
-! - 카지노BJ
-[$domain=/^jusotop\d+.com/]##li.gnb_1dli:nth-of-type(7)
-[$domain=/^jusotop\d+.com/]##div.lt_wr_site_link:nth-of-type(2)
-! - 유흥정보
-[$domain=/^jusotop\d+.com/]##li.gnb_1dli:nth-of-type(10)
-[$domain=/^jusotop\d+.com/]##div.lt_wr_site_link:nth-of-type(8)
-! - 텔레그램 홍보방
-[$domain=/^jusotop\d+.com/]##li.gnb_1dli:nth-of-type(15)
-[$domain=/^jusotop\d+.com/]##div.lt_wr_site_link:nth-of-type(13)
-! - 먹튀검증
-[$domain=/^jusotop\d+.com/]##li.gnb_1dli:nth-of-type(16)
-[$domain=/^jusotop\d+.com/]##div.lt_wr_site_link:nth-of-type(14)
+[$domain=/^jusotop\d+.org/]##.wrap_main_banner
 !
 !
 ! 주소모아 (https://www.joosomoa1.com/)
@@ -4151,11 +4150,9 @@ zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.sw
 @@-ads-$script
 !
 !
-! 주소콘 (https://www.jusocon.com/)
-! - 일부 필터에 의해 이미지 차단 방지
-@@/1.gif?
-@@/2.gif?
-@@/3.gif?
+! 주소콘 (https://www.jusocon.com/) (https://jusocon1.com/)
+! - 상단 배너
+##.banner_box
 !
 !
 ! Adguard DNS (https://adguard-dns.io/)
@@ -4239,6 +4236,13 @@ thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 ! https://apkcombo.com/
 ! - 사이트 차단 해제 (🔥 BadBlock+ (ABP))
 ||apkcombo.com^$badfilter
+!
+!
+! Semrush (https://ko.semrush.com/)
+! - 팝업
+! - - - 출처 : Adblock-Rule-Collection-Lite
+semrush.com#$#body { overflow:visible!important; }
+semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 
 
 
@@ -4360,7 +4364,16 @@ _ads_
 ##.random-banners
 
 
-
+/fingerprint-3.4.1.js^
+/fingerprint.js^
+/fingerprint.js^$domain=~github.com
+/fingerprint.min.js^
+/fingerprint/iife.min.js^
+/fingerprint2.js^
+/fingerprint2.min.js^
+/fingerprint2.min.js^
+/fingerprint3.js^
+/fingerprint3.min.js^
 
 
 
@@ -4443,8 +4456,9 @@ _ads_
 ! - - - 모두의AV (https://modooav6.com/)
 ! - - - 야스닷컴 (https://yasyadong.cc/)
 ! - - - 야동파티 (https://ydparty02.net/)
+! - - - 주소골라 (https://jusopick01.com/)
 !##a[href*='http'][target*='blank'] img
-[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],tvhot.store,newtoki.biz,[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/]##a[href][target*='blank']:has(img)
+[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],tvhot.store,newtoki.biz,[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[href][target*='blank']:has(img)
 
 
 
