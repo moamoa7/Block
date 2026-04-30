@@ -941,7 +941,13 @@ instiz.net##[id*="sense"]
 !
 ! 나무위키 (https://namu.wiki/)
 ! - 상단 및 오른쪽 공간(배너?) - EasyList (없어진듯)
-namu.wiki##div[id][class]:empty
+!namu.wiki##div[id][class]:empty
+! - 파워링크 삭제
+! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+!namu.wiki#$#div[class][id]:is(:empty, :has(> iframe[id^='google_ads_iframe'])) { display: none !important; }
+!namu.wiki##div[class]:matches-css(position: sticky)
+!namu.wiki##li:has(a > time):not(:has([href*='/raw/'])):upward(2)
+namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
 !
 !
 ! 일베 (https://www.ilbe.com/)
@@ -983,7 +989,7 @@ ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 !##[class="ad-banner"]
 ##.ad-banner
 ! - 게시물 위 상단 공간
-##.main.container > div>[style]
+ppomppu.co.kr##.main.container > div>[style]
 ! - 뽐쿠폰 배너
 ppomppu.co.kr##.ppomCou
 ! - 모바일 하단 배너 공간 삭제
@@ -4474,3 +4480,15 @@ momoiroadult.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+
+
+
+
+
+
+! Adblock-Rule-Collection-Lite 필터 오류 해결 (일부)
+@@^$generichide@badfilter
+@@/fontawesome-$font,3p
+coupang.com#@#+js(json-prune-xhr-response, tracking, feeds, n-api/recommend/feeds)
+@@||bamgrid.com^$domain=disneyplus.com
+
