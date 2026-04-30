@@ -702,11 +702,11 @@ etoland.co.kr##div.justify-center.w-full
 ! Etoland 네이버 광고 차단 (공용)
 !etoland.co.kr##li:has(a[href*="ader.naver.com"])
 !etoland.co.kr##a[href*="ader.naver.com"]
-||ader.naver.com
+!||ader.naver.com
 ! Etoland 네이버 광고 차단 (PC)
 !etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
 ! Etoland 네이버 광고 차단 (모바일)
-!etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
+etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 !
 !
 !
