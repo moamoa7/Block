@@ -122,6 +122,10 @@ $ping,third-party
 ||tracker.$websocket
 !
 !
+! 내가 방문하는 사이트들이 몰래 Braze에 내 행동 데이터를 보내서 마케팅 타겟으로 삼는 것을 막는 규칙
+||braze.com^$3p
+!
+!
 ! 3자 ping / websocket 차단
 !||*$ping,websocket,third-party
 ! - 3자 websocket 차단 해제
@@ -142,6 +146,12 @@ $ping,third-party
 ! - https://wonforecast.com/ 환율 가져오기
 !@@||tradingview.com/socket.io/websocket
 !
+!
+!
+!
+!
+! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
+##.grecaptcha-badge
 !
 !
 !
@@ -1137,11 +1147,12 @@ music.bugs.co.kr##.topBanner
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com^
+! - - - 출처 : uBlock filters – Ads
+netflix.com##+js(json-prune, result.adverts)
 ! - 푸쉬 광고 (일시정지시 나타나는 광고)
 /push.
 ! - - - 출처 : uBlock filters – Ads
-!netflix.com##+js(json-prune, result.adverts)
-!netflix.com##+js(json-prune, data.pinotPausedPlaybackPage)
+netflix.com##+js(json-prune, data.pinotPausedPlaybackPage)
 !
 !
 ! 티빙 (https://www.tving.com/)
@@ -3043,6 +3054,10 @@ jamakyadong.me##[class*="g-col"]
 ![$domain=/^yargasm\d+.top/],[$domain=/^darkgg\d+.top/]##li.gnb_1dli:nth-of-type(8)
 ! - 영상 상단 배너 공간
 ###main-banner
+! -  예외
+! - - - Wavve (https://www.wavve.com/) - 배너 사라짐
+wavve.com#@##main-banner
+
 !
 !
 ! 야동허브 (https://ydhub11.net/)
@@ -4450,7 +4465,9 @@ adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 
-! Adblock-Rule-Collection-Lite 필터 오류 해결 (일분만)
+! Adblock-Rule-Collection-Lite 필터 오류 해결 (일부)
 @@^$generichide@badfilter
 @@/fontawesome-$font,3p
+coupang.com#@#+js(json-prune-xhr-response, tracking, feeds, n-api/recommend/feeds)
+@@||bamgrid.com^$domain=disneyplus.com
 
