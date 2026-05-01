@@ -1593,6 +1593,13 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ![$domain=/^coktv\d+.com/]##.othersite-tab-bg
 !
 !
+! 구구티비 (https://randburg.com/)
+! - 배너
+randburg.com##div.d-lg-block.d-none.na-col.col-lg-4:nth-of-type(1)
+! - 오른쪽 챗 메모
+##.chat-notice
+!
+!
 ! 개구리티비 (https://grtv09.com/)
 ! - 배너 이미지
 !||grtv*.com/data/editor/*
@@ -2538,9 +2545,11 @@ clien.net#@#.ad_banner
 !##img[src*="static.wixstatic.com/media"]
 ! - 배너 공간
 xn--av-t21i858e.net##.wixui-section.comp-m7wvsc3o.Oqnisf
-
-
-
+!
+!
+! 헬카이브 (https://hellkaiv.net/)
+! - 오른쪽 배너
+hellkaiv.net##.nimpfile
 !
 !
 ! TK Tubo (https://tktube.com/)
@@ -3753,6 +3762,11 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 hitomi.la###immersive-translate-popup
 !
 !
+! 리토미 (https://litomi.in/)
+! - 배너
+##[id*="-ads-banner"]
+!
+!
 ! OnlyFans资源社 (https://of996.com/)
 ! - 왼쪽  떠다니는 메뉴
 [$domain=/^of\d+.com/]##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximize.ftwp-wrap
@@ -4495,7 +4509,9 @@ tid-hee.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://emuokunmaster.com - 영상 이미지 링크 안보여서 클릭 못함
 ! - https://alive-video.com - 영상 이미지 링크 안보여서 클릭 못함
 ! - https://adult-live.com/ - 영상 이미지 링크 안보여서 클릭 못함
+! - https://of996.com/ - 이미지 안보임
 momoiroadult.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
