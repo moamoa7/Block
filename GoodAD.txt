@@ -4296,7 +4296,6 @@ fc-info.com##[class*="videoContainer"]
 kio.ac##.svelte-8515pp.idle.applications > .lucide-construction
 !
 !
-
 ! https://noonnu.cc/
 ! - - - 안내문구 차단
 noonnu.cc##.fc-dialog.fc-ab-dialog
@@ -4306,6 +4305,27 @@ noonnu.cc##.fc-dialog-container
 ! 도박랜드 (https://dblove.net/)
 ! - 배너 이미지
 ##[ class*="banner-item"]
+!
+!
+! 오르비 (https://orbi.kr/)
+! - 배너 및 상단 빈 공간
+##[id*="ads"]
+##[x-data="advertisement"]
+##[style*="banner"]
+! - 오른쪽 빈 배너?
+##.label-banner
+
+
+
+
+
+
+
+
+
+
+
+
 !
 !
 ! 기타
@@ -4359,6 +4379,9 @@ _ads_
 !
 !
 ##.ads
+!
+!
+###ads
 !
 !
 !
