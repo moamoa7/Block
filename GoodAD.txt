@@ -1247,7 +1247,7 @@ tvhot.store##.object-cover
 !##[class^="full mobile-only2"]:not(html):not(body):not(article)
 [$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
-[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]###viewCover
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##.over
 ! - 이전화/다음화 버튼 없애기 (모바일 - 티비위키)
 [$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.bo_v_nb
 ! - 위로 바로 가는 버튼
