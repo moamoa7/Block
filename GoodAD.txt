@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260501
+! Version: 20260502
 !
 !
 !
@@ -39,6 +39,11 @@
 !
 ! - 광고는 막되, 사이트가 고장 나지 않도록 꼭 필요한 요청은 예외로 풀어주는 규칙
 @@://www3.doubleclick.net^|$xhr
+!
+!
+! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤/클릭 등이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
+www.google.com##html:style(overflow: visible !important)
+reddit.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
 !
@@ -2330,6 +2335,8 @@ avsee.ru#@#.tabs
 ##[class*="slideAnimation"]
 ! - 일부 영상 재생 차단 방지
 @@||tiktokcdn.com/obj/$xhr
+! - 기타
+##[class*="ad-placement"]
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -2941,16 +2948,9 @@ missav.ws,missav.live##.lg\:block
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
-! - 팝업 방지
-||missav.*/pop^$popup
-!||tsyndicate.com^$popup
-!||ad.twinrdengine.com^$popup
-!||go.myavlive.com^$popup
-! - 차단 사이트
-!||tsyndicate.com^
-!||rmhfrtnd.com^
-!||trackwilltrk.com^
-!||creative.myavlive.com^
+! - 기타
+##[rel*="sponsored"]
+##[src*="//ads.adxadserv.com/"]
 !
 !
 ! JAVCEP.COM (https://javcep.com/)
@@ -4128,21 +4128,9 @@ zod.kr##[data-href^='https://zod.kr/go/']:has(img)
 zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.swiper-initialized.swiper
 !
 !
-! copilot.microsoft.com
-! - 일부 필터 문제로 오류 나는거 해결
-@@-ads-$script
-!
-!
 ! 주소콘 (https://www.jusocon.com/) (https://jusocon1.com/)
 ! - 상단 배너
 ##.banner_box
-!
-!
-! Adguard DNS (https://adguard-dns.io/)
-! - 일부 필터로 인한 대시보드 진입 오류 해결
-@@/stats^$xmlhttprequest,domain=~githubunwrapped.com|~jsdelivr.com|~youtube.com|~marketplace.visualstudio.com
-
-
 !
 !
 ! 샤나 (https://shana.pe.kr/)
