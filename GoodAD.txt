@@ -327,8 +327,6 @@ sooplive.com##.subs_plus.seasonal_area
 sooplive.com##.message_player_wrap
 ! - 구독 플러스 툴팁
 ##.event_tooltip
-! - 프로모션 배너
-!sooplive.com##.promotion_banner
 ! - 영상 (https://play.sooplive.com)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 !##[class="buffering"]
@@ -336,8 +334,8 @@ sooplive.com##.message_player_wrap
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (List-KR)
 !||static.sooplive.com/asset/service/ad/
 ! -  채팅 광고
-!##[class*="chat_banner"]
-##.chat_banner
+##[class*="chat_banner"]
+!#.chat_banner
 ! - 채팅 상단 배너
 !sooplive.com##.on.chat_banner2
 ! - 채팅 공지 (필요시)
@@ -371,12 +369,6 @@ sooplive.com###side-layer
 sooplive.com##.sct-bnr
 ! - 개인채널  (https://ch.sooplive.com/) VOD 업로드 툴팁
 sooplive.com###FeedLayerToolTip
-! - 프로모션 배너 (적용이 안되고 있는지 딱히 나오는건 없음)
-!##[class="promotion_banner"]
-##.promotion_banner
-! - shopfreeca banner (적용이 안되고 있는지 딱히 나오는건 없음)
-!##[class="shopProduct_banner"]
-##.shopProduct_banner
 ! - 구독버튼 내 버플 안내문구
 sooplive.com##.event_tooltip
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
@@ -389,6 +381,14 @@ point.sooplive.com#@#[class^="ad"]
 ! - 19금 다시보기 시청시 로그인 하라고 나오는거 해결 (애드가드만 해당)
 ! - - -  출처 : https://gall.dcinside.com/adguard/9365 댓글
 sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
+! - 코드에는 있으나 내용은 없는
+! - 프로모션 배너
+!##[class="promotion_banner"]
+##.promotion_banner
+! - shopfreeca banner
+!##[class="shopProduct_banner"]
+##.shopProduct_banner
+##[id="sub-ceremony-banner"]
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
