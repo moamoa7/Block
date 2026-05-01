@@ -112,12 +112,6 @@ $removeparam=gtm
 ! - 내 행동을 추적하기 위해 URL에 몰래 붙여놓은 꼬리표를 떼어버리는 규칙
 ! - - - 인스타 (https://www.instagram.com/)
 $removeparam=__hs
-$removeparam=/^__s=[A-Za-z0-9]{6\,}/,domain=~univis.uni-erlangen.de|~univis.uni-bamberg.de|~univis.uni-luebeck.de|~univis.uni-kiel.de|~univis.th-koeln.de
-!
-! - - - 틱톡 (https://www.tiktok.com/)
-*$removeparam=btag
-! - 내가 링크를 클릭할 때 외부 추적 서버에 몰래 '얘가 클릭했어요'라고 고자질하는 것을 막는 규칙
-$ping,third-party
 !
 !
 ! tracker라는 이름이 붙은 서버가 WebSocket으로 몰래 나를 실시간 감시하는 것을 막는 규칙
@@ -1210,10 +1204,6 @@ netflix.com##+js(json-prune, data.pinotPausedPlaybackPage)
 poooo.ml##.h30
 ! - ##.ad 복원 - 채팅창 아이콘 사라짐
 poooo.ml#@#.ad
-! - 복원 (🔒 Privacy Essentials) - 영상 안나옴
-@@||ok.ru/videoembed^$3p,frame
-! - OK.ru가 내 동영상 시청 기록을 몰래 수집하는 것을 막는 규칙
-||ok.ru/dk?cmd=videostatnew
 !
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
@@ -2381,7 +2371,10 @@ sextb.date##.hidden-md.right.col-3
 ! - 상단 배너 이미지 공간 (유니콘Pro)
 ###ads
 ! - 배너
-##iframe[src^="https://creative."][src*="/widgets/v4/Universal?"]
+!- - - https://7tv034.com/
+! - - - 눈팅 (https://nunting.kr/)
+!##iframe[src^="https://creative."][src*="/widgets/v4/Universal?"]
+##iframe[src*="widgets"]
 !
 !
 ! - https://ko.javfc2.live/
@@ -2974,8 +2967,6 @@ missav.ws,missav.live##.lg\:block
 ! HOHO (https://hohoj.tv/)
 ! - 영상 옆 배너?
 hohoj.tv##iframe[src="javascript:window.location.replace(this.frameElement.dataset.link)"]
-! - 팝업 방지
-||trackwilltrk.com^$popup
 !
 !
 ! JAVLibrary (https://www.javlibrary.com/) (https://r86m.com/)
@@ -3740,7 +3731,6 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ! - 전체 배너
 ! - - - 도도걸 (https://dodogirl3.com/)
 ! - - - 야동닷컴 (https://yadong7.com/)
-! - - - 도도걸 (https://dodogirl3.com/)
 ! - - -  싸나이 (https://sanai16.com/)
 ! - - - 언리샷 (https://unlishot.org/) (https://unlishot55.cc/)
 !||darkg*.com/data/file/admin_banner/*
@@ -3752,9 +3742,6 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ! - 메인 배너 공간
 ![$domain=/^yadong\d+.com/]##a[href][target*="blank"]:has(img[src*="admin_banner"])
 ##a[href][target*="blank"]:has(img[src*="admin_banner"])
-!
-!
-!
 !
 !
 ! 히토미 (https://hitomi.la/)
@@ -4314,30 +4301,24 @@ noonnu.cc##.fc-dialog-container
 ##[style*="banner"]
 ! - 오른쪽 빈 배너?
 ##.label-banner
-
-
-
-
-
-
-
-
-
-
-
-
+!
+!
+!
+!
+!
+!
+!
+!
+!
 !
 !
 ! 기타
 ! - 광고 스킵
 ##.playerads
-!
-!
-! - 상단 배너 공간
+! - 배너 공간
 ##.header-banners
-
-
-
+!
+!
 *##.ad
 !
 !
@@ -4513,7 +4494,6 @@ _ads_
 !##[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
 ! - - -  위 규칙에 해당되지 않는 배너 (위 기재된 규칙대로 했을때 사라지는 배너로 인해 못함에 따라)는 ##.happy-inside-player로 처리
 ! - -  AV핑보걸 (https://pinkbo44.com/) - 맨 상단 오른쪽 배너
-! - - - 조개코리아 (https://jogekorea.com/) (https://jogekorea01.com/)
 ! - - - 야통령 (https://xn--5-v10fo35av1l.com/)
 ! - - - 조개무비 (https://v15.jogemovie.net/) - 상단 배너 중 1개만 선택됨
 ! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/) - 메인 상단 제외 전체 배너
