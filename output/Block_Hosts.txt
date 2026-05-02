@@ -1,14 +1,14 @@
 # Title: Personal DNS Filter
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 09:06:00 UTC
+# Generated: 2026-05-02 09:25:44 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 75,271
-# 2. Removed by Whitelist       : 95
-# 3. Final Block Rules (||)     : 75,176
-# 4. Final Exception Rules (@@) : 543
+# 1. Raw Domains Collected      : 75,282
+# 2. Removed by Whitelist       : 76
+# 3. Final Block Rules (||)     : 75,206
+# 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
 0.0.0.0 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -1034,6 +1034,7 @@
 0.0.0.0 2m3gdt0gc.de
 0.0.0.0 2m55gqleg.de
 0.0.0.0 2mdn-cn.net
+0.0.0.0 2mdn.net
 0.0.0.0 2mf9kkbhab31.com
 0.0.0.0 2mg2ibr6b.de
 0.0.0.0 2mke5l187.de
@@ -5213,6 +5214,7 @@
 0.0.0.0 adfork.co.kr
 0.0.0.0 adform.com
 0.0.0.0 adform.net
+0.0.0.0 adfox.ru
 0.0.0.0 adfpoint.com
 0.0.0.0 adfrika.com
 0.0.0.0 adfrontiers.com
@@ -5424,6 +5426,7 @@
 0.0.0.0 admissiondemeanourusage.com
 0.0.0.0 admissionpersuade.com
 0.0.0.0 admitad-connect.com
+0.0.0.0 admitad.com
 0.0.0.0 admitincarnateentertainment.com
 0.0.0.0 admittedhi.com
 0.0.0.0 admixer.co.kr
@@ -6047,6 +6050,7 @@
 0.0.0.0 adtech.de
 0.0.0.0 adtechium.com
 0.0.0.0 adtechjp.com
+0.0.0.0 adtechus.com
 0.0.0.0 adtechvideo.s3.amazonaws.com
 0.0.0.0 adtegrity.net
 0.0.0.0 adtelligent.com
@@ -7083,6 +7087,7 @@
 0.0.0.0 alimama.com
 0.0.0.0 alime-pic.oss-cn-hangzhou.aliyuncs.com
 0.0.0.0 alinersharsh.shop
+0.0.0.0 alipromo.com
 0.0.0.0 alisholoroso.cfd
 0.0.0.0 alisonlupomanarked.qpon
 0.0.0.0 alitems.co
@@ -8524,6 +8529,7 @@
 0.0.0.0 atbdvpyfcedrz.website
 0.0.0.0 atbvxutitxgdf.website
 0.0.0.0 atdeerlinga.com
+0.0.0.0 atdmt.com
 0.0.0.0 atdobalybyxii.online
 0.0.0.0 atecomprisedispel.com
 0.0.0.0 atekag.cn
@@ -15984,6 +15990,7 @@
 0.0.0.0 csfuiuwdubtyr.online
 0.0.0.0 csgkj.com
 0.0.0.0 cshviclkocuzh.space
+0.0.0.0 csi.gstatic.com
 0.0.0.0 csjdhxlelvqpa.site
 0.0.0.0 csjggncfpbhnq.space
 0.0.0.0 csjokezuqdbdy.online
@@ -18661,6 +18668,7 @@
 0.0.0.0 dhaohbwfigc.in
 0.0.0.0 dharmicafray.cfd
 0.0.0.0 dhaswilrehp.in
+0.0.0.0 dhawincaged.cyou
 0.0.0.0 dhbfsbanlrmqm.website
 0.0.0.0 dhcmni6m2kkyw.cloudfront.net
 0.0.0.0 dhcqlbteygqeg.site
@@ -19515,6 +19523,7 @@
 0.0.0.0 donkeyflower.xyz
 0.0.0.0 donkeygentlesubdued.com
 0.0.0.0 donlqsycnu.xyz
+0.0.0.0 donnockdrawrod.cfd
 0.0.0.0 donorstuffed.com
 0.0.0.0 donstick.com
 0.0.0.0 donttbeevils.de
@@ -20441,6 +20450,7 @@
 0.0.0.0 e3837dc23d.3b374de2ee.com
 0.0.0.0 e3ba2130e2.com
 0.0.0.0 e3bef3eb46.48d368a6f7.com
+0.0.0.0 e3n7jpuwo57nqv.cfd
 0.0.0.0 e420a96d53.d0d9f1bb4b.com
 0.0.0.0 e43ef7f183.6a1e09565a.com
 0.0.0.0 e4455e926e.8a6cc3f77f.com
@@ -20664,6 +20674,7 @@
 0.0.0.0 ebmjaufmqljbw.site
 0.0.0.0 ebonizerebake.com
 0.0.0.0 eboobuv0rk.com
+0.0.0.0 eboundservices.com
 0.0.0.0 eboxgiwwapmri.online
 0.0.0.0 eboxrcvjhxgcm.online
 0.0.0.0 ebp.renren.com
@@ -21871,6 +21882,7 @@
 0.0.0.0 eroge.com
 0.0.0.0 eroidere.com
 0.0.0.0 eromkfzhemkeo.space
+0.0.0.0 eroterest.net
 0.0.0.0 erotikdating.com
 0.0.0.0 erovation.com
 0.0.0.0 erpqkcfvsjjyap.com
@@ -26610,6 +26622,7 @@
 0.0.0.0 googleadsserving.cn
 0.0.0.0 googleapi.club
 0.0.0.0 googles.video
+0.0.0.0 googletagservices.com
 0.0.0.0 googlevads-cn.com
 0.0.0.0 googlewebfonts.leftmany.pro
 0.0.0.0 googlewebmaster-es.fumblingvacation.pro
@@ -30184,6 +30197,7 @@
 0.0.0.0 imail.bloblohub.com
 0.0.0.0 imapi-sg.isnssdk.com
 0.0.0.0 imaretbirses.com
+0.0.0.0 imasdk.googleapis.com
 0.0.0.0 imaxcash.com
 0.0.0.0 imb12v4xhkkue2xteb5mqnc3bi13.rest
 0.0.0.0 imbdemfjjduu.cdnvideo3.com
@@ -30289,6 +30303,7 @@
 0.0.0.0 imp.mgronline.com
 0.0.0.0 imp.pixiv.net
 0.0.0.0 imp2aff.com
+0.0.0.0 impact-ad.jp
 0.0.0.0 impact-betegy.com
 0.0.0.0 impactify.io
 0.0.0.0 impactify.media
@@ -30378,6 +30393,7 @@
 0.0.0.0 impureleg.com
 0.0.0.0 impurepath.com
 0.0.0.0 imputerpolecat.com
+0.0.0.0 imrworldwide.com
 0.0.0.0 imsjqyrgnjnnv.store
 0.0.0.0 imslyokecyhar.site
 0.0.0.0 imsonicgale.com
@@ -33759,6 +33775,7 @@
 0.0.0.0 kopeukasrsiha.com
 0.0.0.0 kopllowmotha.com
 0.0.0.0 kopmsfmihhrlg.store
+0.0.0.0 koprinosoonerdecane.qpon
 0.0.0.0 koraitpringle.qpon
 0.0.0.0 korbthejethii.org
 0.0.0.0 koreansearholeobsequy.cfd
@@ -34745,6 +34762,7 @@
 0.0.0.0 leopon.luckycasts.com
 0.0.0.0 leopon.originalmineral.com
 0.0.0.0 leoyard.com
+0.0.0.0 lepalohare.cyou
 0.0.0.0 lepchaalmahsescudo.qpon
 0.0.0.0 lepetitdiary.com
 0.0.0.0 lepidpomps.com
@@ -36740,6 +36758,7 @@
 0.0.0.0 marebeenewly.com
 0.0.0.0 maredpt.com
 0.0.0.0 mareferncrawl.com
+0.0.0.0 marfeel.com
 0.0.0.0 marfeelcache.com
 0.0.0.0 margaretnerves.com
 0.0.0.0 margaritawanderingelusive.com
@@ -39454,6 +39473,7 @@
 0.0.0.0 nenobfwtzuiuj.space
 0.0.0.0 nenodhezm.com
 0.0.0.0 nentsyshruggl.com
+0.0.0.0 neobux.com
 0.0.0.0 neodatagroup.com
 0.0.0.0 neoffic.com
 0.0.0.0 neofield.click
@@ -49204,6 +49224,7 @@
 0.0.0.0 rankpeers.com
 0.0.0.0 ranoby.click
 0.0.0.0 ranopportuni.com
+0.0.0.0 ranseursinoper.shop
 0.0.0.0 ranseursnapped.cfd
 0.0.0.0 ransommaliciousveneering.com
 0.0.0.0 ransomnotify.com
@@ -53832,6 +53853,7 @@
 0.0.0.0 scorchsorchic.com
 0.0.0.0 scorchsschwa.cyou
 0.0.0.0 score-feed.com
+0.0.0.0 scorecardresearch.com
 0.0.0.0 scoredconnect.com
 0.0.0.0 scornfacultative.com
 0.0.0.0 scornfulleg.com
@@ -55526,6 +55548,7 @@
 0.0.0.0 skilpoterased.help
 0.0.0.0 skilyake.net
 0.0.0.0 skimosunturnwench.cfd
+0.0.0.0 skimresources.com
 0.0.0.0 skinected.com
 0.0.0.0 skink.asorman.io
 0.0.0.0 skinkedschtick.help
@@ -55865,6 +55888,7 @@
 0.0.0.0 smartierougeot.cfd
 0.0.0.0 smartmnews.pro
 0.0.0.0 smartoffer.site
+0.0.0.0 smartredirect.de
 0.0.0.0 smarttds.org
 0.0.0.0 smarttopchain.nl
 0.0.0.0 smartyads.com
@@ -62805,6 +62829,7 @@
 0.0.0.0 u8wiw86hfn3f476fyi3n87pxbpryo627uc5hjk.cfd
 0.0.0.0 u99ptwjklqm87my7cr6y.rest
 0.0.0.0 u9axpzf50.com
+0.0.0.0 u9nt4b44w8itex.rest
 0.0.0.0 u9qr7fytnj3btjujbm7xw93no858.cfd
 0.0.0.0 u9zug1qjz4hu2n2.cfd
 0.0.0.0 uaagcvhljkxnemh.net
@@ -63238,6 +63263,7 @@
 0.0.0.0 uighurbitters.help
 0.0.0.0 uigllobulxoxp.website
 0.0.0.0 uihjtdamk.com
+0.0.0.0 uihrpfnmkzgkx.website
 0.0.0.0 uihxkmpsuljwm.space
 0.0.0.0 uii.io
 0.0.0.0 uiiby.qujye8zbujrup1g7g.cfd
@@ -65904,6 +65930,7 @@
 0.0.0.0 videocdnmetrika.com
 0.0.0.0 videocdnshop.com
 0.0.0.0 videoo.tv
+0.0.0.0 videoplaza.tv
 0.0.0.0 videoplus.vo.llnwd.net
 0.0.0.0 videoroll.net
 0.0.0.0 videosprofitnetwork.com
@@ -67313,6 +67340,7 @@
 0.0.0.0 wakersternar.qpon
 0.0.0.0 wakesblingerbasket.cyou
 0.0.0.0 wakkencayugas.cyou
+0.0.0.0 wakkencobbles.shop
 0.0.0.0 wakmqqizrssnu.website
 0.0.0.0 walapaihinter.cfd
 0.0.0.0 waldorfunurban.shop
@@ -72002,6 +72030,7 @@
 0.0.0.0 xvq66ekmebb83qy.rest
 0.0.0.0 xvqcohmxduqpl.space
 0.0.0.0 xvqidgxfdsxbe.store
+0.0.0.0 xvqseokjeukh.com
 0.0.0.0 xvrrjdgregofk.website
 0.0.0.0 xvryjozffyfww.space
 0.0.0.0 xvsbnqnvokrql.store
@@ -73002,6 +73031,7 @@
 0.0.0.0 ymazkrkieaujq.online
 0.0.0.0 ymcflloytltvc.online
 0.0.0.0 ymcyedebhrdxy.online
+0.0.0.0 ymdlcjgcoxdeew.com
 0.0.0.0 ymdqjgiecsdds.website
 0.0.0.0 ymdxl.com
 0.0.0.0 ymehnthakutyfor.com

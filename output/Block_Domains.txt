@@ -1,14 +1,14 @@
 # Title: Personal DNS Filter
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 09:06:00 UTC
+# Generated: 2026-05-02 09:25:44 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 75,271
-# 2. Removed by Whitelist       : 95
-# 3. Final Block Rules (||)     : 75,176
-# 4. Final Exception Rules (@@) : 543
+# 1. Raw Domains Collected      : 75,282
+# 2. Removed by Whitelist       : 76
+# 3. Final Block Rules (||)     : 75,206
+# 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -1034,6 +1034,7 @@
 2m3gdt0gc.de
 2m55gqleg.de
 2mdn-cn.net
+2mdn.net
 2mf9kkbhab31.com
 2mg2ibr6b.de
 2mke5l187.de
@@ -5213,6 +5214,7 @@ adforge.io
 adfork.co.kr
 adform.com
 adform.net
+adfox.ru
 adfpoint.com
 adfrika.com
 adfrontiers.com
@@ -5424,6 +5426,7 @@ admission.net
 admissiondemeanourusage.com
 admissionpersuade.com
 admitad-connect.com
+admitad.com
 admitincarnateentertainment.com
 admittedhi.com
 admixer.co.kr
@@ -6047,6 +6050,7 @@ adtech.com
 adtech.de
 adtechium.com
 adtechjp.com
+adtechus.com
 adtechvideo.s3.amazonaws.com
 adtegrity.net
 adtelligent.com
@@ -7083,6 +7087,7 @@ alimama.alicdn.com
 alimama.com
 alime-pic.oss-cn-hangzhou.aliyuncs.com
 alinersharsh.shop
+alipromo.com
 alisholoroso.cfd
 alisonlupomanarked.qpon
 alitems.co
@@ -8524,6 +8529,7 @@ ataykgrzwrplt.site
 atbdvpyfcedrz.website
 atbvxutitxgdf.website
 atdeerlinga.com
+atdmt.com
 atdobalybyxii.online
 atecomprisedispel.com
 atekag.cn
@@ -15984,6 +15990,7 @@ csfisihvtyobt.site
 csfuiuwdubtyr.online
 csgkj.com
 cshviclkocuzh.space
+csi.gstatic.com
 csjdhxlelvqpa.site
 csjggncfpbhnq.space
 csjokezuqdbdy.online
@@ -18661,6 +18668,7 @@ dh8ypn3lq8.com
 dhaohbwfigc.in
 dharmicafray.cfd
 dhaswilrehp.in
+dhawincaged.cyou
 dhbfsbanlrmqm.website
 dhcmni6m2kkyw.cloudfront.net
 dhcqlbteygqeg.site
@@ -19515,6 +19523,7 @@ donkey.mrfrisby.com
 donkeyflower.xyz
 donkeygentlesubdued.com
 donlqsycnu.xyz
+donnockdrawrod.cfd
 donorstuffed.com
 donstick.com
 donttbeevils.de
@@ -20441,6 +20450,7 @@ e3808936be.cdb4bd7cb1.com
 e3837dc23d.3b374de2ee.com
 e3ba2130e2.com
 e3bef3eb46.48d368a6f7.com
+e3n7jpuwo57nqv.cfd
 e420a96d53.d0d9f1bb4b.com
 e43ef7f183.6a1e09565a.com
 e4455e926e.8a6cc3f77f.com
@@ -20664,6 +20674,7 @@ eblindap.com
 ebmjaufmqljbw.site
 ebonizerebake.com
 eboobuv0rk.com
+eboundservices.com
 eboxgiwwapmri.online
 eboxrcvjhxgcm.online
 ebp.renren.com
@@ -21871,6 +21882,7 @@ erodiumvodums.com
 eroge.com
 eroidere.com
 eromkfzhemkeo.space
+eroterest.net
 erotikdating.com
 erovation.com
 erpqkcfvsjjyap.com
@@ -26610,6 +26622,7 @@ googleadservices.com
 googleadsserving.cn
 googleapi.club
 googles.video
+googletagservices.com
 googlevads-cn.com
 googlewebfonts.leftmany.pro
 googlewebmaster-es.fumblingvacation.pro
@@ -30184,6 +30197,7 @@ imagisteyases.cfd
 imail.bloblohub.com
 imapi-sg.isnssdk.com
 imaretbirses.com
+imasdk.googleapis.com
 imaxcash.com
 imb12v4xhkkue2xteb5mqnc3bi13.rest
 imbdemfjjduu.cdnvideo3.com
@@ -30289,6 +30303,7 @@ imp.accesstra.de
 imp.mgronline.com
 imp.pixiv.net
 imp2aff.com
+impact-ad.jp
 impact-betegy.com
 impactify.io
 impactify.media
@@ -30378,6 +30393,7 @@ impurehomework.pro
 impureleg.com
 impurepath.com
 imputerpolecat.com
+imrworldwide.com
 imsjqyrgnjnnv.store
 imslyokecyhar.site
 imsonicgale.com
@@ -33759,6 +33775,7 @@ kopetaweedle.com
 kopeukasrsiha.com
 kopllowmotha.com
 kopmsfmihhrlg.store
+koprinosoonerdecane.qpon
 koraitpringle.qpon
 korbthejethii.org
 koreansearholeobsequy.cfd
@@ -34745,6 +34762,7 @@ leopon.jmk.wtf
 leopon.luckycasts.com
 leopon.originalmineral.com
 leoyard.com
+lepalohare.cyou
 lepchaalmahsescudo.qpon
 lepetitdiary.com
 lepidpomps.com
@@ -36740,6 +36758,7 @@ marchshotgun.com
 marebeenewly.com
 maredpt.com
 mareferncrawl.com
+marfeel.com
 marfeelcache.com
 margaretnerves.com
 margaritawanderingelusive.com
@@ -39454,6 +39473,7 @@ nenlnl.icu
 nenobfwtzuiuj.space
 nenodhezm.com
 nentsyshruggl.com
+neobux.com
 neodatagroup.com
 neoffic.com
 neofield.click
@@ -49204,6 +49224,7 @@ ranklyscarers.cfd
 rankpeers.com
 ranoby.click
 ranopportuni.com
+ranseursinoper.shop
 ranseursnapped.cfd
 ransommaliciousveneering.com
 ransomnotify.com
@@ -53832,6 +53853,7 @@ scorchpompositydeadly.com
 scorchsorchic.com
 scorchsschwa.cyou
 score-feed.com
+scorecardresearch.com
 scoredconnect.com
 scornfacultative.com
 scornfulleg.com
@@ -55526,6 +55548,7 @@ skillydikage.shop
 skilpoterased.help
 skilyake.net
 skimosunturnwench.cfd
+skimresources.com
 skinected.com
 skink.asorman.io
 skinkedschtick.help
@@ -55865,6 +55888,7 @@ smartico.one
 smartierougeot.cfd
 smartmnews.pro
 smartoffer.site
+smartredirect.de
 smarttds.org
 smarttopchain.nl
 smartyads.com
@@ -62805,6 +62829,7 @@ u8uuf485yg58huj97bl.cfd
 u8wiw86hfn3f476fyi3n87pxbpryo627uc5hjk.cfd
 u99ptwjklqm87my7cr6y.rest
 u9axpzf50.com
+u9nt4b44w8itex.rest
 u9qr7fytnj3btjujbm7xw93no858.cfd
 u9zug1qjz4hu2n2.cfd
 uaagcvhljkxnemh.net
@@ -63238,6 +63263,7 @@ uighnhsbatmdf.store
 uighurbitters.help
 uigllobulxoxp.website
 uihjtdamk.com
+uihrpfnmkzgkx.website
 uihxkmpsuljwm.space
 uii.io
 uiiby.qujye8zbujrup1g7g.cfd
@@ -65904,6 +65930,7 @@ videocampaign.co
 videocdnmetrika.com
 videocdnshop.com
 videoo.tv
+videoplaza.tv
 videoplus.vo.llnwd.net
 videoroll.net
 videosprofitnetwork.com
@@ -67313,6 +67340,7 @@ wakenbossing.cfd
 wakersternar.qpon
 wakesblingerbasket.cyou
 wakkencayugas.cyou
+wakkencobbles.shop
 wakmqqizrssnu.website
 walapaihinter.cfd
 waldorfunurban.shop
@@ -72002,6 +72030,7 @@ xvpqmcgf.com
 xvq66ekmebb83qy.rest
 xvqcohmxduqpl.space
 xvqidgxfdsxbe.store
+xvqseokjeukh.com
 xvrrjdgregofk.website
 xvryjozffyfww.space
 xvsbnqnvokrql.store
@@ -73002,6 +73031,7 @@ ymapiatm.xyz
 ymazkrkieaujq.online
 ymcflloytltvc.online
 ymcyedebhrdxy.online
+ymdlcjgcoxdeew.com
 ymdqjgiecsdds.website
 ymdxl.com
 ymehnthakutyfor.com
