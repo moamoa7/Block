@@ -17,10 +17,7 @@ FILTER_URLS = [
 ]
 
 EXCLUSION_URLS = [
-    "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
-    "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exceptions.txt",
-    "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt",
-    "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/optional-list.txt",
+    "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt"
 ]
 
 OUTPUT_DIR = Path("output")
