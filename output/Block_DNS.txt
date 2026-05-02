@@ -1,13 +1,13 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 14:39:28 UTC
+! Generated: 2026-05-02 15:35:01 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 73,151
+! 1. Raw Domains Collected      : 73,160
 ! 2. Removed by Whitelist       : 36
-! 3. Final Block Rules (||)     : 73,115
+! 3. Final Block Rules (||)     : 73,124
 ! 4. Final Exception Rules (@@) : 452
 ! (Calculation: 1 - 2 = 3)
 !
@@ -30421,6 +30421,7 @@
 ||j6iugpn3bvf17v7hc.cfd^
 ||j6mn99mr0m2n.com^
 ||j6wbzu8v37qi1h.cfd^
+||j6xi94453pjc84qengv1w466yf5c7ovq7l5zl7.cfd^
 ||j7kv55pr70.com^
 ||j7p664pwr83zn1f4looml9bjej28.cfd^
 ||j83ad.speedrun.com^
@@ -33653,6 +33654,7 @@
 ||lgaekait.com^
 ||lgahmmjhrmpvv.online^
 ||lgaicreal.com^
+||lgcnvjvuurw.com^
 ||lgdstolfuinmi.world^
 ||lgdsvuwxjbhwz.site^
 ||lgfmhgvutwhjl.website^
@@ -34050,6 +34052,7 @@
 ||lizebruisiaculi.info^
 ||lizebruisiaculture.com^
 ||lj0hx1sboy.com^
+||lj8ut3rtxcfi15j.rest^
 ||ljbiynvyhfteq.rocks^
 ||ljboborusfcyr.space^
 ||ljbrqlmlpaaux.com^
@@ -44891,6 +44894,7 @@
 ||provenpixel.com^
 ||proverskoreroicaco.cfd^
 ||providedpattern.com^
+||providedwell.com^
 ||providingapologizeguile.com^
 ||providingextensionpreference.com^
 ||provincegreensfur.com^
@@ -51534,6 +51538,7 @@
 ||sacralsfobbing.cyou^
 ||sacramentexpensivestretching.com^
 ||sacrificecare.com^
+||sacrifycuspulerhodope.qpon^
 ||sacringdenturemolls.cfd^
 ||sacwumsf.com^
 ||saczvfpaeadxv.space^
@@ -51961,6 +51966,7 @@
 ||sbfsdvc.com^
 ||sbhight.com^
 ||sbjelpem.com^
+||sbjfoagerucue.space^
 ||sbkgxdiiaxtgx.space^
 ||sbkpsa.icu^
 ||sblfdxsencirl.website^
@@ -52063,6 +52069,7 @@
 ||sceniteeunuch.cfd^
 ||scented-cash.pro^
 ||scented-leather.com^
+||scentsgalliot.cfd^
 ||scentsroupingpierre.cfd^
 ||scepticalomnipresentmelody.com^
 ||sceptreempusa.cfd^
@@ -60721,6 +60728,7 @@
 ||typistsredeny.com^
 ||typisttuckerspurt.com^
 ||typmussy.com^
+||typwcoroner.cfd^
 ||typyspuffle.shop^
 ||typzixryphvmd.website^
 ||tyqpijksleoms.website^
@@ -70409,6 +70417,7 @@
 ||ybxcriupsagoz.online^
 ||ybycgilqhqyib.website^
 ||ybyjbuzjanfdd.space^
+||ybyxrjve.com^
 ||ybzgzkfgkukik.online^
 ||ybzttjjqnmare.website^
 ||yc-ads.s3.amazonaws.com^

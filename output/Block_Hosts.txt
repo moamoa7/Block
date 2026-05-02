@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 14:39:28 UTC
+# Generated: 2026-05-02 15:35:01 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,151
+# 1. Raw Domains Collected      : 73,160
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,115
+# 3. Final Block Rules (||)     : 73,124
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -30420,6 +30420,7 @@
 0.0.0.0 j6iugpn3bvf17v7hc.cfd
 0.0.0.0 j6mn99mr0m2n.com
 0.0.0.0 j6wbzu8v37qi1h.cfd
+0.0.0.0 j6xi94453pjc84qengv1w466yf5c7ovq7l5zl7.cfd
 0.0.0.0 j7kv55pr70.com
 0.0.0.0 j7p664pwr83zn1f4looml9bjej28.cfd
 0.0.0.0 j83ad.speedrun.com
@@ -33652,6 +33653,7 @@
 0.0.0.0 lgaekait.com
 0.0.0.0 lgahmmjhrmpvv.online
 0.0.0.0 lgaicreal.com
+0.0.0.0 lgcnvjvuurw.com
 0.0.0.0 lgdstolfuinmi.world
 0.0.0.0 lgdsvuwxjbhwz.site
 0.0.0.0 lgfmhgvutwhjl.website
@@ -34049,6 +34051,7 @@
 0.0.0.0 lizebruisiaculi.info
 0.0.0.0 lizebruisiaculture.com
 0.0.0.0 lj0hx1sboy.com
+0.0.0.0 lj8ut3rtxcfi15j.rest
 0.0.0.0 ljbiynvyhfteq.rocks
 0.0.0.0 ljboborusfcyr.space
 0.0.0.0 ljbrqlmlpaaux.com
@@ -44890,6 +44893,7 @@
 0.0.0.0 provenpixel.com
 0.0.0.0 proverskoreroicaco.cfd
 0.0.0.0 providedpattern.com
+0.0.0.0 providedwell.com
 0.0.0.0 providingapologizeguile.com
 0.0.0.0 providingextensionpreference.com
 0.0.0.0 provincegreensfur.com
@@ -51533,6 +51537,7 @@
 0.0.0.0 sacralsfobbing.cyou
 0.0.0.0 sacramentexpensivestretching.com
 0.0.0.0 sacrificecare.com
+0.0.0.0 sacrifycuspulerhodope.qpon
 0.0.0.0 sacringdenturemolls.cfd
 0.0.0.0 sacwumsf.com
 0.0.0.0 saczvfpaeadxv.space
@@ -51960,6 +51965,7 @@
 0.0.0.0 sbfsdvc.com
 0.0.0.0 sbhight.com
 0.0.0.0 sbjelpem.com
+0.0.0.0 sbjfoagerucue.space
 0.0.0.0 sbkgxdiiaxtgx.space
 0.0.0.0 sbkpsa.icu
 0.0.0.0 sblfdxsencirl.website
@@ -52062,6 +52068,7 @@
 0.0.0.0 sceniteeunuch.cfd
 0.0.0.0 scented-cash.pro
 0.0.0.0 scented-leather.com
+0.0.0.0 scentsgalliot.cfd
 0.0.0.0 scentsroupingpierre.cfd
 0.0.0.0 scepticalomnipresentmelody.com
 0.0.0.0 sceptreempusa.cfd
@@ -60720,6 +60727,7 @@
 0.0.0.0 typistsredeny.com
 0.0.0.0 typisttuckerspurt.com
 0.0.0.0 typmussy.com
+0.0.0.0 typwcoroner.cfd
 0.0.0.0 typyspuffle.shop
 0.0.0.0 typzixryphvmd.website
 0.0.0.0 tyqpijksleoms.website
@@ -70408,6 +70416,7 @@
 0.0.0.0 ybxcriupsagoz.online
 0.0.0.0 ybycgilqhqyib.website
 0.0.0.0 ybyjbuzjanfdd.space
+0.0.0.0 ybyxrjve.com
 0.0.0.0 ybzgzkfgkukik.online
 0.0.0.0 ybzttjjqnmare.website
 0.0.0.0 yc-ads.s3.amazonaws.com
