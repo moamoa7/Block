@@ -161,8 +161,9 @@ $removeparam=__hs
 !
 !
 ! 카카오톡 (앱)
-! - 숏폼 안보이게
-||kamp.kakao.com^$app=com.kakao.talk
+! - 숏폼 안보이게 (필요시)
+!||kamp.kakao.com^$app=com.kakao.talk
+! - 숏폼 안보이게 (필요시) - 아래 2개 규칙은 안해도 됨
 !||shortformstats.kakao.com^$app=com.kakao.talk
 !||thumb.kakaocdn.net^$app=com.kakao.talk
 !
