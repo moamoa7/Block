@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 15:35:01 UTC
+# Generated: 2026-05-02 16:33:14 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,160
+# 1. Raw Domains Collected      : 73,165
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,124
+# 3. Final Block Rules (||)     : 73,129
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -23781,6 +23781,7 @@ frizzyshocked.com
 frjbyduygjwbk.site
 frjnnudnmborf.store
 frjrwixwogqjt.site
+frlchpbijbrui.com
 frlywyflnpxrb.online
 frmedredht.com
 frmhktwjerprp.store
@@ -28568,6 +28569,7 @@ ialukizeiasni.org
 ialvzcnykqyvk.website
 ialyfitnisscn.site
 iam.datasavannah.com
+iambibeshame.qpon
 iamiraqi.com
 ianoubcdoavip.website
 iaopbzjfhemrb.website
@@ -43557,6 +43559,7 @@ plugkenneth.com
 plugs.co
 plugsunlousy.com
 plujdydfegzxm.online
+plumatepullockklans.cfd
 plumbertowards.com
 plumbunsworn.cfd
 plumedretape.qpon
@@ -55229,6 +55232,7 @@ sqvdsoxccdrkq.site
 sqvurvqqrjtqw.space
 sqwregvkrwdtr.online
 sqwwhdckyewdnlu.net
+sqxbojbkjdved.online
 sqxozutfwnwjj.website
 sqybrgc6.xyz
 sqyczkyalusfy.online
@@ -64232,6 +64236,7 @@ vizoruntuck.cfd
 vizzycanel.cfd
 vizzycurted.com
 vizzynonionvender.cyou
+vjbixzpbgbjkd.site
 vjbreynjgmfpr.online
 vjcyuwanbdnpu.site
 vjdciu.com

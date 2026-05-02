@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 15:35:01 UTC
+# Generated: 2026-05-02 16:33:14 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,160
+# 1. Raw Domains Collected      : 73,165
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,124
+# 3. Final Block Rules (||)     : 73,129
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -23781,6 +23781,7 @@
 0.0.0.0 frjbyduygjwbk.site
 0.0.0.0 frjnnudnmborf.store
 0.0.0.0 frjrwixwogqjt.site
+0.0.0.0 frlchpbijbrui.com
 0.0.0.0 frlywyflnpxrb.online
 0.0.0.0 frmedredht.com
 0.0.0.0 frmhktwjerprp.store
@@ -28568,6 +28569,7 @@
 0.0.0.0 ialvzcnykqyvk.website
 0.0.0.0 ialyfitnisscn.site
 0.0.0.0 iam.datasavannah.com
+0.0.0.0 iambibeshame.qpon
 0.0.0.0 iamiraqi.com
 0.0.0.0 ianoubcdoavip.website
 0.0.0.0 iaopbzjfhemrb.website
@@ -43557,6 +43559,7 @@
 0.0.0.0 plugs.co
 0.0.0.0 plugsunlousy.com
 0.0.0.0 plujdydfegzxm.online
+0.0.0.0 plumatepullockklans.cfd
 0.0.0.0 plumbertowards.com
 0.0.0.0 plumbunsworn.cfd
 0.0.0.0 plumedretape.qpon
@@ -55229,6 +55232,7 @@
 0.0.0.0 sqvurvqqrjtqw.space
 0.0.0.0 sqwregvkrwdtr.online
 0.0.0.0 sqwwhdckyewdnlu.net
+0.0.0.0 sqxbojbkjdved.online
 0.0.0.0 sqxozutfwnwjj.website
 0.0.0.0 sqybrgc6.xyz
 0.0.0.0 sqyczkyalusfy.online
@@ -64232,6 +64236,7 @@
 0.0.0.0 vizzycanel.cfd
 0.0.0.0 vizzycurted.com
 0.0.0.0 vizzynonionvender.cyou
+0.0.0.0 vjbixzpbgbjkd.site
 0.0.0.0 vjbreynjgmfpr.online
 0.0.0.0 vjcyuwanbdnpu.site
 0.0.0.0 vjdciu.com
