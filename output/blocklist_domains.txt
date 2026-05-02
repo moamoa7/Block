@@ -1,9 +1,12 @@
 # Title: Combined DNS Blocklist
-# Description: DNS-level blocking with integrated exceptions
-# Generated: 2026-05-02 06:16:39 UTC
-# Total Block Rules: 72,924
-# Total Exception Rules: 543
-# Homepage: https://github.com/moamoa7/Block
+# Generated: 2026-05-02 06:23:15 UTC
+# --------------------------------------------------
+# [Statistics]
+# Raw Domains Collected: 72,972
+# Domains Removed by Whitelist: 47
+# Final Block Rules: 72,925
+# Final Exception Rules (@@): 543
+# --------------------------------------------------
 #
 0.www.0ul1wlo58s-vu69us-r1u.xyz
 0.www.2wu0m0ms098w7148.xyz
@@ -38526,6 +38529,7 @@ njunyihalsdvb.site
 njxcbzvxmmdgk.website
 njxrpzdwiduhs.online
 njyjqkggyxjplm.com
+njyrojycinbg.com
 njzyjuwxi.com
 nkaczwsqxlolq.website
 nkbfkirbnxdbo.site
