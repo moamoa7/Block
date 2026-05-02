@@ -1,7 +1,7 @@
 # Title: Small DNS Blocklist
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 03:57:08 UTC
-# Total domains: 72,941
+# Generated: 2026-05-02 04:45:48 UTC
+# Total domains: 72,946
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -12,14 +12,14 @@
 # ── Source 1: EasyList ──
 #   URL: https://easylist-downloads.adblockplus.org/easylist.txt
 #   Status: OK
-#   Version: 202605020341
-#   Last modified: 02 May 2026 03:41 UTC
+#   Version: 202605020431
+#   Last modified: 02 May 2026 04:31 UTC
 #   Expires: 1 days (update frequency)
 #   Homepage: https://easylist.to/
 #   License: https://easylist.to/pages/licence.html
-#   Total rules: 75,602
-#   DNS extracted: 56,785 (75.1%)
-#   New domains: 56,777 | Duplicates removed: 0
+#   Total rules: 75,605
+#   DNS extracted: 56,788 (75.1%)
+#   New domains: 56,782 | Duplicates removed: 0
 #
 # ── Source 2: AdGuard Base filter ──
 #   URL: https://filters.adtidy.org/windows/filters/2.txt
@@ -32,7 +32,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 128,108
 #   DNS extracted: 65,562 (51.2%)
-#   New domains: 8,785 | Duplicates removed: 56,769
+#   New domains: 8,785 | Duplicates removed: 56,771
 #
 # ── Source 3: AdGuard Mobile Ads filter ──
 #   URL: https://filters.adtidy.org/windows/filters/11.txt
@@ -104,7 +104,7 @@
 #      https://github.com/AdguardTeam/AdGuardSDNSFilter/tree/master/Filters
 #   2. anudeepND community whitelist
 #      https://github.com/anudeepND/whitelist
-#   Total excluded domains: 598
+#   Total excluded domains: 92
 #
 # ═══════════════════════════════════════════════════════
 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -16228,6 +16228,7 @@ d2byrpuyl3x3q4.cloudfront.net
 d2c1htpgj.com
 d2c2pscv8ayc0e.cloudfront.net
 d2c4ylitp1qu24.cloudfront.net
+d2c8v52ll5s99u.cloudfront.net
 d2camyomzxmxme.cloudfront.net
 d2cgumzzqhgmdu.cloudfront.net
 d2cmh8xu3ncrj2.cloudfront.net
@@ -26800,6 +26801,7 @@ harmony573.top
 harperflavonelienor.cyou
 harpierwharfsgruf.cyou
 harpingrumpy.shop
+harpisttoilyogees.qpon
 harpsichord34.com
 harrenmedianetwork.com
 harridaphizog.com
@@ -27714,6 +27716,7 @@ hodurekaberu.qpon
 hodxdowigps.com
 hodynx.top
 hoeencpohchbi.online
+hoefgyzirvgzy.website
 hoeinstitutionbye.com
 hoerenjs.b-cdn.net
 hofxbrhznoggg.space
@@ -28031,6 +28034,7 @@ hqnmuuwcsudqd.store
 hqnwxwuamcofqp.xyz
 hqpass.com
 hqpornpro.com
+hqpurqannvmka.com
 hqqvjdttre.club
 hqscene.com
 hqtdefhbnzqtv.website
@@ -44850,6 +44854,7 @@ proteicratan.cfd
 proteincalculate.com
 proteinshippingwhether.com
 prothesistendon.com
+proto2ad.durasite.net
 protoawe.com
 protocolchainflow.com
 protocolsnappedimpure.com
