@@ -19,6 +19,12 @@ FILTER_URLS = [
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
 ]
 
+# AdGuard DNS filter 공식 제외 목록
+EXCLUSION_URLS = [
+    "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
+    "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exceptions.txt",
+]
+
 OUTPUT_DIR = Path("output")
 OUTPUT_HOSTS = OUTPUT_DIR / "dns_blocklist_hosts.txt"
 OUTPUT_ADGUARD_DNS = OUTPUT_DIR / "dns_blocklist_adguard.txt"
@@ -65,6 +71,33 @@ def parse_metadata(text: str) -> dict[str, str]:
                 metadata[field] = value
                 break
     return metadata
+
+
+def fetch_exclusions(urls: list[str]) -> set[str]:
+    """AdGuard DNS filter 공식 제외 목록에서 도메인을 추출합니다."""
+    excluded = set()
+    for url in urls:
+        try:
+            print(f"[*] Fetching exclusion: {url}")
+            resp = requests.get(url, timeout=30)
+            resp.raise_for_status()
+            for line in resp.text.splitlines():
+                line = line.strip()
+                if not line or line.startswith("!"):
+                    continue
+                # ||domain.com^ 형태 (exclusions.txt)
+                match = re.match(r"^\|\|([a-zA-Z0-9\-\.]+)\^?\|?$", line)
+                if match:
+                    excluded.add(match.group(1).lower())
+                    continue
+                # @@||domain.com^| 형태 (exceptions.txt)
+                match = re.match(r"^@@\|?\|?([a-zA-Z0-9\-\.]+)\^?\|?$", line)
+                if match:
+                    excluded.add(match.group(1).lower())
+        except Exception as e:
+            print(f"    [!] 제외 목록 로드 실패: {e}")
+    print(f"    → 총 {len(excluded):,}개 제외 도메인 로드됨\n")
+    return excluded
 
 
 def is_valid_domain(domain: str) -> bool:
@@ -182,6 +215,7 @@ def count_total_lines(text: str) -> int:
 def generate_output(
     domains: set[str],
     source_results: list[dict],
+    exclusion_count: int,
 ) -> None:
     """다양한 형식으로 출력 파일을 생성합니다."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -245,6 +279,11 @@ def generate_output(
             header_lines.append(f"!   Error: {src['error']}")
 
     header_lines.append(f"!")
+    header_lines.append(f"! ── Exclusions ──")
+    header_lines.append(f"!   Source: AdGuard DNS filter official exclusions")
+    header_lines.append(f"!   URL: https://github.com/AdguardTeam/AdGuardSDNSFilter/tree/master/Filters")
+    header_lines.append(f"!   Excluded domains: {exclusion_count:,}")
+    header_lines.append(f"!")
     header_lines.append(f"! ═══════════════════════════════════════════════════════")
     header_lines.append(f"!")
 
@@ -279,12 +318,19 @@ def main():
     all_domains: set[str] = set()
     source_results: list[dict] = []
 
+    # 제외 목록 먼저 로드
+    dns_exclusions = fetch_exclusions(EXCLUSION_URLS)
+
     for url in FILTER_URLS:
         try:
             text = fetch_filter(url)
             metadata = parse_metadata(text)
             total_rules = count_total_lines(text)
             domains = extract_dns_domains(text)
+
+            # 제외 목록 적용
+            domains -= dns_exclusions
+
             dns_count = len(domains)
 
             # 이전 소스들과 중복되지 않는 신규 도메인만 계산
@@ -328,7 +374,7 @@ def main():
             })
 
     print(f"\n[*] 총 도메인 수: {len(all_domains):,}")
-    generate_output(all_domains, source_results)
+    generate_output(all_domains, source_results, len(dns_exclusions))
 
 
 if __name__ == "__main__":
