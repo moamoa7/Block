@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-02 11:12:50 UTC
+  Generated: 2026-05-02 11:26:49 UTC
 ============================================================
 
 [ Whitelist Sources ]
@@ -16,7 +16,7 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 89,571 | Extracted: 56,931
+       Total Lines: 89,572 | Extracted: 56,932
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
        Total Lines: 157,866 | Extracted: 65,713
@@ -35,24 +35,20 @@
   [OK] uBlock Filters
        URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
        Total Lines: 11,088 | Extracted: 50
-  [OK] MINI Allow/Block List
-       URL: https://raw.githubusercontent.com/cbuijs/adblocks/main/mini.adblock.txt
-       Total Lines: 85,906 | Extracted: 84,373
 
 [ Overlap Analysis ]
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
-  EasyList                      56,931     56,931          4
-  AdGuard Base                  65,713      8,786      7,919
-  AdGuard Mobile                   908        890        421
-  AdGuard Japanese                 169        156         74
-  AdGuard Chinese                6,076      6,061      5,627
-  List-KR                          352        265        173
-  uBlock Filters                    50         33         19
-  MINI Allow/Block List         84,373     70,084     70,084
+  EasyList                      56,932     56,932          5
+  AdGuard Base                  65,713      8,786      8,758
+  AdGuard Mobile                   908        890        844
+  AdGuard Japanese                 169        156        156
+  AdGuard Chinese                6,076      6,061      6,061
+  List-KR                          352        265        265
+  uBlock Filters                    50         33         33
   ───────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)         143,206
+  Total (deduplicated)          73,123
 
   * Extracted : 해당 필터에서 추출된 도메인 수
   * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
@@ -60,9 +56,9 @@
 
 [ Final Summary ]
 ------------------------------------------------------------
-  1. Raw Domains Collected      : 143,206
+  1. Raw Domains Collected      : 73,123
   2. Whitelist Domains Loaded    : 452
-  3. Removed by Whitelist        : 60
-  4. Final Block Domains         : 143,146
+  3. Removed by Whitelist        : 36
+  4. Final Block Domains         : 73,087
   5. Final Exception Rules       : 452
 ============================================================
