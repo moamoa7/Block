@@ -1,7 +1,7 @@
 # Title: Small DNS Blocklist
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 02:16:07 UTC
-# Total domains: 69442
+# Generated: 2026-05-02 02:23:33 UTC
+# Total domains: 69,444
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -12,13 +12,14 @@
 # ── Source 1: EasyList ──
 #   URL: https://easylist-downloads.adblockplus.org/easylist.txt
 #   Status: OK
-#   Version: 202605020201
-#   Last modified: 02 May 2026 02:01 UTC
+#   Version: 202605020211
+#   Last modified: 02 May 2026 02:11 UTC
 #   Expires: 1 days (update frequency)
 #   Homepage: https://easylist.to/
 #   License: https://easylist.to/pages/licence.html
-#   Total rules: 89,253
-#   DNS extracted: 58,464 (65.5%)
+#   Total rules: 89,255
+#   DNS extracted: 58,466 (65.5%)
+#   New domains: 58,466 | Duplicates removed: 0
 #
 # ── Source 2: AdGuard Base filter ──
 #   URL: https://filters.adtidy.org/windows/filters/2.txt
@@ -31,6 +32,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 142,109
 #   DNS extracted: 67,777 (47.7%)
+#   New domains: 9,330 | Duplicates removed: 58,447
 #
 # ── Source 3: AdGuard Mobile Ads filter ──
 #   URL: https://filters.adtidy.org/windows/filters/11.txt
@@ -43,6 +45,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 8,360
 #   DNS extracted: 1,010 (12.1%)
+#   New domains: 910 | Duplicates removed: 100
 #
 # ── Source 4: AdGuard Japanese filter ──
 #   URL: https://filters.adtidy.org/windows/filters/7.txt
@@ -55,6 +58,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 11,824
 #   DNS extracted: 405 (3.4%)
+#   New domains: 367 | Duplicates removed: 38
 #
 # ── Source 5: List-KR classic filters list (AdGuard) ──
 #   URL: https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt
@@ -66,6 +70,7 @@
 #   License: https://github.com/List-KR/List-KR/blob/master/LICENSE
 #   Total rules: 4,054
 #   DNS extracted: 395 (9.7%)
+#   New domains: 269 | Duplicates removed: 126
 #
 # ── Source 6: uBlock filters ──
 #   URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
@@ -77,6 +82,7 @@
 #   License: https://github.com/uBlockOrigin/uAssets/blob/master/LICENSE
 #   Total rules: 6,237
 #   DNS extracted: 140 (2.2%)
+#   New domains: 102 | Duplicates removed: 38
 #
 # ═══════════════════════════════════════════════════════
 #
@@ -40860,6 +40866,7 @@ pinttalewag.com
 pinuluslimlitorpors.qpon
 pinwingbrainy.qpon
 pinyonexdie.help
+pinyonsmohwadraffs.cyou
 pionaocmsbrfx.site
 pioneerbusy.com
 pioneercomparatively.com
@@ -43604,6 +43611,7 @@ pyoidarenous.cfd
 pyoidlepry.cfd
 pyooczrenjzds.website
 pypgvdvnysphc.space
+pypjsjswidwnlhq.com
 pyqezmcomuayf.website
 pyralidtaiwan.shop
 pyrrhaglazensmatch.qpon
