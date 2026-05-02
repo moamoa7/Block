@@ -22,7 +22,7 @@ EXCLUSION_URLS = [
 OUTPUT_DIR = Path("output")
 OUTPUT_DOMAINS = OUTPUT_DIR / "blocklist_domains.txt"
 OUTPUT_HOSTS = OUTPUT_DIR / "blocklist_hosts.txt"
-OUTPUT_ADGUARD_DNS = OUTPUT_DIR / "blocklist_combined.txt"
+OUTPUT_ADGUARD_DNS = OUTPUT_DIR / "blocklist_adguard.txt"
 
 WHITELIST_CORE = {"localhost", "localhost.localdomain", "broadcasthost", "local"}
 
