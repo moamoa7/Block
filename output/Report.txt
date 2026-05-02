@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-02 17:48:04 UTC
+  Generated: 2026-05-02 17:57:18 UTC
 ============================================================
 
 [ Whitelist Sources ]
@@ -10,7 +10,7 @@
        Total Lines: 1,091 | Extracted: 451
   [OK] Personal Whitelist
        URL: https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt
-       Total Lines: 2 | Extracted: 2
+       Total Lines: 1 | Extracted: 1
 
 [ Block Filter Sources ]
 ------------------------------------------------------------
@@ -19,7 +19,7 @@
        Total Lines: 89,625 | Extracted: 56,985
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 157,911 | Extracted: 65,756
+       Total Lines: 157,918 | Extracted: 65,763
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,543 | Extracted: 908
@@ -40,8 +40,8 @@
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
-  EasyList                      56,985     56,985         15
-  AdGuard Base                  65,756      8,786      8,758
+  EasyList                      56,985     56,985          8
+  AdGuard Base                  65,763      8,786      8,758
   AdGuard Mobile                   908        890        844
   AdGuard Japanese                 169        156        156
   AdGuard Chinese                6,077      6,062      6,062
@@ -57,8 +57,8 @@
 [ Final Summary ]
 ------------------------------------------------------------
   1. Raw Domains Collected      : 73,177
-  2. Whitelist Domains Loaded    : 452
-  3. Removed by Whitelist        : 35
-  4. Final Block Domains         : 73,142
-  5. Final Exception Rules       : 452
+  2. Whitelist Domains Loaded    : 451
+  3. Removed by Whitelist        : 34
+  4. Final Block Domains         : 73,143
+  5. Final Exception Rules       : 451
 ============================================================
