@@ -1,6 +1,2 @@
-||07c225f3.online^
 ||ad.cgv.co.kr^
 ||adimg.cgv.co.kr^
-||css-load.com^
-||html-load.com^
-||content-loader.com^
