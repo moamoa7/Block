@@ -16,10 +16,8 @@ FILTER_URLS = [
 ]
 
 EXCLUSION_URLS = [
-    # AdGuard 공식 제외 목록
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exceptions.txt",
-    # anudeepND 커뮤니티 화이트리스트
     "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt",
     "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/optional-list.txt",
 ]
@@ -53,7 +51,6 @@ def parse_metadata(text: str) -> dict:
     return meta
 
 def fetch_exclusions(urls: list[str]) -> set[str]:
-    """여러 형식의 화이트리스트에서 도메인을 추출."""
     excluded = set()
     for url in urls:
         try:
@@ -65,12 +62,10 @@ def fetch_exclusions(urls: list[str]) -> set[str]:
                 line = line.strip()
                 if not line or line.startswith(("!", "#", "[")):
                     continue
-                # AdGuard 형식: ||domain^ 또는 @@||domain^
                 m = re.match(r"^@@?\|?\|?([a-zA-Z0-9\-\.]+)\^?\|?$", line)
                 if m:
                     excluded.add(m.group(1).lower())
                     continue
-                # Plain domain 형식 (anudeepND 등)
                 m = re.match(r"^([a-zA-Z0-9][a-zA-Z0-9\-\.]*\.[a-zA-Z]{2,})$", line)
                 if m:
                     excluded.add(m.group(1).lower())
@@ -91,63 +86,17 @@ def is_valid_domain(d: str) -> bool:
         r"^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?"
         r"(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$", d))
 
-DNS_SAFE = {"third-party", "3p", "all", "document", "doc", "popup", "important"}
-DNS_UNSAFE = {"script", "stylesheet", "css", "image", "media",
-              "xmlhttprequest", "xhr", "websocket", "font", "object",
-              "subdocument", "frame", "ping", "other", "replace"}
-
 def extract_dns_domains(text: str) -> set[str]:
+    """||domain^ 형태만 추출. 뒤에 뭐가 붙으면 전부 무시."""
     domains = set()
     for line in text.splitlines():
         line = line.strip()
-        if not line or line.startswith(("!", "[", "#")):
-            continue
-        if line.startswith("@@"):
-            continue
-        if "##" in line or "#@#" in line or "#?#" in line:
-            if not line.startswith("||"):
-                continue
-        m = re.match(r"^\|\|([a-zA-Z0-9\-\.\*]+)\^(\$(.+))?$", line)
+        m = re.match(r"^\|\|([a-zA-Z0-9\-\.]+)\^\s*$", line)
         if not m:
             continue
         d = m.group(1).lower()
-        opts = m.group(3)
-        if d.startswith("*."):
-            d = d[2:]
-        if not is_valid_domain(d):
-            continue
-        if opts:
-            opts_list = [o.strip().lower() for o in opts.split(",")]
-            skip = False
-            has_dom = False
-            unsafe_only = False
-            for o in opts_list:
-                if o.startswith("~"):
-                    continue
-                if o.startswith("domain="):
-                    has_dom = True
-                    continue
-                # $app=, $network 등 DNS 레벨에서 적용 불가한 옵션
-                if o.startswith(("app=", "network")):
-                    has_dom = True
-                    continue
-                if o.startswith(("redirect", "rewrite", "replace=",
-                                 "removeparam", "removeheader", "csp=",
-                                 "permissions=", "header=")):
-                    skip = True
-                    break
-                if o in DNS_UNSAFE:
-                    unsafe_only = True
-            if skip or has_dom:
-                continue
-            safe_found = any(o in DNS_SAFE for o in opts_list
-                           if not o.startswith("~")
-                           and not o.startswith("domain=")
-                           and not o.startswith("app=")
-                           and not o.startswith("network"))
-            if unsafe_only and not safe_found:
-                continue
-        domains.add(d)
+        if is_valid_domain(d):
+            domains.add(d)
     return domains
 
 def count_total_lines(text: str) -> int:
@@ -247,14 +196,12 @@ def main():
     all_domains: set[str] = set()
     source_results: list[dict] = []
 
-    # 1단계: 화이트리스트 로드
     print("=" * 50)
     print(" 화이트리스트 로드")
     print("=" * 50)
     dns_exclusions = fetch_exclusions(EXCLUSION_URLS)
     print(f"\n[*] 총 {len(dns_exclusions):,}개 제외 도메인 로드 완료\n")
 
-    # 2단계: 필터 리스트 처리
     print("=" * 50)
     print(" 필터 리스트 처리")
     print("=" * 50)
@@ -266,10 +213,8 @@ def main():
             domains = extract_dns_domains(text)
             dns_count = len(domains)
 
-            # 화이트리스트 제외
             domains -= dns_exclusions
 
-            # 중복 계산
             new_domains = domains - all_domains
             new_count = len(new_domains)
             dup_count = len(domains) - new_count
