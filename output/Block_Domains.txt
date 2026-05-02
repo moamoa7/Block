@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 12:31:54 UTC
+# Generated: 2026-05-02 13:52:03 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,133
+# 1. Raw Domains Collected      : 73,145
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,097
+# 3. Final Block Rules (||)     : 73,109
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -6928,6 +6928,7 @@ amwgisnagixqe.store
 amwm.cn
 amwmxldlxyc.com
 amwoukrkskillso.com
+amxdxahyhsvjpr.com
 amxrtb.com
 amxwubswyl.in
 amyctichourisrozzer.cfd
@@ -20947,6 +20948,7 @@ erappeared.org
 eraserscotted.com
 erasingrushberstel.qpon
 erasingsavola.qpon
+erateaster.cyou
 erbiaressort.qpon
 erbiscusysexbu.org
 erbqwgtbxifxz.online
@@ -26055,6 +26057,7 @@ grubgranted.com
 grubpaths.com
 grubsnakeconfessed.com
 grudgeddanging.shop
+grueledbrerd.shop
 gruesome1x.xyz
 gruesomebed.pro
 grufffeelimitation.com
@@ -32158,6 +32161,7 @@ khxullxzecmah.website
 ki.solujav.my
 kiackepeus.cyou
 kiackhaulmy.com
+kiaufzuundfag.online
 kibccoap.in
 kiblahmafia.com
 kibn.cn
@@ -34928,6 +34932,7 @@ luwkhuku.com
 luxadv.com
 luxatenealibros.lovingforever.pro
 luxatenowness.com
+luxaxilla.shop
 luxbetaffiliates.com.au
 luxcdn.com
 luxetalks.com
@@ -35942,6 +35947,7 @@ megadeliveryn.com
 megaffiliates.com
 megaihargi.com
 megarafiddly.com
+megassehermeleforum.qpon
 megawebify.my
 megdexchange.com
 megpngcejxazj.website
@@ -37601,6 +37607,7 @@ mygalehagweedaliquot.qpon
 myghwfdo.com
 mygjunfjozcxz.online
 mygtmn.com
+myhfblzjkhvfq.website
 myhugewords.com
 myhypestories.com
 myiads.com
@@ -47471,6 +47478,7 @@ radiusix.net
 radiusmarketing.com
 radshedmisrep.com
 raeavmvblsahe.site
+raejwfqcdketq.website
 raewqamkmzbej.fun
 rafekunbi.com
 raffhornify.cyou
@@ -48589,6 +48597,7 @@ reposesperoses.cfd
 reposteben.qpon
 repostmoulvispitish.cyou
 repoundgaumish.help
+repourssnowie.shop
 representationenterprise.com
 representationevaluationdescription.com
 representationhairchain.com
@@ -55263,6 +55272,7 @@ srvtrck.com
 srvupads.com
 srwhoxkyksvql.site
 srwlnvhx.com
+srybpurco.in
 srydpfeufugyr.website
 sryezqbtrsyxe.website
 sryfmerwefrwj.icu
@@ -60898,6 +60908,7 @@ ualcwoyuwyvhz.site
 uamnikjpfscxw.website
 uangqkbflkwvv.space
 uaomfbzuiavmd.website
+uapafuxwnusear.com
 uapcmhjywzbkh.online
 uapkagxacexij.online
 uapps.click
@@ -63262,6 +63273,7 @@ vatanclick.ir
 vatfulsmowse.qpon
 vaucovameechest.net
 vaudeville44.top
+vaudoisbutyne.cyou
 vaudona.com
 vaudyvd.cyou
 vaugaimooteptoy.net

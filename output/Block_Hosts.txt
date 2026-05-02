@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 12:31:54 UTC
+# Generated: 2026-05-02 13:52:03 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,133
+# 1. Raw Domains Collected      : 73,145
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,097
+# 3. Final Block Rules (||)     : 73,109
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -6928,6 +6928,7 @@
 0.0.0.0 amwm.cn
 0.0.0.0 amwmxldlxyc.com
 0.0.0.0 amwoukrkskillso.com
+0.0.0.0 amxdxahyhsvjpr.com
 0.0.0.0 amxrtb.com
 0.0.0.0 amxwubswyl.in
 0.0.0.0 amyctichourisrozzer.cfd
@@ -20947,6 +20948,7 @@
 0.0.0.0 eraserscotted.com
 0.0.0.0 erasingrushberstel.qpon
 0.0.0.0 erasingsavola.qpon
+0.0.0.0 erateaster.cyou
 0.0.0.0 erbiaressort.qpon
 0.0.0.0 erbiscusysexbu.org
 0.0.0.0 erbqwgtbxifxz.online
@@ -26055,6 +26057,7 @@
 0.0.0.0 grubpaths.com
 0.0.0.0 grubsnakeconfessed.com
 0.0.0.0 grudgeddanging.shop
+0.0.0.0 grueledbrerd.shop
 0.0.0.0 gruesome1x.xyz
 0.0.0.0 gruesomebed.pro
 0.0.0.0 grufffeelimitation.com
@@ -32158,6 +32161,7 @@
 0.0.0.0 ki.solujav.my
 0.0.0.0 kiackepeus.cyou
 0.0.0.0 kiackhaulmy.com
+0.0.0.0 kiaufzuundfag.online
 0.0.0.0 kibccoap.in
 0.0.0.0 kiblahmafia.com
 0.0.0.0 kibn.cn
@@ -34928,6 +34932,7 @@
 0.0.0.0 luxadv.com
 0.0.0.0 luxatenealibros.lovingforever.pro
 0.0.0.0 luxatenowness.com
+0.0.0.0 luxaxilla.shop
 0.0.0.0 luxbetaffiliates.com.au
 0.0.0.0 luxcdn.com
 0.0.0.0 luxetalks.com
@@ -35942,6 +35947,7 @@
 0.0.0.0 megaffiliates.com
 0.0.0.0 megaihargi.com
 0.0.0.0 megarafiddly.com
+0.0.0.0 megassehermeleforum.qpon
 0.0.0.0 megawebify.my
 0.0.0.0 megdexchange.com
 0.0.0.0 megpngcejxazj.website
@@ -37601,6 +37607,7 @@
 0.0.0.0 myghwfdo.com
 0.0.0.0 mygjunfjozcxz.online
 0.0.0.0 mygtmn.com
+0.0.0.0 myhfblzjkhvfq.website
 0.0.0.0 myhugewords.com
 0.0.0.0 myhypestories.com
 0.0.0.0 myiads.com
@@ -47471,6 +47478,7 @@
 0.0.0.0 radiusmarketing.com
 0.0.0.0 radshedmisrep.com
 0.0.0.0 raeavmvblsahe.site
+0.0.0.0 raejwfqcdketq.website
 0.0.0.0 raewqamkmzbej.fun
 0.0.0.0 rafekunbi.com
 0.0.0.0 raffhornify.cyou
@@ -48589,6 +48597,7 @@
 0.0.0.0 reposteben.qpon
 0.0.0.0 repostmoulvispitish.cyou
 0.0.0.0 repoundgaumish.help
+0.0.0.0 repourssnowie.shop
 0.0.0.0 representationenterprise.com
 0.0.0.0 representationevaluationdescription.com
 0.0.0.0 representationhairchain.com
@@ -55263,6 +55272,7 @@
 0.0.0.0 srvupads.com
 0.0.0.0 srwhoxkyksvql.site
 0.0.0.0 srwlnvhx.com
+0.0.0.0 srybpurco.in
 0.0.0.0 srydpfeufugyr.website
 0.0.0.0 sryezqbtrsyxe.website
 0.0.0.0 sryfmerwefrwj.icu
@@ -60898,6 +60908,7 @@
 0.0.0.0 uamnikjpfscxw.website
 0.0.0.0 uangqkbflkwvv.space
 0.0.0.0 uaomfbzuiavmd.website
+0.0.0.0 uapafuxwnusear.com
 0.0.0.0 uapcmhjywzbkh.online
 0.0.0.0 uapkagxacexij.online
 0.0.0.0 uapps.click
@@ -63262,6 +63273,7 @@
 0.0.0.0 vatfulsmowse.qpon
 0.0.0.0 vaucovameechest.net
 0.0.0.0 vaudeville44.top
+0.0.0.0 vaudoisbutyne.cyou
 0.0.0.0 vaudona.com
 0.0.0.0 vaudyvd.cyou
 0.0.0.0 vaugaimooteptoy.net
