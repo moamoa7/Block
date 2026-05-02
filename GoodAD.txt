@@ -271,6 +271,10 @@ baidu.com###s-hotsearch-wrapper
 !naver.com###search-btn:style(display: block !important;)
 ! 네이버 본인 인증 페이지 일부 안보임 해결
 nid.naver.com#@#[class^="ad"]
+! - 모바일 간단하게 보기
+! -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
+m.naver.com##script#MM_search_disaster ~*
 !
 !
 ! 네이버 뉴스 (https://news.naver.com/)
