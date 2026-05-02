@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 16:33:14 UTC
+# Generated: 2026-05-02 17:15:24 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,165
-# 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,129
-# 4. Final Exception Rules (@@) : 452
+# 1. Raw Domains Collected      : 73,169
+# 2. Removed by Whitelist       : 37
+# 3. Final Block Rules (||)     : 73,132
+# 4. Final Exception Rules (@@) : 454
 # (Calculation: 1 - 2 = 3)
 #
 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -4721,7 +4721,6 @@ ad.ciokorea.com
 ad.citynews.it
 ad.cpcstar.com
 ad.cyycoy.com
-ad.danawa.com
 ad.datadeliver.net
 ad.daum.net
 ad.ddo.jp
@@ -52058,6 +52057,7 @@ scavageeure.qpon
 scavagepoppets.help
 scavelbuntine.life
 scawdcimex.qpon
+scawtepee.com
 scb4tpwq40.com
 scbargees.qpon
 sccotxcyhkpsm.site
@@ -57940,6 +57940,7 @@ tenkninghoder.com
 tenlineasquintlek.cyou
 tenncefkylyzed.com
 tennersvessel.qpon
+tennisnewlins.com
 tenorscarauna.cyou
 tenpbcdcfhpct.website
 tenpinsgraupel.shop
@@ -64802,6 +64803,7 @@ vshpajniedp.com
 vsiawfdrnqmasvt.com
 vsimyppptdxdo.site
 vsjalz.icu
+vskfhfqsvurqy.online
 vskuiusgblrdq.website
 vslcqsrpmhhne.net
 vslpnvutywvnb.space
@@ -64879,6 +64881,7 @@ vtuowmzjyyavc.site
 vtuqviwcbeuhr.site
 vtuyxcpiaytsp.website
 vtuzzlfmnpxdq.website
+vtwvtmsvpav.com
 vtx2r60nuf.com
 vtxcwfiaiucur.website
 vtxnfezsswgbq.website

@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 16:33:14 UTC
+! Generated: 2026-05-02 17:15:24 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 73,165
-! 2. Removed by Whitelist       : 36
-! 3. Final Block Rules (||)     : 73,129
-! 4. Final Exception Rules (@@) : 452
+! 1. Raw Domains Collected      : 73,169
+! 2. Removed by Whitelist       : 37
+! 3. Final Block Rules (||)     : 73,132
+! 4. Final Exception Rules (@@) : 454
 ! (Calculation: 1 - 2 = 3)
 !
 ! === BLOCK RULES ===
@@ -4722,7 +4722,6 @@
 ||ad.citynews.it^
 ||ad.cpcstar.com^
 ||ad.cyycoy.com^
-||ad.danawa.com^
 ||ad.datadeliver.net^
 ||ad.daum.net^
 ||ad.ddo.jp^
@@ -52059,6 +52058,7 @@
 ||scavagepoppets.help^
 ||scavelbuntine.life^
 ||scawdcimex.qpon^
+||scawtepee.com^
 ||scb4tpwq40.com^
 ||scbargees.qpon^
 ||sccotxcyhkpsm.site^
@@ -57941,6 +57941,7 @@
 ||tenlineasquintlek.cyou^
 ||tenncefkylyzed.com^
 ||tennersvessel.qpon^
+||tennisnewlins.com^
 ||tenorscarauna.cyou^
 ||tenpbcdcfhpct.website^
 ||tenpinsgraupel.shop^
@@ -64803,6 +64804,7 @@
 ||vsiawfdrnqmasvt.com^
 ||vsimyppptdxdo.site^
 ||vsjalz.icu^
+||vskfhfqsvurqy.online^
 ||vskuiusgblrdq.website^
 ||vslcqsrpmhhne.net^
 ||vslpnvutywvnb.space^
@@ -64880,6 +64882,7 @@
 ||vtuqviwcbeuhr.site^
 ||vtuyxcpiaytsp.website^
 ||vtuzzlfmnpxdq.website^
+||vtwvtmsvpav.com^
 ||vtx2r60nuf.com^
 ||vtxcwfiaiucur.website^
 ||vtxnfezsswgbq.website^
@@ -73156,6 +73159,7 @@
 @@||ab.tweakers.nl^
 @@||ad-shield.io^
 @@||ad.cgv.co.kr^
+@@||ad.danawa.com^
 @@||ad.nwi.jp^
 @@||adc.api.nine.com.au^
 @@||adcell.com^
@@ -73381,6 +73385,7 @@
 @@||localbitcoins.com^
 @@||log.go.com^
 @@||log.onmas.kt.com^
+@@||log.tving.com^
 @@||loggly.com^
 @@||loginfra.com^
 @@||logrocket.com^

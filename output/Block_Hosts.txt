@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 16:33:14 UTC
+# Generated: 2026-05-02 17:15:24 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,165
-# 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,129
-# 4. Final Exception Rules (@@) : 452
+# 1. Raw Domains Collected      : 73,169
+# 2. Removed by Whitelist       : 37
+# 3. Final Block Rules (||)     : 73,132
+# 4. Final Exception Rules (@@) : 454
 # (Calculation: 1 - 2 = 3)
 #
 0.0.0.0 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -4721,7 +4721,6 @@
 0.0.0.0 ad.citynews.it
 0.0.0.0 ad.cpcstar.com
 0.0.0.0 ad.cyycoy.com
-0.0.0.0 ad.danawa.com
 0.0.0.0 ad.datadeliver.net
 0.0.0.0 ad.daum.net
 0.0.0.0 ad.ddo.jp
@@ -52058,6 +52057,7 @@
 0.0.0.0 scavagepoppets.help
 0.0.0.0 scavelbuntine.life
 0.0.0.0 scawdcimex.qpon
+0.0.0.0 scawtepee.com
 0.0.0.0 scb4tpwq40.com
 0.0.0.0 scbargees.qpon
 0.0.0.0 sccotxcyhkpsm.site
@@ -57940,6 +57940,7 @@
 0.0.0.0 tenlineasquintlek.cyou
 0.0.0.0 tenncefkylyzed.com
 0.0.0.0 tennersvessel.qpon
+0.0.0.0 tennisnewlins.com
 0.0.0.0 tenorscarauna.cyou
 0.0.0.0 tenpbcdcfhpct.website
 0.0.0.0 tenpinsgraupel.shop
@@ -64802,6 +64803,7 @@
 0.0.0.0 vsiawfdrnqmasvt.com
 0.0.0.0 vsimyppptdxdo.site
 0.0.0.0 vsjalz.icu
+0.0.0.0 vskfhfqsvurqy.online
 0.0.0.0 vskuiusgblrdq.website
 0.0.0.0 vslcqsrpmhhne.net
 0.0.0.0 vslpnvutywvnb.space
@@ -64879,6 +64881,7 @@
 0.0.0.0 vtuqviwcbeuhr.site
 0.0.0.0 vtuyxcpiaytsp.website
 0.0.0.0 vtuzzlfmnpxdq.website
+0.0.0.0 vtwvtmsvpav.com
 0.0.0.0 vtx2r60nuf.com
 0.0.0.0 vtxcwfiaiucur.website
 0.0.0.0 vtxnfezsswgbq.website
