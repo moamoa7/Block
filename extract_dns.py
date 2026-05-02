@@ -132,13 +132,32 @@ def main():
     # 3. 중복 분석
     report_lines.append(f"\n[ Overlap Analysis ]")
     report_lines.append(f"{'-' * 60}")
-    names = list(filter_domains.keys())
-    for i, n1 in enumerate(names):
-        unique = filter_domains[n1].copy()
-        for j, n2 in enumerate(names):
-            if i != j:
-                unique -= filter_domains[n2]
-        report_lines.append(f"  {n1}: {len(unique):,} unique domains (only in this filter)")
+    report_lines.append(f"  {'Filter':<25} {'Extracted':>10} {'New':>10} {'Unique':>10}")
+    report_lines.append(f"  {'─' * 25} {'─' * 10} {'─' * 10} {'─' * 10}")
+
+    seen = set()
+    for name in names:
+        domains = filter_domains[name]
+        extracted = len(domains)
+
+        new = domains - seen
+        new_count = len(new)
+        seen.update(domains)
+
+        unique = domains.copy()
+        for other_name in names:
+            if other_name != name:
+                unique -= filter_domains[other_name]
+        unique_count = len(unique)
+
+        report_lines.append(f"  {name:<25} {extracted:>10,} {new_count:>10,} {unique_count:>10,}")
+
+    report_lines.append(f"  {'─' * 25} {'─' * 10} {'─' * 10} {'─' * 10}")
+    report_lines.append(f"  {'Total (deduplicated)':<25} {len(raw_block_set):>10,}")
+    report_lines.append(f"")
+    report_lines.append(f"  * Extracted : 해당 필터에서 추출된 도메인 수")
+    report_lines.append(f"  * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)")
+    report_lines.append(f"  * Unique    : 오직 이 필터에만 존재하는 도메인 수")
 
     # 4. 통계 계산
     removed_list = raw_block_set & white_set
@@ -192,12 +211,10 @@ def main():
         f.write(header.replace("!", "#"))
         f.writelines(f"0.0.0.0 {d}\n" for d in final_blocks)
 
-    # 리포트 파일 저장
     report_text = "\n".join(report_lines) + "\n"
     with open(OUT_REPORT, "w", encoding="utf-8") as f:
         f.write(report_text)
 
-    # 콘솔 출력
     print(report_text)
     print(f"결과가 {OUTPUT_DIR} 폴더에 생성되었습니다.")
 
