@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 21:06:36 UTC
+# Generated: 2026-05-02 21:49:17 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,198
-# 2. Removed by Whitelist       : 34
-# 3. Final Block Rules (||)     : 73,164
-# 4. Final Exception Rules (@@) : 451
+# 1. Raw Domains Collected      : 73,212
+# 2. Removed by Whitelist       : 36
+# 3. Final Block Rules (||)     : 73,176
+# 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
 0.0.0.0 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -2845,6 +2845,7 @@
 0.0.0.0 6fm4dcpj31.com
 0.0.0.0 6fy36oc1b1nj7399.rest
 0.0.0.0 6g0sggey.xyz
+0.0.0.0 6gg4bfho33g6tvy93.rest
 0.0.0.0 6ggstcmglf.com
 0.0.0.0 6glece4homah8dweracea.com
 0.0.0.0 6gvg5saail.com
@@ -4647,7 +4648,6 @@
 0.0.0.0 ad-channel.wikawika.xyz
 0.0.0.0 ad-cheers.com
 0.0.0.0 ad-count.jp
-0.0.0.0 ad-creative.pstatic.net
 0.0.0.0 ad-creatives-public.commondatastorage.googleapis.com
 0.0.0.0 ad-delivery.net
 0.0.0.0 ad-display.s.zigzag.kr
@@ -10549,6 +10549,7 @@
 0.0.0.0 bookinglamentinstance.com
 0.0.0.0 bookmakers.click
 0.0.0.0 bookmankyloecupania.qpon
+0.0.0.0 bookmanstews.qpon
 0.0.0.0 bookmsg.com
 0.0.0.0 bookshelfcomplaint.com
 0.0.0.0 booksoxsolely.com
@@ -17446,6 +17447,7 @@
 0.0.0.0 defuzescockersdecener.qpon
 0.0.0.0 defybrick.com
 0.0.0.0 defyhastencommunity.com
+0.0.0.0 degageunshout.shop
 0.0.0.0 degeneratebasket.com
 0.0.0.0 degeneratesevere.com
 0.0.0.0 degeronium.com
@@ -20337,6 +20339,7 @@
 0.0.0.0 electluscious.com
 0.0.0.0 electoillikekikongo.qpon
 0.0.0.0 electosake.com
+0.0.0.0 electosoling.qpon
 0.0.0.0 electranowel.com
 0.0.0.0 electricalbicyclelistnonfiction.com
 0.0.0.0 electricalglimmerexasperate.com
@@ -22483,6 +22486,7 @@
 0.0.0.0 fickle-dream.com
 0.0.0.0 fickle-travel.pro
 0.0.0.0 fickleassistant.pro
+0.0.0.0 fickleregular.com
 0.0.0.0 ficklerjain.cfd
 0.0.0.0 ficmxrutlrhig.store
 0.0.0.0 fictionbusinessmensoloist.com
@@ -27734,6 +27738,7 @@
 0.0.0.0 holikedtocometot.com
 0.0.0.0 holingtrub.qpon
 0.0.0.0 holjmynbrubve.online
+0.0.0.0 holjzobt.com
 0.0.0.0 hollow-mess.com
 0.0.0.0 hollow-owner.pro
 0.0.0.0 hollowcharacter.com
@@ -28598,6 +28603,7 @@
 0.0.0.0 iaumyc.icu
 0.0.0.0 iauw.cn
 0.0.0.0 iavlxljzdclmz.space
+0.0.0.0 iavmmoheouwv.com
 0.0.0.0 iaxitnxmakuso.store
 0.0.0.0 iaxmmw9fbx.com
 0.0.0.0 iaxqpnkyqysam.space
@@ -33520,6 +33526,7 @@
 0.0.0.0 leggyindolent.com
 0.0.0.0 leggyintimidatebullying.com
 0.0.0.0 leggymomme.top
+0.0.0.0 leghornjumpedhalt.qpon
 0.0.0.0 legiferborgscotty.cyou
 0.0.0.0 legifersubj.com
 0.0.0.0 legislator85.top
@@ -48274,6 +48281,7 @@
 0.0.0.0 reedsbullyingpastel.com
 0.0.0.0 reedsinterfering.com
 0.0.0.0 reedthatm.biz
+0.0.0.0 reedyduckies.shop
 0.0.0.0 reefedkelekvappa.cyou
 0.0.0.0 reeferbesouthcalando.cyou
 0.0.0.0 reefunderage.com
@@ -52404,7 +52412,6 @@
 0.0.0.0 search.flairadscpc.com
 0.0.0.0 search.semp.net
 0.0.0.0 search4sports.com
-0.0.0.0 searchad-phinf.pstatic.net
 0.0.0.0 searchapp.space
 0.0.0.0 searchdatestoday.com
 0.0.0.0 searchmarquis.com
@@ -53421,6 +53428,7 @@
 0.0.0.0 shuhaliheshvan.qpon
 0.0.0.0 shuhvohkdzjfm.site
 0.0.0.0 shukriya90.com
+0.0.0.0 shulsblow.cyou
 0.0.0.0 shulugoo.net
 0.0.0.0 shumpeltooz.net
 0.0.0.0 shumteckoxohis.net
@@ -57512,6 +57520,7 @@
 0.0.0.0 tapounmareca.qpon
 0.0.0.0 tapounskags.cyou
 0.0.0.0 tappx.com
+0.0.0.0 taproomarrange.shop
 0.0.0.0 taprtopcldfa.co
 0.0.0.0 taprtopcldfard.co
 0.0.0.0 taprtopcldfb.co
@@ -66923,6 +66932,7 @@
 0.0.0.0 wmr3mlj47ucmgq.cfd
 0.0.0.0 wmrnhjhjamiev.website
 0.0.0.0 wmtbivpifywrc.one
+0.0.0.0 wmteynimybpbj.online
 0.0.0.0 wmtten.com
 0.0.0.0 wmuomywxaouh.com
 0.0.0.0 wmvinjxgtvqup.online
@@ -67437,6 +67447,7 @@
 0.0.0.0 wryentrance.pro
 0.0.0.0 wrytailfilcherostrea.cfd
 0.0.0.0 wrywcoocbugen.online
+0.0.0.0 wrzkmjrbjvoae.website
 0.0.0.0 wrzsnxbkvptie.website
 0.0.0.0 ws.wenshenxiu.com
 0.0.0.0 wsaovlmqyzglj.space
@@ -70270,6 +70281,7 @@
 0.0.0.0 y2ehvxgs.xyz
 0.0.0.0 y2mmqm12x629ok.cfd
 0.0.0.0 y3cqmr3o4mwxvk8v.rest
+0.0.0.0 y3gt29zfgkxcr1cwelguvzigbf33.cfd
 0.0.0.0 y40milgijh.com
 0.0.0.0 y42rru7u1cwijz9bxmunjfp2e79ex4xq6.cfd
 0.0.0.0 y4g8fgj6ra.com

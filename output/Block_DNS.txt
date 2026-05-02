@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 21:06:36 UTC
+! Generated: 2026-05-02 21:49:17 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 73,198
-! 2. Removed by Whitelist       : 34
-! 3. Final Block Rules (||)     : 73,164
-! 4. Final Exception Rules (@@) : 451
+! 1. Raw Domains Collected      : 73,212
+! 2. Removed by Whitelist       : 36
+! 3. Final Block Rules (||)     : 73,176
+! 4. Final Exception Rules (@@) : 452
 ! (Calculation: 1 - 2 = 3)
 !
 ! === BLOCK RULES ===
@@ -2846,6 +2846,7 @@
 ||6fm4dcpj31.com^
 ||6fy36oc1b1nj7399.rest^
 ||6g0sggey.xyz^
+||6gg4bfho33g6tvy93.rest^
 ||6ggstcmglf.com^
 ||6glece4homah8dweracea.com^
 ||6gvg5saail.com^
@@ -4648,7 +4649,6 @@
 ||ad-channel.wikawika.xyz^
 ||ad-cheers.com^
 ||ad-count.jp^
-||ad-creative.pstatic.net^
 ||ad-creatives-public.commondatastorage.googleapis.com^
 ||ad-delivery.net^
 ||ad-display.s.zigzag.kr^
@@ -10550,6 +10550,7 @@
 ||bookinglamentinstance.com^
 ||bookmakers.click^
 ||bookmankyloecupania.qpon^
+||bookmanstews.qpon^
 ||bookmsg.com^
 ||bookshelfcomplaint.com^
 ||booksoxsolely.com^
@@ -17447,6 +17448,7 @@
 ||defuzescockersdecener.qpon^
 ||defybrick.com^
 ||defyhastencommunity.com^
+||degageunshout.shop^
 ||degeneratebasket.com^
 ||degeneratesevere.com^
 ||degeronium.com^
@@ -20338,6 +20340,7 @@
 ||electluscious.com^
 ||electoillikekikongo.qpon^
 ||electosake.com^
+||electosoling.qpon^
 ||electranowel.com^
 ||electricalbicyclelistnonfiction.com^
 ||electricalglimmerexasperate.com^
@@ -22484,6 +22487,7 @@
 ||fickle-dream.com^
 ||fickle-travel.pro^
 ||fickleassistant.pro^
+||fickleregular.com^
 ||ficklerjain.cfd^
 ||ficmxrutlrhig.store^
 ||fictionbusinessmensoloist.com^
@@ -27735,6 +27739,7 @@
 ||holikedtocometot.com^
 ||holingtrub.qpon^
 ||holjmynbrubve.online^
+||holjzobt.com^
 ||hollow-mess.com^
 ||hollow-owner.pro^
 ||hollowcharacter.com^
@@ -28599,6 +28604,7 @@
 ||iaumyc.icu^
 ||iauw.cn^
 ||iavlxljzdclmz.space^
+||iavmmoheouwv.com^
 ||iaxitnxmakuso.store^
 ||iaxmmw9fbx.com^
 ||iaxqpnkyqysam.space^
@@ -33521,6 +33527,7 @@
 ||leggyindolent.com^
 ||leggyintimidatebullying.com^
 ||leggymomme.top^
+||leghornjumpedhalt.qpon^
 ||legiferborgscotty.cyou^
 ||legifersubj.com^
 ||legislator85.top^
@@ -48275,6 +48282,7 @@
 ||reedsbullyingpastel.com^
 ||reedsinterfering.com^
 ||reedthatm.biz^
+||reedyduckies.shop^
 ||reefedkelekvappa.cyou^
 ||reeferbesouthcalando.cyou^
 ||reefunderage.com^
@@ -52405,7 +52413,6 @@
 ||search.flairadscpc.com^
 ||search.semp.net^
 ||search4sports.com^
-||searchad-phinf.pstatic.net^
 ||searchapp.space^
 ||searchdatestoday.com^
 ||searchmarquis.com^
@@ -53422,6 +53429,7 @@
 ||shuhaliheshvan.qpon^
 ||shuhvohkdzjfm.site^
 ||shukriya90.com^
+||shulsblow.cyou^
 ||shulugoo.net^
 ||shumpeltooz.net^
 ||shumteckoxohis.net^
@@ -57513,6 +57521,7 @@
 ||tapounmareca.qpon^
 ||tapounskags.cyou^
 ||tappx.com^
+||taproomarrange.shop^
 ||taprtopcldfa.co^
 ||taprtopcldfard.co^
 ||taprtopcldfb.co^
@@ -66924,6 +66933,7 @@
 ||wmr3mlj47ucmgq.cfd^
 ||wmrnhjhjamiev.website^
 ||wmtbivpifywrc.one^
+||wmteynimybpbj.online^
 ||wmtten.com^
 ||wmuomywxaouh.com^
 ||wmvinjxgtvqup.online^
@@ -67438,6 +67448,7 @@
 ||wryentrance.pro^
 ||wrytailfilcherostrea.cfd^
 ||wrywcoocbugen.online^
+||wrzkmjrbjvoae.website^
 ||wrzsnxbkvptie.website^
 ||ws.wenshenxiu.com^
 ||wsaovlmqyzglj.space^
@@ -70271,6 +70282,7 @@
 ||y2ehvxgs.xyz^
 ||y2mmqm12x629ok.cfd^
 ||y3cqmr3o4mwxvk8v.rest^
+||y3gt29zfgkxcr1cwelguvzigbf33.cfd^
 ||y40milgijh.com^
 ||y42rru7u1cwijz9bxmunjfp2e79ex4xq6.cfd^
 ||y4g8fgj6ra.com^
@@ -73189,6 +73201,7 @@
 @@||a2z.com^
 @@||aa.tweakers.nl^
 @@||ab.tweakers.nl^
+@@||ad-creative.pstatic.net^
 @@||ad-shield.io^
 @@||ad.nwi.jp^
 @@||adc.api.nine.com.au^
@@ -73414,7 +73427,6 @@
 @@||localbitcoins.com^
 @@||log.go.com^
 @@||log.onmas.kt.com^
-@@||log.tving.com^
 @@||loggly.com^
 @@||loginfra.com^
 @@||logrocket.com^
@@ -73521,6 +73533,7 @@
 @@||sas.com^
 @@||seal.globalsign.com^
 @@||sealserver.trustwave.com^
+@@||searchad-phinf.pstatic.net^
 @@||seesaa.jp^
 @@||sematext.com^
 @@||sendpulse.com^

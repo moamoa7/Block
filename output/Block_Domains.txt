@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 21:06:36 UTC
+# Generated: 2026-05-02 21:49:17 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,198
-# 2. Removed by Whitelist       : 34
-# 3. Final Block Rules (||)     : 73,164
-# 4. Final Exception Rules (@@) : 451
+# 1. Raw Domains Collected      : 73,212
+# 2. Removed by Whitelist       : 36
+# 3. Final Block Rules (||)     : 73,176
+# 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -2845,6 +2845,7 @@
 6fm4dcpj31.com
 6fy36oc1b1nj7399.rest
 6g0sggey.xyz
+6gg4bfho33g6tvy93.rest
 6ggstcmglf.com
 6glece4homah8dweracea.com
 6gvg5saail.com
@@ -4647,7 +4648,6 @@ ad-brix.com
 ad-channel.wikawika.xyz
 ad-cheers.com
 ad-count.jp
-ad-creative.pstatic.net
 ad-creatives-public.commondatastorage.googleapis.com
 ad-delivery.net
 ad-display.s.zigzag.kr
@@ -10549,6 +10549,7 @@ bookerycausans.shop
 bookinglamentinstance.com
 bookmakers.click
 bookmankyloecupania.qpon
+bookmanstews.qpon
 bookmsg.com
 bookshelfcomplaint.com
 booksoxsolely.com
@@ -17446,6 +17447,7 @@ defroststringbenignity.com
 defuzescockersdecener.qpon
 defybrick.com
 defyhastencommunity.com
+degageunshout.shop
 degeneratebasket.com
 degeneratesevere.com
 degeronium.com
@@ -20337,6 +20339,7 @@ electcocktail.com
 electluscious.com
 electoillikekikongo.qpon
 electosake.com
+electosoling.qpon
 electranowel.com
 electricalbicyclelistnonfiction.com
 electricalglimmerexasperate.com
@@ -22483,6 +22486,7 @@ fichatgriseravine.cyou
 fickle-dream.com
 fickle-travel.pro
 fickleassistant.pro
+fickleregular.com
 ficklerjain.cfd
 ficmxrutlrhig.store
 fictionbusinessmensoloist.com
@@ -27734,6 +27738,7 @@ holidaysverbcloseness.com
 holikedtocometot.com
 holingtrub.qpon
 holjmynbrubve.online
+holjzobt.com
 hollow-mess.com
 hollow-owner.pro
 hollowcharacter.com
@@ -28598,6 +28603,7 @@ iaukmlastitytyeast.com
 iaumyc.icu
 iauw.cn
 iavlxljzdclmz.space
+iavmmoheouwv.com
 iaxitnxmakuso.store
 iaxmmw9fbx.com
 iaxqpnkyqysam.space
@@ -33520,6 +33526,7 @@ legallydune.com
 leggyindolent.com
 leggyintimidatebullying.com
 leggymomme.top
+leghornjumpedhalt.qpon
 legiferborgscotty.cyou
 legifersubj.com
 legislator85.top
@@ -48274,6 +48281,7 @@ reedmancroker.help
 reedsbullyingpastel.com
 reedsinterfering.com
 reedthatm.biz
+reedyduckies.shop
 reefedkelekvappa.cyou
 reeferbesouthcalando.cyou
 reefunderage.com
@@ -52404,7 +52412,6 @@ search.boffoads.com
 search.flairadscpc.com
 search.semp.net
 search4sports.com
-searchad-phinf.pstatic.net
 searchapp.space
 searchdatestoday.com
 searchmarquis.com
@@ -53421,6 +53428,7 @@ shugcatsup.cyou
 shuhaliheshvan.qpon
 shuhvohkdzjfm.site
 shukriya90.com
+shulsblow.cyou
 shulugoo.net
 shumpeltooz.net
 shumteckoxohis.net
@@ -57512,6 +57520,7 @@ taposaupbend.com
 tapounmareca.qpon
 tapounskags.cyou
 tappx.com
+taproomarrange.shop
 taprtopcldfa.co
 taprtopcldfard.co
 taprtopcldfb.co
@@ -66923,6 +66932,7 @@ wmqmejnpkcaoc.com
 wmr3mlj47ucmgq.cfd
 wmrnhjhjamiev.website
 wmtbivpifywrc.one
+wmteynimybpbj.online
 wmtten.com
 wmuomywxaouh.com
 wmvinjxgtvqup.online
@@ -67437,6 +67447,7 @@ wrybillcaban.qpon
 wryentrance.pro
 wrytailfilcherostrea.cfd
 wrywcoocbugen.online
+wrzkmjrbjvoae.website
 wrzsnxbkvptie.website
 ws.wenshenxiu.com
 wsaovlmqyzglj.space
@@ -70270,6 +70281,7 @@ y1zoxngxp.com
 y2ehvxgs.xyz
 y2mmqm12x629ok.cfd
 y3cqmr3o4mwxvk8v.rest
+y3gt29zfgkxcr1cwelguvzigbf33.cfd
 y40milgijh.com
 y42rru7u1cwijz9bxmunjfp2e79ex4xq6.cfd
 y4g8fgj6ra.com
