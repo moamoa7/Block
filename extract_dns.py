@@ -13,6 +13,7 @@ FILTER_URLS = [
     "https://filters.adtidy.org/windows/filters/224.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
+    "https://raw.githubusercontent.com/cbuijs/adblocks/main/maxi.adblock.txt",
 ]
 EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
@@ -52,6 +53,8 @@ def short_name(url: str) -> str:
         return "List-KR"
     if "uAssets" in url:
         return "uBlock Filters"
+    if "cbuijs" in url:
+        return "MINI Allow/Block List"
     if "exclusions.txt" in url:
         return "AdGuard DNS Exclusions"
     if "white.txt" in url:
