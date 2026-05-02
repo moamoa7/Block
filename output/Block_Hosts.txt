@@ -1,14 +1,14 @@
 # Title: Personal DNS Filter
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 07:23:18 UTC
+# Generated: 2026-05-02 07:31:05 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
 # 1. Raw Domains Collected      : 75,263
-# 2. Removed by Whitelist       : 95
-# 3. Final Block Rules (||)     : 75,168
-# 4. Final Exception Rules (@@) : 543
+# 2. Removed by Whitelist       : 119
+# 3. Final Block Rules (||)     : 75,144
+# 4. Final Exception Rules (@@) : 10,431
 # (Calculation: 1 - 2 = 3)
 #
 0.0.0.0 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -9288,7 +9288,6 @@
 0.0.0.0 baggycrack.pro
 0.0.0.0 baggydepreciate.com
 0.0.0.0 baggymaintenance.com
-0.0.0.0 baggyrepackingrocky.com
 0.0.0.0 bagnfqmhhbkdt.online
 0.0.0.0 bagobokvarneraint.cyou
 0.0.0.0 bagpipemonogamypercent.com
@@ -11796,7 +11795,6 @@
 0.0.0.0 budl.cn
 0.0.0.0 budlite.hubhubhub.name
 0.0.0.0 budsminepatent.com
-0.0.0.0 budurl.com
 0.0.0.0 buenosjuegosgratis.foolhardywear.pro
 0.0.0.0 buevafbtqeaaz.website
 0.0.0.0 buffersruffing.cyou
@@ -14423,7 +14421,6 @@
 0.0.0.0 clixcrafts.com
 0.0.0.0 clixforads.com
 0.0.0.0 clixsense.com
-0.0.0.0 clixtrac.com
 0.0.0.0 clixvista.com
 0.0.0.0 clixwells.com
 0.0.0.0 cljfpthmkqkby.online
@@ -16202,7 +16199,6 @@
 0.0.0.0 curriculture.com
 0.0.0.0 curriculumastronautpreview.com
 0.0.0.0 curriculumoutcry.com
-0.0.0.0 curryfielddistribution.com
 0.0.0.0 cursamakoua.shop
 0.0.0.0 cursednomad.com
 0.0.0.0 cursorpreach.com
@@ -21575,7 +21571,6 @@
 0.0.0.0 enrageobesejan.com
 0.0.0.0 enrageperplexparable.com
 0.0.0.0 enraptureforemostearly.com
-0.0.0.0 enraptureminims.com
 0.0.0.0 enrgy.fwtrck.com
 0.0.0.0 enringphage.cfd
 0.0.0.0 enroberbobscudwort.qpon
@@ -26560,7 +26555,6 @@
 0.0.0.0 golejddnzqnxb.website
 0.0.0.0 golfdomscots.cfd
 0.0.0.0 goljqyqfi.com
-0.0.0.0 golnkz.com
 0.0.0.0 goluckytiming.com
 0.0.0.0 gomain.pro
 0.0.0.0 gomain2.pro
@@ -30888,7 +30882,6 @@
 0.0.0.0 intrepidisland.pro
 0.0.0.0 intricatewhilevertically.com
 0.0.0.0 introductionnorthern.com
-0.0.0.0 intrudeimpolitetortoise.com
 0.0.0.0 intrustedzone.site
 0.0.0.0 intuitionlastly.com
 0.0.0.0 intunepyrryl.qpon
@@ -35841,7 +35834,6 @@
 0.0.0.0 lowmothandhadb.org
 0.0.0.0 lownoc.org
 0.0.0.0 loworiginatepalette.com
-0.0.0.0 lowrihouston.pro
 0.0.0.0 lowseedotr.com
 0.0.0.0 lowseelor.com
 0.0.0.0 lowtrainer.com
@@ -36594,7 +36586,6 @@
 0.0.0.0 makeup89.com
 0.0.0.0 makeuppillow.com
 0.0.0.0 makeupslulls.cfd
-0.0.0.0 making.party
 0.0.0.0 makingnude.com
 0.0.0.0 makumva.all-usanomination.com
 0.0.0.0 makutastengere.cfd
@@ -36723,7 +36714,6 @@
 0.0.0.0 mapbbqy.com
 0.0.0.0 mapcawing.com
 0.0.0.0 mapdevelopcleverness.com
-0.0.0.0 maper.info
 0.0.0.0 maphuahin.com
 0.0.0.0 maqtaerditpoz.site
 0.0.0.0 maquiags.com
@@ -36825,7 +36815,6 @@
 0.0.0.0 masharapova.leftmany.pro
 0.0.0.0 mashmanlyceums.cfd
 0.0.0.0 maskinsazulejorouleau.cfd
-0.0.0.0 masklink.org
 0.0.0.0 masockq.com
 0.0.0.0 masogjmltljhl.one
 0.0.0.0 masonplantsirresponsibility.com
@@ -38163,7 +38152,6 @@
 0.0.0.0 monetano.com
 0.0.0.0 monetarysportystamp.com
 0.0.0.0 monetixads.com
-0.0.0.0 monetiza.co
 0.0.0.0 monetize-ssp.com
 0.0.0.0 monetizer101.com
 0.0.0.0 moneyandfartoo.com
@@ -39203,7 +39191,6 @@
 0.0.0.0 natalouktabout.org
 0.0.0.0 natalschagoma.qpon
 0.0.0.0 natdisplacehereafter.com
-0.0.0.0 nathanaeldan.pro
 0.0.0.0 nathnhfjtdlum.space
 0.0.0.0 nationalitypovertyconverted.com
 0.0.0.0 nationsboxoffice.com
@@ -42334,7 +42321,6 @@
 0.0.0.0 oumvtxcrf5yrgl17p.p182qlx5wmkp5k3x1cb8.cfd
 0.0.0.0 ounbiwssqohds.online
 0.0.0.0 oundandround.com
-0.0.0.0 oundhertobeconsist.org
 0.0.0.0 oungimuk.net
 0.0.0.0 ouowhjhuekcnar.com
 0.0.0.0 oupgcgnevtqjm.site
@@ -43099,7 +43085,6 @@
 0.0.0.0 palmmalice.com
 0.0.0.0 palmusidalian.qpon
 0.0.0.0 palpartiallybricks.com
-0.0.0.0 palpatecricketmajesty.com
 0.0.0.0 palpategyppedfirers.cyou
 0.0.0.0 palpateshakedecoy.com
 0.0.0.0 palsybecamedislike.com
@@ -45682,7 +45667,6 @@
 0.0.0.0 ppbstruvpegasus.qpon
 0.0.0.0 ppbtdj.icu
 0.0.0.0 ppc-direct.com
-0.0.0.0 ppcent.org
 0.0.0.0 ppcmate.com
 0.0.0.0 ppcnqhffjxh.com
 0.0.0.0 ppcnt.co
@@ -50440,7 +50424,6 @@
 0.0.0.0 rev.frankspeech.com
 0.0.0.0 revampcdn.com
 0.0.0.0 revarymutely.cfd
-0.0.0.0 revbid.net
 0.0.0.0 revcontent.com
 0.0.0.0 revealedcarry.com
 0.0.0.0 revealingplacingpopped.com
@@ -51481,7 +51464,6 @@
 0.0.0.0 rotatingadult.com
 0.0.0.0 rotator.tradetracker.net
 0.0.0.0 rotbnllkqenrw.store
-0.0.0.0 rotf.lol
 0.0.0.0 rothermophony.com
 0.0.0.0 rotiawm.shop
 0.0.0.0 rotsurroundings.com
@@ -55072,7 +55054,6 @@
 0.0.0.0 shrimpinvestigation.com
 0.0.0.0 shrineresorthighjack.com
 0.0.0.0 shrivenspyboat.qpon
-0.0.0.0 shrtfly.com
 0.0.0.0 shrubburlyjaunty.com
 0.0.0.0 shrubbysecantsfulsome.cfd
 0.0.0.0 shrubsconfused.com
@@ -56029,7 +56010,6 @@
 0.0.0.0 snellswrible.cyou
 0.0.0.0 snfzchkdslxfi.online
 0.0.0.0 snhhgpcocqkwnb.com
-0.0.0.0 sni.ps
 0.0.0.0 snickdoormatabime.cyou
 0.0.0.0 snickers44.com
 0.0.0.0 snickeyfatales.qpon
@@ -61316,7 +61296,6 @@
 0.0.0.0 tpkajsacjypjt.space
 0.0.0.0 tplmfqnrssmmw.online
 0.0.0.0 tpmedia-reactads.com
-0.0.0.0 tpmr.com
 0.0.0.0 tpn134.com
 0.0.0.0 tpnmhqylskzlg.online
 0.0.0.0 tpntjandqmyuf.site
@@ -61574,7 +61553,6 @@
 0.0.0.0 trafforsrv.com
 0.0.0.0 traffprogo20.com
 0.0.0.0 traffrout.com
-0.0.0.0 trafget.com
 0.0.0.0 trafmag.com
 0.0.0.0 trafogon.com
 0.0.0.0 trafsupr.com
@@ -65123,7 +65101,6 @@
 0.0.0.0 vampirebat.tinamrak.com
 0.0.0.0 vampiresubscription.com
 0.0.0.0 vampishoedemas.qpon
-0.0.0.0 vampyrejibmen.com
 0.0.0.0 vandalismloungenylon.com
 0.0.0.0 vandalismundermineshock.com
 0.0.0.0 vanderlisten.pro
@@ -73844,7 +73821,6 @@
 0.0.0.0 zanyismredskin.cfd
 0.0.0.0 zanypotential.com
 0.0.0.0 zaocjeefw.com
-0.0.0.0 zap.buzz
 0.0.0.0 zap.cdn.zynga.com
 0.0.0.0 zapateoversts.shop
 0.0.0.0 zapdarzmi.in
