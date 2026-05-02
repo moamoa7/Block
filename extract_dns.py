@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import re, requests
+import re
 from pathlib import Path
 from datetime import datetime, timezone
+from urllib.request import urlopen, Request
 
 # --- 설정 ---
 FILTER_URLS = [
@@ -23,7 +24,11 @@ OUT_COMBINED = OUTPUT_DIR / "Block_DNS.txt"
 OUT_DOMAINS = OUTPUT_DIR / "Block_Domains.txt"
 OUT_HOSTS = OUTPUT_DIR / "Block_Hosts.txt"
 
-# --- 유효성 검사 ---
+def fetch(url: str) -> str:
+    req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urlopen(req, timeout=30) as resp:
+        return resp.read().decode("utf-8", errors="ignore")
+
 def is_valid_domain(d: str) -> bool:
     if not d or len(d) < 3:
         return False
@@ -31,35 +36,33 @@ def is_valid_domain(d: str) -> bool:
         r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*\.[a-z]{2,}$", d
     ))
 
-# --- 메인 ---
 def main():
     # 1. 화이트리스트 로드
     white_set = set()
     for url in EXCLUSION_URLS:
         try:
-            r = requests.get(url, timeout=30)
-            for line in r.text.splitlines():
+            text = fetch(url)
+            for line in text.splitlines():
                 m = re.match(r"^(?:@@)?\|?\|?([a-z0-9\-\.]+)\^?.*$", line.strip().lower())
                 if m and is_valid_domain(m.group(1)):
                     white_set.add(m.group(1))
-        except:
-            pass
+        except Exception as e:
+            print(f"[WARN] 화이트리스트 실패: {url} ({e})")
 
     # 2. 차단 대상 로드
     raw_block_set = set()
     for url in FILTER_URLS:
         try:
-            r = requests.get(url, timeout=30)
-            for line in r.text.splitlines():
-                # ||domain^ / ||domain^$popup / ||domain^$third-party
+            text = fetch(url)
+            for line in text.splitlines():
                 m = re.match(
                     r"^\|\|([a-z0-9\-\.]+)\^(\$(popup|third-party))?\s*$",
                     line.strip().lower()
                 )
                 if m and is_valid_domain(m.group(1)):
                     raw_block_set.add(m.group(1))
-        except:
-            pass
+        except Exception as e:
+            print(f"[WARN] 필터 실패: {url} ({e})")
 
     # 3. 통계 계산
     removed_list = raw_block_set & white_set
