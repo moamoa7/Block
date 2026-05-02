@@ -2,8 +2,7 @@ name: Update DNS Blocklist
 
 on:
   schedule:
-    - cron: "0 6 * * *"
-    - cron: "0 18 * * *"   # 하루 2번 (필터 업데이트 주기 대응)
+    - cron: "0 * * * *"   # 매시간 정각에 실행
   workflow_dispatch:
 
 jobs:
