@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 20:27:51 UTC
+# Generated: 2026-05-02 21:06:36 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,196
+# 1. Raw Domains Collected      : 73,198
 # 2. Removed by Whitelist       : 34
-# 3. Final Block Rules (||)     : 73,162
+# 3. Final Block Rules (||)     : 73,164
 # 4. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 = 3)
 #
@@ -23497,6 +23497,7 @@
 0.0.0.0 forsakensex.pro
 0.0.0.0 forsakesonswept.com
 0.0.0.0 forscprts.com
+0.0.0.0 forseenpalsiespalmira.cyou
 0.0.0.0 forseentourntheow.cyou
 0.0.0.0 forthbootyintricate.com
 0.0.0.0 forthcomingmugged.com
@@ -65947,6 +65948,7 @@
 0.0.0.0 weh5lofraa.com
 0.0.0.0 wehcqqqrrnxmd.space
 0.0.0.0 wehdflzsphxij.website
+0.0.0.0 weiekbrbolvvk.online
 0.0.0.0 weightfeathersoffhand.com
 0.0.0.0 weightvizslasproximo.cyou
 0.0.0.0 weightwindow.com
