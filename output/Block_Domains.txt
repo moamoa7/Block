@@ -1,13 +1,13 @@
 # Title: Personal DNS Filter
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 10:08:10 UTC
+# Generated: 2026-05-02 10:27:32 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,107
+# 1. Raw Domains Collected      : 73,112
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,071
+# 3. Final Block Rules (||)     : 73,076
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -9960,6 +9960,7 @@ biqoftok.in
 biqqavjzrmmkr.store
 biqxveawlf.com
 birbmcmp.icu
+birchdulcian.qpon
 birchsottagejacksaw.cfd
 bird.brondby.com
 bird.recruitkit.com.au
@@ -13461,6 +13462,7 @@ clevernt.com
 cleverunjuicysolein.cyou
 cleverwebserver.com
 clfctybv.com
+clhwlxhbw.com
 clhxzrqdatxqm.store
 clicadu.com
 click-cdn.com
@@ -22497,6 +22499,7 @@ fiinnancesur.com
 fiizbmjzykchn.website
 fijeyqfxvpjghki.com
 fijipic.xyz
+fikeryminvend.shop
 fikeysardelgabon.cfd
 fikppvmul.com
 fikshvoprcesm.website
@@ -44739,6 +44742,7 @@ prolixwargus.cfd
 proll.shemrec.cc
 prologue23.com
 prolongmetrise.help
+prolylbridie.qpon
 promblarina.help
 promdamagecomplain.com
 promdidna.com
@@ -64806,6 +64810,7 @@ vtmbnurtndcgo.store
 vtmnbigfoyfpr.online
 vtndhqsmzwrzc.space
 vtnweozcimejn.space
+vtojhgymssztr.site
 vtomxakkgxlsx.space
 vtongm82lz.com
 vtook3j0l.com

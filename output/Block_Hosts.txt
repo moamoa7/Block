@@ -1,13 +1,13 @@
 # Title: Personal DNS Filter
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 10:08:10 UTC
+# Generated: 2026-05-02 10:27:32 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,107
+# 1. Raw Domains Collected      : 73,112
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,071
+# 3. Final Block Rules (||)     : 73,076
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -9960,6 +9960,7 @@
 0.0.0.0 biqqavjzrmmkr.store
 0.0.0.0 biqxveawlf.com
 0.0.0.0 birbmcmp.icu
+0.0.0.0 birchdulcian.qpon
 0.0.0.0 birchsottagejacksaw.cfd
 0.0.0.0 bird.brondby.com
 0.0.0.0 bird.recruitkit.com.au
@@ -13461,6 +13462,7 @@
 0.0.0.0 cleverunjuicysolein.cyou
 0.0.0.0 cleverwebserver.com
 0.0.0.0 clfctybv.com
+0.0.0.0 clhwlxhbw.com
 0.0.0.0 clhxzrqdatxqm.store
 0.0.0.0 clicadu.com
 0.0.0.0 click-cdn.com
@@ -22497,6 +22499,7 @@
 0.0.0.0 fiizbmjzykchn.website
 0.0.0.0 fijeyqfxvpjghki.com
 0.0.0.0 fijipic.xyz
+0.0.0.0 fikeryminvend.shop
 0.0.0.0 fikeysardelgabon.cfd
 0.0.0.0 fikppvmul.com
 0.0.0.0 fikshvoprcesm.website
@@ -44739,6 +44742,7 @@
 0.0.0.0 proll.shemrec.cc
 0.0.0.0 prologue23.com
 0.0.0.0 prolongmetrise.help
+0.0.0.0 prolylbridie.qpon
 0.0.0.0 promblarina.help
 0.0.0.0 promdamagecomplain.com
 0.0.0.0 promdidna.com
@@ -64806,6 +64810,7 @@
 0.0.0.0 vtmnbigfoyfpr.online
 0.0.0.0 vtndhqsmzwrzc.space
 0.0.0.0 vtnweozcimejn.space
+0.0.0.0 vtojhgymssztr.site
 0.0.0.0 vtomxakkgxlsx.space
 0.0.0.0 vtongm82lz.com
 0.0.0.0 vtook3j0l.com
