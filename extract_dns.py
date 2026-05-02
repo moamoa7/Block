@@ -19,7 +19,7 @@ EXCLUSION_URLS = [
 ]
 
 OUTPUT_DIR = Path("output")
-OUT_COMBINED = OUTPUT_DIR / "Block_DNS_Combined.txt"
+OUT_COMBINED = OUTPUT_DIR / "Block_DNS.txt"
 OUT_DOMAINS = OUTPUT_DIR / "Block_Domains.txt"
 OUT_HOSTS = OUTPUT_DIR / "Block_Hosts.txt"
 
