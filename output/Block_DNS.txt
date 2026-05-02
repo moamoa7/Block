@@ -1,6 +1,6 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 11:10:28 UTC
+! Generated: 2026-05-02 11:12:50 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
