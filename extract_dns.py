@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AdGuard/uBlock 필터 리스트에서 DNS 차단용 도메인만 추출하는 스크립트."""
+"""AdGuard/uBlock 필터 리스트에서 DNS 차단용 도메인 추출 및 제외 목록(Whitelist) 별도 저장 스크립트."""
 
 import re, requests
 from pathlib import Path
@@ -25,6 +25,8 @@ OUTPUT_DIR = Path("output")
 OUTPUT_HOSTS = OUTPUT_DIR / "dns_blocklist_hosts.txt"
 OUTPUT_ADGUARD_DNS = OUTPUT_DIR / "dns_blocklist_adguard.txt"
 OUTPUT_DOMAINS = OUTPUT_DIR / "dns_blocklist_domains.txt"
+# [추가] 화이트리스트에 걸러진 도메인 저장 경로
+OUTPUT_WHITELISTED = OUTPUT_DIR / "dns_whitelisted_domains.txt"
 
 WHITELIST = {"localhost", "localhost.localdomain", "broadcasthost", "local"}
 META_FIELDS = ["Title", "Description", "Version", "Last modified", "TimeUpdated",
@@ -89,7 +91,6 @@ def extract_dns_domains(text: str) -> set[str]:
     domains = set()
     for line in text.splitlines():
         line = line.strip()
-        # ||domain^ 또는 ||domain^$popup 매칭
         m = re.match(r"^\|\|([a-zA-Z0-9\-\.]+)\^(\$popup)?\s*$", line)
         if not m:
             continue
@@ -107,7 +108,7 @@ def count_total_lines(text: str) -> int:
     return count
 
 def generate_output(domains: set[str], source_results: list[dict],
-                    exclusion_count: int) -> None:
+                    exclusion_count: int, whitelisted_domains: set[str]) -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     sorted_domains = sorted(domains)
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -132,67 +133,53 @@ def generate_output(domains: set[str], source_results: list[dict],
         header_lines.append(f"!   URL: {src['url']}")
         header_lines.append(f"!   Status: {src['status']}")
         if src["status"] == "OK":
-            if "Description" in meta:
-                header_lines.append(f"!   Description: {meta['Description']}")
-            if "Version" in meta:
-                header_lines.append(f"!   Version: {meta['Version']}")
+            if "Description" in meta: header_lines.append(f"!   Description: {meta['Description']}")
+            if "Version" in meta: header_lines.append(f"!   Version: {meta['Version']}")
             lm = meta.get("Last modified") or meta.get("TimeUpdated")
-            if lm:
-                header_lines.append(f"!   Last modified: {lm}")
-            if "Expires" in meta:
-                header_lines.append(f"!   Expires: {meta['Expires']}")
-            if "Homepage" in meta:
-                header_lines.append(f"!   Homepage: {meta['Homepage']}")
-            lic = meta.get("License") or meta.get("Licence")
-            if lic:
-                header_lines.append(f"!   License: {lic}")
-            tr = src["total_rules"]
-            dc = src["dns_count"]
+            if lm: header_lines.append(f"!   Last modified: {lm}")
+            tr, dc = src["total_rules"], src["dns_count"]
             ratio = (dc / tr * 100) if tr > 0 else 0
-            header_lines.append(f"!   Total rules: {tr:,}")
-            header_lines.append(f"!   DNS extracted: {dc:,} ({ratio:.1f}%)")
-            header_lines.append(
-                f"!   New domains: {src['new_count']:,} | "
-                f"Duplicates removed: {src['dup_count']:,}")
+            header_lines.append(f"!   Total rules: {tr:,} | DNS extracted: {dc:,} ({ratio:.1f}%)")
+            header_lines.append(f"!   New: {src['new_count']:,} | Duplicates: {src['dup_count']:,}")
         else:
             header_lines.append(f"!   Error: {src['error']}")
-
-    header_lines.extend([
-        "!",
-        "! ═══════════════════════════════════════════════════════",
-        "!  Exclusions (Whitelist)",
-        "! ═══════════════════════════════════════════════════════",
-        "!   1. AdGuard DNS filter official exclusions + exceptions",
-        "!      https://github.com/AdguardTeam/AdGuardSDNSFilter/tree/master/Filters",
-        "!   2. persol whitelist",
-        "!      https://github.com/moamoa7/Blcok/main",
-        f"!   Total excluded domains: {exclusion_count:,}",
-        "!",
-        "! ═══════════════════════════════════════════════════════",
-    ])
 
     header_str = "\n".join(header_lines) + "\n"
     header_hosts = header_str.replace("! ", "# ").replace("!\n", "#\n")
 
+    # 1. Domains (Standard)
     with open(OUTPUT_DOMAINS, "w") as f:
         f.write(header_hosts)
         f.writelines(d + "\n" for d in sorted_domains)
 
+    # 2. Hosts format
     with open(OUTPUT_HOSTS, "w") as f:
         f.write(header_hosts)
         f.writelines(f"0.0.0.0 {d}\n" for d in sorted_domains)
 
+    # 3. AdGuard DNS format
     with open(OUTPUT_ADGUARD_DNS, "w") as f:
         f.write(header_str)
         f.writelines(f"||{d}^\n" for d in sorted_domains)
+
+    # [추가] 4. Whitelisted domains (제외된 항목들)
+    with open(OUTPUT_WHITELISTED, "w") as f:
+        f.write(f"! Title: Whitelisted Domains (Excluded from Blocklist)\n")
+        f.write(f"! Description: Domains that were in filter sources but removed by exclusion lists\n")
+        f.write(f"! Generated: {ts}\n")
+        f.write(f"! Total items: {len(whitelisted_domains):,}\n")
+        f.write("!\n")
+        f.writelines(d + "\n" for d in sorted(whitelisted_domains))
 
     print(f"\n[✓] 총 {len(sorted_domains):,}개 도메인 추출 완료")
     print(f"    → {OUTPUT_DOMAINS}")
     print(f"    → {OUTPUT_HOSTS}")
     print(f"    → {OUTPUT_ADGUARD_DNS}")
+    print(f"    → {OUTPUT_WHITELISTED} (화이트리스트에 의해 제외된 목록)")
 
 def main():
     all_domains: set[str] = set()
+    all_excluded_by_whitelist: set[str] = set() # 제외된 도메인 누적용
     source_results: list[dict] = []
 
     print("=" * 50)
@@ -212,48 +199,38 @@ def main():
             domains = extract_dns_domains(text)
             dns_count = len(domains)
 
+            # [수정] 차단 리스트와 화이트리스트의 교집합을 찾아 '제외 목록'에 추가
+            actually_excluded = domains.intersection(dns_exclusions)
+            all_excluded_by_whitelist.update(actually_excluded)
+
+            # 도메인 제거
             domains -= dns_exclusions
 
             new_domains = domains - all_domains
             new_count = len(new_domains)
             dup_count = len(domains) - new_count
-
             all_domains.update(domains)
 
             source_results.append({
-                "url": url,
-                "metadata": metadata,
-                "status": "OK",
-                "total_rules": total_rules,
-                "dns_count": dns_count,
-                "new_count": new_count,
-                "dup_count": dup_count,
-                "error": None,
+                "url": url, "metadata": metadata, "status": "OK",
+                "total_rules": total_rules, "dns_count": dns_count,
+                "new_count": new_count, "dup_count": dup_count, "error": None,
             })
 
             title = metadata.get("Title", "Unknown")
-            ver = metadata.get("Version", "?")
-            lm = metadata.get("Last modified") or metadata.get("TimeUpdated", "?")
-            print(f"    📋 {title} (v{ver}, {lm})")
-            print(f"    → Total {total_rules:,} rules → DNS {dns_count:,}"
-                  f" → Excluded {dns_count - len(domains):,}"
-                  f" → New {new_count:,} | Dup {dup_count:,}")
+            print(f"    📋 {title} (DNS {dns_count:,} -> Excluded {len(actually_excluded):,})")
 
         except Exception as e:
             source_results.append({
-                "url": url,
-                "metadata": {"Title": "Unknown"},
-                "status": "FAILED",
-                "total_rules": 0,
-                "dns_count": 0,
-                "new_count": 0,
-                "dup_count": 0,
-                "error": str(e),
+                "url": url, "metadata": {"Title": "Unknown"}, "status": "FAILED",
+                "total_rules": 0, "dns_count": 0, "new_count": 0, "dup_count": 0, "error": str(e),
             })
             print(f"    [!] FAILED: {e}")
 
-    print(f"\n[*] 중복 제거 후 총 도메인 수: {len(all_domains):,}")
-    generate_output(all_domains, source_results, len(dns_exclusions))
+    print(f"\n[*] 중복 제거 후 최종 차단 도메인 수: {len(all_domains):,}")
+    print(f"[*] 화이트리스트로 제외된 총 도메인 수: {len(all_excluded_by_whitelist):,}")
+    
+    generate_output(all_domains, source_results, len(dns_exclusions), all_excluded_by_whitelist)
 
 if __name__ == "__main__":
     main()
