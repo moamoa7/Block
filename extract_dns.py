@@ -51,7 +51,6 @@ def main():
         try:
             r = requests.get(url, timeout=30)
             for line in r.text.splitlines():
-                # ||domain^ / ||domain^$popup / ||domain^$third-party
                 m = re.match(
                     r"^\|\|([a-z0-9\-\.]+)\^(\$(popup|third-party))?\s*$",
                     line.strip().lower()
