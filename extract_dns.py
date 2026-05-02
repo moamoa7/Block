@@ -188,7 +188,7 @@ def generate_output(
 
     # ─── 헤더 생성 ────────────────────────────────────────────────
     header_lines = [
-        f"! Title: DNS Blocklist - Auto-generated",
+        f"! Title: Small DNS Blocklist",
         f"! Description: Extracted DNS-level blocking domains from multiple filter sources",
         f"! Generated: {timestamp}",
         f"! Total domains: {len(sorted_domains)}",
