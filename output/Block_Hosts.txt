@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 18:38:04 UTC
+# Generated: 2026-05-02 19:44:27 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,183
+# 1. Raw Domains Collected      : 73,193
 # 2. Removed by Whitelist       : 34
-# 3. Final Block Rules (||)     : 73,149
+# 3. Final Block Rules (||)     : 73,159
 # 4. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 = 3)
 #
@@ -2094,6 +2094,7 @@
 0.0.0.0 45c1biry82h2kb.cfd
 0.0.0.0 45c6107d1f.784d1dcf4a.com
 0.0.0.0 45pxu8qlehpxg7woekpnff747q.rest
+0.0.0.0 45tjghnuibkifpbc8.cfd
 0.0.0.0 45tu1c0.com
 0.0.0.0 45yz5i35r.com
 0.0.0.0 460c0f8786.57fafe08ba.com
@@ -8678,6 +8679,7 @@
 0.0.0.0 b7nvtp6ef62ioe6ro4rj.cfd
 0.0.0.0 b7pgs2ifvq.com
 0.0.0.0 b7sw62.pingshu8.xyz
+0.0.0.0 b7zxkmxqh6bge9.rest
 0.0.0.0 b8033bc28b.05f3b6b187.com
 0.0.0.0 b82q168jgj.com
 0.0.0.0 b8442ed1e4.9365e2dd1f.com
@@ -9087,6 +9089,7 @@
 0.0.0.0 bbcb71c053.0860c7aadf.com
 0.0.0.0 bbcc3e012c.com
 0.0.0.0 bbccn.org
+0.0.0.0 bbcgpatmhh.com
 0.0.0.0 bbcrgate.com
 0.0.0.0 bbcz4tta.top
 0.0.0.0 bbd834il.de
@@ -20487,6 +20490,7 @@
 0.0.0.0 emeroidcaufle.com
 0.0.0.0 emeuagingnavy.cfd
 0.0.0.0 emfhxsmebkthh.website
+0.0.0.0 emflogwaydousing.cfd
 0.0.0.0 emhjekwvkwnvz.website
 0.0.0.0 emicalcoveningspon.org
 0.0.0.0 emigresdolci.cyou
@@ -30217,6 +30221,7 @@
 0.0.0.0 iupimwyjqatso.space
 0.0.0.0 iuqkrdnldzsth.online
 0.0.0.0 iuqtmoblgqkgq.site
+0.0.0.0 iurjdgqphesic.website
 0.0.0.0 iutclcgffgbk.com
 0.0.0.0 iutlrtovfnlbj.online
 0.0.0.0 iuuiirxnrolwc.store
@@ -32802,6 +32807,7 @@
 0.0.0.0 ktut7wyvmcke5opp6k1ie48y.rest
 0.0.0.0 ktwbcdypkcsnc.xyz
 0.0.0.0 ktwvbnfxd.com
+0.0.0.0 ktxmnweyvslpo.website
 0.0.0.0 ktxofwditvygq.online
 0.0.0.0 ku2d3a7pa8mdi.com
 0.0.0.0 ku34bh9la09.com
@@ -36576,6 +36582,7 @@
 0.0.0.0 mkhoj.com
 0.0.0.0 mkingffpvupjd.space
 0.0.0.0 mkipphpyiymso.site
+0.0.0.0 mkjjilqjetmdf.space
 0.0.0.0 mkjsqrpmxqdf.com
 0.0.0.0 mklygiferedme.site
 0.0.0.0 mkodhnvnhpmlw.online
@@ -48299,6 +48306,7 @@
 0.0.0.0 refillsmisfond.qpon
 0.0.0.0 refilmsbones.top
 0.0.0.0 refinepiledcumbersome.com
+0.0.0.0 refinespaesmatsue.cfd
 0.0.0.0 refixplained.cfd
 0.0.0.0 refkxilsrghro.store
 0.0.0.0 reflagschemer.cyou
@@ -60256,6 +60264,7 @@
 0.0.0.0 ttudarqrldyoc.site
 0.0.0.0 ttusrifbdjqay.online
 0.0.0.0 ttvshnuvy.net
+0.0.0.0 ttwkixuxdfaxv.com
 0.0.0.0 ttwmed.com
 0.0.0.0 ttwststmculgv.website
 0.0.0.0 ttxjnt.icu
@@ -61612,6 +61621,7 @@
 0.0.0.0 umgzvlbrqzyeq.online
 0.0.0.0 umhkzidngrmor.website
 0.0.0.0 umhqewtaqjykds.com
+0.0.0.0 umini.shujupie.com
 0.0.0.0 umisrvofhmysc.site
 0.0.0.0 umiyvlxjamrlb.com
 0.0.0.0 umjyfasxbvgal.online

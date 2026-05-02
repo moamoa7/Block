@@ -1,13 +1,13 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 18:38:04 UTC
+! Generated: 2026-05-02 19:44:27 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 73,183
+! 1. Raw Domains Collected      : 73,193
 ! 2. Removed by Whitelist       : 34
-! 3. Final Block Rules (||)     : 73,149
+! 3. Final Block Rules (||)     : 73,159
 ! 4. Final Exception Rules (@@) : 451
 ! (Calculation: 1 - 2 = 3)
 !
@@ -2095,6 +2095,7 @@
 ||45c1biry82h2kb.cfd^
 ||45c6107d1f.784d1dcf4a.com^
 ||45pxu8qlehpxg7woekpnff747q.rest^
+||45tjghnuibkifpbc8.cfd^
 ||45tu1c0.com^
 ||45yz5i35r.com^
 ||460c0f8786.57fafe08ba.com^
@@ -8679,6 +8680,7 @@
 ||b7nvtp6ef62ioe6ro4rj.cfd^
 ||b7pgs2ifvq.com^
 ||b7sw62.pingshu8.xyz^
+||b7zxkmxqh6bge9.rest^
 ||b8033bc28b.05f3b6b187.com^
 ||b82q168jgj.com^
 ||b8442ed1e4.9365e2dd1f.com^
@@ -9088,6 +9090,7 @@
 ||bbcb71c053.0860c7aadf.com^
 ||bbcc3e012c.com^
 ||bbccn.org^
+||bbcgpatmhh.com^
 ||bbcrgate.com^
 ||bbcz4tta.top^
 ||bbd834il.de^
@@ -20488,6 +20491,7 @@
 ||emeroidcaufle.com^
 ||emeuagingnavy.cfd^
 ||emfhxsmebkthh.website^
+||emflogwaydousing.cfd^
 ||emhjekwvkwnvz.website^
 ||emicalcoveningspon.org^
 ||emigresdolci.cyou^
@@ -30218,6 +30222,7 @@
 ||iupimwyjqatso.space^
 ||iuqkrdnldzsth.online^
 ||iuqtmoblgqkgq.site^
+||iurjdgqphesic.website^
 ||iutclcgffgbk.com^
 ||iutlrtovfnlbj.online^
 ||iuuiirxnrolwc.store^
@@ -32803,6 +32808,7 @@
 ||ktut7wyvmcke5opp6k1ie48y.rest^
 ||ktwbcdypkcsnc.xyz^
 ||ktwvbnfxd.com^
+||ktxmnweyvslpo.website^
 ||ktxofwditvygq.online^
 ||ku2d3a7pa8mdi.com^
 ||ku34bh9la09.com^
@@ -36577,6 +36583,7 @@
 ||mkhoj.com^
 ||mkingffpvupjd.space^
 ||mkipphpyiymso.site^
+||mkjjilqjetmdf.space^
 ||mkjsqrpmxqdf.com^
 ||mklygiferedme.site^
 ||mkodhnvnhpmlw.online^
@@ -48300,6 +48307,7 @@
 ||refillsmisfond.qpon^
 ||refilmsbones.top^
 ||refinepiledcumbersome.com^
+||refinespaesmatsue.cfd^
 ||refixplained.cfd^
 ||refkxilsrghro.store^
 ||reflagschemer.cyou^
@@ -60257,6 +60265,7 @@
 ||ttudarqrldyoc.site^
 ||ttusrifbdjqay.online^
 ||ttvshnuvy.net^
+||ttwkixuxdfaxv.com^
 ||ttwmed.com^
 ||ttwststmculgv.website^
 ||ttxjnt.icu^
@@ -61613,6 +61622,7 @@
 ||umgzvlbrqzyeq.online^
 ||umhkzidngrmor.website^
 ||umhqewtaqjykds.com^
+||umini.shujupie.com^
 ||umisrvofhmysc.site^
 ||umiyvlxjamrlb.com^
 ||umjyfasxbvgal.online^
