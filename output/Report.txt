@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-02 19:44:27 UTC
+  Generated: 2026-05-02 20:27:51 UTC
 ============================================================
 
 [ Whitelist Sources ]
@@ -16,7 +16,7 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 89,640 | Extracted: 57,000
+       Total Lines: 89,643 | Extracted: 57,003
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
        Total Lines: 157,932 | Extracted: 65,777
@@ -40,7 +40,7 @@
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
-  EasyList                      57,000     57,000          9
+  EasyList                      57,003     57,003         12
   AdGuard Base                  65,777      8,786      8,758
   AdGuard Mobile                   908        890        844
   AdGuard Japanese                 169        156        156
@@ -48,7 +48,7 @@
   List-KR                          352        265        265
   uBlock Filters                    50         33         33
   ───────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)          73,193
+  Total (deduplicated)          73,196
 
   * Extracted : 해당 필터에서 추출된 도메인 수
   * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
@@ -56,9 +56,9 @@
 
 [ Final Summary ]
 ------------------------------------------------------------
-  1. Raw Domains Collected      : 73,193
+  1. Raw Domains Collected      : 73,196
   2. Whitelist Domains Loaded    : 451
   3. Removed by Whitelist        : 34
-  4. Final Block Domains         : 73,159
+  4. Final Block Domains         : 73,162
   5. Final Exception Rules       : 451
 ============================================================

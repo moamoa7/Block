@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 19:44:27 UTC
+# Generated: 2026-05-02 20:27:51 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,193
+# 1. Raw Domains Collected      : 73,196
 # 2. Removed by Whitelist       : 34
-# 3. Final Block Rules (||)     : 73,159
+# 3. Final Block Rules (||)     : 73,162
 # 4. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 = 3)
 #
@@ -30186,6 +30186,7 @@
 0.0.0.0 itsmillionlead.com
 0.0.0.0 itstuffnews.com
 0.0.0.0 itswabluon.com
+0.0.0.0 ittfpcej.com
 0.0.0.0 ittlewallowisfrie.org
 0.0.0.0 ittontrinevengre.info
 0.0.0.0 ittorchicer.com
@@ -48947,6 +48948,7 @@
 0.0.0.0 rf23ecvf4.com
 0.0.0.0 rfaedqlxfttxw.site
 0.0.0.0 rfaenzaahcspb.online
+0.0.0.0 rfajdkrqvqjam.site
 0.0.0.0 rfapkfkftokev.website
 0.0.0.0 rfarxhoikoda.xyz
 0.0.0.0 rfatsbpqippxs.online
@@ -71225,6 +71227,7 @@
 0.0.0.0 yowmelhhkeovd.store
 0.0.0.0 yowrekvnrlcdz.site
 0.0.0.0 yowzabrr.com
+0.0.0.0 yoxatqgxh.com
 0.0.0.0 yoxffovtpvwtr.online
 0.0.0.0 yoxgbiywfdlsd.online
 0.0.0.0 yoxggjogbagyt.online
