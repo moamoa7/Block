@@ -2,14 +2,14 @@ name: Update DNS Blocklist
 
 on:
   schedule:
-    - cron: "0 * * * *"   # 매시간 정각에 실행
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true    # ← 이 줄 추가
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: write
 
@@ -32,11 +32,17 @@ jobs:
 
       - name: Check output exists
         run: |
-          if [ ! -f output/dns_blocklist_domains.txt ]; then
-            echo "::error::Output file not generated!"
+          ERROR=0
+          for FILE in output/Block_DNS.txt output/Block_Domains.txt output/Block_Hosts.txt; do
+            if [ ! -f "$FILE" ]; then
+              echo "::error::${FILE} not generated!"
+              ERROR=1
+            fi
+          done
+          if [ "$ERROR" -eq 1 ]; then
             exit 1
           fi
-          DOMAIN_COUNT=$(grep -c -v '^#' output/dns_blocklist_domains.txt || true)
+          DOMAIN_COUNT=$(grep -c -v '^#' output/Block_Domains.txt || true)
           echo "Extracted ${DOMAIN_COUNT} domains"
           if [ "$DOMAIN_COUNT" -lt 100 ]; then
             echo "::error::Too few domains (${DOMAIN_COUNT}), something may be wrong"
@@ -51,7 +57,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            DOMAIN_COUNT=$(grep -c -v '^#' output/dns_blocklist_domains.txt || true)
+            DOMAIN_COUNT=$(grep -c -v '^#' output/Block_Domains.txt || true)
             git commit -m "chore: update DNS blocklist $(date -u +%Y-%m-%d) [${DOMAIN_COUNT} domains]"
             git push
           fi
