@@ -47,7 +47,7 @@ def short_name(url: str) -> str:
     if "filters/11.txt" in url:
         return "AdGuard Mobile"
     if "filters/7.txt" in url:
-        return "AdGuard German" # 실제 필터명에 맞게 수정 가능
+        return "AdGuard Japanese"
     if "filters/224.txt" in url:
         return "AdGuard Chinese"
     if "list-kr" in url:
@@ -55,7 +55,7 @@ def short_name(url: str) -> str:
     if "uAssets" in url:
         return "uBlock Filters"
     if "adavoid" in url:
-        return "AdAvoid Ultimate"
+        return "AdBlocker Ultimate Ad Filter "
     if "exclusions.txt" in url:
         return "AdGuard DNS Exclusions"
     if "white.txt" in url:
