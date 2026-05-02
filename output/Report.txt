@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-02 17:34:32 UTC
+  Generated: 2026-05-02 17:48:04 UTC
 ============================================================
 
 [ Whitelist Sources ]
@@ -10,7 +10,7 @@
        Total Lines: 1,091 | Extracted: 451
   [OK] Personal Whitelist
        URL: https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt
-       Total Lines: 3 | Extracted: 3
+       Total Lines: 2 | Extracted: 2
 
 [ Block Filter Sources ]
 ------------------------------------------------------------
@@ -57,8 +57,8 @@
 [ Final Summary ]
 ------------------------------------------------------------
   1. Raw Domains Collected      : 73,177
-  2. Whitelist Domains Loaded    : 453
-  3. Removed by Whitelist        : 36
-  4. Final Block Domains         : 73,141
-  5. Final Exception Rules       : 453
+  2. Whitelist Domains Loaded    : 452
+  3. Removed by Whitelist        : 35
+  4. Final Block Domains         : 73,142
+  5. Final Exception Rules       : 452
 ============================================================

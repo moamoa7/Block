@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 17:34:32 UTC
+# Generated: 2026-05-02 17:48:04 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
 # 1. Raw Domains Collected      : 73,177
-# 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,141
-# 4. Final Exception Rules (@@) : 453
+# 2. Removed by Whitelist       : 35
+# 3. Final Block Rules (||)     : 73,142
+# 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -5102,6 +5102,7 @@ adimages.eva.live
 adimages.infotorg.se
 adimages.rtvdrenthe.nl
 adimages.sniffies.com
+adimg.cgv.co.kr
 adimg.liba.com
 adimg.newdaily.co.kr
 adinc.co.kr
