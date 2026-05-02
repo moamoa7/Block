@@ -156,12 +156,16 @@ $removeparam=__hs
 ! - https://wonforecast.com/ 환율 가져오기
 !@@||tradingview.com/socket.io/websocket
 !
-!
-!
-!
-!
 ! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
 ##.grecaptcha-badge
+!
+!
+! 카카오톡 (앱)
+! - 숏폼 안보이게
+!||kamp.kakao.com^$app=com.kakao.talk
+||shortformstats.kakao.com^$app=com.kakao.talk
+||thumb.kakaocdn.net^$app=com.kakao.talk
+!
 !
 !
 !
