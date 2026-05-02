@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 21:49:17 UTC
+# Generated: 2026-05-02 21:55:02 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
 # 1. Raw Domains Collected      : 73,212
-# 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,176
-# 4. Final Exception Rules (@@) : 452
+# 2. Removed by Whitelist       : 35
+# 3. Final Block Rules (||)     : 73,177
+# 4. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 = 3)
 #
 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -52412,6 +52412,7 @@ search.boffoads.com
 search.flairadscpc.com
 search.semp.net
 search4sports.com
+searchad-phinf.pstatic.net
 searchapp.space
 searchdatestoday.com
 searchmarquis.com
