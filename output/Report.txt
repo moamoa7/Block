@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-02 09:52:41 UTC
+  Generated: 2026-05-02 10:08:10 UTC
 ============================================================
 
 [ Whitelist Sources ]
@@ -16,22 +16,22 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 89,562 | Extracted: 56,834
+       Total Lines: 89,562 | Extracted: 56,922
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 157,847 | Extracted: 65,605
+       Total Lines: 157,847 | Extracted: 65,694
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,543 | Extracted: 908
   [OK] AdGuard Japanese
        URL: https://filters.adtidy.org/windows/filters/7.txt
-       Total Lines: 12,544 | Extracted: 156
+       Total Lines: 12,544 | Extracted: 169
   [OK] AdGuard Chinese
        URL: https://filters.adtidy.org/windows/filters/224.txt
        Total Lines: 23,113 | Extracted: 6,070
   [OK] List-KR
        URL: https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt
-       Total Lines: 4,569 | Extracted: 350
+       Total Lines: 4,569 | Extracted: 352
   [OK] uBlock Filters
        URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
        Total Lines: 11,087 | Extracted: 50
@@ -40,15 +40,15 @@
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
-  EasyList                      56,834     56,834         14
-  AdGuard Base                  65,605      8,785      8,757
+  EasyList                      56,922     56,922         14
+  AdGuard Base                  65,694      8,786      8,758
   AdGuard Mobile                   908        890        844
-  AdGuard Japanese                 156        143        143
+  AdGuard Japanese                 169        156        156
   AdGuard Chinese                6,070      6,055      6,055
-  List-KR                          350        263        263
+  List-KR                          352        265        265
   uBlock Filters                    50         33         33
   ───────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)          73,003
+  Total (deduplicated)          73,107
 
   * Extracted : 해당 필터에서 추출된 도메인 수
   * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
@@ -56,9 +56,9 @@
 
 [ Final Summary ]
 ------------------------------------------------------------
-  1. Raw Domains Collected      : 73,003
+  1. Raw Domains Collected      : 73,107
   2. Whitelist Domains Loaded    : 452
   3. Removed by Whitelist        : 36
-  4. Final Block Domains         : 72,967
+  4. Final Block Domains         : 73,071
   5. Final Exception Rules       : 452
 ============================================================
