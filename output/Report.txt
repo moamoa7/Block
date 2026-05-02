@@ -1,0 +1,60 @@
+============================================================
+  Filter Extraction Report
+  Generated: 2026-05-02 09:35:33 UTC
+============================================================
+
+[ Whitelist Sources ]
+------------------------------------------------------------
+  [OK] AdGuard DNS Exclusions
+       URL: https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt
+       Total Lines: 1,091 | Extracted: 451
+  [OK] Personal Whitelist
+       URL: https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt
+       Total Lines: 2 | Extracted: 2
+
+[ Block Filter Sources ]
+------------------------------------------------------------
+  [OK] EasyList
+       URL: https://easylist-downloads.adblockplus.org/easylist.txt
+       Total Lines: 89,560 | Extracted: 56,832
+  [OK] AdGuard Base
+       URL: https://filters.adtidy.org/windows/filters/2.txt
+       Total Lines: 157,838 | Extracted: 65,600
+  [OK] AdGuard Mobile
+       URL: https://filters.adtidy.org/windows/filters/11.txt
+       Total Lines: 9,543 | Extracted: 908
+  [OK] AdGuard German
+       URL: https://filters.adtidy.org/windows/filters/7.txt
+       Total Lines: 12,544 | Extracted: 156
+  [OK] AdGuard Chinese
+       URL: https://filters.adtidy.org/windows/filters/224.txt
+       Total Lines: 23,113 | Extracted: 6,070
+  [OK] List-KR
+       URL: https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt
+       Total Lines: 4,569 | Extracted: 350
+  [OK] uBlock Filters
+       URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
+       Total Lines: 11,087 | Extracted: 50
+  [OK] AdAvoid Ultimate
+       URL: https://filters.adavoid.org/ultimate-ad-filter.txt
+       Total Lines: 141,125 | Extracted: 65,600
+
+[ Overlap Analysis ]
+------------------------------------------------------------
+  EasyList: 17 unique domains (only in this filter)
+  AdGuard Base: 0 unique domains (only in this filter)
+  AdGuard Mobile: 844 unique domains (only in this filter)
+  AdGuard German: 143 unique domains (only in this filter)
+  AdGuard Chinese: 6,055 unique domains (only in this filter)
+  List-KR: 263 unique domains (only in this filter)
+  uBlock Filters: 33 unique domains (only in this filter)
+  AdAvoid Ultimate: 1 unique domains (only in this filter)
+
+[ Final Summary ]
+------------------------------------------------------------
+  1. Raw Domains Collected      : 73,002
+  2. Whitelist Domains Loaded    : 452
+  3. Removed by Whitelist        : 36
+  4. Final Block Domains         : 72,966
+  5. Final Exception Rules       : 452
+============================================================
