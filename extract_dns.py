@@ -78,8 +78,11 @@ def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     header = (
-        f"! Title: Combined DNS Filter\n"
+        f"! Title: Personal DNS Filter\n"
+        f"! Description: Extracted DNS-level blocking domains from multiple filter sources\n"
         f"! Generated: {ts}\n"
+        f"! Expires: 12 hours (update frequency)\n"
+        f"! Homepage: https://github.com/moamoa7/Block\n"
         f"!\n"
         f"! [Statistics]\n"
         f"! 1. Raw Domains Collected      : {total_raw:,}\n"
