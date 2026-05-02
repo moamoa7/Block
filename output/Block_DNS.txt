@@ -1,13 +1,13 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 11:26:49 UTC
+! Generated: 2026-05-02 12:03:34 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 73,123
+! 1. Raw Domains Collected      : 73,127
 ! 2. Removed by Whitelist       : 36
-! 3. Final Block Rules (||)     : 73,087
+! 3. Final Block Rules (||)     : 73,091
 ! 4. Final Exception Rules (@@) : 452
 ! (Calculation: 1 - 2 = 3)
 !
@@ -30370,6 +30370,7 @@
 ||izhukvhcxfcon.vip^
 ||izikthr.my^
 ||izimuves.com^
+||izirjftafazzm.website^
 ||izitrckr.com^
 ||izjvndjendqdv.website^
 ||izjzyykiyn.club^
@@ -30999,6 +31000,7 @@
 ||jlcdpxvbrjxgk.online^
 ||jlcfdpolegxlv.space^
 ||jldsfd.icu^
+||jlecgcsdbleti.online^
 ||jlfdfodxejpxt.space^
 ||jlhkumsptbwuz.site^
 ||jlhmxduyftkae.site^
@@ -31518,6 +31520,7 @@
 ||julyclassesstature.com^
 ||julyfellowslaxly.cyou^
 ||jumblenewsletterdebark.com^
+||jumblespekingdanae.qpon^
 ||jumbo-insurance.pro^
 ||jumbo-order.com^
 ||jumbo-quantity.pro^
@@ -71590,6 +71593,7 @@
 ||yycziidqmvwcxf.com^
 ||yydubzfndmkty.online^
 ||yyekuinpxka.com^
+||yyenb.cn^
 ||yyetuobreevii.space^
 ||yyfhbgupnibgo.space^
 ||yyghnnvhvvbaw.site^

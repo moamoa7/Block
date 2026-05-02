@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 11:26:49 UTC
+# Generated: 2026-05-02 12:03:34 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,123
+# 1. Raw Domains Collected      : 73,127
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,087
+# 3. Final Block Rules (||)     : 73,091
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -30369,6 +30369,7 @@
 0.0.0.0 izhukvhcxfcon.vip
 0.0.0.0 izikthr.my
 0.0.0.0 izimuves.com
+0.0.0.0 izirjftafazzm.website
 0.0.0.0 izitrckr.com
 0.0.0.0 izjvndjendqdv.website
 0.0.0.0 izjzyykiyn.club
@@ -30998,6 +30999,7 @@
 0.0.0.0 jlcdpxvbrjxgk.online
 0.0.0.0 jlcfdpolegxlv.space
 0.0.0.0 jldsfd.icu
+0.0.0.0 jlecgcsdbleti.online
 0.0.0.0 jlfdfodxejpxt.space
 0.0.0.0 jlhkumsptbwuz.site
 0.0.0.0 jlhmxduyftkae.site
@@ -31517,6 +31519,7 @@
 0.0.0.0 julyclassesstature.com
 0.0.0.0 julyfellowslaxly.cyou
 0.0.0.0 jumblenewsletterdebark.com
+0.0.0.0 jumblespekingdanae.qpon
 0.0.0.0 jumbo-insurance.pro
 0.0.0.0 jumbo-order.com
 0.0.0.0 jumbo-quantity.pro
@@ -71589,6 +71592,7 @@
 0.0.0.0 yycziidqmvwcxf.com
 0.0.0.0 yydubzfndmkty.online
 0.0.0.0 yyekuinpxka.com
+0.0.0.0 yyenb.cn
 0.0.0.0 yyetuobreevii.space
 0.0.0.0 yyfhbgupnibgo.space
 0.0.0.0 yyghnnvhvvbaw.site
