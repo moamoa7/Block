@@ -39,7 +39,6 @@ def is_valid_domain(d: str) -> bool:
     ))
 
 def short_name(url: str) -> str:
-    """URL에서 보기 좋은 짧은 이름 추출"""
     if "easylist.txt" in url:
         return "EasyList"
     if "filters/2.txt" in url:
@@ -47,7 +46,7 @@ def short_name(url: str) -> str:
     if "filters/11.txt" in url:
         return "AdGuard Mobile"
     if "filters/7.txt" in url:
-        return "AdGuard Japanese"
+        return "AdGuard German"
     if "filters/224.txt" in url:
         return "AdGuard Chinese"
     if "list-kr" in url:
@@ -55,7 +54,7 @@ def short_name(url: str) -> str:
     if "uAssets" in url:
         return "uBlock Filters"
     if "adavoid" in url:
-        return "AdBlocker Ultimate Ad Filter "
+        return "AdAvoid Ultimate"
     if "exclusions.txt" in url:
         return "AdGuard DNS Exclusions"
     if "white.txt" in url:
@@ -72,7 +71,6 @@ def main():
 
     # 1. 화이트리스트 로드
     white_set = set()
-    white_stats = []
     report_lines.append(f"\n[ Whitelist Sources ]")
     report_lines.append(f"{'-' * 60}")
     for url in EXCLUSION_URLS:
@@ -86,12 +84,10 @@ def main():
                 if m and is_valid_domain(m.group(1)):
                     white_set.add(m.group(1))
                     count += 1
-            white_stats.append((name, "OK", total_lines, count))
             report_lines.append(f"  [OK] {name}")
             report_lines.append(f"       URL: {url}")
             report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {count:,}")
         except Exception as e:
-            white_stats.append((name, "FAIL", 0, 0))
             report_lines.append(f"  [FAIL] {name}")
             report_lines.append(f"         URL: {url}")
             report_lines.append(f"         Error: {e}")
@@ -99,8 +95,8 @@ def main():
 
     # 2. 차단 대상 로드
     raw_block_set = set()
-    filter_domains = {}  # 각 필터별 도메인 저장
-    filter_stats = []
+    filter_domains = {}
+    names = []
     report_lines.append(f"\n[ Block Filter Sources ]")
     report_lines.append(f"{'-' * 60}")
     for url in FILTER_URLS:
@@ -118,12 +114,11 @@ def main():
                     domains_this.add(m.group(1))
             raw_block_set.update(domains_this)
             filter_domains[name] = domains_this
-            filter_stats.append((name, "OK", total_lines, len(domains_this)))
+            names.append(name)
             report_lines.append(f"  [OK] {name}")
             report_lines.append(f"       URL: {url}")
             report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {len(domains_this):,}")
         except Exception as e:
-            filter_stats.append((name, "FAIL", 0, 0))
             report_lines.append(f"  [FAIL] {name}")
             report_lines.append(f"         URL: {url}")
             report_lines.append(f"         Error: {e}")
