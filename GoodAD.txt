@@ -2956,7 +2956,7 @@ missav.ws,missav.live##.lg\:block
 !
 ! 야동코리아 (https://www.yako05.com/) - 주소 바뀜
 ! - 배너
-##a[target='_blank']:has([src*='/banner/'])
+[$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
 !##[class="banner_grid"]
 ##.banner_grid
 !
@@ -4213,16 +4213,6 @@ thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 ! - - - 출처 : Adblock-Rule-Collection-Lite
 semrush.com#$#body { overflow:visible!important; }
 semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
-
-
-
-!
-!
-!
-!
-!
-!
-!
 !
 !
 ! https://fc-info.com/
@@ -4230,11 +4220,6 @@ semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 !##.Venatus_videoContainer__eVrta
 ! - -- ##[class*="videoContainer"] 광역으로 사용하면 일부 사이트 작동 불가
 fc-info.com##[class*="videoContainer"]
-!
-!
-! https://www.cnine.kr/
-! - 차단 목록 (AdVoid.Full) 해제 - 엑셀 시그표 화면 안보임 해결
-/smartad.$script,from=~smartad.ai,badfilter
 !
 !
 ! 야동티비 (https://yadongtv86.com/)
