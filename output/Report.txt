@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-02 09:46:31 UTC
+  Generated: 2026-05-02 09:52:41 UTC
 ============================================================
 
 [ Whitelist Sources ]
@@ -16,14 +16,14 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 89,561 | Extracted: 56,833
+       Total Lines: 89,562 | Extracted: 56,834
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 157,838 | Extracted: 65,600
+       Total Lines: 157,847 | Extracted: 65,605
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,543 | Extracted: 908
-  [OK] AdGuard German
+  [OK] AdGuard Japanese
        URL: https://filters.adtidy.org/windows/filters/7.txt
        Total Lines: 12,544 | Extracted: 156
   [OK] AdGuard Chinese
@@ -35,22 +35,18 @@
   [OK] uBlock Filters
        URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
        Total Lines: 11,087 | Extracted: 50
-  [OK] AdAvoid Ultimate
-       URL: https://filters.adavoid.org/ultimate-ad-filter.txt
-       Total Lines: 141,125 | Extracted: 65,600
 
 [ Overlap Analysis ]
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
-  EasyList                      56,833     56,833         18
-  AdGuard Base                  65,600      8,785          0
+  EasyList                      56,834     56,834         14
+  AdGuard Base                  65,605      8,785      8,757
   AdGuard Mobile                   908        890        844
-  AdGuard German                   156        143        143
+  AdGuard Japanese                 156        143        143
   AdGuard Chinese                6,070      6,055      6,055
   List-KR                          350        263        263
   uBlock Filters                    50         33         33
-  AdAvoid Ultimate              65,600          1          1
   ───────────────────────── ────────── ────────── ──────────
   Total (deduplicated)          73,003
 

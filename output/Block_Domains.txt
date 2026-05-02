@@ -1,6 +1,6 @@
 # Title: Personal DNS Filter
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 09:46:31 UTC
+# Generated: 2026-05-02 09:52:41 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -17463,7 +17463,6 @@ delivery.gettopple.com
 delivery.momentummedia.com.au
 delivery.playallvideos.com
 delivery.porn.com
-delivery.senvangvn.com
 delivery.sexyxxx.biz
 delivery.wasu.cn
 delivery51.com
@@ -52544,6 +52543,7 @@ sepdwelling.cyou
 sephiraasperly.com
 sephiramaths.cfd
 sepiarypooris.com
+sepioidpuker.shop
 sepoystable.shop
 sepparesphaffat.qpon
 sepsidmanjack.com
