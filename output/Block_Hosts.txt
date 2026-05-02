@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 17:57:18 UTC
+# Generated: 2026-05-02 18:38:04 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,177
+# 1. Raw Domains Collected      : 73,183
 # 2. Removed by Whitelist       : 34
-# 3. Final Block Rules (||)     : 73,143
+# 3. Final Block Rules (||)     : 73,149
 # 4. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 = 3)
 #
@@ -13292,6 +13292,7 @@
 0.0.0.0 civilactually.com
 0.0.0.0 civilchop.com
 0.0.0.0 civilizationglimpsecontraction.com
+0.0.0.0 civitebacile.cfd
 0.0.0.0 civvyroxbury.cfd
 0.0.0.0 ciwcembcmcwin.website
 0.0.0.0 ciwswcooilzwj.space
@@ -17669,6 +17670,7 @@
 0.0.0.0 desminenabs.cfd
 0.0.0.0 despeedmatzas.cfd
 0.0.0.0 despoteavesdropblazing.com
+0.0.0.0 despumetangos.shop
 0.0.0.0 dessacheysa.com
 0.0.0.0 dessly.ru
 0.0.0.0 dessrite.qpon
@@ -19030,6 +19032,7 @@
 0.0.0.0 droversaberrecut.qpon
 0.0.0.0 droversfeering.cfd
 0.0.0.0 drownhewchevy.com
+0.0.0.0 drqkgbytuwdpi.site
 0.0.0.0 drsmediaexchange.com
 0.0.0.0 drsmexa.xyz
 0.0.0.0 drsnralrkqhjn.space
@@ -26086,6 +26089,7 @@
 0.0.0.0 grunziesialic.qpon
 0.0.0.0 grupif.com
 0.0.0.0 gruponn.com
+0.0.0.0 gruvfidud.in
 0.0.0.0 grvayuaccatti.space
 0.0.0.0 grvxmel3c7g61l.rest
 0.0.0.0 grwdrkaqpxcna.website
@@ -40681,6 +40685,7 @@
 0.0.0.0 orepassport.com
 0.0.0.0 orest-vlv.com
 0.0.0.0 orfa1st5.de
+0.0.0.0 orfdiuyukgbsfqc.com
 0.0.0.0 orfgpyjret.in
 0.0.0.0 orgamyimogen.cyou
 0.0.0.0 organic-ground.pro
@@ -58761,6 +58766,7 @@
 0.0.0.0 tiypa.com
 0.0.0.0 tiz-cc95ue-309.com
 0.0.0.0 tizabfax.com
+0.0.0.0 tizadgwa.in
 0.0.0.0 tizdfz.icu
 0.0.0.0 tizerclik.com
 0.0.0.0 tizmanon.com

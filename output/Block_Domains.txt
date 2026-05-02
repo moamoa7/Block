@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 17:57:18 UTC
+# Generated: 2026-05-02 18:38:04 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,177
+# 1. Raw Domains Collected      : 73,183
 # 2. Removed by Whitelist       : 34
-# 3. Final Block Rules (||)     : 73,143
+# 3. Final Block Rules (||)     : 73,149
 # 4. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 = 3)
 #
@@ -13292,6 +13292,7 @@ civiitbbaeuvi.online
 civilactually.com
 civilchop.com
 civilizationglimpsecontraction.com
+civitebacile.cfd
 civvyroxbury.cfd
 ciwcembcmcwin.website
 ciwswcooilzwj.space
@@ -17669,6 +17670,7 @@ desmicmogging.cyou
 desminenabs.cfd
 despeedmatzas.cfd
 despoteavesdropblazing.com
+despumetangos.shop
 dessacheysa.com
 dessly.ru
 dessrite.qpon
@@ -19030,6 +19032,7 @@ drossesgonidbenches.cfd
 droversaberrecut.qpon
 droversfeering.cfd
 drownhewchevy.com
+drqkgbytuwdpi.site
 drsmediaexchange.com
 drsmexa.xyz
 drsnralrkqhjn.space
@@ -26086,6 +26089,7 @@ gruntremoved.com
 grunziesialic.qpon
 grupif.com
 gruponn.com
+gruvfidud.in
 grvayuaccatti.space
 grvxmel3c7g61l.rest
 grwdrkaqpxcna.website
@@ -40681,6 +40685,7 @@ oreideshexeris.qpon
 orepassport.com
 orest-vlv.com
 orfa1st5.de
+orfdiuyukgbsfqc.com
 orfgpyjret.in
 orgamyimogen.cyou
 organic-ground.pro
@@ -58761,6 +58766,7 @@ tiymvltgbllto.site
 tiypa.com
 tiz-cc95ue-309.com
 tizabfax.com
+tizadgwa.in
 tizdfz.icu
 tizerclik.com
 tizmanon.com
