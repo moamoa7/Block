@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 13:52:03 UTC
+# Generated: 2026-05-02 14:39:28 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,145
+# 1. Raw Domains Collected      : 73,151
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,109
+# 3. Final Block Rules (||)     : 73,115
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -16944,6 +16944,7 @@
 0.0.0.0 daring-street.pro
 0.0.0.0 daringdemand.com
 0.0.0.0 daringeconomics.pro
+0.0.0.0 daringepicism.cyou
 0.0.0.0 daringmillennium.com
 0.0.0.0 daringsubstance.com
 0.0.0.0 daringsupport.com
@@ -33169,6 +33170,7 @@
 0.0.0.0 lanentablelanentablejessamyhenrietta.com
 0.0.0.0 lanepartridge.com
 0.0.0.0 lanesusanne.com
+0.0.0.0 langielbeicecresc.cfd
 0.0.0.0 langrauoz.xyz
 0.0.0.0 langueddubiosimagre.cfd
 0.0.0.0 languesninosbruises.qpon
@@ -39245,6 +39247,7 @@
 0.0.0.0 null-point.com
 0.0.0.0 nullarypanamicdarter.qpon
 0.0.0.0 nullevaporate.com
+0.0.0.0 nullingunsung.cyou
 0.0.0.0 nullsframe.com
 0.0.0.0 nullusplayletsassak.qpon
 0.0.0.0 numberium.com
@@ -49016,6 +49019,7 @@
 0.0.0.0 rgvjwqxmpalb.com
 0.0.0.0 rgvptabzpwsou.website
 0.0.0.0 rgvxfkrhnovqp.store
+0.0.0.0 rgwhbjbbfwitt.site
 0.0.0.0 rgwhyycjfgmob.website
 0.0.0.0 rgxqdzkajysfj.website
 0.0.0.0 rgyxmrzvokkpp.website
@@ -49395,6 +49399,7 @@
 0.0.0.0 rkomf.com
 0.0.0.0 rkozoima.com
 0.0.0.0 rkp8kjfcw5vxlm8h7.cfd
+0.0.0.0 rkpysrmmnhhwi.online
 0.0.0.0 rkqchthxxocsk.online
 0.0.0.0 rkqfgycnzlatb.online
 0.0.0.0 rkqukvcjklmns.site
@@ -63391,6 +63396,7 @@
 0.0.0.0 vcnulcbadmyobhe.com
 0.0.0.0 vcoaksvkhngfo.website
 0.0.0.0 vcommission.com
+0.0.0.0 vcowoybooahvm.com
 0.0.0.0 vcpawsbq.net
 0.0.0.0 vcpxqngfyulqg.website
 0.0.0.0 vcqafvnkpjixq.website

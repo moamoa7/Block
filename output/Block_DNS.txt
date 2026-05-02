@@ -1,13 +1,13 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 13:52:03 UTC
+! Generated: 2026-05-02 14:39:28 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 73,145
+! 1. Raw Domains Collected      : 73,151
 ! 2. Removed by Whitelist       : 36
-! 3. Final Block Rules (||)     : 73,109
+! 3. Final Block Rules (||)     : 73,115
 ! 4. Final Exception Rules (@@) : 452
 ! (Calculation: 1 - 2 = 3)
 !
@@ -16945,6 +16945,7 @@
 ||daring-street.pro^
 ||daringdemand.com^
 ||daringeconomics.pro^
+||daringepicism.cyou^
 ||daringmillennium.com^
 ||daringsubstance.com^
 ||daringsupport.com^
@@ -33170,6 +33171,7 @@
 ||lanentablelanentablejessamyhenrietta.com^
 ||lanepartridge.com^
 ||lanesusanne.com^
+||langielbeicecresc.cfd^
 ||langrauoz.xyz^
 ||langueddubiosimagre.cfd^
 ||languesninosbruises.qpon^
@@ -39246,6 +39248,7 @@
 ||null-point.com^
 ||nullarypanamicdarter.qpon^
 ||nullevaporate.com^
+||nullingunsung.cyou^
 ||nullsframe.com^
 ||nullusplayletsassak.qpon^
 ||numberium.com^
@@ -49017,6 +49020,7 @@
 ||rgvjwqxmpalb.com^
 ||rgvptabzpwsou.website^
 ||rgvxfkrhnovqp.store^
+||rgwhbjbbfwitt.site^
 ||rgwhyycjfgmob.website^
 ||rgxqdzkajysfj.website^
 ||rgyxmrzvokkpp.website^
@@ -49396,6 +49400,7 @@
 ||rkomf.com^
 ||rkozoima.com^
 ||rkp8kjfcw5vxlm8h7.cfd^
+||rkpysrmmnhhwi.online^
 ||rkqchthxxocsk.online^
 ||rkqfgycnzlatb.online^
 ||rkqukvcjklmns.site^
@@ -63392,6 +63397,7 @@
 ||vcnulcbadmyobhe.com^
 ||vcoaksvkhngfo.website^
 ||vcommission.com^
+||vcowoybooahvm.com^
 ||vcpawsbq.net^
 ||vcpxqngfyulqg.website^
 ||vcqafvnkpjixq.website^
