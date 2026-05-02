@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 # ─── 설정 ────────────────────────────────────────────────────────
 FILTER_URLS = [
     "https://easylist-downloads.adblockplus.org/easylist.txt",
+    "https://filters.adtidy.org/windows/filters/2.txt",
+    "https://filters.adtidy.org/windows/filters/11.txt",
     "https://filters.adtidy.org/windows/filters/7.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
