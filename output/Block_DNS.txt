@@ -1,6 +1,6 @@
 ! Title: Personal DNS Filter
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 07:22:01 UTC
+! Generated: 2026-05-02 07:23:18 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
