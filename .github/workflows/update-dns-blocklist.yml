@@ -1,0 +1,56 @@
+name: Update DNS Blocklist
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+    - cron: "0 18 * * *"   # 하루 2번 (필터 업데이트 주기 대응)
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run DNS extraction script
+        run: python extract_dns.py
+
+      - name: Check output exists
+        run: |
+          if [ ! -f output/dns_blocklist_domains.txt ]; then
+            echo "::error::Output file not generated!"
+            exit 1
+          fi
+          DOMAIN_COUNT=$(grep -c -v '^#' output/dns_blocklist_domains.txt || true)
+          echo "Extracted ${DOMAIN_COUNT} domains"
+          if [ "$DOMAIN_COUNT" -lt 100 ]; then
+            echo "::error::Too few domains (${DOMAIN_COUNT}), something may be wrong"
+            exit 1
+          fi
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            DOMAIN_COUNT=$(grep -c -v '^#' output/dns_blocklist_domains.txt || true)
+            git commit -m "chore: update DNS blocklist $(date -u +%Y-%m-%d) [${DOMAIN_COUNT} domains]"
+            git push
+          fi
