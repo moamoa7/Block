@@ -1,12 +1,10 @@
-! Title: Combined DNS Filter
-! Generated: 2026-05-02 06:30:29 UTC
-! [Detailed Statistics]
-! 1. Raw Domains Collected      : 76,590
-! 2. Removed by Whitelist       : 112
-! 3. Final Block Rules (||)     : 76,478
-! 4. Final Exception Rules (@@) : 543
-!
-! (Calculation: 1 - 2 = 3)
+! Title: Advanced DNS Filter
+! Generated: 2026-05-02 06:34:59 UTC
+! [Statistics]
+! - Raw Collected   : 76,590
+! - Removed (Match) : 112
+! - Final Block     : 76,478
+! - Total Exception : 545
 !
 ! === BLOCK RULES ===
 ||0.www.0ul1wlo58s-vu69us-r1u.xyz^
@@ -76996,6 +76994,7 @@
 @@||ups.ksmobile.net^
 @@||uralweb.ru^
 @@||urbanairship.com^
+@@||usa.experian.com^
 @@||usefathom.com^
 @@||userreport.com^
 @@||v3cdn.net^
@@ -77014,6 +77013,7 @@
 @@||webengage.com^
 @@||webpower.eu^
 @@||webtrends.com^
+@@||westernunion.com^
 @@||whatfinger.com^
 @@||wipe.de^
 @@||wishabi.net^
