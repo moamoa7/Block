@@ -1,14 +1,14 @@
 # Title: Personal DNS Filter
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 08:59:31 UTC
+# Generated: 2026-05-02 09:06:00 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
 # 1. Raw Domains Collected      : 75,271
-# 2. Removed by Whitelist       : 119
-# 3. Final Block Rules (||)     : 75,152
-# 4. Final Exception Rules (@@) : 10,431
+# 2. Removed by Whitelist       : 95
+# 3. Final Block Rules (||)     : 75,176
+# 4. Final Exception Rules (@@) : 543
 # (Calculation: 1 - 2 = 3)
 #
 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -9288,6 +9288,7 @@ baggy-water.com
 baggycrack.pro
 baggydepreciate.com
 baggymaintenance.com
+baggyrepackingrocky.com
 bagnfqmhhbkdt.online
 bagobokvarneraint.cyou
 bagpipemonogamypercent.com
@@ -11795,6 +11796,7 @@ budhoes.cfd
 budl.cn
 budlite.hubhubhub.name
 budsminepatent.com
+budurl.com
 buenosjuegosgratis.foolhardywear.pro
 buevafbtqeaaz.website
 buffersruffing.cyou
@@ -14421,6 +14423,7 @@ clixco.in
 clixcrafts.com
 clixforads.com
 clixsense.com
+clixtrac.com
 clixvista.com
 clixwells.com
 cljfpthmkqkby.online
@@ -16199,6 +16202,7 @@ currentreared.com
 curriculture.com
 curriculumastronautpreview.com
 curriculumoutcry.com
+curryfielddistribution.com
 cursamakoua.shop
 cursednomad.com
 cursorpreach.com
@@ -21572,6 +21576,7 @@ enragedeng.cfd
 enrageobesejan.com
 enrageperplexparable.com
 enraptureforemostearly.com
+enraptureminims.com
 enrgy.fwtrck.com
 enringphage.cfd
 enroberbobscudwort.qpon
@@ -26557,6 +26562,7 @@ goleeoronokokedging.cfd
 golejddnzqnxb.website
 golfdomscots.cfd
 goljqyqfi.com
+golnkz.com
 goluckytiming.com
 gomain.pro
 gomain2.pro
@@ -30884,6 +30890,7 @@ intravert.co
 intrepidisland.pro
 intricatewhilevertically.com
 introductionnorthern.com
+intrudeimpolitetortoise.com
 intrustedzone.site
 intuitionlastly.com
 intunepyrryl.qpon
@@ -35837,6 +35844,7 @@ lowmostuttered.cfd
 lowmothandhadb.org
 lownoc.org
 loworiginatepalette.com
+lowrihouston.pro
 lowseedotr.com
 lowseelor.com
 lowtrainer.com
@@ -36589,6 +36597,7 @@ makethebusiness.com
 makeup89.com
 makeuppillow.com
 makeupslulls.cfd
+making.party
 makingnude.com
 makumva.all-usanomination.com
 makutastengere.cfd
@@ -36717,6 +36726,7 @@ mapamnni.com
 mapbbqy.com
 mapcawing.com
 mapdevelopcleverness.com
+maper.info
 maphuahin.com
 maqtaerditpoz.site
 maquiags.com
@@ -36818,6 +36828,7 @@ masdwrbzvpevo.site
 masharapova.leftmany.pro
 mashmanlyceums.cfd
 maskinsazulejorouleau.cfd
+masklink.org
 masockq.com
 masogjmltljhl.one
 masonplantsirresponsibility.com
@@ -38155,6 +38166,7 @@ monestbrazesbottler.cyou
 monetano.com
 monetarysportystamp.com
 monetixads.com
+monetiza.co
 monetize-ssp.com
 monetizer101.com
 moneyandfartoo.com
@@ -39194,6 +39206,7 @@ naszig.cn
 natalouktabout.org
 natalschagoma.qpon
 natdisplacehereafter.com
+nathanaeldan.pro
 nathnhfjtdlum.space
 nationalitypovertyconverted.com
 nationsboxoffice.com
@@ -42325,6 +42338,7 @@ oulsools.com
 oumvtxcrf5yrgl17p.p182qlx5wmkp5k3x1cb8.cfd
 ounbiwssqohds.online
 oundandround.com
+oundhertobeconsist.org
 oungimuk.net
 ouowhjhuekcnar.com
 oupgcgnevtqjm.site
@@ -43089,6 +43103,7 @@ palmitekrubut.cyou
 palmmalice.com
 palmusidalian.qpon
 palpartiallybricks.com
+palpatecricketmajesty.com
 palpategyppedfirers.cyou
 palpateshakedecoy.com
 palsybecamedislike.com
@@ -45671,6 +45686,7 @@ ppbqkiborhoje.online
 ppbstruvpegasus.qpon
 ppbtdj.icu
 ppc-direct.com
+ppcent.org
 ppcmate.com
 ppcnqhffjxh.com
 ppcnt.co
@@ -50428,6 +50444,7 @@ rev-stripe.com
 rev.frankspeech.com
 revampcdn.com
 revarymutely.cfd
+revbid.net
 revcontent.com
 revealedcarry.com
 revealingplacingpopped.com
@@ -51469,6 +51486,7 @@ rotatesfoozlerbarhal.qpon
 rotatingadult.com
 rotator.tradetracker.net
 rotbnllkqenrw.store
+rotf.lol
 rothermophony.com
 rotiawm.shop
 rotsurroundings.com
@@ -55061,6 +55079,7 @@ shrillbighearted.com
 shrimpinvestigation.com
 shrineresorthighjack.com
 shrivenspyboat.qpon
+shrtfly.com
 shrubburlyjaunty.com
 shrubbysecantsfulsome.cfd
 shrubsconfused.com
@@ -56017,6 +56036,7 @@ snellgarsil.cfd
 snellswrible.cyou
 snfzchkdslxfi.online
 snhhgpcocqkwnb.com
+sni.ps
 snickdoormatabime.cyou
 snickers44.com
 snickeyfatales.qpon
@@ -61303,6 +61323,7 @@ tpjdyikngh.com
 tpkajsacjypjt.space
 tplmfqnrssmmw.online
 tpmedia-reactads.com
+tpmr.com
 tpn134.com
 tpnmhqylskzlg.online
 tpntjandqmyuf.site
@@ -61560,6 +61581,7 @@ traffmovie.com
 trafforsrv.com
 traffprogo20.com
 traffrout.com
+trafget.com
 trafmag.com
 trafogon.com
 trafsupr.com
@@ -65109,6 +65131,7 @@ vampirebat.git-tower.com
 vampirebat.tinamrak.com
 vampiresubscription.com
 vampishoedemas.qpon
+vampyrejibmen.com
 vandalismloungenylon.com
 vandalismundermineshock.com
 vanderlisten.pro
@@ -73829,6 +73852,7 @@ zanyestablishment.pro
 zanyismredskin.cfd
 zanypotential.com
 zaocjeefw.com
+zap.buzz
 zap.cdn.zynga.com
 zapateoversts.shop
 zapdarzmi.in
