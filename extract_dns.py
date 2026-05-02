@@ -73,7 +73,10 @@ def main():
     # 헤더 정보
     stats_header = (
         f"! Title: Advanced DNS Filter\n"
-        f"! Generated: {ts}\n"
+        f"! Description: Extracted DNS-level blocking domains from multiple filter sources",
+        f"! Generated: {ts}",
+        f"! Expires: 12 hours (update frequency)",
+        f"! Homepage: https://github.com/moamoa7/Block",
         f"! [Statistics]\n"
         f"! - Raw Collected   : {len(raw_block_set):,}\n"
         f"! - Removed (Match) : {len(actually_removed):,}\n"
