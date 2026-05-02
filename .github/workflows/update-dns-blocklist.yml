@@ -1,319 +1,58 @@
-#!/usr/bin/env python3
-"""
-AdGuard/uBlock 필터 리스트에서 DNS 차단용 도메인만 추출하는 스크립트.
-GitHub Actions 등으로 자동화 가능.
-"""
+name: Update DNS Blocklist
 
-import re
-import requests
-from pathlib import Path
-from datetime import datetime, timezone
+on:
+  schedule:
+    - cron: "0 6 * * *"
+    - cron: "0 18 * * *"   # 하루 2번 (필터 업데이트 주기 대응)
+  workflow_dispatch:
 
-# ─── 설정 ────────────────────────────────────────────────────────
-FILTER_URLS = [
-    "https://easylist-downloads.adblockplus.org/easylist.txt",
-    "https://filters.adtidy.org/windows/filters/7.txt",
-    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
-    "https://ublockorigin.github.io/uAssets/filters/filters.txt",
-]
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true    # ← 이 줄 추가
+    permissions:
+      contents: write
 
-OUTPUT_DIR = Path("output")
-OUTPUT_HOSTS = OUTPUT_DIR / "dns_blocklist_hosts.txt"
-OUTPUT_ADGUARD_DNS = OUTPUT_DIR / "dns_blocklist_adguard.txt"
-OUTPUT_DOMAINS = OUTPUT_DIR / "dns_blocklist_domains.txt"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-WHITELIST = {
-    "localhost",
-    "localhost.localdomain",
-    "broadcasthost",
-    "local",
-}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-META_FIELDS = [
-    "Title",
-    "Description",
-    "Version",
-    "Last modified",
-    "TimeUpdated",
-    "Expires",
-    "Homepage",
-    "License",
-    "Licence",
-]
+      - name: Install dependencies
+        run: pip install requests
 
+      - name: Run DNS extraction script
+        run: python extract_dns.py
 
-def fetch_filter(url: str) -> str:
-    print(f"[*] Fetching: {url}")
-    resp = requests.get(url, timeout=30)
-    resp.raise_for_status()
-    return resp.text
+      - name: Check output exists
+        run: |
+          if [ ! -f output/dns_blocklist_domains.txt ]; then
+            echo "::error::Output file not generated!"
+            exit 1
+          fi
+          DOMAIN_COUNT=$(grep -c -v '^#' output/dns_blocklist_domains.txt || true)
+          echo "Extracted ${DOMAIN_COUNT} domains"
+          if [ "$DOMAIN_COUNT" -lt 100 ]; then
+            echo "::error::Too few domains (${DOMAIN_COUNT}), something may be wrong"
+            exit 1
+          fi
 
-
-def parse_metadata(text: str) -> dict[str, str]:
-    """필터 텍스트 상단에서 메타데이터를 파싱합니다."""
-    metadata = {}
-    for line in text.splitlines()[:30]:
-        line = line.strip()
-        if not line.startswith("!"):
-            continue
-        content = line[1:].strip()
-        for field in META_FIELDS:
-            if content.lower().startswith(field.lower() + ":"):
-                value = content[len(field) + 1:].strip()
-                metadata[field] = value
-                break
-    return metadata
-
-
-def is_valid_domain(domain: str) -> bool:
-    if not domain or len(domain) < 3:
-        return False
-    if domain in WHITELIST:
-        return False
-    if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", domain):
-        return False
-    if "*" in domain:
-        return False
-    if not re.match(
-        r"^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?"
-        r"(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$",
-        domain,
-    ):
-        return False
-    return True
-
-
-def extract_dns_domains(text: str) -> set[str]:
-    domains = set()
-
-    DNS_SAFE_OPTIONS = {
-        "third-party", "3p",
-        "all",
-        "document", "doc",
-        "popup",
-        "important",
-    }
-
-    DNS_UNSAFE_OPTIONS = {
-        "script", "stylesheet", "css", "image", "media",
-        "xmlhttprequest", "xhr", "websocket",
-        "font", "object", "subdocument", "frame",
-        "ping", "other",
-        "replace",
-    }
-
-    for line in text.splitlines():
-        line = line.strip()
-
-        if not line or line.startswith("!") or line.startswith("[") or line.startswith("#"):
-            continue
-        if line.startswith("@@"):
-            continue
-        if "##" in line or "#@#" in line or "#?#" in line:
-            if not line.startswith("||"):
-                continue
-
-        match = re.match(r"^\|\|([a-zA-Z0-9\-\.\*]+)\^(\$(.+))?$", line)
-        if not match:
-            continue
-
-        domain = match.group(1).lower()
-        options_str = match.group(3)
-
-        if domain.startswith("*."):
-            domain = domain[2:]
-
-        if not is_valid_domain(domain):
-            continue
-
-        if options_str:
-            options = [o.strip().lower() for o in options_str.split(",")]
-
-            skip = False
-            has_domain_restriction = False
-            has_unsafe_only = False
-
-            for opt in options:
-                if opt.startswith("~"):
-                    continue
-                if opt.startswith("domain="):
-                    has_domain_restriction = True
-                    continue
-                if opt.startswith("redirect") or opt.startswith("rewrite"):
-                    skip = True
-                    break
-                if opt.startswith("replace="):
-                    skip = True
-                    break
-                if opt in DNS_UNSAFE_OPTIONS:
-                    has_unsafe_only = True
-
-            if skip:
-                continue
-            if has_domain_restriction:
-                continue
-
-            safe_found = any(
-                opt in DNS_SAFE_OPTIONS
-                for opt in options
-                if not opt.startswith("~") and not opt.startswith("domain=")
-            )
-
-            if has_unsafe_only and not safe_found:
-                continue
-
-        domains.add(domain)
-
-    return domains
-
-
-def count_total_lines(text: str) -> int:
-    """필터의 전체 유효 규칙 수를 카운트합니다 (주석/빈줄 제외)."""
-    count = 0
-    for line in text.splitlines():
-        line = line.strip()
-        if line and not line.startswith("!") and not line.startswith("["):
-            count += 1
-    return count
-
-
-def generate_output(
-    domains: set[str],
-    source_results: list[dict],
-) -> None:
-    """다양한 형식으로 출력 파일을 생성합니다."""
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    sorted_domains = sorted(domains)
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-    # ─── 헤더 생성 ────────────────────────────────────────────────
-    header_lines = [
-        f"! Title: DNS Blocklist - Auto-generated",
-        f"! Description: Extracted DNS-level blocking domains from multiple filter sources",
-        f"! Generated: {timestamp}",
-        f"! Total domains: {len(sorted_domains)}",
-        f"! Expires: 12 hours (update frequency)",
-        f"! Homepage: https://github.com/moamoa7/Block",
-        f"!",
-        f"! ═══════════════════════════════════════════════════════",
-        f"!  Source Details",
-        f"! ═══════════════════════════════════════════════════════",
-    ]
-
-    for i, src in enumerate(source_results, 1):
-        meta = src["metadata"]
-        title = meta.get("Title", "Unknown")
-        status = src["status"]           # OK / FAILED
-        dns_count = src["dns_count"]      # DNS 추출 수
-        total_rules = src["total_rules"]  # 전체 규칙 수
-        url = src["url"]
-
-        header_lines.append(f"!")
-        header_lines.append(f"! ── Source {i}: {title} ──")
-        header_lines.append(f"!   URL: {url}")
-        header_lines.append(f"!   Status: {status}")
-
-        if status == "OK":
-            if "Description" in meta:
-                header_lines.append(f"!   Description: {meta['Description']}")
-            if "Version" in meta:
-                header_lines.append(f"!   Version: {meta['Version']}")
-
-            last_mod = meta.get("Last modified") or meta.get("TimeUpdated")
-            if last_mod:
-                header_lines.append(f"!   Last modified: {last_mod}")
-
-            if "Expires" in meta:
-                header_lines.append(f"!   Expires: {meta['Expires']}")
-            if "Homepage" in meta:
-                header_lines.append(f"!   Homepage: {meta['Homepage']}")
-
-            license_val = meta.get("License") or meta.get("Licence")
-            if license_val:
-                header_lines.append(f"!   License: {license_val}")
-
-            ratio = (dns_count / total_rules * 100) if total_rules > 0 else 0
-            header_lines.append(f"!   Total rules: {total_rules:,}")
-            header_lines.append(f"!   DNS extracted: {dns_count:,} ({ratio:.1f}%)")
-        else:
-            header_lines.append(f"!   Error: {src['error']}")
-
-    header_lines.append(f"!")
-    header_lines.append(f"! ═══════════════════════════════════════════════════════")
-    header_lines.append(f"!")
-
-    header = "\n".join(header_lines) + "\n"
-    header_hosts = header.replace("! ", "# ").replace("!\n", "#\n")
-
-    # 1. 순수 도메인 리스트
-    with open(OUTPUT_DOMAINS, "w") as f:
-        f.write(header_hosts)
-        for domain in sorted_domains:
-            f.write(f"{domain}\n")
-
-    # 2. hosts 파일 형식
-    with open(OUTPUT_HOSTS, "w") as f:
-        f.write(header_hosts)
-        for domain in sorted_domains:
-            f.write(f"0.0.0.0 {domain}\n")
-
-    # 3. AdGuard Home DNS 필터 형식
-    with open(OUTPUT_ADGUARD_DNS, "w") as f:
-        f.write(header)
-        for domain in sorted_domains:
-            f.write(f"||{domain}^\n")
-
-    print(f"\n[✓] 총 {len(sorted_domains)}개 도메인 추출 완료")
-    print(f"    → {OUTPUT_DOMAINS}")
-    print(f"    → {OUTPUT_HOSTS}")
-    print(f"    → {OUTPUT_ADGUARD_DNS}")
-
-
-def main():
-    all_domains: set[str] = set()
-    source_results: list[dict] = []
-
-    for url in FILTER_URLS:
-        try:
-            text = fetch_filter(url)
-            metadata = parse_metadata(text)
-            total_rules = count_total_lines(text)
-            domains = extract_dns_domains(text)
-            dns_count = len(domains)
-
-            title = metadata.get("Title", "Unknown")
-            version = metadata.get("Version", "-")
-            last_mod = metadata.get("Last modified") or metadata.get("TimeUpdated", "-")
-            ratio = (dns_count / total_rules * 100) if total_rules > 0 else 0
-
-            print(f"    📋 {title}")
-            print(f"       Version: {version} | Last modified: {last_mod}")
-            print(f"       Total rules: {total_rules:,} → DNS extracted: {dns_count:,} ({ratio:.1f}%)")
-
-            all_domains.update(domains)
-            source_results.append({
-                "url": url,
-                "metadata": metadata,
-                "status": "OK",
-                "total_rules": total_rules,
-                "dns_count": dns_count,
-                "error": None,
-            })
-
-        except Exception as e:
-            print(f"    [!] FAILED: {e}")
-            source_results.append({
-                "url": url,
-                "metadata": {"Title": "Unknown"},
-                "status": "FAILED",
-                "total_rules": 0,
-                "dns_count": 0,
-                "error": str(e),
-            })
-
-    print(f"\n[*] 중복 제거 후 총 도메인 수: {len(all_domains)}")
-    generate_output(all_domains, source_results)
-
-
-if __name__ == "__main__":
-    main()
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            DOMAIN_COUNT=$(grep -c -v '^#' output/dns_blocklist_domains.txt || true)
+            git commit -m "chore: update DNS blocklist $(date -u +%Y-%m-%d) [${DOMAIN_COUNT} domains]"
+            git push
+          fi
