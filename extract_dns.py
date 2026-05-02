@@ -17,7 +17,7 @@ FILTER_URLS = [
 ]
 
 EXCLUSION_URLS = [
-    "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt"
+    "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
 
