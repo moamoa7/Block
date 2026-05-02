@@ -18,6 +18,7 @@ EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
+REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
 
 OUTPUT_DIR = Path("output")
 OUT_COMBINED = OUTPUT_DIR / "Block_DNS.txt"
@@ -56,6 +57,8 @@ def short_name(url: str) -> str:
         return "AdGuard DNS Exclusions"
     if "white.txt" in url:
         return "Personal Whitelist"
+    if "filters/15.txt" in url:
+        return "AdGuard DNS Filter"
     return url.split("/")[-1]
 
 def main():
@@ -65,6 +68,28 @@ def main():
     report_lines.append(f"  Filter Extraction Report")
     report_lines.append(f"  Generated: {ts}")
     report_lines.append(f"{'=' * 60}")
+
+    # 0. 기준 필터 (AdGuard DNS Filter) 로드
+    reference_set = set()
+    report_lines.append(f"\n[ Reference Filter ]")
+    report_lines.append(f"{'-' * 60}")
+    try:
+        text = fetch(REFERENCE_URL)
+        total_lines = len(text.splitlines())
+        for line in text.splitlines():
+            stripped = line.strip().lower()
+            # "!+ NOT_OPTIMIZED" 등 주석 제거, ||domain^ 형태 추출
+            m = re.match(r"^\|\|([a-z0-9\-\.]+)\^", stripped)
+            if m and is_valid_domain(m.group(1)):
+                reference_set.add(m.group(1))
+        report_lines.append(f"  [OK] AdGuard DNS Filter")
+        report_lines.append(f"       URL: {REFERENCE_URL}")
+        report_lines.append(f"       Total Lines: {total_lines:,} | Domains: {len(reference_set):,}")
+    except Exception as e:
+        report_lines.append(f"  [FAIL] AdGuard DNS Filter")
+        report_lines.append(f"         URL: {REFERENCE_URL}")
+        report_lines.append(f"         Error: {e}")
+        print(f"[WARN] 기준 필터 실패: {REFERENCE_URL} ({e})")
 
     # 1. 화이트리스트 로드
     white_set = set()
@@ -151,7 +176,22 @@ def main():
     report_lines.append(f"  * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)")
     report_lines.append(f"  * Unique    : 오직 이 필터에만 존재하는 도메인 수")
 
-    # 4. 통계 계산
+    # 4. 기준 필터 검증 (AdGuard DNS Filter에 없는 도메인 제거)
+    before_ref = len(raw_block_set)
+    not_in_ref = raw_block_set - reference_set
+    raw_block_set = raw_block_set & reference_set
+    after_ref = len(raw_block_set)
+    ref_removed = before_ref - after_ref
+
+    report_lines.append(f"\n[ Reference Filter Validation ]")
+    report_lines.append(f"{'-' * 60}")
+    report_lines.append(f"  Reference: AdGuard DNS Filter (filters/15.txt)")
+    report_lines.append(f"  Reference Domains             : {len(reference_set):,}")
+    report_lines.append(f"  Before Validation             : {before_ref:,}")
+    report_lines.append(f"  Removed (not in reference)    : {ref_removed:,}")
+    report_lines.append(f"  After Validation              : {after_ref:,}")
+
+    # 5. 통계 계산
     removed_list = raw_block_set & white_set
     removed_count = len(removed_list)
     total_raw = len(raw_block_set)
@@ -162,14 +202,15 @@ def main():
 
     report_lines.append(f"\n[ Final Summary ]")
     report_lines.append(f"{'-' * 60}")
-    report_lines.append(f"  1. Raw Domains Collected      : {total_raw:,}")
-    report_lines.append(f"  2. Whitelist Domains Loaded    : {final_white_count:,}")
-    report_lines.append(f"  3. Removed by Whitelist        : {removed_count:,}")
+    report_lines.append(f"  1. Raw Domains Collected      : {before_ref:,}")
+    report_lines.append(f"  2. Removed by Reference       : {ref_removed:,}")
+    report_lines.append(f"  3. Removed by Whitelist       : {removed_count:,}")
     report_lines.append(f"  4. Final Block Domains         : {final_block_count:,}")
     report_lines.append(f"  5. Final Exception Rules       : {final_white_count:,}")
+    report_lines.append(f"  (Calculation: 1 - 2 - 3 = 4)")
     report_lines.append(f"{'=' * 60}")
 
-    # 5. 출력
+    # 6. 출력
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     header = (
@@ -180,11 +221,12 @@ def main():
         f"! Homepage: https://github.com/moamoa7/Block\n"
         f"!\n"
         f"! [Statistics]\n"
-        f"! 1. Raw Domains Collected      : {total_raw:,}\n"
-        f"! 2. Removed by Whitelist       : {removed_count:,}\n"
-        f"! 3. Final Block Rules (||)     : {final_block_count:,}\n"
-        f"! 4. Final Exception Rules (@@) : {final_white_count:,}\n"
-        f"! (Calculation: 1 - 2 = 3)\n"
+        f"! 1. Raw Domains Collected      : {before_ref:,}\n"
+        f"! 2. Removed by Reference       : {ref_removed:,}\n"
+        f"! 3. Removed by Whitelist       : {removed_count:,}\n"
+        f"! 4. Final Block Rules (||)     : {final_block_count:,}\n"
+        f"! 5. Final Exception Rules (@@) : {final_white_count:,}\n"
+        f"! (Calculation: 1 - 2 - 3 = 4)\n"
         f"!\n"
     )
 
