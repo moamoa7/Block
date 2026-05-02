@@ -165,7 +165,7 @@ def generate_output(domains: set[str], source_results: list[dict],
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     header_lines = [
-        f"! Title: Small DNS Blocklist - Auto-generated",
+        f"! Title: Small DNS Blocklist",
         f"! Description: Extracted DNS-level blocking domains from multiple filter sources",
         f"! Generated: {ts}",
         f"! Total domains: {len(sorted_domains):,}",
