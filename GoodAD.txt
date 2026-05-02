@@ -4024,11 +4024,8 @@ goodtv.co.kr##.popup
 !melon.com#@#.popup
 !  - -- https://oo.ai/
 !oo.ai#@#.popup
-
-
 ! 사이 사이 마다 있는 배너
 !##.plus_banner
-
 !
 !
 !
@@ -4162,26 +4159,6 @@ mib19.co.kr#@#[class^="ad"]
 xfree.com#@#[class^="ad"]
 !
 !
-! 레딧 (https://www.reddit.com/)
-! - 차단 목록 (Adblock-Rule-Collection-Lite) 차단 해제 - 상단에 메세지창 나오는거 해결
-@@||www.reddit.com/svc/shreddit/partial/J7VVLM/*_ads_*
-!
-!
-! 차단 목록 해제 (BadBlock+ (ABP)) - 트위터 게시물 안보임
-||platform.twitter.com^$important,badfilter
-@@||syndication.twimg.com^
-!
-!
-! https://www.semrush.com/
-! - 사이트 차단 해제 (🔥 BadBlock+ (ABP))
-||semrush.com^$badfilter
-
-!
-!
-
-
-!
-!
 ! 인생도박 (https://dobaklife21.com/) - 주소 수시로 바뀜
 ! - 배너
 [$domain=/^dobaklife\d+.com/]##.col-sm-8
@@ -4195,17 +4172,6 @@ thepinkstuff.co.kr,cafe24.com#@#.ad
 thepinkstuff.co.kr,cafe24.com#@#[class^="ad"]
 thepinkstuff.co.kr,cafe24.com#@#[id*="banner"]
 thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
-!
-!
-! 잡코리아 (https://www.jobkorea.co.kr/)
-! - 차단 목록(Adblock-Rule-Collection-Lite) 해제 - 스크롤이 안됨
-@@jobkorea.co.kr/*/adbanner.js
-
-!
-!
-! https://apkcombo.com/
-! - 사이트 차단 해제 (🔥 BadBlock+ (ABP))
-||apkcombo.com^$badfilter
 !
 !
 ! Semrush (https://ko.semrush.com/)
@@ -4254,6 +4220,10 @@ noonnu.cc##.fc-dialog-container
 ##div[style*="/new-banners/"]
 ! - 오른쪽 빈 배너?
 ##.label-banner
+!
+! BRIC (https://www.ibric.org/)
+! - 상단 배너
+##.top-banner-box
 !
 !
 !
