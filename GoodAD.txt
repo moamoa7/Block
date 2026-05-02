@@ -256,7 +256,10 @@ baidu.com###s-hotsearch-wrapper
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 !  - point.pay.naver.com 팝업 차단 - 차단하면 스크롤 안되서 해제
 !##[class*="Layer-module"]
-
+! - 검색 AI버튼 없애기 (검색 버튼 복구) (필요시)
+! - - - 출처 : https://gall.dcinside.com/adguard/9436
+!naver.com###search-ai-tab-button:style(display: none !important;)
+!naver.com###search-btn:style(display: block !important;)
 ! 네이버 본인 인증 페이지 일부 안보임 해결
 nid.naver.com#@#[class^="ad"]
 !
