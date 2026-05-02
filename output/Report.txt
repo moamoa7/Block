@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-02 22:02:51 UTC
+  Generated: 2026-05-02 23:06:00 UTC
 ============================================================
 
 [ Whitelist Sources ]
@@ -16,10 +16,10 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 89,660 | Extracted: 57,020
+       Total Lines: 89,669 | Extracted: 57,029
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 157,952 | Extracted: 65,793
+       Total Lines: 157,968 | Extracted: 65,809
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,545 | Extracted: 908
@@ -40,15 +40,15 @@
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
-  EasyList                      57,020     57,020         13
-  AdGuard Base                  65,793      8,786      8,758
+  EasyList                      57,029     57,029          6
+  AdGuard Base                  65,809      8,786      8,758
   AdGuard Mobile                   908        890        844
   AdGuard Japanese                 169        156        156
   AdGuard Chinese                6,078      6,063      6,063
   List-KR                          352        265        265
   uBlock Filters                    50         33         33
   ───────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)          73,213
+  Total (deduplicated)          73,222
 
   * Extracted : 해당 필터에서 추출된 도메인 수
   * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
@@ -56,9 +56,9 @@
 
 [ Final Summary ]
 ------------------------------------------------------------
-  1. Raw Domains Collected      : 73,213
+  1. Raw Domains Collected      : 73,222
   2. Whitelist Domains Loaded    : 451
   3. Removed by Whitelist        : 35
-  4. Final Block Domains         : 73,178
+  4. Final Block Domains         : 73,187
   5. Final Exception Rules       : 451
 ============================================================

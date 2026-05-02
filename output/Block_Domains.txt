@@ -1,13 +1,13 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 22:02:51 UTC
+# Generated: 2026-05-02 23:06:00 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,213
+# 1. Raw Domains Collected      : 73,222
 # 2. Removed by Whitelist       : 35
-# 3. Final Block Rules (||)     : 73,178
+# 3. Final Block Rules (||)     : 73,187
 # 4. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 = 3)
 #
@@ -7674,6 +7674,7 @@ arkdcz.com
 arkfacialdaybreak.com
 arkharmonious.com
 arkieeria.qpon
+arknightsendfield.site
 arkosichoveredreflag.cyou
 arkox.site
 arkwglkwhnhce.store
@@ -13233,6 +13234,7 @@ cinema3satu.fumblingvacation.pro
 cinemaonceoddlyfatal.com
 cinemaup.top
 cingo.sbs
+cingvfuekwcip.website
 cinmivywcgv.com
 cinnamonhandsomeoccurs.com
 cinsel.fumblingvacation.pro
@@ -15023,6 +15025,7 @@ creptdeservedprofanity.com
 crescentnoise.com
 crescentstocky.com
 cresfpho2ntesepapillo3.com
+crestalripply.shop
 creta.hubhubhub.name
 cretgate.com
 creticennoic.top
@@ -19978,6 +19981,7 @@ educatedcoercive.com
 educatedmonitor.pro
 edukacja.lovingforever.pro
 edukicationandasm.com
+edulsmxrwtwup.space
 eduseio.com
 edutechlearners.com
 edvfwlacluo.com
@@ -26851,6 +26855,7 @@ havegrosho.com
 havenclick.com
 havenerbastionfrailly.cyou
 havenwrite.com
+havenyl.xyz
 havetestifyharriet.com
 havhrywu.in
 havingartistictastesn.org
@@ -58652,6 +58657,7 @@ tilttrk.com
 tiltwin.com
 tilxgwpyoigje.store
 timawabusbar.cfd
+timbalejargoontrickie.cfd
 timberfrittermud.com
 timdinosaur.com
 timeforagreement.com
@@ -59387,6 +59393,7 @@ tossingtankage.cyou
 tossingvivid.com
 tosswealthy.com
 tostervar.shop
+toswdnby.com
 totadblock.com
 totaladperformance.com
 totalnicefeed.com
@@ -61873,6 +61880,7 @@ unfinishedplace.com
 unfiredseax.shop
 unfitsfardel.cfd
 unflatbudders.cfd
+unfluidtoto.shop
 unflushunsee.cfd
 unfoolvenines.cfd
 unfortunate-can.com
@@ -65894,6 +65902,7 @@ webpush.reachyield.com
 webpush.resultsmedia.com
 webpushcloud.info
 webseeds.com
+websfluxer.qpon
 websitepromoserver.com
 websphonedevprivacy.autos
 webstabilityhugo.com
