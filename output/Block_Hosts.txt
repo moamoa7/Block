@@ -1,13 +1,13 @@
-# Title: Personal DNS Filter
+# Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 10:27:32 UTC
+# Generated: 2026-05-02 10:58:07 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 73,112
+# 1. Raw Domains Collected      : 73,121
 # 2. Removed by Whitelist       : 36
-# 3. Final Block Rules (||)     : 73,076
+# 3. Final Block Rules (||)     : 73,085
 # 4. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 = 3)
 #
@@ -428,6 +428,7 @@
 0.0.0.0 1437953666.rsc.cdn77.org
 0.0.0.0 14381834.xyz
 0.0.0.0 1480d5060b.8b023d788d.com
+0.0.0.0 148a0hqnen.com
 0.0.0.0 1492b67edf.1fa25f6cc1.com
 0.0.0.0 149b5a6b84.com
 0.0.0.0 14b184caf9.459b6951ca.com
@@ -1253,6 +1254,7 @@
 0.0.0.0 31fbcecdf2.com
 0.0.0.0 31io8wshq.com
 0.0.0.0 31o0jl63.de
+0.0.0.0 31pjnw0wff.com
 0.0.0.0 32.huanqiu.com
 0.0.0.0 3200562.notifysrv.com
 0.0.0.0 3204865.notify6.com
@@ -12227,6 +12229,7 @@
 0.0.0.0 cbnrdujednuqeb.com
 0.0.0.0 cbo9vo98i.com
 0.0.0.0 cbogxhsvaqfxd.website
+0.0.0.0 cboufsrelp.com
 0.0.0.0 cbpttdpymofjx.online
 0.0.0.0 cbqhhvgryu6rpor7fumo6b9njnvk.cfd
 0.0.0.0 cbqkiuokpxtti.space
@@ -16851,6 +16854,7 @@
 0.0.0.0 daimg.encar.com
 0.0.0.0 daimiostogeys.shop
 0.0.0.0 daimonwrithenuphill.cyou
+0.0.0.0 dainchakharwarhonda.qpon
 0.0.0.0 daintynotice.com
 0.0.0.0 dairiathold.cfd
 0.0.0.0 daivendtzsbws.space
@@ -17235,6 +17239,7 @@
 0.0.0.0 ddrqd9eox.com
 0.0.0.0 ddrsemxv.com
 0.0.0.0 ddrvjrfwnij7n.cloudfront.net
+0.0.0.0 ddsnrfmchsxrr.website
 0.0.0.0 ddtgallusbayal.qpon
 0.0.0.0 ddtuvshahmzdyz.com
 0.0.0.0 ddujqrwidmrso.online
@@ -59803,6 +59808,7 @@
 0.0.0.0 trewelpyxesseriola.cyou
 0.0.0.0 trexglobal.fumblingvacation.pro
 0.0.0.0 trftopp.biz
+0.0.0.0 trgp7pddid.com
 0.0.0.0 trgqndztvxudg.online
 0.0.0.0 trhefhiqsxizm.website
 0.0.0.0 tri.media
@@ -61332,6 +61338,7 @@
 0.0.0.0 uizrqsrizjwfe.store
 0.0.0.0 uj2h8xm8w.com
 0.0.0.0 uj4z4lu78k8z4thex.rest
+0.0.0.0 ujajsexpoc.com
 0.0.0.0 ujcubsakohqav.website
 0.0.0.0 ujdgctgefatwjh.com
 0.0.0.0 ujdsaljmviudi.space
@@ -68160,6 +68167,7 @@
 0.0.0.0 xdh0808.com
 0.0.0.0 xdhjbmysilynq.site
 0.0.0.0 xdhqfbvar.com
+0.0.0.0 xdhrvr.icu
 0.0.0.0 xdiafyhkaahe.com
 0.0.0.0 xdiccukqbviiz.online
 0.0.0.0 xdifjhbyqxdbg.website
@@ -72299,6 +72307,7 @@
 0.0.0.0 zjeanifhgszfb.site
 0.0.0.0 zjeqfceuxovsz.site
 0.0.0.0 zjffxigngheba.space
+0.0.0.0 zjflf9epfe.com
 0.0.0.0 zjfowaspawuza.store
 0.0.0.0 zjfsjzzquhdcw.online
 0.0.0.0 zjhczxkqxqclr.space
