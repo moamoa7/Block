@@ -1,7 +1,7 @@
 # Title: Small DNS Blocklist
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 04:45:48 UTC
-# Total domains: 72,946
+# Generated: 2026-05-02 05:11:06 UTC
+# Total domains: 72,960
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -12,14 +12,14 @@
 # ── Source 1: EasyList ──
 #   URL: https://easylist-downloads.adblockplus.org/easylist.txt
 #   Status: OK
-#   Version: 202605020431
-#   Last modified: 02 May 2026 04:31 UTC
+#   Version: 202605020501
+#   Last modified: 02 May 2026 05:01 UTC
 #   Expires: 1 days (update frequency)
 #   Homepage: https://easylist.to/
 #   License: https://easylist.to/pages/licence.html
-#   Total rules: 75,605
-#   DNS extracted: 56,788 (75.1%)
-#   New domains: 56,782 | Duplicates removed: 0
+#   Total rules: 75,609
+#   DNS extracted: 56,791 (75.1%)
+#   New domains: 56,791 | Duplicates removed: 0
 #
 # ── Source 2: AdGuard Base filter ──
 #   URL: https://filters.adtidy.org/windows/filters/2.txt
@@ -32,7 +32,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 128,108
 #   DNS extracted: 65,562 (51.2%)
-#   New domains: 8,785 | Duplicates removed: 56,771
+#   New domains: 8,785 | Duplicates removed: 56,777
 #
 # ── Source 3: AdGuard Mobile Ads filter ──
 #   URL: https://filters.adtidy.org/windows/filters/11.txt
@@ -45,7 +45,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 8,327
 #   DNS extracted: 908 (10.9%)
-#   New domains: 886 | Duplicates removed: 18
+#   New domains: 890 | Duplicates removed: 18
 #
 # ── Source 4: AdGuard Japanese filter ──
 #   URL: https://filters.adtidy.org/windows/filters/7.txt
@@ -83,7 +83,7 @@
 #   License: https://github.com/List-KR/List-KR/blob/master/LICENSE
 #   Total rules: 3,967
 #   DNS extracted: 350 (8.8%)
-#   New domains: 262 | Duplicates removed: 85
+#   New domains: 263 | Duplicates removed: 87
 #
 # ── Source 7: uBlock filters ──
 #   URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
@@ -104,7 +104,7 @@
 #      https://github.com/AdguardTeam/AdGuardSDNSFilter/tree/master/Filters
 #   2. anudeepND community whitelist
 #      https://github.com/anudeepND/whitelist
-#   Total excluded domains: 92
+#   Total excluded domains: 0
 #
 # ═══════════════════════════════════════════════════════
 0.0.0.0 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -1108,6 +1108,7 @@
 0.0.0.0 2m3gdt0gc.de
 0.0.0.0 2m55gqleg.de
 0.0.0.0 2mdn-cn.net
+0.0.0.0 2mdn.net
 0.0.0.0 2mf9kkbhab31.com
 0.0.0.0 2mg2ibr6b.de
 0.0.0.0 2mke5l187.de
@@ -5155,6 +5156,7 @@
 0.0.0.0 adfork.co.kr
 0.0.0.0 adform.com
 0.0.0.0 adform.net
+0.0.0.0 adfox.ru
 0.0.0.0 adfpoint.com
 0.0.0.0 adfrontiers.com
 0.0.0.0 adfsda005.xyz
@@ -5297,6 +5299,7 @@
 0.0.0.0 admissiondemeanourusage.com
 0.0.0.0 admissionpersuade.com
 0.0.0.0 admitad-connect.com
+0.0.0.0 admitad.com
 0.0.0.0 admitincarnateentertainment.com
 0.0.0.0 admittedhi.com
 0.0.0.0 admixer.co.kr
@@ -6726,6 +6729,7 @@
 0.0.0.0 alimama.alicdn.com
 0.0.0.0 alime-pic.oss-cn-hangzhou.aliyuncs.com
 0.0.0.0 alinersharsh.shop
+0.0.0.0 alipromo.com
 0.0.0.0 alisholoroso.cfd
 0.0.0.0 alisonlupomanarked.qpon
 0.0.0.0 alitems.co
@@ -8112,6 +8116,7 @@
 0.0.0.0 atbdvpyfcedrz.website
 0.0.0.0 atbvxutitxgdf.website
 0.0.0.0 atdeerlinga.com
+0.0.0.0 atdmt.com
 0.0.0.0 atdobalybyxii.online
 0.0.0.0 atecomprisedispel.com
 0.0.0.0 atekag.cn
@@ -15279,6 +15284,7 @@
 0.0.0.0 csfuiuwdubtyr.online
 0.0.0.0 csgkj.com
 0.0.0.0 cshviclkocuzh.space
+0.0.0.0 csi.gstatic.com
 0.0.0.0 csjdhxlelvqpa.site
 0.0.0.0 csjggncfpbhnq.space
 0.0.0.0 csjokezuqdbdy.online
@@ -25682,6 +25688,7 @@
 0.0.0.0 googleadservices.com
 0.0.0.0 googleadsserving.cn
 0.0.0.0 googleapi.club
+0.0.0.0 googletagservices.com
 0.0.0.0 googlevads-cn.com
 0.0.0.0 googlewebfonts.leftmany.pro
 0.0.0.0 googlewebmaster-es.fumblingvacation.pro
@@ -27988,6 +27995,7 @@
 0.0.0.0 hpflagqlisnli.space
 0.0.0.0 hpgaqdq.shop
 0.0.0.0 hpifriczvdvgu.online
+0.0.0.0 hpigmncoxdjb.com
 0.0.0.0 hpilzison-r.online
 0.0.0.0 hpiojmhtsxdvy.site
 0.0.0.0 hpixajguwomwn.online
@@ -29167,6 +29175,7 @@
 0.0.0.0 imail.bloblohub.com
 0.0.0.0 imapi-sg.isnssdk.com
 0.0.0.0 imaretbirses.com
+0.0.0.0 imasdk.googleapis.com
 0.0.0.0 imaxcash.com
 0.0.0.0 imb12v4xhkkue2xteb5mqnc3bi13.rest
 0.0.0.0 imbdemfjjduu.cdnvideo3.com
@@ -29349,6 +29358,7 @@
 0.0.0.0 impureleg.com
 0.0.0.0 impurepath.com
 0.0.0.0 imputerpolecat.com
+0.0.0.0 imrworldwide.com
 0.0.0.0 imsjqyrgnjnnv.store
 0.0.0.0 imslyokecyhar.site
 0.0.0.0 imsonicgale.com
@@ -33371,6 +33381,7 @@
 0.0.0.0 lcbmtd.icu
 0.0.0.0 lcd.aivote.com
 0.0.0.0 lcdqwmfwbkbby.site
+0.0.0.0 lcdsxazlzlsto.site
 0.0.0.0 lcdvqdiiovsxj.site
 0.0.0.0 lceolcqxarhid.website
 0.0.0.0 lcfegzfnnayrz.website
@@ -37477,6 +37488,7 @@
 0.0.0.0 mvftmypmzprjt.space
 0.0.0.0 mvghkxtwawgpe.website
 0.0.0.0 mvglxjpardncb.site
+0.0.0.0 mvgxfyueeonfc.site
 0.0.0.0 mvhlcshfdhsql.website
 0.0.0.0 mvhyrqnedfm.com
 0.0.0.0 mvijuifysyjrz.rocks
@@ -52127,6 +52139,7 @@
 0.0.0.0 scorchsorchic.com
 0.0.0.0 scorchsschwa.cyou
 0.0.0.0 score-feed.com
+0.0.0.0 scorecardresearch.com
 0.0.0.0 scoredconnect.com
 0.0.0.0 scornfacultative.com
 0.0.0.0 scornfulleg.com
@@ -63901,6 +63914,7 @@
 0.0.0.0 videocampaign.co
 0.0.0.0 videocdnmetrika.com
 0.0.0.0 videocdnshop.com
+0.0.0.0 videoplaza.tv
 0.0.0.0 videoplus.vo.llnwd.net
 0.0.0.0 videosprofitnetwork.com
 0.0.0.0 videosvc.ezoic.com
