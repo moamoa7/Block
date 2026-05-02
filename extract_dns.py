@@ -88,11 +88,11 @@ def is_valid_domain(d: str) -> bool:
         r"(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$", d))
 
 def extract_dns_domains(text: str) -> set[str]:
-    """||domain^ 형태만 추출. 뒤에 뭐가 붙으면 전부 무시."""
     domains = set()
     for line in text.splitlines():
         line = line.strip()
-        m = re.match(r"^\|\|([a-zA-Z0-9\-\.]+)\^\s*$", line)
+        # ||domain^ 또는 ||domain^$popup 매칭
+        m = re.match(r"^\|\|([a-zA-Z0-9\-\.]+)\^(\$popup)?\s*$", line)
         if not m:
             continue
         d = m.group(1).lower()
