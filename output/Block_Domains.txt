@@ -1,13 +1,13 @@
 # Title: Personal DNS Filter
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 07:31:05 UTC
+# Generated: 2026-05-02 08:56:40 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 75,263
+# 1. Raw Domains Collected      : 75,271
 # 2. Removed by Whitelist       : 119
-# 3. Final Block Rules (||)     : 75,144
+# 3. Final Block Rules (||)     : 75,152
 # 4. Final Exception Rules (@@) : 10,431
 # (Calculation: 1 - 2 = 3)
 #
@@ -18302,6 +18302,7 @@ delivery.gettopple.com
 delivery.momentummedia.com.au
 delivery.playallvideos.com
 delivery.porn.com
+delivery.senvangvn.com
 delivery.sexyxxx.biz
 delivery.wasu.cn
 delivery51.com
@@ -24817,6 +24818,7 @@ fsu1cg19c.com
 fsuooh.cc
 fsuvqqkzwmvje.site
 fsuwiwvhtcfzm.space
+fsxoffywm.com
 ft1.17t6rngx32f7gy.cfd
 ftaexwmyqcp.com
 ftblltrck.com
@@ -34288,6 +34290,7 @@ lambercoronel.top
 lambmotorabash.com
 lambspithole.cfd
 lame-home.pro
+lame-map.com
 lameconnotation.com
 lamellaarridedebt.cyou
 lamelyhomager.cyou
@@ -41334,6 +41337,7 @@ oglalavoodoo.world
 ogle-0740lb.com
 oglrrokbbxoyw.today
 ogmbiqkuf.in
+ogopsmaoxxnfl.website
 ogorwaste.com
 ogpdgve4v.com
 ogpnpauyoknvc.online
@@ -50783,6 +50787,7 @@ ridingpertconquest.com
 ridottosacrumparched.cfd
 ridxvydxlhiej.online
 riehurqwgtdey.online
+rieiwyioesadu.website
 rieixcwzvslxl.space
 rielsgetfd.help
 riertapwortsei.cyou
@@ -52757,6 +52762,7 @@ rzbbqovsrrugf.space
 rzbvxn.icu
 rzbysubusbyzc.online
 rzcruzullr.com
+rzdvkklscofjy.site
 rzedmincpjcam.website
 rzeso.com
 rzeuizwtvteer.online
@@ -54368,6 +54374,7 @@ serinrazziasusliks.qpon
 serinuswelling.com
 seriolavangloe.com
 seriosoaffixes.help
+serious-local.pro
 serious-machine.pro
 serious-sample.com
 seriousdates.net
@@ -63496,6 +63503,7 @@ umoopuwhecky.net
 umoutzwnfxuil.space
 umphacinic.cfd
 umphek.com
+umphinsorbvegete.qpon
 umpirebrouze.cfd
 umpiredmosettebibulus.cfd
 umpwcnltxmnue.online

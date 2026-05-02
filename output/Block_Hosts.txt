@@ -1,13 +1,13 @@
 # Title: Personal DNS Filter
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 07:31:05 UTC
+# Generated: 2026-05-02 08:56:40 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 75,263
+# 1. Raw Domains Collected      : 75,271
 # 2. Removed by Whitelist       : 119
-# 3. Final Block Rules (||)     : 75,144
+# 3. Final Block Rules (||)     : 75,152
 # 4. Final Exception Rules (@@) : 10,431
 # (Calculation: 1 - 2 = 3)
 #
@@ -18302,6 +18302,7 @@
 0.0.0.0 delivery.momentummedia.com.au
 0.0.0.0 delivery.playallvideos.com
 0.0.0.0 delivery.porn.com
+0.0.0.0 delivery.senvangvn.com
 0.0.0.0 delivery.sexyxxx.biz
 0.0.0.0 delivery.wasu.cn
 0.0.0.0 delivery51.com
@@ -24817,6 +24818,7 @@
 0.0.0.0 fsuooh.cc
 0.0.0.0 fsuvqqkzwmvje.site
 0.0.0.0 fsuwiwvhtcfzm.space
+0.0.0.0 fsxoffywm.com
 0.0.0.0 ft1.17t6rngx32f7gy.cfd
 0.0.0.0 ftaexwmyqcp.com
 0.0.0.0 ftblltrck.com
@@ -34288,6 +34290,7 @@
 0.0.0.0 lambmotorabash.com
 0.0.0.0 lambspithole.cfd
 0.0.0.0 lame-home.pro
+0.0.0.0 lame-map.com
 0.0.0.0 lameconnotation.com
 0.0.0.0 lamellaarridedebt.cyou
 0.0.0.0 lamelyhomager.cyou
@@ -41334,6 +41337,7 @@
 0.0.0.0 ogle-0740lb.com
 0.0.0.0 oglrrokbbxoyw.today
 0.0.0.0 ogmbiqkuf.in
+0.0.0.0 ogopsmaoxxnfl.website
 0.0.0.0 ogorwaste.com
 0.0.0.0 ogpdgve4v.com
 0.0.0.0 ogpnpauyoknvc.online
@@ -50783,6 +50787,7 @@
 0.0.0.0 ridottosacrumparched.cfd
 0.0.0.0 ridxvydxlhiej.online
 0.0.0.0 riehurqwgtdey.online
+0.0.0.0 rieiwyioesadu.website
 0.0.0.0 rieixcwzvslxl.space
 0.0.0.0 rielsgetfd.help
 0.0.0.0 riertapwortsei.cyou
@@ -52757,6 +52762,7 @@
 0.0.0.0 rzbvxn.icu
 0.0.0.0 rzbysubusbyzc.online
 0.0.0.0 rzcruzullr.com
+0.0.0.0 rzdvkklscofjy.site
 0.0.0.0 rzedmincpjcam.website
 0.0.0.0 rzeso.com
 0.0.0.0 rzeuizwtvteer.online
@@ -54368,6 +54374,7 @@
 0.0.0.0 serinuswelling.com
 0.0.0.0 seriolavangloe.com
 0.0.0.0 seriosoaffixes.help
+0.0.0.0 serious-local.pro
 0.0.0.0 serious-machine.pro
 0.0.0.0 serious-sample.com
 0.0.0.0 seriousdates.net
@@ -63496,6 +63503,7 @@
 0.0.0.0 umoutzwnfxuil.space
 0.0.0.0 umphacinic.cfd
 0.0.0.0 umphek.com
+0.0.0.0 umphinsorbvegete.qpon
 0.0.0.0 umpirebrouze.cfd
 0.0.0.0 umpiredmosettebibulus.cfd
 0.0.0.0 umpwcnltxmnue.online
