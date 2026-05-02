@@ -61,7 +61,7 @@ def fetch_exclusions(urls: list[str]) -> set[str]:
                 line = line.strip()
                 if not line or line.startswith(("!", "#", "[")):
                     continue
-                m = re.match(r"^@@?\|?\|?([a-zA-Z0-9\-\.]+)\^?\|?$", line)
+                m = re.match(r"^(?:@@)?\|?\|?([a-zA-Z0-9\-\.]+)\^?.*$", line)
                 if m:
                     excluded.add(m.group(1).lower())
                     continue
