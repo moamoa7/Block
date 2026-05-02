@@ -196,6 +196,9 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ##[id*="AdSense"]
 !
 !
+!
+!
+!
 ! 유튜브 (https://www.youtube.com/)
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 ! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
@@ -258,7 +261,8 @@ baidu.com###s-hotsearch-wrapper
 ! 네이버 (https://www.naver.com/)
 ! - 네이버앱 깨지는거 해결 (참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
-@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
+! - 아래 규칙은 안해도 되는듯
+!@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 !  - point.pay.naver.com 팝업 차단 - 차단하면 스크롤 안되서 해제
 !##[class*="Layer-module"]
 ! - 검색 AI버튼 없애기 (검색 버튼 복구) (필요시)
@@ -307,6 +311,16 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ! 네이버 카페 (https://cafe.naver.com/)
 ! - 카페 사진 첨부 오류 해결
 @@*$stealth=dpi,app=com.nhn.android.navercafe
+!
+!
+! 네이버 블로그 (https://section.blog.naver.com/)
+! - 배너 빈공간
+##[class*="advertisement"]
+!
+!
+! ! 네이버 웹툰 (https://comic.naver.com/index)
+! - 배너 빈공간
+##[class*="aside_banner"]
 !
 !
 ! 네이버 지도 (https://map.naver.com/)
@@ -4175,8 +4189,11 @@ xfree.com#@#[class^="ad"]
 ! https://thepinkstuff.co.kr/
 thepinkstuff.co.kr,cafe24.com#@#.ad
 thepinkstuff.co.kr,cafe24.com#@#[class^="ad"]
-thepinkstuff.co.kr,cafe24.com#@#[id*="banner"]
-thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
+!thepinkstuff.co.kr,cafe24.com#@#[id*="banner"]
+!thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
+thepinkstuff.co.kr#@#[class*="banner-ad"]
+thepinkstuff.co.kr#@#[data-ez-name]
+!##[class*="smart-banner"]
 !
 !
 ! Semrush (https://ko.semrush.com/)
@@ -4234,13 +4251,9 @@ noonnu.cc##.fc-dialog-container
 !
 !
 !
+! ((기타))
 !
 !
-!
-!
-!
-!
-! 기타
 ! - 광고 스킵
 ##.playerads
 ! - 배너 공간
