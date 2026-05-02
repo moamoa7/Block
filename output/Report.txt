@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-02 09:35:33 UTC
+  Generated: 2026-05-02 09:46:31 UTC
 ============================================================
 
 [ Whitelist Sources ]
@@ -16,7 +16,7 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 89,560 | Extracted: 56,832
+       Total Lines: 89,561 | Extracted: 56,833
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
        Total Lines: 157,838 | Extracted: 65,600
@@ -41,20 +41,28 @@
 
 [ Overlap Analysis ]
 ------------------------------------------------------------
-  EasyList: 17 unique domains (only in this filter)
-  AdGuard Base: 0 unique domains (only in this filter)
-  AdGuard Mobile: 844 unique domains (only in this filter)
-  AdGuard German: 143 unique domains (only in this filter)
-  AdGuard Chinese: 6,055 unique domains (only in this filter)
-  List-KR: 263 unique domains (only in this filter)
-  uBlock Filters: 33 unique domains (only in this filter)
-  AdAvoid Ultimate: 1 unique domains (only in this filter)
+  Filter                     Extracted        New     Unique
+  ───────────────────────── ────────── ────────── ──────────
+  EasyList                      56,833     56,833         18
+  AdGuard Base                  65,600      8,785          0
+  AdGuard Mobile                   908        890        844
+  AdGuard German                   156        143        143
+  AdGuard Chinese                6,070      6,055      6,055
+  List-KR                          350        263        263
+  uBlock Filters                    50         33         33
+  AdAvoid Ultimate              65,600          1          1
+  ───────────────────────── ────────── ────────── ──────────
+  Total (deduplicated)          73,003
+
+  * Extracted : 해당 필터에서 추출된 도메인 수
+  * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
+  * Unique    : 오직 이 필터에만 존재하는 도메인 수
 
 [ Final Summary ]
 ------------------------------------------------------------
-  1. Raw Domains Collected      : 73,002
+  1. Raw Domains Collected      : 73,003
   2. Whitelist Domains Loaded    : 452
   3. Removed by Whitelist        : 36
-  4. Final Block Domains         : 72,966
+  4. Final Block Domains         : 72,967
   5. Final Exception Rules       : 452
 ============================================================

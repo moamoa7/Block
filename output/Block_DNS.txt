@@ -1,13 +1,13 @@
 ! Title: Personal DNS Filter
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 09:35:33 UTC
+! Generated: 2026-05-02 09:46:31 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 73,002
+! 1. Raw Domains Collected      : 73,003
 ! 2. Removed by Whitelist       : 36
-! 3. Final Block Rules (||)     : 72,966
+! 3. Final Block Rules (||)     : 72,967
 ! 4. Final Exception Rules (@@) : 452
 ! (Calculation: 1 - 2 = 3)
 !
@@ -18206,6 +18206,7 @@
 ||dita6jhhqwoiz.cloudfront.net^
 ||ditchdigging.lat^
 ||ditdotsol.com^
+||ditherscutes.qpon^
 ||dithodackee.com^
 ||ditingdecording.info^
 ||ditionbanyai.cyou^
