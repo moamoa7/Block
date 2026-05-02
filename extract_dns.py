@@ -24,6 +24,7 @@ OUTPUT_DIR = Path("output")
 OUT_COMBINED = OUTPUT_DIR / "Block_DNS.txt"
 OUT_DOMAINS = OUTPUT_DIR / "Block_Domains.txt"
 OUT_HOSTS = OUTPUT_DIR / "Block_Hosts.txt"
+OUT_REPORT = OUTPUT_DIR / "Report.txt"
 
 def fetch(url: str) -> str:
     req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -37,35 +38,109 @@ def is_valid_domain(d: str) -> bool:
         r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*\.[a-z]{2,}$", d
     ))
 
+def short_name(url: str) -> str:
+    """URL에서 보기 좋은 짧은 이름 추출"""
+    if "easylist.txt" in url:
+        return "EasyList"
+    if "filters/2.txt" in url:
+        return "AdGuard Base"
+    if "filters/11.txt" in url:
+        return "AdGuard Mobile"
+    if "filters/7.txt" in url:
+        return "AdGuard German" # 실제 필터명에 맞게 수정 가능
+    if "filters/224.txt" in url:
+        return "AdGuard Chinese"
+    if "list-kr" in url:
+        return "List-KR"
+    if "uAssets" in url:
+        return "uBlock Filters"
+    if "adavoid" in url:
+        return "AdAvoid Ultimate"
+    if "exclusions.txt" in url:
+        return "AdGuard DNS Exclusions"
+    if "white.txt" in url:
+        return "Personal Whitelist"
+    return url.split("/")[-1]
+
 def main():
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    report_lines = []
+    report_lines.append(f"{'=' * 60}")
+    report_lines.append(f"  Filter Extraction Report")
+    report_lines.append(f"  Generated: {ts}")
+    report_lines.append(f"{'=' * 60}")
+
     # 1. 화이트리스트 로드
     white_set = set()
+    white_stats = []
+    report_lines.append(f"\n[ Whitelist Sources ]")
+    report_lines.append(f"{'-' * 60}")
     for url in EXCLUSION_URLS:
+        name = short_name(url)
         try:
             text = fetch(url)
+            total_lines = len(text.splitlines())
+            count = 0
             for line in text.splitlines():
-                m = re.match(r"^\|\|([a-z0-9\-\.]+)\^(\$popup)?\s*$",line.strip().lower())
+                m = re.match(r"^\|\|([a-z0-9\-\.]+)\^(\$popup)?\s*$", line.strip().lower())
                 if m and is_valid_domain(m.group(1)):
                     white_set.add(m.group(1))
+                    count += 1
+            white_stats.append((name, "OK", total_lines, count))
+            report_lines.append(f"  [OK] {name}")
+            report_lines.append(f"       URL: {url}")
+            report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {count:,}")
         except Exception as e:
+            white_stats.append((name, "FAIL", 0, 0))
+            report_lines.append(f"  [FAIL] {name}")
+            report_lines.append(f"         URL: {url}")
+            report_lines.append(f"         Error: {e}")
             print(f"[WARN] 화이트리스트 실패: {url} ({e})")
 
     # 2. 차단 대상 로드
     raw_block_set = set()
+    filter_domains = {}  # 각 필터별 도메인 저장
+    filter_stats = []
+    report_lines.append(f"\n[ Block Filter Sources ]")
+    report_lines.append(f"{'-' * 60}")
     for url in FILTER_URLS:
+        name = short_name(url)
         try:
             text = fetch(url)
+            total_lines = len(text.splitlines())
+            domains_this = set()
             for line in text.splitlines():
                 m = re.match(
-                    r"^\|\|([a-z0-9\-\.]+)\^(\$(popup|third-party))?\s*$",
+                    r"^\|\|([a-z0-9\-\.]+)\^(\$popup)?\s*$",
                     line.strip().lower()
                 )
                 if m and is_valid_domain(m.group(1)):
-                    raw_block_set.add(m.group(1))
+                    domains_this.add(m.group(1))
+            raw_block_set.update(domains_this)
+            filter_domains[name] = domains_this
+            filter_stats.append((name, "OK", total_lines, len(domains_this)))
+            report_lines.append(f"  [OK] {name}")
+            report_lines.append(f"       URL: {url}")
+            report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {len(domains_this):,}")
         except Exception as e:
+            filter_stats.append((name, "FAIL", 0, 0))
+            report_lines.append(f"  [FAIL] {name}")
+            report_lines.append(f"         URL: {url}")
+            report_lines.append(f"         Error: {e}")
             print(f"[WARN] 필터 실패: {url} ({e})")
 
-    # 3. 통계 계산
+    # 3. 중복 분석
+    report_lines.append(f"\n[ Overlap Analysis ]")
+    report_lines.append(f"{'-' * 60}")
+    names = list(filter_domains.keys())
+    for i, n1 in enumerate(names):
+        unique = filter_domains[n1].copy()
+        for j, n2 in enumerate(names):
+            if i != j:
+                unique -= filter_domains[n2]
+        report_lines.append(f"  {n1}: {len(unique):,} unique domains (only in this filter)")
+
+    # 4. 통계 계산
     removed_list = raw_block_set & white_set
     removed_count = len(removed_list)
     total_raw = len(raw_block_set)
@@ -74,9 +149,17 @@ def main():
     final_whites = sorted(white_set)
     final_white_count = len(final_whites)
 
-    # 4. 출력
+    report_lines.append(f"\n[ Final Summary ]")
+    report_lines.append(f"{'-' * 60}")
+    report_lines.append(f"  1. Raw Domains Collected      : {total_raw:,}")
+    report_lines.append(f"  2. Whitelist Domains Loaded    : {final_white_count:,}")
+    report_lines.append(f"  3. Removed by Whitelist        : {removed_count:,}")
+    report_lines.append(f"  4. Final Block Domains         : {final_block_count:,}")
+    report_lines.append(f"  5. Final Exception Rules       : {final_white_count:,}")
+    report_lines.append(f"{'=' * 60}")
+
+    # 5. 출력
     OUTPUT_DIR.mkdir(exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     header = (
         f"! Title: Personal DNS Filter\n"
@@ -94,7 +177,6 @@ def main():
         f"!\n"
     )
 
-    # (1) AdGuard DNS 형식
     with open(OUT_COMBINED, "w", encoding="utf-8") as f:
         f.write(header)
         f.write("! === BLOCK RULES ===\n")
@@ -102,22 +184,21 @@ def main():
         f.write("\n! === EXCEPTION RULES ===\n")
         f.writelines(f"@@||{d}^\n" for d in final_whites)
 
-    # (2) 순수 도메인
     with open(OUT_DOMAINS, "w", encoding="utf-8") as f:
         f.write(header.replace("!", "#"))
         f.writelines(f"{d}\n" for d in final_blocks)
 
-    # (3) 호스트 파일
     with open(OUT_HOSTS, "w", encoding="utf-8") as f:
         f.write(header.replace("!", "#"))
         f.writelines(f"0.0.0.0 {d}\n" for d in final_blocks)
 
-    print("-" * 40)
-    print(f"1. 수집된 도메인      : {total_raw:,}")
-    print(f"2. 화이트리스트 제거  : {removed_count:,}")
-    print(f"3. 최종 차단 도메인   : {final_block_count:,}")
-    print(f"4. 예외 규칙 수       : {final_white_count:,}")
-    print("-" * 40)
+    # 리포트 파일 저장
+    report_text = "\n".join(report_lines) + "\n"
+    with open(OUT_REPORT, "w", encoding="utf-8") as f:
+        f.write(report_text)
+
+    # 콘솔 출력
+    print(report_text)
     print(f"결과가 {OUTPUT_DIR} 폴더에 생성되었습니다.")
 
 if __name__ == "__main__":
