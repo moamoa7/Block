@@ -1,38 +1,60 @@
-! Title: DNS Blocklist - Auto-generated
+! Title: Small DNS Blocklist
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 02:00:45 UTC
+! Generated: 2026-05-02 02:10:34 UTC
 ! Total domains: 59294
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
+! ═══════════════════════════════════════════════════════
+!  Source Details
+! ═══════════════════════════════════════════════════════
+!
 ! ── Source 1: EasyList ──
-!   Version: 202605020142
-!   Last modified: 02 May 2026 01:42 UTC
+!   URL: https://easylist-downloads.adblockplus.org/easylist.txt
+!   Status: OK
+!   Version: 202605020152
+!   Last modified: 02 May 2026 01:52 UTC
 !   Expires: 1 days (update frequency)
 !   Homepage: https://easylist.to/
 !   License: https://easylist.to/pages/licence.html
+!   Total rules: 89,251
+!   DNS extracted: 58,462 (65.5%)
 !
 ! ── Source 2: AdGuard Japanese filter ──
+!   URL: https://filters.adtidy.org/windows/filters/7.txt
+!   Status: OK
 !   Description: Filter that enables ad blocking on websites in Japanese language.
 !   Version: 2.0.73.62
 !   Last modified: 2026-05-01T16:26:55+00:00
 !   Expires: 12 hours (update frequency)
 !   Homepage: https://github.com/AdguardTeam/AdGuardFilters
 !   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
+!   Total rules: 11,824
+!   DNS extracted: 405 (3.4%)
 !
 ! ── Source 3: List-KR classic filters list (AdGuard) ──
+!   URL: https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt
+!   Status: OK
 !   Description: AdGuard용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
 !   Version: 2026.20572.2
 !   Expires: 1 day (update frequency)
 !   Homepage: https://github.com/List-KR/List-KR
 !   License: https://github.com/List-KR/List-KR/blob/master/LICENSE
+!   Total rules: 4,054
+!   DNS extracted: 395 (9.7%)
 !
 ! ── Source 4: uBlock filters ──
+!   URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
+!   Status: OK
 !   Description: Filters optimized for uBlock, to be used along EasyList
 !   Last modified: Fri, 01 May 2026 05:34:29 +0000
 !   Expires: 5 days
 !   Homepage: https://github.com/uBlockOrigin/uAssets
 !   License: https://github.com/uBlockOrigin/uAssets/blob/master/LICENSE
+!   Total rules: 6,237
+!   DNS extracted: 140 (2.2%)
+!
+! ═══════════════════════════════════════════════════════
 !
 ||000491b06a.com^
 ||0019x.com^
