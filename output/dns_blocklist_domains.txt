@@ -1,7 +1,7 @@
 # Title: Small DNS Blocklist
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-02 05:15:14 UTC
-# Total domains: 72,949
+# Generated: 2026-05-02 05:29:32 UTC
+# Total domains: 72,913
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -12,14 +12,14 @@
 # ── Source 1: EasyList ──
 #   URL: https://easylist-downloads.adblockplus.org/easylist.txt
 #   Status: OK
-#   Version: 202605020501
-#   Last modified: 02 May 2026 05:01 UTC
+#   Version: 202605020511
+#   Last modified: 02 May 2026 05:11 UTC
 #   Expires: 1 days (update frequency)
 #   Homepage: https://easylist.to/
 #   License: https://easylist.to/pages/licence.html
 #   Total rules: 75,609
 #   DNS extracted: 56,791 (75.1%)
-#   New domains: 56,785 | Duplicates removed: 0
+#   New domains: 56,764 | Duplicates removed: 0
 #
 # ── Source 2: AdGuard Base filter ──
 #   URL: https://filters.adtidy.org/windows/filters/2.txt
@@ -32,7 +32,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 128,108
 #   DNS extracted: 65,562 (51.2%)
-#   New domains: 8,785 | Duplicates removed: 56,771
+#   New domains: 8,782 | Duplicates removed: 56,750
 #
 # ── Source 3: AdGuard Mobile Ads filter ──
 #   URL: https://filters.adtidy.org/windows/filters/11.txt
@@ -45,7 +45,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 8,327
 #   DNS extracted: 908 (10.9%)
-#   New domains: 886 | Duplicates removed: 18
+#   New domains: 882 | Duplicates removed: 18
 #
 # ── Source 4: AdGuard Japanese filter ──
 #   URL: https://filters.adtidy.org/windows/filters/7.txt
@@ -58,7 +58,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 11,683
 #   DNS extracted: 156 (1.3%)
-#   New domains: 143 | Duplicates removed: 13
+#   New domains: 142 | Duplicates removed: 13
 #
 # ── Source 5: AdGuard Chinese filter ──
 #   URL: https://filters.adtidy.org/windows/filters/224.txt
@@ -71,7 +71,7 @@
 #   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
 #   Total rules: 21,306
 #   DNS extracted: 6,070 (28.5%)
-#   New domains: 6,055 | Duplicates removed: 15
+#   New domains: 6,054 | Duplicates removed: 14
 #
 # ── Source 6: List-KR classic filters list (AdGuard) ──
 #   URL: https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt
@@ -83,7 +83,7 @@
 #   License: https://github.com/List-KR/List-KR/blob/master/LICENSE
 #   Total rules: 3,967
 #   DNS extracted: 350 (8.8%)
-#   New domains: 262 | Duplicates removed: 85
+#   New domains: 256 | Duplicates removed: 83
 #
 # ── Source 7: uBlock filters ──
 #   URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
@@ -102,9 +102,9 @@
 # ═══════════════════════════════════════════════════════
 #   1. AdGuard DNS filter official exclusions + exceptions
 #      https://github.com/AdguardTeam/AdGuardSDNSFilter/tree/master/Filters
-#   2. anudeepND community whitelist
-#      https://github.com/anudeepND/whitelist
-#   Total excluded domains: 92
+#   2. persol whitelist
+#      https://github.com/moamoa7/Blcok/main
+#   Total excluded domains: 552
 #
 # ═══════════════════════════════════════════════════════
 0.www.0ul1wlo58s-vu69us-r1u.xyz
@@ -232,7 +232,6 @@
 07327127.xyz
 07421283.xyz
 07b5ec4fa6.com
-07c225f3.online
 07pv7k61z.com
 08256602.xyz
 0832fddfc8.com
@@ -4806,7 +4805,6 @@ ad.cashdoc.io
 ad.cauly.co.kr
 ad.ccement.com
 ad.cdnjm.cn
-ad.cgv.co.kr
 ad.choicy.org
 ad.ciokorea.com
 ad.citynews.it
@@ -5059,7 +5057,6 @@ adcdn.goo.ne.jp
 adcdnx.com
 adcel.co
 adcel.vrvm.com
-adcell.com
 adcenter-api.cashwalk.co
 adcharriot.com
 adcheck.about.co.kr
@@ -5086,7 +5083,6 @@ adconsole.the-saleroom.com
 adcontext.pl
 adcovery.com
 adcpioqpzvvla.website
-adcr.naver.com
 adcrax.com
 adcs.myappsget.com
 adcs.rqmob.com
@@ -5191,9 +5187,7 @@ adimages.eva.live
 adimages.infotorg.se
 adimages.rtvdrenthe.nl
 adimages.sniffies.com
-adimg.cgv.co.kr
 adimg.liba.com
-adimg.nate.com
 adimg.newdaily.co.kr
 adinc.co.kr
 adinfo.tango.me
@@ -6729,7 +6723,6 @@ alinersharsh.shop
 alisholoroso.cfd
 alisonlupomanarked.qpon
 alitems.co
-alitems.com
 alitems.site
 alitui.weibo.com
 alive-airport.com
@@ -7371,8 +7364,6 @@ aphrodite.notifysrv.com
 api-a.op-mobile.opera.com
 api-ad-adapter.wps.com
 api-ad-callback.falconnet.app
-api-ao-list.adison.co
-api-ao.adison.co
 api-v2.shareitgames.com
 api.140proof.com
 api.ad-locus.com
@@ -7468,7 +7459,6 @@ apozemzebrule.com
 app-ads-services.com
 app-momentum.com
 app.189tutors.com
-app.adjust.net.in
 app.adjust.world
 app.dlsite123.online
 app.koah.ai
@@ -8268,7 +8258,6 @@ audionews.fm
 auditioneasterhelm.com
 auditioningborder.com
 auditorytuesdaypoll.com
-auditude.com
 audmrk.com
 audrte.com
 audubonowlet.shop
@@ -9283,7 +9272,6 @@ bd8cfb84ab.com
 bd8efddf81.6f218410f7.com
 bd92cdf877.com
 bda1.ayule.net
-bdad.123pan.cn
 bdad.gaotie.net
 bdapi-ads.realmemobile.com
 bdapi-in-ads.realmemobile.com
@@ -11473,7 +11461,6 @@ buxomlyaam.qpon
 buxpaymoneyextra.foolhardywear.pro
 buy404s.com
 buyadvupfor24.com
-buyeasy.by
 buyer.dspx.tv
 buyerparasitesurveying.com
 buyfrightencheckup.com
@@ -14372,7 +14359,6 @@ conscious-science.pro
 consciousness2.fun
 consciousnessquaint.com
 consensusarticles.com
-consent.cookiefirst.com
 consent.easybrain.com
 consequencerelic.com
 consequentlyvisithector.com
@@ -14462,7 +14448,6 @@ contempthumanitycalamity.com
 contendnoticefaculty.com
 content-hoster.xyz
 content-item.pro
-content-loader.com
 content-rec.com
 content-row.com
 content.gupload.xyz
@@ -15295,7 +15280,6 @@ csqbydyrdkiow.com
 csqdjsesjbvav.rocks
 csqojhzrapobd.online
 csqqgc90u.com
-css-load.com
 css.juqingba.cn
 css.zmjm.com
 cssigerwpf.com
@@ -24168,7 +24152,6 @@ fwioqgqlohdoc.online
 fwkjvuoqfqchj.online
 fwlpazuvbhmkg.online
 fwmknvveyfahw.site
-fwmrm.net
 fwnezrrjmbjjl.space
 fwqasyuebarqa.space
 fwrtzdlspzybl.space
@@ -28153,8 +28136,6 @@ htlbbzjjgmgye.space
 htlbid.com
 htliaproject.com
 htlwbn.icu
-html-load.cc
-html-load.com
 htmonster.com
 htnbylmwhmoba.website
 htneakzcupxkt.space
@@ -28539,7 +28520,6 @@ i11.mayoblast.com
 i12het785.com
 i14laze0.xyz
 i16-tb.isnssdk.com
-i18n-pglstatp.com
 i1901zxd.xyz
 i1eh7gbfb3kn6eo.rest
 i1he1ixrh9unhb2jgh5.cfd
@@ -32704,7 +32684,6 @@ kqtbwyrudcgeoe.com
 kqtpgtgspdgir.site
 kqwvqvapfvajp.online
 kqxusarzhtxgw.space
-kqzyfj.com
 kr.sampleperson.site
 kr1cbkoow.com
 kra18.com
@@ -34292,7 +34271,6 @@ loader.netzwelt.de
 loader.nyitvatartas24.hu
 loader.the-crossword-solver.com
 loader.word-grabber.com
-loadercdn.com
 loadingscripts.com
 loaditfile.com
 loadmypath.click
@@ -36870,7 +36848,6 @@ mondtbcmhhz.com
 moneey.christmas
 moneraltilting.com
 monestbrazesbottler.cyou
-monetag.com
 monetarysportystamp.com
 monetize-ssp.com
 monetizer101.com
@@ -39195,7 +39172,6 @@ ntsnaeutglamx.rocks
 ntsreoealtutd.site
 ntswohvxfjvez.site
 ntuulavmbjdgo.love
-ntv.io
 ntvk1.ru
 ntvpforever.com
 ntvpinp.com
@@ -40096,7 +40072,6 @@ ojonvpuqbtqul.site
 ojprlvavhknyk.site
 ojpvwrudzpojr.site
 ojrgbc6kfz.com
-ojrq.net
 ojshkarhebug.in
 ojuvjqymmcyos.site
 ojxr.cn
@@ -48189,7 +48164,6 @@ redirect-path1.com
 redirect-verde.com
 redirecthitnspin.com
 redirecting.online
-redirectingat.com
 redirectvoluum.com
 redistedi.com
 redlineinwoveaba.qpon
@@ -50696,7 +50670,6 @@ rubbingsticksforthwith.com
 rubensfleur.cfd
 rubereroot.qpon
 rubestdealfinder.com
-rubiconproject.com
 rubidicflexiveharking.cfd
 rubkfezraamr.in
 rubrafoz.com
@@ -53012,7 +52985,6 @@ shaquevip.oss-cn-zhangjiakou.aliyuncs.com
 share-server.com
 share.gzdsw.com
 share.notizie.it
-shareasale.com
 sharebang.com
 shared.notifysrv.com
 sharepenknife.com
@@ -55220,7 +55192,6 @@ srtrak.com
 srujovivooozc.site
 srv.biigo.xyz
 srv.dynamicyield.com
-srv.tunefindforfans.com
 srv.yeahwebimobi.fun
 srv01.notifysrv.com
 srv224.com
@@ -55739,7 +55710,6 @@ static.yinthespringas.com
 static.ymidydlesswales.com
 static.zorka.agency
 static1.andbeyond.media
-static2.manualslib.com
 staticcc.com
 staticgalaksion.com
 staticrtb.trackifyy.com
@@ -58685,7 +58655,6 @@ tittyemerick.shop
 tiu6ij9yqn.com
 tiubvrcdzqhdj.online
 tiuyamhwqljgm.site
-tivan.naver.com
 tivatingotherem.org
 tiverthrob.qpon
 tivqggcgnqlom.space
@@ -59298,7 +59267,6 @@ tossingvivid.com
 tosswealthy.com
 tostervar.shop
 totadblock.com
-totaladblock.com
 totaladperformance.com
 totalnicefeed.com
 totalresponsibilityeconomics.com
@@ -63614,7 +63582,6 @@ vestingchout.cyou
 vestintend.com
 vesuvinaqueity.top
 vesx.jesjes.xyz
-veta.naver.com
 vetascotoma.shop
 vetchesthiever.com
 vetdfdzrdxueo.online
@@ -67148,7 +67115,6 @@ wpncrmusaeuzl.space
 wpnetwork.eu
 wpnjs.com
 wpnoauvkm.com
-wpnrtnmrewunrtok.xyz
 wpnsrv.com
 wpnxiswpuyrfn.icu
 wpojxiymzgurp.website
@@ -70196,7 +70162,6 @@ yackedvodumszambac.qpon
 yacnbvkmpxerf.com
 yacsvdpiqyrza.site
 yadmarmizuogr.website
-yads.c.yimg.jp
 yads.yahoo.co.jp
 yads.yjtag.yahoo.co.jp
 yadsunkzjtzlb.space
@@ -71983,7 +71948,6 @@ zemekw.cyou
 zemisolate.qpon
 zenagacoelar.qpon
 zenanaswogiet.cfd
-zenaps.com
 zendikfideist.cyou
 zendplace.pro
 zendsphagia.qpon
