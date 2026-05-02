@@ -173,7 +173,7 @@ def main():
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     header = (
-        f"! Title: Personal DNS Filter\n"
+        f"! Title: Personal Block/Allow List (DNS)\n"
         f"! Description: Extracted DNS-level blocking domains from multiple filter sources\n"
         f"! Generated: {ts}\n"
         f"! Expires: 12 hours (update frequency)\n"
