@@ -1,11 +1,39 @@
-# DNS Blocklist - Auto-generated
-# Generated: 2026-05-02 01:49:32 UTC
-# Total domains: 59293
-# Sources:
-#   - EasyList
-#   - AdGuard Japanese filter
-#   - List-KR (Korean)
-#   - uBlock filters
+# Title: DNS Blocklist - Auto-generated
+# Description: Extracted DNS-level blocking domains from multiple filter sources
+# Generated: 2026-05-02 02:00:45 UTC
+# Total domains: 59294
+# Expires: 12 hours (update frequency)
+# Homepage: https://github.com/moamoa7/Block
+#
+# ── Source 1: EasyList ──
+#   Version: 202605020142
+#   Last modified: 02 May 2026 01:42 UTC
+#   Expires: 1 days (update frequency)
+#   Homepage: https://easylist.to/
+#   License: https://easylist.to/pages/licence.html
+#
+# ── Source 2: AdGuard Japanese filter ──
+#   Description: Filter that enables ad blocking on websites in Japanese language.
+#   Version: 2.0.73.62
+#   Last modified: 2026-05-01T16:26:55+00:00
+#   Expires: 12 hours (update frequency)
+#   Homepage: https://github.com/AdguardTeam/AdGuardFilters
+#   License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
+#
+# ── Source 3: List-KR classic filters list (AdGuard) ──
+#   Description: AdGuard용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
+#   Version: 2026.20572.2
+#   Expires: 1 day (update frequency)
+#   Homepage: https://github.com/List-KR/List-KR
+#   License: https://github.com/List-KR/List-KR/blob/master/LICENSE
+#
+# ── Source 4: uBlock filters ──
+#   Description: Filters optimized for uBlock, to be used along EasyList
+#   Last modified: Fri, 01 May 2026 05:34:29 +0000
+#   Expires: 5 days
+#   Homepage: https://github.com/uBlockOrigin/uAssets
+#   License: https://github.com/uBlockOrigin/uAssets/blob/master/LICENSE
+#
 000491b06a.com
 0019x.com
 00404850.xyz
@@ -53280,6 +53308,7 @@ vzsiurbszindx.online
 vztformhlflsz.website
 vzuzrrywyxrdl.online
 vzvzjlzzjfodn.space
+vzwdtzssxikhp.site
 vzwskvcarieny.website
 vzwvakkmefryp.space
 vzydopxwdqnqt.space
