@@ -29,7 +29,6 @@ WHITELIST = {
     "local",
 }
 
-# ─── 메타데이터 파싱에 사용할 필드들 ─────────────────────────────
 META_FIELDS = [
     "Title",
     "Description",
@@ -53,7 +52,7 @@ def fetch_filter(url: str) -> str:
 def parse_metadata(text: str) -> dict[str, str]:
     """필터 텍스트 상단에서 메타데이터를 파싱합니다."""
     metadata = {}
-    for line in text.splitlines()[:30]:  # 상단 30줄만 확인
+    for line in text.splitlines()[:30]:
         line = line.strip()
         if not line.startswith("!"):
             continue
@@ -168,13 +167,26 @@ def extract_dns_domains(text: str) -> set[str]:
     return domains
 
 
-def generate_output(domains: set[str], all_metadata: list[dict[str, str]]) -> None:
+def count_total_lines(text: str) -> int:
+    """필터의 전체 유효 규칙 수를 카운트합니다 (주석/빈줄 제외)."""
+    count = 0
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("!") and not line.startswith("["):
+            count += 1
+    return count
+
+
+def generate_output(
+    domains: set[str],
+    source_results: list[dict],
+) -> None:
     """다양한 형식으로 출력 파일을 생성합니다."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     sorted_domains = sorted(domains)
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    # ─── 헤더 생성 (소스별 메타데이터 포함) ───────────────────────
+    # ─── 헤더 생성 ────────────────────────────────────────────────
     header_lines = [
         f"! Title: DNS Blocklist - Auto-generated",
         f"! Description: Extracted DNS-level blocking domains from multiple filter sources",
@@ -183,36 +195,54 @@ def generate_output(domains: set[str], all_metadata: list[dict[str, str]]) -> No
         f"! Expires: 12 hours (update frequency)",
         f"! Homepage: https://github.com/moamoa7/Block",
         f"!",
+        f"! ═══════════════════════════════════════════════════════",
+        f"!  Source Details",
+        f"! ═══════════════════════════════════════════════════════",
     ]
 
-    for i, meta in enumerate(all_metadata, 1):
+    for i, src in enumerate(source_results, 1):
+        meta = src["metadata"]
         title = meta.get("Title", "Unknown")
-        header_lines.append(f"! ── Source {i}: {title} ──")
-
-        if "Description" in meta:
-            header_lines.append(f"!   Description: {meta['Description']}")
-        if "Version" in meta:
-            header_lines.append(f"!   Version: {meta['Version']}")
-
-        # Last modified / TimeUpdated 통합
-        last_mod = meta.get("Last modified") or meta.get("TimeUpdated")
-        if last_mod:
-            header_lines.append(f"!   Last modified: {last_mod}")
-
-        if "Expires" in meta:
-            header_lines.append(f"!   Expires: {meta['Expires']}")
-        if "Homepage" in meta:
-            header_lines.append(f"!   Homepage: {meta['Homepage']}")
-
-        license_val = meta.get("License") or meta.get("Licence")
-        if license_val:
-            header_lines.append(f"!   License: {license_val}")
+        status = src["status"]           # OK / FAILED
+        dns_count = src["dns_count"]      # DNS 추출 수
+        total_rules = src["total_rules"]  # 전체 규칙 수
+        url = src["url"]
 
         header_lines.append(f"!")
+        header_lines.append(f"! ── Source {i}: {title} ──")
+        header_lines.append(f"!   URL: {url}")
+        header_lines.append(f"!   Status: {status}")
+
+        if status == "OK":
+            if "Description" in meta:
+                header_lines.append(f"!   Description: {meta['Description']}")
+            if "Version" in meta:
+                header_lines.append(f"!   Version: {meta['Version']}")
+
+            last_mod = meta.get("Last modified") or meta.get("TimeUpdated")
+            if last_mod:
+                header_lines.append(f"!   Last modified: {last_mod}")
+
+            if "Expires" in meta:
+                header_lines.append(f"!   Expires: {meta['Expires']}")
+            if "Homepage" in meta:
+                header_lines.append(f"!   Homepage: {meta['Homepage']}")
+
+            license_val = meta.get("License") or meta.get("Licence")
+            if license_val:
+                header_lines.append(f"!   License: {license_val}")
+
+            ratio = (dns_count / total_rules * 100) if total_rules > 0 else 0
+            header_lines.append(f"!   Total rules: {total_rules:,}")
+            header_lines.append(f"!   DNS extracted: {dns_count:,} ({ratio:.1f}%)")
+        else:
+            header_lines.append(f"!   Error: {src['error']}")
+
+    header_lines.append(f"!")
+    header_lines.append(f"! ═══════════════════════════════════════════════════════")
+    header_lines.append(f"!")
 
     header = "\n".join(header_lines) + "\n"
-
-    # hosts 형식은 #을 주석으로 사용
     header_hosts = header.replace("! ", "# ").replace("!\n", "#\n")
 
     # 1. 순수 도메인 리스트
@@ -221,13 +251,13 @@ def generate_output(domains: set[str], all_metadata: list[dict[str, str]]) -> No
         for domain in sorted_domains:
             f.write(f"{domain}\n")
 
-    # 2. hosts 파일 형식 (Pi-hole 등)
+    # 2. hosts 파일 형식
     with open(OUTPUT_HOSTS, "w") as f:
         f.write(header_hosts)
         for domain in sorted_domains:
             f.write(f"0.0.0.0 {domain}\n")
 
-    # 3. AdGuard Home DNS 필터 형식 (! 주석 그대로 사용)
+    # 3. AdGuard Home DNS 필터 형식
     with open(OUTPUT_ADGUARD_DNS, "w") as f:
         f.write(header)
         for domain in sorted_domains:
@@ -241,28 +271,48 @@ def generate_output(domains: set[str], all_metadata: list[dict[str, str]]) -> No
 
 def main():
     all_domains: set[str] = set()
-    all_metadata: list[dict[str, str]] = []
+    source_results: list[dict] = []
 
     for url in FILTER_URLS:
         try:
             text = fetch_filter(url)
             metadata = parse_metadata(text)
-            all_metadata.append(metadata)
+            total_rules = count_total_lines(text)
+            domains = extract_dns_domains(text)
+            dns_count = len(domains)
 
             title = metadata.get("Title", "Unknown")
-            version = metadata.get("Version", "?")
-            last_mod = metadata.get("Last modified") or metadata.get("TimeUpdated", "?")
-            print(f"    📋 {title} (v{version}, {last_mod})")
+            version = metadata.get("Version", "-")
+            last_mod = metadata.get("Last modified") or metadata.get("TimeUpdated", "-")
+            ratio = (dns_count / total_rules * 100) if total_rules > 0 else 0
 
-            domains = extract_dns_domains(text)
-            print(f"    → {len(domains)}개 도메인 추출됨")
+            print(f"    📋 {title}")
+            print(f"       Version: {version} | Last modified: {last_mod}")
+            print(f"       Total rules: {total_rules:,} → DNS extracted: {dns_count:,} ({ratio:.1f}%)")
+
             all_domains.update(domains)
+            source_results.append({
+                "url": url,
+                "metadata": metadata,
+                "status": "OK",
+                "total_rules": total_rules,
+                "dns_count": dns_count,
+                "error": None,
+            })
+
         except Exception as e:
-            print(f"    [!] 에러: {e}")
-            all_metadata.append({"Title": f"Error: {url}"})
+            print(f"    [!] FAILED: {e}")
+            source_results.append({
+                "url": url,
+                "metadata": {"Title": "Unknown"},
+                "status": "FAILED",
+                "total_rules": 0,
+                "dns_count": 0,
+                "error": str(e),
+            })
 
     print(f"\n[*] 중복 제거 후 총 도메인 수: {len(all_domains)}")
-    generate_output(all_domains, all_metadata)
+    generate_output(all_domains, source_results)
 
 
 if __name__ == "__main__":
