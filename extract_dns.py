@@ -127,7 +127,13 @@ def extract_dns_domains(text: str) -> set[str]:
                 if o.startswith("domain="):
                     has_dom = True
                     continue
-                if o.startswith(("redirect", "rewrite", "replace=")):
+                # $app=, $network 등 DNS 레벨에서 적용 불가한 옵션
+                if o.startswith(("app=", "network")):
+                    has_dom = True
+                    continue
+                if o.startswith(("redirect", "rewrite", "replace=",
+                                 "removeparam", "removeheader", "csp=",
+                                 "permissions=", "header=")):
                     skip = True
                     break
                 if o in DNS_UNSAFE:
@@ -135,7 +141,10 @@ def extract_dns_domains(text: str) -> set[str]:
             if skip or has_dom:
                 continue
             safe_found = any(o in DNS_SAFE for o in opts_list
-                           if not o.startswith("~") and not o.startswith("domain="))
+                           if not o.startswith("~")
+                           and not o.startswith("domain=")
+                           and not o.startswith("app=")
+                           and not o.startswith("network"))
             if unsafe_only and not safe_found:
                 continue
         domains.add(d)
