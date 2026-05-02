@@ -44,7 +44,7 @@ def main():
         try:
             text = fetch(url)
             for line in text.splitlines():
-                m = re.match(r"^(?:@@)?\|?\|?([a-z0-9\-\.]+)\^?.*$", line.strip().lower())
+                m = re.match(r"^\|\|([a-z0-9\-\.]+)\^(\$popup)?\s*$",line.strip().lower())
                 if m and is_valid_domain(m.group(1)):
                     white_set.add(m.group(1))
         except Exception as e:
