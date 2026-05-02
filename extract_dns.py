@@ -3,7 +3,7 @@ import re, requests
 from pathlib import Path
 from datetime import datetime, timezone
 
-# ---------- 설정 ----------
+# --- 설정 (이전과 동일) ---
 FILTER_URLS = [
     "https://easylist-downloads.adblockplus.org/easylist.txt",
     "https://filters.adtidy.org/windows/filters/2.txt",
@@ -13,113 +13,75 @@ FILTER_URLS = [
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
 ]
-
 EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
-
 OUTPUT_DIR = Path("output")
-OUTPUT_DOMAINS = OUTPUT_DIR / "blocklist_domains.txt"
-OUTPUT_HOSTS = OUTPUT_DIR / "blocklist_hosts.txt"
-OUTPUT_ADGUARD_DNS = OUTPUT_DIR / "blocklist_combined.txt"
+OUTPUT_ADGUARD_DNS = OUTPUT_DIR / "Block_DNS.txt"
 
-WHITELIST_CORE = {"localhost", "localhost.localdomain", "broadcasthost", "local"}
-
-# ---------- 함수 ----------
-def fetch_data(url: str) -> str:
-    try:
-        r = requests.get(url, timeout=30)
-        r.raise_for_status()
-        return r.text
-    except Exception:
-        return ""
-
+# --- 유효성 검사 함수 ---
 def is_valid_domain(d: str) -> bool:
-    if not d or len(d) < 3 or d in WHITELIST_CORE: return False
-    if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", d): return False 
-    if "*" in d: return False
+    if not d or len(d) < 3: return False
     return bool(re.match(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*\.[a-z]{2,}$", d))
 
-def extract_dns_domains(text: str) -> set[str]:
-    domains = set()
-    for line in text.splitlines():
-        line = line.strip()
-        m = re.match(r"^\|\|([a-zA-Z0-9\-\.]+)\^(\$popup)?\s*$", line)
-        if m:
-            d = m.group(1).lower()
-            if is_valid_domain(d): domains.add(d)
-    return domains
+# --- 메인 로직 ---
+def main():
+    # 1. 화이트리스트 로드 (@@ 규칙들)
+    white_set = set()
+    for url in EXCLUSION_URLS:
+        try:
+            r = requests.get(url, timeout=30)
+            for line in r.text.splitlines():
+                m = re.match(r"^(?:@@)?\|?\|?([a-z0-9\-\.]+)\^?.*$", line.strip().lower())
+                if m and is_valid_domain(m.group(1)):
+                    white_set.add(m.group(1))
+        except: pass
 
-def fetch_exclusions(urls: list[str]) -> set[str]:
-    excluded = set()
-    for url in urls:
-        text = fetch_data(url)
-        for line in text.splitlines():
-            line = line.strip()
-            if not line or line.startswith(("!", "#", "[")): continue
-            m = re.match(r"^(?:@@)?\|?\|?([a-zA-Z0-9\-\.]+)\^?.*$", line)
-            if m:
-                d = m.group(1).lower()
-                if is_valid_domain(d): excluded.add(d)
-    return excluded
+    # 2. 필터 소스 로드 (|| 규칙들)
+    raw_block_set = set()
+    for url in FILTER_URLS:
+        try:
+            r = requests.get(url, timeout=30)
+            for line in r.text.splitlines():
+                m = re.match(r"^\|\|([a-z0-9\-\.]+)\^", line.strip().lower())
+                if m and is_valid_domain(m.group(1)):
+                    raw_block_set.add(m.group(1))
+        except: pass
 
-def generate_output(all_raw_blocks: set[str], dns_exclusions: set[str]):
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    # 3. 정확한 통계 계산
+    # [A] 수집된 모든 고유 차단 도메인
+    total_raw = len(raw_block_set) 
+    # [B] 차단 목록에 있었는데 화이트리스트에도 있어서 제거될 도메인
+    removed_list = raw_block_set.intersection(white_set)
+    removed_count = len(removed_list)
+    # [C] 최종적으로 || 규칙으로 들어갈 도메인 (A - B)
+    final_blocks = sorted(raw_block_set - white_set)
+    final_block_count = len(final_blocks)
+    # [D] 최종적으로 @@ 규칙으로 들어갈 도메인 (화이트리스트 전체)
+    final_whites = sorted(white_set)
+    final_white_count = len(final_whites)
+
+    # 4. 출력
+    OUTPUT_DIR.mkdir(exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     
-    # [계산 로직]
-    # 1. 원본 차단 도메인 중 화이트리스트와 겹치는 도메인들
-    removed_by_whitelist = all_raw_blocks.intersection(dns_exclusions)
-    # 2. 실제로 차단될 도메인 (원본 - 화이트리스트)
-    final_blocks = sorted(all_raw_blocks - dns_exclusions)
-    # 3. 통합 필터에 넣을 예외 규칙 (실제 의미 있는 예외들만)
-    final_whites = sorted(dns_exclusions)
-
-    header_content = [
-        f"! Title: Combined DNS Blocklist",
-        f"! Generated: {ts}",
-        f"! --------------------------------------------------",
-        f"! [Statistics]",
-        f"! Raw Domains Collected: {len(all_raw_blocks):,}",
-        f"! Domains Removed by Whitelist: {len(removed_by_whitelist):,}",
-        f"! Final Block Rules: {len(final_blocks):,}",
-        f"! Final Exception Rules (@@): {len(final_whites):,}",
-        f"! --------------------------------------------------",
-        "!",
-    ]
-    header_str = "\n".join(header_content) + "\n"
-    header_hosts = header_str.replace("! ", "# ").replace("!\n", "#\n")
-
-    # 1. AdGuard 통합형
     with open(OUTPUT_ADGUARD_DNS, "w") as f:
-        f.write(header_str)
+        f.write(f"! Title: Combined DNS Filter\n")
+        f.write(f"! Generated: {ts}\n")
+        f.write(f"! [Detailed Statistics]\n")
+        f.write(f"! 1. Raw Domains Collected      : {total_raw:,}\n")
+        f.write(f"! 2. Removed by Whitelist       : {removed_count:,}\n")
+        f.write(f"! 3. Final Block Rules (||)     : {final_block_count:,}\n")
+        f.write(f"! 4. Final Exception Rules (@@) : {final_white_count:,}\n")
+        f.write(f"!\n! (Calculation: 1 - 2 = 3)\n!\n")
+        
         f.write("! === BLOCK RULES ===\n")
         f.writelines(f"||{d}^\n" for d in final_blocks)
         f.write("\n! === EXCEPTION RULES ===\n")
         f.writelines(f"@@||{d}^\n" for d in final_whites)
 
-    # 2. Domains/Hosts
-    with open(OUTPUT_DOMAINS, "w") as f:
-        f.write(header_hosts)
-        f.writelines(d + "\n" for d in final_blocks)
-    with open(OUTPUT_HOSTS, "w") as f:
-        f.write(header_hosts)
-        f.writelines(f"0.0.0.0 {d}\n" for d in final_blocks)
-
-    print(f"\n[✓] 작업 완료 (최종 차단: {len(final_blocks):,}개)")
-
-def main():
-    print("[*] 제외 목록(화이트리스트) 로딩 중...")
-    dns_exclusions = fetch_exclusions(EXCLUSION_URLS)
-    
-    print("[*] 필터 소스 수집 중...")
-    all_raw_blocks = set()
-    for url in FILTER_URLS:
-        text = fetch_data(url)
-        all_raw_blocks.update(extract_dns_domains(text))
-
-    generate_output(all_raw_blocks, dns_exclusions)
+    print(f"통계: 수집({total_raw}) - 제거({removed_count}) = 최종차단({final_block_count})")
 
 if __name__ == "__main__":
     main()
