@@ -193,7 +193,7 @@ def generate_output(
         f"! Title: Small DNS Blocklist",
         f"! Description: Extracted DNS-level blocking domains from multiple filter sources",
         f"! Generated: {timestamp}",
-        f"! Total domains: {len(sorted_domains)}",
+        f"! Total domains: {len(sorted_domains):,}",
         f"! Expires: 12 hours (update frequency)",
         f"! Homepage: https://github.com/moamoa7/Block",
         f"!",
@@ -205,9 +205,7 @@ def generate_output(
     for i, src in enumerate(source_results, 1):
         meta = src["metadata"]
         title = meta.get("Title", "Unknown")
-        status = src["status"]           # OK / FAILED
-        dns_count = src["dns_count"]      # DNS 추출 수
-        total_rules = src["total_rules"]  # 전체 규칙 수
+        status = src["status"]
         url = src["url"]
 
         header_lines.append(f"!")
@@ -234,9 +232,15 @@ def generate_output(
             if license_val:
                 header_lines.append(f"!   License: {license_val}")
 
+            dns_count = src["dns_count"]
+            new_count = src["new_count"]
+            dup_count = src["dup_count"]
+            total_rules = src["total_rules"]
             ratio = (dns_count / total_rules * 100) if total_rules > 0 else 0
+
             header_lines.append(f"!   Total rules: {total_rules:,}")
             header_lines.append(f"!   DNS extracted: {dns_count:,} ({ratio:.1f}%)")
+            header_lines.append(f"!   New domains: {new_count:,} | Duplicates removed: {dup_count:,}")
         else:
             header_lines.append(f"!   Error: {src['error']}")
 
@@ -265,7 +269,7 @@ def generate_output(
         for domain in sorted_domains:
             f.write(f"||{domain}^\n")
 
-    print(f"\n[✓] 총 {len(sorted_domains)}개 도메인 추출 완료")
+    print(f"\n[✓] 총 {len(sorted_domains):,}개 도메인 추출 완료")
     print(f"    → {OUTPUT_DOMAINS}")
     print(f"    → {OUTPUT_HOSTS}")
     print(f"    → {OUTPUT_ADGUARD_DNS}")
@@ -283,6 +287,11 @@ def main():
             domains = extract_dns_domains(text)
             dns_count = len(domains)
 
+            # 이전 소스들과 중복되지 않는 신규 도메인만 계산
+            new_domains = domains - all_domains
+            new_count = len(new_domains)
+            dup_count = dns_count - new_count
+
             title = metadata.get("Title", "Unknown")
             version = metadata.get("Version", "-")
             last_mod = metadata.get("Last modified") or metadata.get("TimeUpdated", "-")
@@ -291,6 +300,7 @@ def main():
             print(f"    📋 {title}")
             print(f"       Version: {version} | Last modified: {last_mod}")
             print(f"       Total rules: {total_rules:,} → DNS extracted: {dns_count:,} ({ratio:.1f}%)")
+            print(f"       New: {new_count:,} | Duplicates: {dup_count:,}")
 
             all_domains.update(domains)
             source_results.append({
@@ -299,6 +309,8 @@ def main():
                 "status": "OK",
                 "total_rules": total_rules,
                 "dns_count": dns_count,
+                "new_count": new_count,
+                "dup_count": dup_count,
                 "error": None,
             })
 
@@ -310,10 +322,12 @@ def main():
                 "status": "FAILED",
                 "total_rules": 0,
                 "dns_count": 0,
+                "new_count": 0,
+                "dup_count": 0,
                 "error": str(e),
             })
 
-    print(f"\n[*] 중복 제거 후 총 도메인 수: {len(all_domains)}")
+    print(f"\n[*] 총 도메인 수: {len(all_domains):,}")
     generate_output(all_domains, source_results)
 
 
