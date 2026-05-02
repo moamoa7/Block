@@ -1,6 +1,6 @@
 ! Title: Small DNS Blocklist
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 05:29:32 UTC
+! Generated: 2026-05-02 05:31:01 UTC
 ! Total domains: 72,913
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
