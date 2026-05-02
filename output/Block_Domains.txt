@@ -1,10 +1,13 @@
-# Title: Combined DNS Filter
-# Generated: 2026-05-02 07:11:42 UTC
+# Title: Personal DNS Filter
+# Description: Extracted DNS-level blocking domains from multiple filter sources
+# Generated: 2026-05-02 07:22:01 UTC
+# Expires: 12 hours (update frequency)
+# Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 75,261
+# 1. Raw Domains Collected      : 75,263
 # 2. Removed by Whitelist       : 95
-# 3. Final Block Rules (||)     : 75,166
+# 3. Final Block Rules (||)     : 75,168
 # 4. Final Exception Rules (@@) : 543
 # (Calculation: 1 - 2 = 3)
 #
@@ -42180,6 +42183,7 @@ osdkublrgnidm.website
 osdlavodqppy.in
 osdvmhchowlvm.website
 osedbdrm.com
+osejoplay.com
 osenksyid.com
 oseveralyearsfo.org
 osfultrbriolenai.info
@@ -72321,6 +72325,7 @@ yapfairmark.com
 yapockpinene.cyou
 yapockwaters.help
 yapoktippledcauked.cyou
+yaponhurrahszeal.cfd
 yapplanetsterritory.com
 yapsterclubbed.qpon
 yapsterpaviesneger.cfd
