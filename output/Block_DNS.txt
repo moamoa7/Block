@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-02 17:15:24 UTC
+! Generated: 2026-05-02 17:34:32 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 73,169
-! 2. Removed by Whitelist       : 37
-! 3. Final Block Rules (||)     : 73,132
-! 4. Final Exception Rules (@@) : 454
+! 1. Raw Domains Collected      : 73,177
+! 2. Removed by Whitelist       : 36
+! 3. Final Block Rules (||)     : 73,141
+! 4. Final Exception Rules (@@) : 453
 ! (Calculation: 1 - 2 = 3)
 !
 ! === BLOCK RULES ===
@@ -4722,6 +4722,7 @@
 ||ad.citynews.it^
 ||ad.cpcstar.com^
 ||ad.cyycoy.com^
+||ad.danawa.com^
 ||ad.datadeliver.net^
 ||ad.daum.net^
 ||ad.ddo.jp^
@@ -7655,6 +7656,7 @@
 ||aricinohia.qpon^
 ||arid-management.pro^
 ||arid-smell.pro^
+||aridgebean.cfd^
 ||aridstirksypher.cyou^
 ||arilledclimant.qpon^
 ||arimaspdeek.com^
@@ -12663,11 +12665,13 @@
 ||cebiansmiting.cyou^
 ||cebilfares.cyou^
 ||cebjrqvyienhy.site^
+||cebnovoscizrj.online^
 ||cebrkisjmrm.com^
 ||cebusandman.lovingforever.pro^
 ||ceciliabotts.cyou^
 ||cecmwtarwabtp.website^
 ||cedarcrozzle.com^
+||cedarswinston.shop^
 ||cedecancontemporary.com^
 ||cedeimprovise.com^
 ||cedhoinle.com^
@@ -22893,6 +22897,7 @@
 ||finspothainedtersion.qpon^
 ||fiorewonyhade.online^
 ||fiorinautist.shop^
+||fiotiltfnlfet.com^
 ||fipeklkqojdfl.space^
 ||fipnhbnfbwxhc.site^
 ||fipnvuixbrwuv.space^
@@ -32199,6 +32204,7 @@
 ||kilzrkxmenmwo.space^
 ||kimberlite.io^
 ||kimhk6w4k.3znoji162fuxp71whii.cfd^
+||kimnelpinkeys.cyou^
 ||kimono.tokyowatch.cc^
 ||kindergartenharness.com^
 ||kindergartensurgeon.com^
@@ -32494,6 +32500,7 @@
 ||knorhmnwime.com^
 ||knotbachelor.com^
 ||knotshallowspeeding.com^
+||knotterlaudian.cyou^
 ||knoutededdaiccounite.cfd^
 ||knoutskumrahtauting.cfd^
 ||knowd.com^
@@ -52404,6 +52411,7 @@
 ||seccc.jasjas.xyz^
 ||seccosstronganimo.cyou^
 ||secederhippen.cfd^
+||secederslipway.cfd^
 ||secedesgrinchamebic.qpon^
 ||secernroofers.cyou^
 ||sechiumazlons.qpon^
@@ -66648,6 +66656,7 @@
 ||wisurefifes.cyou^
 ||witalfieldt.com^
 ||witasix.com^
+||witchesmouldsoud.cyou^
 ||witchetofter.com^
 ||witchetthomasa.cfd^
 ||witchylimn.qpon^
@@ -73159,7 +73168,6 @@
 @@||ab.tweakers.nl^
 @@||ad-shield.io^
 @@||ad.cgv.co.kr^
-@@||ad.danawa.com^
 @@||ad.nwi.jp^
 @@||adc.api.nine.com.au^
 @@||adcell.com^
