@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-02 11:03:59 UTC
+  Generated: 2026-05-02 11:10:28 UTC
 ============================================================
 
 [ Whitelist Sources ]
@@ -36,23 +36,23 @@
        URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
        Total Lines: 11,088 | Extracted: 50
   [OK] MINI Allow/Block List
-       URL: https://raw.githubusercontent.com/cbuijs/adblocks/main/maxi.adblock.txt
-       Total Lines: 316,534 | Extracted: 316,501
+       URL: https://raw.githubusercontent.com/cbuijs/adblocks/main/mini.adblock.txt
+       Total Lines: 85,906 | Extracted: 84,373
 
 [ Overlap Analysis ]
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
   EasyList                      56,931     56,931          4
-  AdGuard Base                  65,713      8,786      4,795
-  AdGuard Mobile                   908        890        249
-  AdGuard Japanese                 169        156         21
-  AdGuard Chinese                6,076      6,061        541
-  List-KR                          352        265         89
-  uBlock Filters                    50         33          4
-  MINI Allow/Block List        316,501    262,014    262,014
+  AdGuard Base                  65,713      8,786      7,919
+  AdGuard Mobile                   908        890        421
+  AdGuard Japanese                 169        156         74
+  AdGuard Chinese                6,076      6,061      5,627
+  List-KR                          352        265        173
+  uBlock Filters                    50         33         19
+  MINI Allow/Block List         84,373     70,084     70,084
   ───────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)         335,136
+  Total (deduplicated)         143,206
 
   * Extracted : 해당 필터에서 추출된 도메인 수
   * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
@@ -60,9 +60,9 @@
 
 [ Final Summary ]
 ------------------------------------------------------------
-  1. Raw Domains Collected      : 335,136
+  1. Raw Domains Collected      : 143,206
   2. Whitelist Domains Loaded    : 452
-  3. Removed by Whitelist        : 128
-  4. Final Block Domains         : 335,008
+  3. Removed by Whitelist        : 60
+  4. Final Block Domains         : 143,146
   5. Final Exception Rules       : 452
 ============================================================
