@@ -104,7 +104,7 @@ def main():
             domains_this = set()
             for line in text.splitlines():
                 m = re.match(
-                    r"^\|\|([a-z0-9\-\.]+)\^(\$popup)?\s*$",
+                    r"^\|\|([a-z0-9\-\.]+)\^(\$(popup|document)(,(popup|document))?)?\s*$"
                     line.strip().lower()
                 )
                 if m and is_valid_domain(m.group(1)):
