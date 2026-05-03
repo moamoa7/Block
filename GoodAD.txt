@@ -1743,11 +1743,10 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.clearfix
-! - 개별 만화 각 회수별 배너
+! - 개별 만화 각 회수별 배너  (모바일)
 !||tkor*.com/bann/*$image
 !||funbe*.com/bann/*$image
-! - 이걸로 하면 전체 프레임이 다 차단되서 해제
-!#@#.mobile-banner
+##[class*="mobile-banner"]
 ! - 토토보증업체 글자
 ![$domain=/^tkor\d+.com/]##.text-center.hidden-xs.navbar-nav.nav > li > [href="https://tkor020.com/토토보증업체"]
 ! - 이미지 복원
