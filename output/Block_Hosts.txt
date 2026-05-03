@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-03 06:44:39 UTC
+# Generated: 2026-05-03 08:28:21 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,227
-# 2. Removed by Reference       : 4,978
+# 1. Raw Domains Collected      : 67,236
+# 2. Removed by Reference       : 4,975
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,248
+# 4. Final Block Rules (||)     : 62,260
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -582,6 +582,7 @@
 0.0.0.0 2nyo9rwkx1rn7bk62wvpig3onk3fiok4eq7n.rest
 0.0.0.0 2olyjbvcxc7ck38ken7bgg7jj.cfd
 0.0.0.0 2om93s33n.de
+0.0.0.0 2onq7kwbrfjbjv65.cfd
 0.0.0.0 2p1kreiqg.de
 0.0.0.0 2pc6q54ga.de
 0.0.0.0 2qj7mq3w4uxe.com
@@ -1139,6 +1140,7 @@
 0.0.0.0 6512e0a6fe.60ecf22b99.com
 0.0.0.0 65894140.xyz
 0.0.0.0 65fcb6f3fe.com
+0.0.0.0 65kgheufl5m4li.rest
 0.0.0.0 65r6k9131hvxhlvvgtyxflg.rest
 0.0.0.0 65spy7rgcu.com
 0.0.0.0 660d588959.com
@@ -5944,6 +5946,7 @@
 0.0.0.0 baggagedresden.qpon
 0.0.0.0 baggeracold.qpon
 0.0.0.0 baggeraeolist.cyou
+0.0.0.0 baggersoutjet.shop
 0.0.0.0 baggy-water.com
 0.0.0.0 baggycrack.pro
 0.0.0.0 baggydepreciate.com
@@ -7404,6 +7407,7 @@
 0.0.0.0 bolsterate.net
 0.0.0.0 boltepse.com
 0.0.0.0 boltnunfirsthand.com
+0.0.0.0 boltsafeway.cfd
 0.0.0.0 boltsuntiledyurts.cyou
 0.0.0.0 bombousdisrest.qpon
 0.0.0.0 bomdog.com
@@ -17479,6 +17483,7 @@
 0.0.0.0 fbdpinychafpr.website
 0.0.0.0 fbetlixgee.eu
 0.0.0.0 fbfejxqozbxrc.site
+0.0.0.0 fbgubsoogfntj.website
 0.0.0.0 fbhelyqzqbnft.global
 0.0.0.0 fbijrbsgoqyh.com
 0.0.0.0 fbispdrlpngqv.space
@@ -22214,6 +22219,7 @@
 0.0.0.0 hoksomuptak.net
 0.0.0.0 hoktrips.com
 0.0.0.0 hokwedzitgnao.space
+0.0.0.0 hokwjsobypqi.com
 0.0.0.0 holahupa.com
 0.0.0.0 holder.com.ua
 0.0.0.0 holdersbreards.cyou
@@ -25247,6 +25253,7 @@
 0.0.0.0 jpcjzcrkrugie.online
 0.0.0.0 jpdrbeyrgjaav.site
 0.0.0.0 jpdvqxfqnriyn.website
+0.0.0.0 jpeahgnrihuk.in
 0.0.0.0 jpecinlfeozb.in
 0.0.0.0 jpfjltsmlrimq.site
 0.0.0.0 jpgfychjclfxh.site
@@ -30637,6 +30644,7 @@
 0.0.0.0 musiciansaudience.com
 0.0.0.0 musiciansinceredumpling.com
 0.0.0.0 musicnote.info
+0.0.0.0 muskegskilimneeders.cfd
 0.0.0.0 muskiesmawkin.com
 0.0.0.0 muskitsfrailes.cfd
 0.0.0.0 muskoxhattienatchez.cyou
@@ -34342,6 +34350,7 @@
 0.0.0.0 panther.thestocks.im
 0.0.0.0 panther.tigil.rs
 0.0.0.0 pantherinvincible.com
+0.0.0.0 pantiesdrayed.cyou
 0.0.0.0 pantomimeinforms.com
 0.0.0.0 pantomimemailman.com
 0.0.0.0 pantortol.cfd
@@ -50449,6 +50458,7 @@
 0.0.0.0 tpntjandqmyuf.site
 0.0.0.0 tpoglsdwnaftik.com
 0.0.0.0 tpooxlktyvpsn.online
+0.0.0.0 tpopfgvlqytlm.online
 0.0.0.0 tpoqbkqesgoig.one
 0.0.0.0 tpovpwtqjeazz.website
 0.0.0.0 tppwkciiypmeh.site
@@ -60168,6 +60178,7 @@
 0.0.0.0 ygaeklqwfmtsl.website
 0.0.0.0 ygapolususesrisks.cfd
 0.0.0.0 ygcbqnceieyqy.website
+0.0.0.0 ygcekfvtekwrd.website
 0.0.0.0 ygddqjrodyupi.com
 0.0.0.0 ygdgikwoyzgbw.site
 0.0.0.0 ygdugexain.com
@@ -61079,6 +61090,7 @@
 0.0.0.0 zabanit.xyz
 0.0.0.0 zabkvvqzulvwe.online
 0.0.0.0 zablgoqpquvty.site
+0.0.0.0 zablqbkh.com
 0.0.0.0 zabojdfziov.in
 0.0.0.0 zabraridger.cyou
 0.0.0.0 zaburrogocart.cfd

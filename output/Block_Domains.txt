@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-03 06:44:39 UTC
+# Generated: 2026-05-03 08:28:21 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,227
-# 2. Removed by Reference       : 4,978
+# 1. Raw Domains Collected      : 67,236
+# 2. Removed by Reference       : 4,975
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,248
+# 4. Final Block Rules (||)     : 62,260
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -582,6 +582,7 @@
 2nyo9rwkx1rn7bk62wvpig3onk3fiok4eq7n.rest
 2olyjbvcxc7ck38ken7bgg7jj.cfd
 2om93s33n.de
+2onq7kwbrfjbjv65.cfd
 2p1kreiqg.de
 2pc6q54ga.de
 2qj7mq3w4uxe.com
@@ -1139,6 +1140,7 @@
 6512e0a6fe.60ecf22b99.com
 65894140.xyz
 65fcb6f3fe.com
+65kgheufl5m4li.rest
 65r6k9131hvxhlvvgtyxflg.rest
 65spy7rgcu.com
 660d588959.com
@@ -5944,6 +5946,7 @@ baggageconservationcaught.com
 baggagedresden.qpon
 baggeracold.qpon
 baggeraeolist.cyou
+baggersoutjet.shop
 baggy-water.com
 baggycrack.pro
 baggydepreciate.com
@@ -7404,6 +7407,7 @@ bolsmash.qpon
 bolsterate.net
 boltepse.com
 boltnunfirsthand.com
+boltsafeway.cfd
 boltsuntiledyurts.cyou
 bombousdisrest.qpon
 bomdog.com
@@ -17479,6 +17483,7 @@ fbdjpebrvocxf.website
 fbdpinychafpr.website
 fbetlixgee.eu
 fbfejxqozbxrc.site
+fbgubsoogfntj.website
 fbhelyqzqbnft.global
 fbijrbsgoqyh.com
 fbispdrlpngqv.space
@@ -22214,6 +22219,7 @@ hokmlnzfftxvg.space
 hoksomuptak.net
 hoktrips.com
 hokwedzitgnao.space
+hokwjsobypqi.com
 holahupa.com
 holder.com.ua
 holdersbreards.cyou
@@ -25247,6 +25253,7 @@ jpbsggqehlopl.online
 jpcjzcrkrugie.online
 jpdrbeyrgjaav.site
 jpdvqxfqnriyn.website
+jpeahgnrihuk.in
 jpecinlfeozb.in
 jpfjltsmlrimq.site
 jpgfychjclfxh.site
@@ -30637,6 +30644,7 @@ musicianfinnish.com
 musiciansaudience.com
 musiciansinceredumpling.com
 musicnote.info
+muskegskilimneeders.cfd
 muskiesmawkin.com
 muskitsfrailes.cfd
 muskoxhattienatchez.cyou
@@ -34342,6 +34350,7 @@ panther.familytools.app
 panther.thestocks.im
 panther.tigil.rs
 pantherinvincible.com
+pantiesdrayed.cyou
 pantomimeinforms.com
 pantomimemailman.com
 pantortol.cfd
@@ -50449,6 +50458,7 @@ tpnmhqylskzlg.online
 tpntjandqmyuf.site
 tpoglsdwnaftik.com
 tpooxlktyvpsn.online
+tpopfgvlqytlm.online
 tpoqbkqesgoig.one
 tpovpwtqjeazz.website
 tppwkciiypmeh.site
@@ -60168,6 +60178,7 @@ ygacesefzgcvt.site
 ygaeklqwfmtsl.website
 ygapolususesrisks.cfd
 ygcbqnceieyqy.website
+ygcekfvtekwrd.website
 ygddqjrodyupi.com
 ygdgikwoyzgbw.site
 ygdugexain.com
@@ -61079,6 +61090,7 @@ zaaukprozdvsl.space
 zabanit.xyz
 zabkvvqzulvwe.online
 zablgoqpquvty.site
+zablqbkh.com
 zabojdfziov.in
 zabraridger.cyou
 zaburrogocart.cfd
