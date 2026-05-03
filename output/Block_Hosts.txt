@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-03 02:16:36 UTC
+# Generated: 2026-05-03 04:15:01 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,190
-# 2. Removed by Reference       : 5,002
+# 1. Raw Domains Collected      : 67,204
+# 2. Removed by Reference       : 4,995
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,187
+# 4. Final Block Rules (||)     : 62,208
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -216,6 +216,7 @@
 0.0.0.0 14f768ef60.com
 0.0.0.0 14fefmsjd.de
 0.0.0.0 14i8trbbx4.com
+0.0.0.0 14k3kwrl43gyf2bch6gmu1h8gnoxuthv1yu.rest
 0.0.0.0 14k4.com
 0.0.0.0 150791bf69.com
 0.0.0.0 15272973.xyz
@@ -604,6 +605,7 @@
 0.0.0.0 2xeibjlqyxu8m4zq7lob3qyknpl2.cfd
 0.0.0.0 2yrlx4lem82wqehq.cfd
 0.0.0.0 2z1bu5for5z7qx.cfd
+0.0.0.0 2zxm2pb3q38m2k.cfd
 0.0.0.0 3.www.cheetahhowevertowardsfrom.com
 0.0.0.0 300daytravel.com
 0.0.0.0 301redirect.site
@@ -974,6 +976,7 @@
 0.0.0.0 53469662.xyz
 0.0.0.0 534aad2a3a.beaf5f1f17.com
 0.0.0.0 536i.com
+0.0.0.0 538b2f9b26.com
 0.0.0.0 5394aeb3d4.com
 0.0.0.0 53c2dtzsj7t1.top
 0.0.0.0 53refmx8xjbxgh4kq117rvc6w5.rest
@@ -1480,6 +1483,7 @@
 0.0.0.0 87jntnx5715ligvekcrqu.rest
 0.0.0.0 8800zenica.com
 0.0.0.0 88129513.xyz
+0.0.0.0 882793fb7a.com
 0.0.0.0 8841c61d83.372ae6b830.com
 0.0.0.0 88545539.xyz
 0.0.0.0 88557e019f.51fb350e23.com
@@ -4992,6 +4996,7 @@
 0.0.0.0 arkfacialdaybreak.com
 0.0.0.0 arkharmonious.com
 0.0.0.0 arkieeria.qpon
+0.0.0.0 arknightsendfield.site
 0.0.0.0 arkosichoveredreflag.cyou
 0.0.0.0 arkox.site
 0.0.0.0 arkwglkwhnhce.store
@@ -9646,6 +9651,7 @@
 0.0.0.0 cingvfuekwcip.website
 0.0.0.0 cinmivywcgv.com
 0.0.0.0 cinnamonhandsomeoccurs.com
+0.0.0.0 cinquesbilled.com
 0.0.0.0 cintregowan.com
 0.0.0.0 cinuraemicant.cfd
 0.0.0.0 cinvetica.com
@@ -12934,6 +12940,7 @@
 0.0.0.0 dakafxgnqcpmm.website
 0.0.0.0 dakmrvrmffvtq.com
 0.0.0.0 dakoitsredlegsfrankly.cyou
+0.0.0.0 dakotasinseamaskers.cyou
 0.0.0.0 dal9hkyfi0m0n.cloudfront.net
 0.0.0.0 dalbfocvqrmnn.space
 0.0.0.0 dalecta.com
@@ -15526,6 +15533,7 @@
 0.0.0.0 ebxlkdnphpqwf.store
 0.0.0.0 ebxophcyyuwuu.online
 0.0.0.0 ebz.io
+0.0.0.0 ec0d919893.com
 0.0.0.0 ec26bf2191.com
 0.0.0.0 eca1311030.3163ba76f7.com
 0.0.0.0 ecaqbwghfrwkm.site
@@ -15637,6 +15645,7 @@
 0.0.0.0 educatedcoercive.com
 0.0.0.0 educatedmonitor.pro
 0.0.0.0 edukicationandasm.com
+0.0.0.0 edulsmxrwtwup.space
 0.0.0.0 eduseio.com
 0.0.0.0 edutechlearners.com
 0.0.0.0 edvfwlacluo.com
@@ -18280,6 +18289,7 @@
 0.0.0.0 flamingo.abihome.de
 0.0.0.0 flamingo.podcast.taxi
 0.0.0.0 flamingo.stacking-club.com
+0.0.0.0 flammedpairing.qpon
 0.0.0.0 flamydomeroyalty.cyou
 0.0.0.0 flangrowler.shop
 0.0.0.0 flankcowards.cyou
@@ -21461,6 +21471,7 @@
 0.0.0.0 havenclick.com
 0.0.0.0 havenerbastionfrailly.cyou
 0.0.0.0 havenwrite.com
+0.0.0.0 havenyl.xyz
 0.0.0.0 havetestifyharriet.com
 0.0.0.0 havhrywu.in
 0.0.0.0 havingartistictastesn.org
@@ -21813,6 +21824,7 @@
 0.0.0.0 hfvn6kcfykruk79p337e69h8pnrw.cfd
 0.0.0.0 hfxvwhstgitib.site
 0.0.0.0 hfyavgagbiidq.site
+0.0.0.0 hfzleyzwjwucf.website
 0.0.0.0 hg-bn.com
 0.0.0.0 hgagwcznmclhv.store
 0.0.0.0 hgbdjawazluzd.site
@@ -21970,6 +21982,7 @@
 0.0.0.0 hirersalung.cyou
 0.0.0.0 hirseluric.cfd
 0.0.0.0 hirvkfqgoevye.website
+0.0.0.0 hirwwguwdvsoe.website
 0.0.0.0 hisfwbkl.com
 0.0.0.0 hisisathlle.com
 0.0.0.0 hispidtux.com
@@ -22607,6 +22620,7 @@
 0.0.0.0 hujvbvdwewxmwe.com
 0.0.0.0 hukejvlabkuhx.website
 0.0.0.0 hukelpfulinotaherer.org
+0.0.0.0 hukxatzhoxsa.com
 0.0.0.0 hulchmarathimesozoa.cfd
 0.0.0.0 huldahimpends.com
 0.0.0.0 huldeeforgoer.com
@@ -25173,6 +25187,7 @@
 0.0.0.0 joroofmenfores.cfd
 0.0.0.0 joryvztqojsig.space
 0.0.0.0 josephclassics.com
+0.0.0.0 josfurouf.com
 0.0.0.0 joshuaam.qpon
 0.0.0.0 jostledsibsmalmed.cfd
 0.0.0.0 josulhtyxgarv.space
@@ -25713,6 +25728,7 @@
 0.0.0.0 kaiu-marketing.com
 0.0.0.0 kajfjxjrcn.com
 0.0.0.0 kajyqgfjhohks.website
+0.0.0.0 kakaposbalaksettima.qpon
 0.0.0.0 kakkechudic.shop
 0.0.0.0 kakoswijwtdlj.online
 0.0.0.0 kakuyomu.life
@@ -30387,6 +30403,7 @@
 0.0.0.0 mrdzuibek.com
 0.0.0.0 mrebfofligkfs.site
 0.0.0.0 mredir.com
+0.0.0.0 mrfckhwpvvftt.online
 0.0.0.0 mrflhiuulmarq.website
 0.0.0.0 mrgrekeroad.com
 0.0.0.0 mrkaiufqsytov.space
@@ -32794,6 +32811,7 @@
 0.0.0.0 oi.lesbianbliss.com
 0.0.0.0 oi.transhero.com
 0.0.0.0 oialnxwngsggvq.com
+0.0.0.0 oibveptkzqyhb.com
 0.0.0.0 oicfkmbppdusr.website
 0.0.0.0 oiclulifzkfna.site
 0.0.0.0 oidgctozcfsrr.site
@@ -33291,6 +33309,7 @@
 0.0.0.0 oqkhxgzljvqzr.store
 0.0.0.0 oqmacnov.in
 0.0.0.0 oqmiadfkmlcwz.website
+0.0.0.0 oqrqisal.in
 0.0.0.0 oqtoltlimot.in
 0.0.0.0 oqtxcfuumplee.website
 0.0.0.0 oquaysx.club
@@ -33997,6 +34016,7 @@
 0.0.0.0 ozpnmwkzyvazx.store
 0.0.0.0 ozpthucmavu.in
 0.0.0.0 ozqxbtyrotvwk.online
+0.0.0.0 ozqywtqmyotdf.online
 0.0.0.0 ozrozsxp.in
 0.0.0.0 ozsdurst.cfd
 0.0.0.0 ozsiwqbeanupu.space
@@ -60362,6 +60382,7 @@
 0.0.0.0 yluqzwoggtdaa.online
 0.0.0.0 ylwbxiuajnvzz.space
 0.0.0.0 ylwfbiqipjmuz.online
+0.0.0.0 ylwxalglw.com
 0.0.0.0 ylx-1.com
 0.0.0.0 ylx-2.com
 0.0.0.0 ylx-3.com

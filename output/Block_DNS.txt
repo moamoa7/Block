@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-03 02:16:36 UTC
+! Generated: 2026-05-03 04:15:01 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 67,190
-! 2. Removed by Reference       : 5,002
+! 1. Raw Domains Collected      : 67,204
+! 2. Removed by Reference       : 4,995
 ! 3. Removed by Whitelist       : 1
-! 4. Final Block Rules (||)     : 62,187
+! 4. Final Block Rules (||)     : 62,208
 ! 5. Final Exception Rules (@@) : 451
 ! (Calculation: 1 - 2 - 3 = 4)
 !
@@ -217,6 +217,7 @@
 ||14f768ef60.com^
 ||14fefmsjd.de^
 ||14i8trbbx4.com^
+||14k3kwrl43gyf2bch6gmu1h8gnoxuthv1yu.rest^
 ||14k4.com^
 ||150791bf69.com^
 ||15272973.xyz^
@@ -605,6 +606,7 @@
 ||2xeibjlqyxu8m4zq7lob3qyknpl2.cfd^
 ||2yrlx4lem82wqehq.cfd^
 ||2z1bu5for5z7qx.cfd^
+||2zxm2pb3q38m2k.cfd^
 ||3.www.cheetahhowevertowardsfrom.com^
 ||300daytravel.com^
 ||301redirect.site^
@@ -975,6 +977,7 @@
 ||53469662.xyz^
 ||534aad2a3a.beaf5f1f17.com^
 ||536i.com^
+||538b2f9b26.com^
 ||5394aeb3d4.com^
 ||53c2dtzsj7t1.top^
 ||53refmx8xjbxgh4kq117rvc6w5.rest^
@@ -1481,6 +1484,7 @@
 ||87jntnx5715ligvekcrqu.rest^
 ||8800zenica.com^
 ||88129513.xyz^
+||882793fb7a.com^
 ||8841c61d83.372ae6b830.com^
 ||88545539.xyz^
 ||88557e019f.51fb350e23.com^
@@ -4993,6 +4997,7 @@
 ||arkfacialdaybreak.com^
 ||arkharmonious.com^
 ||arkieeria.qpon^
+||arknightsendfield.site^
 ||arkosichoveredreflag.cyou^
 ||arkox.site^
 ||arkwglkwhnhce.store^
@@ -9647,6 +9652,7 @@
 ||cingvfuekwcip.website^
 ||cinmivywcgv.com^
 ||cinnamonhandsomeoccurs.com^
+||cinquesbilled.com^
 ||cintregowan.com^
 ||cinuraemicant.cfd^
 ||cinvetica.com^
@@ -12935,6 +12941,7 @@
 ||dakafxgnqcpmm.website^
 ||dakmrvrmffvtq.com^
 ||dakoitsredlegsfrankly.cyou^
+||dakotasinseamaskers.cyou^
 ||dal9hkyfi0m0n.cloudfront.net^
 ||dalbfocvqrmnn.space^
 ||dalecta.com^
@@ -15527,6 +15534,7 @@
 ||ebxlkdnphpqwf.store^
 ||ebxophcyyuwuu.online^
 ||ebz.io^
+||ec0d919893.com^
 ||ec26bf2191.com^
 ||eca1311030.3163ba76f7.com^
 ||ecaqbwghfrwkm.site^
@@ -15638,6 +15646,7 @@
 ||educatedcoercive.com^
 ||educatedmonitor.pro^
 ||edukicationandasm.com^
+||edulsmxrwtwup.space^
 ||eduseio.com^
 ||edutechlearners.com^
 ||edvfwlacluo.com^
@@ -18281,6 +18290,7 @@
 ||flamingo.abihome.de^
 ||flamingo.podcast.taxi^
 ||flamingo.stacking-club.com^
+||flammedpairing.qpon^
 ||flamydomeroyalty.cyou^
 ||flangrowler.shop^
 ||flankcowards.cyou^
@@ -21462,6 +21472,7 @@
 ||havenclick.com^
 ||havenerbastionfrailly.cyou^
 ||havenwrite.com^
+||havenyl.xyz^
 ||havetestifyharriet.com^
 ||havhrywu.in^
 ||havingartistictastesn.org^
@@ -21814,6 +21825,7 @@
 ||hfvn6kcfykruk79p337e69h8pnrw.cfd^
 ||hfxvwhstgitib.site^
 ||hfyavgagbiidq.site^
+||hfzleyzwjwucf.website^
 ||hg-bn.com^
 ||hgagwcznmclhv.store^
 ||hgbdjawazluzd.site^
@@ -21971,6 +21983,7 @@
 ||hirersalung.cyou^
 ||hirseluric.cfd^
 ||hirvkfqgoevye.website^
+||hirwwguwdvsoe.website^
 ||hisfwbkl.com^
 ||hisisathlle.com^
 ||hispidtux.com^
@@ -22608,6 +22621,7 @@
 ||hujvbvdwewxmwe.com^
 ||hukejvlabkuhx.website^
 ||hukelpfulinotaherer.org^
+||hukxatzhoxsa.com^
 ||hulchmarathimesozoa.cfd^
 ||huldahimpends.com^
 ||huldeeforgoer.com^
@@ -25174,6 +25188,7 @@
 ||joroofmenfores.cfd^
 ||joryvztqojsig.space^
 ||josephclassics.com^
+||josfurouf.com^
 ||joshuaam.qpon^
 ||jostledsibsmalmed.cfd^
 ||josulhtyxgarv.space^
@@ -25714,6 +25729,7 @@
 ||kaiu-marketing.com^
 ||kajfjxjrcn.com^
 ||kajyqgfjhohks.website^
+||kakaposbalaksettima.qpon^
 ||kakkechudic.shop^
 ||kakoswijwtdlj.online^
 ||kakuyomu.life^
@@ -30388,6 +30404,7 @@
 ||mrdzuibek.com^
 ||mrebfofligkfs.site^
 ||mredir.com^
+||mrfckhwpvvftt.online^
 ||mrflhiuulmarq.website^
 ||mrgrekeroad.com^
 ||mrkaiufqsytov.space^
@@ -32795,6 +32812,7 @@
 ||oi.lesbianbliss.com^
 ||oi.transhero.com^
 ||oialnxwngsggvq.com^
+||oibveptkzqyhb.com^
 ||oicfkmbppdusr.website^
 ||oiclulifzkfna.site^
 ||oidgctozcfsrr.site^
@@ -33292,6 +33310,7 @@
 ||oqkhxgzljvqzr.store^
 ||oqmacnov.in^
 ||oqmiadfkmlcwz.website^
+||oqrqisal.in^
 ||oqtoltlimot.in^
 ||oqtxcfuumplee.website^
 ||oquaysx.club^
@@ -33998,6 +34017,7 @@
 ||ozpnmwkzyvazx.store^
 ||ozpthucmavu.in^
 ||ozqxbtyrotvwk.online^
+||ozqywtqmyotdf.online^
 ||ozrozsxp.in^
 ||ozsdurst.cfd^
 ||ozsiwqbeanupu.space^
@@ -60363,6 +60383,7 @@
 ||yluqzwoggtdaa.online^
 ||ylwbxiuajnvzz.space^
 ||ylwfbiqipjmuz.online^
+||ylwxalglw.com^
 ||ylx-1.com^
 ||ylx-2.com^
 ||ylx-3.com^
