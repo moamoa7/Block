@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-03 18:07:14 UTC
+# Generated: 2026-05-03 19:31:00 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,322
-# 2. Removed by Reference       : 4,979
+# 1. Raw Domains Collected      : 67,337
+# 2. Removed by Reference       : 4,973
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,342
+# 4. Final Block Rules (||)     : 62,363
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -1709,6 +1709,7 @@
 0.0.0.0 9n21q93liwkq6nu2bv.rest
 0.0.0.0 9nizbbyf774vm14cp4e797zk.cfd
 0.0.0.0 9nmv95m7jl2wx31kk79p7648.cfd
+0.0.0.0 9noc3wlyole9z833gni5p424xql9i3.rest
 0.0.0.0 9nr43xr2bu15iboz8z.rest
 0.0.0.0 9oic2m9no7jn7i.cfd
 0.0.0.0 9pub.io
@@ -1973,6 +1974,7 @@
 0.0.0.0 aawdlgngyyfhn.online
 0.0.0.0 aawdlvr.com
 0.0.0.0 aawfewvoclrhp.online
+0.0.0.0 aawpmriyyhaoi.space
 0.0.0.0 aawspeedy.com
 0.0.0.0 aaxads.com
 0.0.0.0 aayjfvkskxkez.space
@@ -4153,6 +4155,7 @@
 0.0.0.0 alont.xyz
 0.0.0.0 alony.site
 0.0.0.0 alota.xyz
+0.0.0.0 aloudverite.shop
 0.0.0.0 alowbowsohef.com
 0.0.0.0 alpaca.hans-hornberger.com
 0.0.0.0 alpaca.miidbaby.com
@@ -4236,6 +4239,7 @@
 0.0.0.0 amcjajogm.in
 0.0.0.0 amczbhfcbhewz.site
 0.0.0.0 amdahlbr.com
+0.0.0.0 amdbughamr.in
 0.0.0.0 amelatrina.com
 0.0.0.0 amellusslangs.cfd
 0.0.0.0 amendmentbutterfly.com
@@ -4963,6 +4967,7 @@
 0.0.0.0 arctichold.pro
 0.0.0.0 arcticinspector.com
 0.0.0.0 arctwjodckpyz.site
+0.0.0.0 ardeablesser.qpon
 0.0.0.0 ardeliagaolers.cfd
 0.0.0.0 ardentlydrivablepagan.com
 0.0.0.0 ardodfrar.in
@@ -5382,6 +5387,7 @@
 0.0.0.0 atqxowwznoqkm.site
 0.0.0.0 atracrmucoj.in
 0.0.0.0 atraff.com
+0.0.0.0 atredepuddle.cfd
 0.0.0.0 atrennepeixere.cyou
 0.0.0.0 atrophychumpreentry.com
 0.0.0.0 atservineor.com
@@ -10103,6 +10109,7 @@
 0.0.0.0 clksite.com
 0.0.0.0 clladss.com
 0.0.0.0 cllgv9lkbjgftn.rest
+0.0.0.0 cllwflhnvbsir.online
 0.0.0.0 clmbroatxhshkng.com
 0.0.0.0 clmbtech.com
 0.0.0.0 clo1p7jd.xyz
@@ -13985,6 +13992,7 @@
 0.0.0.0 dinterperson.org
 0.0.0.0 dinxicobdja.in
 0.0.0.0 dioboldualistpenile.qpon
+0.0.0.0 dioboljizzen.cyou
 0.0.0.0 dionaeaalburn.shop
 0.0.0.0 dioneginzotosily.cyou
 0.0.0.0 dioptrebarrowwindway.cfd
@@ -15043,6 +15051,7 @@
 0.0.0.0 dudderyvetusty.cyou
 0.0.0.0 dude.pleasedonotblockme.com
 0.0.0.0 dudleyrevolutioninconsistent.com
+0.0.0.0 dudphalmtokf.com
 0.0.0.0 dudragonitean.com
 0.0.0.0 due5a6x777z0x.cloudfront.net
 0.0.0.0 dueimmigratedebit.com
@@ -18875,6 +18884,7 @@
 0.0.0.0 fratpeauder.cyou
 0.0.0.0 fraudcapable.com
 0.0.0.0 fraudulentquarter.com
+0.0.0.0 frauenbertrum.qpon
 0.0.0.0 frautkgibbbwj.space
 0.0.0.0 frayed-coat.pro
 0.0.0.0 frayhalfyear.com
@@ -25209,6 +25219,7 @@
 0.0.0.0 jokercheerfullylet.com
 0.0.0.0 jokfrivqogtwq.site
 0.0.0.0 jokingaspirant.com
+0.0.0.0 jokingslavs.shop
 0.0.0.0 jokingsummonyuri.com
 0.0.0.0 jolecyclist.com
 0.0.0.0 jolesshit.qpon
@@ -26273,6 +26284,7 @@
 0.0.0.0 klneqjidyjolu.website
 0.0.0.0 klobtudlorpca.space
 0.0.0.0 klonedaset.org
+0.0.0.0 klongsyerth.qpon
 0.0.0.0 kloperd.com
 0.0.0.0 klopslauric.cyou
 0.0.0.0 klpgmansuchcesu.com
@@ -28311,6 +28323,7 @@
 0.0.0.0 lpzttnoezjdir.xyz
 0.0.0.0 lqbvjmkoozmry.top
 0.0.0.0 lqdafcgrlaaby.xyz
+0.0.0.0 lqdngfyrdrhdfi.com
 0.0.0.0 lqdrspocn.com
 0.0.0.0 lqdxmjcelnswe.site
 0.0.0.0 lqeijhkneyrm.com
@@ -29785,6 +29798,7 @@
 0.0.0.0 misavermaomao.cyou
 0.0.0.0 miscarriageapartment.com
 0.0.0.0 miscarriagedevelopmentfoil.com
+0.0.0.0 miscedeientices.cyou
 0.0.0.0 miscellaneousfloraprosecutor.com
 0.0.0.0 miscookcuorin.cyou
 0.0.0.0 misdatecanoe.cfd
@@ -32604,6 +32618,7 @@
 0.0.0.0 ockzcenmegjnn.site
 0.0.0.0 oclasrv.com
 0.0.0.0 oclzwyihilrvq.site
+0.0.0.0 ocmbupkiz.in
 0.0.0.0 ocmhood.com
 0.0.0.0 ocmtag.com
 0.0.0.0 ocnxmgcdfncy.com
@@ -41084,6 +41099,7 @@
 0.0.0.0 rgxqdzkajysfj.website
 0.0.0.0 rgyxmrzvokkpp.website
 0.0.0.0 rgzqikmnfxble.website
+0.0.0.0 rh57iux7o2jm93ooxc2plbkf8r7g2oc.cfd
 0.0.0.0 rhabarbburrito.cyou
 0.0.0.0 rhabdomkansa.cyou
 0.0.0.0 rhadiigqtkzcd.website
@@ -48540,6 +48556,7 @@
 0.0.0.0 taarducape.cyou
 0.0.0.0 taawpggzbigir.online
 0.0.0.0 tabandsuerte.cfd
+0.0.0.0 tabcampoo.qpon
 0.0.0.0 taberedfeltedahet.cyou
 0.0.0.0 tabetpinon.qpon
 0.0.0.0 tabidhooroo.cyou
@@ -55634,6 +55651,7 @@
 0.0.0.0 wabblymedicosdaggled.cyou
 0.0.0.0 wabsyederly.com
 0.0.0.0 wacagokabab.cyou
+0.0.0.0 wackphebelyance.cyou
 0.0.0.0 wacksomewhymeaul.cfd
 0.0.0.0 wacthobbegkx.net
 0.0.0.0 wacxepvqjrqym.site
@@ -56009,6 +56027,7 @@
 0.0.0.0 wbygrybvjjksf.site
 0.0.0.0 wbyrnwpwpoml.com
 0.0.0.0 wbysnyeqjdwhl.site
+0.0.0.0 wbzbyegbobjxk.com
 0.0.0.0 wbzkaueecchkb.site
 0.0.0.0 wcakwrzikgshw.online
 0.0.0.0 wcbxugtfk.com
@@ -58210,6 +58229,7 @@
 0.0.0.0 xdpantoonkindjal.cyou
 0.0.0.0 xdpnhlwixwdop.site
 0.0.0.0 xdpnnqurquvuc.online
+0.0.0.0 xdpsqlmonufvf.site
 0.0.0.0 xdrelbgbndfnl.site
 0.0.0.0 xdrig.com
 0.0.0.0 xdrlthfhikvgm.club
@@ -58229,6 +58249,7 @@
 0.0.0.0 xedaifojosm.net
 0.0.0.0 xedbfrradaonw.site
 0.0.0.0 xedmesdxvkt.com
+0.0.0.0 xedvuqcniuwth.website
 0.0.0.0 xeequgaxpdvcq.space
 0.0.0.0 xefhktqktlwar.space
 0.0.0.0 xefnw9x4w9pmi85.rest
