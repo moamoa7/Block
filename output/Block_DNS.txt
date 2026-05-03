@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-03 16:04:20 UTC
+! Generated: 2026-05-03 17:12:01 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 67,306
-! 2. Removed by Reference       : 4,979
+! 1. Raw Domains Collected      : 67,312
+! 2. Removed by Reference       : 4,969
 ! 3. Removed by Whitelist       : 1
-! 4. Final Block Rules (||)     : 62,326
+! 4. Final Block Rules (||)     : 62,342
 ! 5. Final Exception Rules (@@) : 451
 ! (Calculation: 1 - 2 - 3 = 4)
 !
@@ -1418,6 +1418,7 @@
 ||7v6gvx5b5ywlu289zh.cfd^
 ||7vf2llmkf59tl38o4ongf1c7.rest^
 ||7w4f7nvo9j29zl6ptzqn2ft.cfd^
+||7wqnxuznr1zm15.cfd^
 ||7wrxo2xh.iriscreative.co^
 ||7xylvi8v9up5pbxbj.cfd^
 ||7yjb6ihxfk7n57pt7ocmfi4ltbb8.rest^
@@ -7005,6 +7006,7 @@
 ||bjdgzffnutlqs.site^
 ||bjdsmnjybmjdl.site^
 ||bjgjunljwykym.space^
+||bjhpulhgqfq.com^
 ||bjifvwduqly.com^
 ||bjiqmvkhrsa.com^
 ||bjjky.cfd^
@@ -15963,6 +15965,7 @@
 ||elaboratebasis.com^
 ||eladove.com^
 ||elajqjtwnoaef.space^
+||elakpcsryesh.com^
 ||elapeolh.com^
 ||elasirenic.cyou^
 ||elastic-sync.xyz^
@@ -22710,6 +22713,7 @@
 ||hunterheroiccompassion.com^
 ||hunterlead.com^
 ||huntmad.com^
+||hupdeeno.com^
 ||hupxbntreuoieemcubt.cfd^
 ||hupysrriepvxy.online^
 ||hurdisbirma.shop^
@@ -28862,6 +28866,7 @@
 ||malcare.me^
 ||maldini.xyz^
 ||male-basis.pro^
+||male-fight.pro^
 ||malewait.com^
 ||maliciousdemonic.com^
 ||malleinpearceorioles.cyou^
@@ -32013,6 +32018,7 @@
 ||noxiousspell.pro^
 ||noxiouswear.pro^
 ||noxthxomoccyr.site^
+||npajyfgmewt.com^
 ||npbbhjcephgrx.space^
 ||npbkgflaqguzo.store^
 ||npcad.com^
@@ -34904,6 +34910,7 @@
 ||pectosealvia.click^
 ||pectousfossilstae.cfd^
 ||peculiargentleman.com^
+||pedaloflakierchicote.cyou^
 ||pedangaishons.com^
 ||peddledteniae.shop^
 ||pedetescleanse.com^
@@ -38135,6 +38142,7 @@
 ||pxxcayuq.net^
 ||pxxcayuq.xyz^
 ||pxyggrntfvmqh.site^
+||py6ni5owzrljmlmx.rest^
 ||py7qbuyqxi69yruh.cfd^
 ||pyabgyoqeflgd.online^
 ||pyaemicclept.shop^
@@ -38990,6 +38998,7 @@
 ||qr-player-new.com^
 ||qr08uw9e.xyz^
 ||qrakmgldyqvrr.website^
+||qramxcijceyve.online^
 ||qraollantiaiv.online^
 ||qrayduqzmtuhl.online^
 ||qrbbbsnqrdyei.site^
@@ -39147,6 +39156,7 @@
 ||qualitydestructionhouse.com^
 ||qualitymortify.com^
 ||quangablock.cyou^
+||quangokebobmurally.cyou^
 ||quangosglauber.qpon^
 ||quangospina.cfd^
 ||quanta-wave.com^
@@ -41818,6 +41828,7 @@
 ||rosmishit.cfd^
 ||rossertiptoes.qpon^
 ||rossoad.com^
+||rossperoxy.qpon^
 ||rosularbondman.cyou^
 ||rosy-award.pro^
 ||rosy-tree.pro^
@@ -45729,6 +45740,7 @@
 ||smglvclyfsfbt.website^
 ||smheyshqkrwms.online^
 ||smichcavalrubber.cfd^
+||smifzyuottaxc.website^
 ||smigro.info^
 ||smilered.com^
 ||smiletavenine.cyou^
@@ -52326,6 +52338,7 @@
 ||ulqaxfzytnnpp.site^
 ||ulqhhlhpevvif.space^
 ||ulqlijlriiclv.online^
+||ulsgwwmkafdqa.website^
 ||ulsterscarices.com^
 ||ultaxvuxpgryi.site^
 ||ulteriorreporting.com^
@@ -56720,6 +56733,7 @@
 ||widgets.progrids.com^
 ||widgets.tree.com^
 ||widishpinales.cyou^
+||widndpnuiyqty.space^
 ||widow5blackfr.com^
 ||widowreseduereseduedescription.com^
 ||widowtea.com^
@@ -57563,6 +57577,7 @@
 ||wrqtnouracdei.site^
 ||wrqywyffqfpnf.online^
 ||wrreuzbpoctsi.online^
+||wrrqigpzmekcd.space^
 ||wrsmnqmpopund.net^
 ||wrsndaaf.com^
 ||wrufer.com^
@@ -57730,6 +57745,7 @@
 ||wvjzqrwhbvepc.space^
 ||wvkrsgeugkjuk.website^
 ||wvkvbsckwuru.com^
+||wvlserrzyvspo.online^
 ||wvlwtsgbperzr.space^
 ||wvmvpjlguwapy.online^
 ||wvn8oopixhyvgo3in628rz815f28g4ge.cfd^

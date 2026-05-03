@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-03 16:04:20 UTC
+# Generated: 2026-05-03 17:12:01 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,306
-# 2. Removed by Reference       : 4,979
+# 1. Raw Domains Collected      : 67,312
+# 2. Removed by Reference       : 4,969
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,326
+# 4. Final Block Rules (||)     : 62,342
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -1417,6 +1417,7 @@
 0.0.0.0 7v6gvx5b5ywlu289zh.cfd
 0.0.0.0 7vf2llmkf59tl38o4ongf1c7.rest
 0.0.0.0 7w4f7nvo9j29zl6ptzqn2ft.cfd
+0.0.0.0 7wqnxuznr1zm15.cfd
 0.0.0.0 7wrxo2xh.iriscreative.co
 0.0.0.0 7xylvi8v9up5pbxbj.cfd
 0.0.0.0 7yjb6ihxfk7n57pt7ocmfi4ltbb8.rest
@@ -7004,6 +7005,7 @@
 0.0.0.0 bjdgzffnutlqs.site
 0.0.0.0 bjdsmnjybmjdl.site
 0.0.0.0 bjgjunljwykym.space
+0.0.0.0 bjhpulhgqfq.com
 0.0.0.0 bjifvwduqly.com
 0.0.0.0 bjiqmvkhrsa.com
 0.0.0.0 bjjky.cfd
@@ -15962,6 +15964,7 @@
 0.0.0.0 elaboratebasis.com
 0.0.0.0 eladove.com
 0.0.0.0 elajqjtwnoaef.space
+0.0.0.0 elakpcsryesh.com
 0.0.0.0 elapeolh.com
 0.0.0.0 elasirenic.cyou
 0.0.0.0 elastic-sync.xyz
@@ -22709,6 +22712,7 @@
 0.0.0.0 hunterheroiccompassion.com
 0.0.0.0 hunterlead.com
 0.0.0.0 huntmad.com
+0.0.0.0 hupdeeno.com
 0.0.0.0 hupxbntreuoieemcubt.cfd
 0.0.0.0 hupysrriepvxy.online
 0.0.0.0 hurdisbirma.shop
@@ -28861,6 +28865,7 @@
 0.0.0.0 malcare.me
 0.0.0.0 maldini.xyz
 0.0.0.0 male-basis.pro
+0.0.0.0 male-fight.pro
 0.0.0.0 malewait.com
 0.0.0.0 maliciousdemonic.com
 0.0.0.0 malleinpearceorioles.cyou
@@ -32012,6 +32017,7 @@
 0.0.0.0 noxiousspell.pro
 0.0.0.0 noxiouswear.pro
 0.0.0.0 noxthxomoccyr.site
+0.0.0.0 npajyfgmewt.com
 0.0.0.0 npbbhjcephgrx.space
 0.0.0.0 npbkgflaqguzo.store
 0.0.0.0 npcad.com
@@ -34903,6 +34909,7 @@
 0.0.0.0 pectosealvia.click
 0.0.0.0 pectousfossilstae.cfd
 0.0.0.0 peculiargentleman.com
+0.0.0.0 pedaloflakierchicote.cyou
 0.0.0.0 pedangaishons.com
 0.0.0.0 peddledteniae.shop
 0.0.0.0 pedetescleanse.com
@@ -38134,6 +38141,7 @@
 0.0.0.0 pxxcayuq.net
 0.0.0.0 pxxcayuq.xyz
 0.0.0.0 pxyggrntfvmqh.site
+0.0.0.0 py6ni5owzrljmlmx.rest
 0.0.0.0 py7qbuyqxi69yruh.cfd
 0.0.0.0 pyabgyoqeflgd.online
 0.0.0.0 pyaemicclept.shop
@@ -38989,6 +38997,7 @@
 0.0.0.0 qr-player-new.com
 0.0.0.0 qr08uw9e.xyz
 0.0.0.0 qrakmgldyqvrr.website
+0.0.0.0 qramxcijceyve.online
 0.0.0.0 qraollantiaiv.online
 0.0.0.0 qrayduqzmtuhl.online
 0.0.0.0 qrbbbsnqrdyei.site
@@ -39146,6 +39155,7 @@
 0.0.0.0 qualitydestructionhouse.com
 0.0.0.0 qualitymortify.com
 0.0.0.0 quangablock.cyou
+0.0.0.0 quangokebobmurally.cyou
 0.0.0.0 quangosglauber.qpon
 0.0.0.0 quangospina.cfd
 0.0.0.0 quanta-wave.com
@@ -41817,6 +41827,7 @@
 0.0.0.0 rosmishit.cfd
 0.0.0.0 rossertiptoes.qpon
 0.0.0.0 rossoad.com
+0.0.0.0 rossperoxy.qpon
 0.0.0.0 rosularbondman.cyou
 0.0.0.0 rosy-award.pro
 0.0.0.0 rosy-tree.pro
@@ -45728,6 +45739,7 @@
 0.0.0.0 smglvclyfsfbt.website
 0.0.0.0 smheyshqkrwms.online
 0.0.0.0 smichcavalrubber.cfd
+0.0.0.0 smifzyuottaxc.website
 0.0.0.0 smigro.info
 0.0.0.0 smilered.com
 0.0.0.0 smiletavenine.cyou
@@ -52325,6 +52337,7 @@
 0.0.0.0 ulqaxfzytnnpp.site
 0.0.0.0 ulqhhlhpevvif.space
 0.0.0.0 ulqlijlriiclv.online
+0.0.0.0 ulsgwwmkafdqa.website
 0.0.0.0 ulsterscarices.com
 0.0.0.0 ultaxvuxpgryi.site
 0.0.0.0 ulteriorreporting.com
@@ -56719,6 +56732,7 @@
 0.0.0.0 widgets.progrids.com
 0.0.0.0 widgets.tree.com
 0.0.0.0 widishpinales.cyou
+0.0.0.0 widndpnuiyqty.space
 0.0.0.0 widow5blackfr.com
 0.0.0.0 widowreseduereseduedescription.com
 0.0.0.0 widowtea.com
@@ -57562,6 +57576,7 @@
 0.0.0.0 wrqtnouracdei.site
 0.0.0.0 wrqywyffqfpnf.online
 0.0.0.0 wrreuzbpoctsi.online
+0.0.0.0 wrrqigpzmekcd.space
 0.0.0.0 wrsmnqmpopund.net
 0.0.0.0 wrsndaaf.com
 0.0.0.0 wrufer.com
@@ -57729,6 +57744,7 @@
 0.0.0.0 wvjzqrwhbvepc.space
 0.0.0.0 wvkrsgeugkjuk.website
 0.0.0.0 wvkvbsckwuru.com
+0.0.0.0 wvlserrzyvspo.online
 0.0.0.0 wvlwtsgbperzr.space
 0.0.0.0 wvmvpjlguwapy.online
 0.0.0.0 wvn8oopixhyvgo3in628rz815f28g4ge.cfd
