@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260503
+! Version: 20260504
 !
 !
 !
@@ -1085,9 +1085,9 @@ clien.net##.aside > div[class^="side_"]:not([class*="account"])
 clien.net##.active.button_sidemenu
 ! - 게시물 아래 게시판 리스트 삭제
 ! - - - PC
-clien.net##.view_list
+!clien.net##.view_list
 ! - - - 모바일
-clien.net##.ViewListArea
+!clien.net##.ViewListArea
 ! - ##[class^="ad"] 복원 - 댓글 입력란 사라짐
 clien.net#@#[class^="ad"]
 ! - 게시물 광고 글
@@ -2097,6 +2097,10 @@ coupang.com###srpKeywordTopBanner
 ##[alt$="광고"]
 ! - 배너
 ##[class*="ad_banner"]
+!- - - 예외
+!~ - - - 클리앙 ( https://www.clien.net/) - 검색어 입력란 사라짐
+clien.net#@#[class*="ad_banner"]
+
 ! - 검색시 나오는 하단 스폰서링크 삭제
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !auction.co.kr##.component--sponsor_link.component
@@ -2370,6 +2374,8 @@ avsee.ru#@#.tabs
 ! - 일부 영상 재생 차단 방지
 @@||tiktokcdn.com/obj/$xhr
 ! - 기타
+! - - - https://javgg.net/
+! - - - https://javplayer.org/ (여러 재생 스크림 중에서)
 ##[class*="ad-placement"]
 !
 !
@@ -2412,10 +2418,13 @@ sextb.date##.hidden-md.right.col-3
 ! - 상단 배너 이미지 공간 (유니콘Pro)
 ###ads
 ! - 배너
+! - - - https://missav.ws/
 !- - - https://7tv034.com/
+! -- - https://javgiga.com/
 ! - - - 눈팅 (https://nunting.kr/)
 !##iframe[src^="https://creative."][src*="/widgets/v4/Universal?"]
 ##iframe[src*="widgets"]
+
 !
 !
 ! - https://ko.javfc2.live/
@@ -4298,6 +4307,9 @@ noonnu.cc##.fc-dialog-container
 !
 !
 ##[id$="-ad"]
+!
+!
+/ads-
 !
 !
 /ads/*
