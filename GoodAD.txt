@@ -319,11 +319,13 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !
 ! 네이버 블로그 (https://section.blog.naver.com/)
 ! - 배너 빈공간
+! - - - https://chzzk.naver.com/ - 영상 내 보이지 않는 부분 (무엇인지는 모름)
 ##[class*="advertisement"]
 !
 !
 ! ! 네이버 웹툰 (https://comic.naver.com/index)
 ! - 배너 빈공간
+! - - - 치지직 (https://chzzk.naver.com/) - 왼쪽 치지팜 배너
 ##[class*="aside_banner"]
 !
 !
@@ -450,6 +452,8 @@ poong.today##._mainLiveArea_tck4v_535
 !chzzk.naver.com##.toolbar_tooltip__\+upC-
 ! 치트키 구매하기 툴팁
 chzzk.naver.com##.tooltip
+! 영상 왼쪽 하단 쇼핑 배너
+##.streamer_shop_banner
 ! - - - 예외 - 차단리스트 내용 안나옴
 !my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
@@ -1226,7 +1230,9 @@ poooo.ml#@#.ad
 !
 ! 티비위키 (https://tvwiki20.com/) / 티비몬 (https://tvmon15.org/) / 티비핫 (https://tvhot.store/)
 ! - 상단 배너
-! - - - 티비위키
+! - - - 티비위키 / 티비몬 / 티비핫
+!##[target="_blank"]:has([src*="/data/banner/"])
+*##[target="_blank"]:has([src*="/banner/"])
 !##[class="banner2"]
 !##.banner2
 ##[id="bannerList"]
@@ -2073,20 +2079,27 @@ sports.donga.com##.view_center
 ! - 검색시 광고 게시물 (List-KR 규칙 추가로 아래 규칙 해제) 
 !coupang.com##li.search-product__ad-badge:remove()
 !coupang.com##.search-product__ad-badge
+! - 배너
+coupang.com###srpKeywordTopBanner
 ! - 하단 안내 문구 (앱으로 보기)
 ! - 검색시 나오는 광고 배너
-coupang.com###srpKeywordProductTopBanner
-###BottomAppBanner
+!###BottomAppBanner
 ! - 제품내 추천 제품 배너
-coupang.com###sdp-ad-banner-position-c
+!coupang.com###sdp-ad-banner-position-c
 !
 !
 ! 옥션 (https://escrow.auction.co.kr/)
 ! ||*/*/*banner* 예외 (혜택 얼마 받았나 정보 안보임)
 !@@||escrow.auction.co.kr$script,xhr
+! -광고
+! - - - ! G마켓 (https://www.gmarket.co.kr/)
+##[alt$="광고"]
+! - 배너
+##[class*="ad_banner"]
 ! - 검색시 나오는 하단 스폰서링크 삭제
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-auction.co.kr##.component--sponsor_link.component
+!auction.co.kr##.component--sponsor_link.component
+
 !
 !
 ! G마켓 (https://www.gmarket.co.kr/)
@@ -2182,6 +2195,7 @@ danawa.com#@#iframe[src*="/RealMedia/ads/"]
 ! - 광고 배너
 danawa.com/###adSmartProductContainer
 ##iframe[title*="배너"]
+##iframe[title*="광고"]
 ##[class*="main-event"]
 !
 !
@@ -4344,6 +4358,8 @@ _ads_
 
 
 
+
+
 !!! 기본 1
 ! - - - 이미지가 gif가 아닌 경우에도 사용
 ! - - - 도지코믹스 (https://dozi352.com/)
@@ -4408,7 +4424,6 @@ _ads_
 ! - - - 토렌트제이 (http://torrentj168.com/)
 ! - - - 티비소리 (https://srtv119.com/)
 ! - - - 4KJAV (https://kr29.4kjav.co/)
-! - - - 티비핫 (https://tvhot.store/) - 주소 바뀜
 ! - - - 뉴토끼 시즌2 (https://newtoki.biz/)
 ! - - - 모두의AV (https://modooav6.com/)
 ! - - - 야스닷컴 (https://yasyadong.cc/)
@@ -4416,7 +4431,7 @@ _ads_
 ! - - - 주소골라 (https://jusopick01.com/)
 ! - - - 인생도박 (https://dobaklife21.com/)
 !##a[href*='http'][target*='blank'] img
-[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],tvhot.store,newtoki.biz,[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/],[$domain=/^dobaklife.\d+.com/]##a[target*='blank']:has(img)
+[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],newtoki.biz,[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/],[$domain=/^dobaklife.\d+.com/]##a[target*='blank']:has(img)
 
 
 
