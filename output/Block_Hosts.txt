@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-03 09:45:56 UTC
+# Generated: 2026-05-03 10:41:27 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,251
-# 2. Removed by Reference       : 4,990
+# 1. Raw Domains Collected      : 67,254
+# 2. Removed by Reference       : 4,986
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,260
+# 4. Final Block Rules (||)     : 62,267
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -4322,6 +4322,7 @@
 0.0.0.0 amusing-spell.pro
 0.0.0.0 amusingbase.com
 0.0.0.0 amusinghump.com
+0.0.0.0 amuyongsentsarachne.cyou
 0.0.0.0 amveojmbffpma.online
 0.0.0.0 amwgisnagixqe.store
 0.0.0.0 amwmxldlxyc.com
@@ -17825,6 +17826,7 @@
 0.0.0.0 fhqoiuoceycun.space
 0.0.0.0 fhrhakpangapt.space
 0.0.0.0 fhsgntrgjtioc.online
+0.0.0.0 fhslwakwmubsi.space
 0.0.0.0 fhsy5atr.xyz
 0.0.0.0 fhtpntevoiojz.online
 0.0.0.0 fhu1vzay.xyz
@@ -18797,6 +18799,7 @@
 0.0.0.0 fqfuegxuujfzs.website
 0.0.0.0 fqfyljucnqlols.com
 0.0.0.0 fqgoyetnvkhdj.space
+0.0.0.0 fqhucslrtysrl.site
 0.0.0.0 fqhueanslwpyi.site
 0.0.0.0 fqjiujafk.com
 0.0.0.0 fqjxmzlhmfmuk.online
@@ -25170,6 +25173,7 @@
 0.0.0.0 joggingavenge.com
 0.0.0.0 jogryvgycqjph.store
 0.0.0.0 jogxnkcfhgq.com
+0.0.0.0 johanlipidesdaff.cfd
 0.0.0.0 johotuehxbdmo.site
 0.0.0.0 johtrptx.com
 0.0.0.0 join.flyerblaze.com
@@ -31150,6 +31154,7 @@
 0.0.0.0 ndtlhvhfeokmc.website
 0.0.0.0 ndtvbcxhvmtde.site
 0.0.0.0 ndvqhobnheivh.club
+0.0.0.0 ndwobwuygw.com
 0.0.0.0 ndwsqexojpuka.online
 0.0.0.0 ndwygbphcglqy.website
 0.0.0.0 ndxjmvufwndwz.space
@@ -56299,6 +56304,7 @@
 0.0.0.0 wftobyorotnmx.site
 0.0.0.0 wftoukfy.net
 0.0.0.0 wfuagemauidnc.space
+0.0.0.0 wfulugammfa.in
 0.0.0.0 wfunapwtlmvod.space
 0.0.0.0 wfupgocevbpyy.online
 0.0.0.0 wfurena.cfd
@@ -59841,6 +59847,7 @@
 0.0.0.0 yakxiaugxzbvr.site
 0.0.0.0 yaldfyyfjuftv.website
 0.0.0.0 yalipxglgamod.site
+0.0.0.0 yallcjqil.com
 0.0.0.0 yalqxkqmcjsal.website
 0.0.0.0 yamanaisleepry.com
 0.0.0.0 yamrqukvphsxu.website
