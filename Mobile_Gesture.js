@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      68.08.0
+// @version      68.09.0
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 전체화면 전용)
 // @author       Gemini & Claude
 // @license      MIT
@@ -1067,7 +1067,7 @@
             const rect = targetV.getBoundingClientRect(); originDx = initCenterX - (rect.left + rect.width/2 - initPanX); originDy = initCenterY - (rect.top + rect.height/2 - initPanY);
             action = 'pinch'; hideUI(targetV);
         } else if (e.touches.length === 1) {
-            if (curIsFS) {
+            if (curIsFS && targetV.gtState.scale === 1.0) {
                 lpTimer = setTimeout(() => {
                     if (isTouch && targetV) { action = 'rate'; targetV.playbackRate = Math.max(0.1, initRate + CFG.rateBase - 1.0); showMsg(`${targetV.playbackRate.toFixed(1)}x`, targetV); hideUI(targetV); }
                 }, CFG.longPress);
