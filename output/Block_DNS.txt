@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-03 20:28:48 UTC
+! Generated: 2026-05-03 21:08:52 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 67,343
-! 2. Removed by Reference       : 4,979
+! 1. Raw Domains Collected      : 67,346
+! 2. Removed by Reference       : 4,970
 ! 3. Removed by Whitelist       : 1
-! 4. Final Block Rules (||)     : 62,363
+! 4. Final Block Rules (||)     : 62,375
 ! 5. Final Exception Rules (@@) : 451
 ! (Calculation: 1 - 2 - 3 = 4)
 !
@@ -13953,6 +13953,7 @@
 ||dikasomywnqww.website^
 ||dikcmpgwemomx.space^
 ||dikeprotectorencyclopaedia.com^
+||dikqudbgvloe.com^
 ||dil4q0t0blrf8.cloudfront.net^
 ||dilatedronishsau.qpon^
 ||diligent-student.pro^
@@ -16432,6 +16433,7 @@
 ||eojnmxdvcgozv.space^
 ||eokbuxljvlfwm.space^
 ||eolgafayqqglt.online^
+||eomgqgncqxcvm.online^
 ||eomhdkmkemwow.online^
 ||eondunpea.com^
 ||eonwuljgmyjep.site^
@@ -18274,6 +18276,7 @@
 ||fjorgyngaffedswaler.cyou^
 ||fjpimtjjtdobs.website^
 ||fjqfdwtdahpte.space^
+||fjriahevfgvcko.com^
 ||fjsblaehczcua.website^
 ||fjsmzymmzjyck.online^
 ||fjtvobmsspten.online^
@@ -20637,6 +20640,7 @@
 ||gqqwsswuselwofn.com^
 ||gqxgrffjsyviu.space^
 ||grabbererf.qpon^
+||grabensbocagepluma.qpon^
 ||graceful-operation.com^
 ||gracermasjids.cfd^
 ||gracerrunletsnargil.qpon^
@@ -20939,6 +20943,7 @@
 ||gswiikktdwsel.online^
 ||gswobzijgqeyy.space^
 ||gswondenthaiti.org^
+||gsxrqndxziajv.site^
 ||gsxytzcnwtyht.online^
 ||gsyfhaxwmeyg.com^
 ||gsyndication.com^
@@ -21079,6 +21084,7 @@
 ||guyjrraidsrlk.store^
 ||guyoetiepwijy.online^
 ||guyssleeted.qpon^
+||guytgaznvzzju.website^
 ||guyvztdqncxgu.online^
 ||guztaoowjw.com^
 ||guzzlealibied.cyou^
@@ -26758,6 +26764,7 @@
 ||kvzbonvsutara.website^
 ||kvznoubscgeep.website^
 ||kvzvieyakmhfn.site^
+||kvzzuamjopqgu.space^
 ||kw3y5otoeuniv7e9rsi.com^
 ||kwaipjzkmtwct.site^
 ||kwaznkumedleysearce.cfd^
@@ -31779,6 +31786,7 @@
 ||nmajjhzqyckro.icu^
 ||nmcdn.us^
 ||nmcpjteiktgpx.online^
+||nmekvwedpfrjm.space^
 ||nmevrsduvwxsy.site^
 ||nmgmbkvbqhglx.online^
 ||nmgneqqnnbtac.site^
@@ -35749,6 +35757,7 @@
 ||pitholefantod.shop^
 ||pithosbaleinuclei.qpon^
 ||pithyiwgz.top^
+||pitlikesubfuskfaecula.cfd^
 ||pitnonoic.cyou^
 ||pitofficialfollower.com^
 ||pitomiebowknot.cfd^
@@ -36173,6 +36182,7 @@
 ||pmrmrddlmmexi.online^
 ||pmrqyiifvqysm.website^
 ||pmsgoleoyl.cyou^
+||pmtveblemefkc.com^
 ||pmudglgcnic.com^
 ||pmuydghrpgowy.online^
 ||pmwbbhfazupps.space^
@@ -58095,6 +58105,7 @@
 ||xanokvognqak.in^
 ||xanvjayulcjcb.xyz^
 ||xaofdyhfyowfw.space^
+||xaofsaemoqkoc.com^
 ||xapads.com^
 ||xapi.juicyads.com^
 ||xaplonmsgwn.com^
@@ -61449,6 +61460,7 @@
 ||zemekw.cyou^
 ||zemisolate.qpon^
 ||zenagacoelar.qpon^
+||zenaidavealer.com^
 ||zenanaswogiet.cfd^
 ||zendikfideist.cyou^
 ||zendplace.pro^

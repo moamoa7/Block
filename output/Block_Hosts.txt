@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-03 20:28:48 UTC
+# Generated: 2026-05-03 21:08:52 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,343
-# 2. Removed by Reference       : 4,979
+# 1. Raw Domains Collected      : 67,346
+# 2. Removed by Reference       : 4,970
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,363
+# 4. Final Block Rules (||)     : 62,375
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -13952,6 +13952,7 @@
 0.0.0.0 dikasomywnqww.website
 0.0.0.0 dikcmpgwemomx.space
 0.0.0.0 dikeprotectorencyclopaedia.com
+0.0.0.0 dikqudbgvloe.com
 0.0.0.0 dil4q0t0blrf8.cloudfront.net
 0.0.0.0 dilatedronishsau.qpon
 0.0.0.0 diligent-student.pro
@@ -16431,6 +16432,7 @@
 0.0.0.0 eojnmxdvcgozv.space
 0.0.0.0 eokbuxljvlfwm.space
 0.0.0.0 eolgafayqqglt.online
+0.0.0.0 eomgqgncqxcvm.online
 0.0.0.0 eomhdkmkemwow.online
 0.0.0.0 eondunpea.com
 0.0.0.0 eonwuljgmyjep.site
@@ -18273,6 +18275,7 @@
 0.0.0.0 fjorgyngaffedswaler.cyou
 0.0.0.0 fjpimtjjtdobs.website
 0.0.0.0 fjqfdwtdahpte.space
+0.0.0.0 fjriahevfgvcko.com
 0.0.0.0 fjsblaehczcua.website
 0.0.0.0 fjsmzymmzjyck.online
 0.0.0.0 fjtvobmsspten.online
@@ -20636,6 +20639,7 @@
 0.0.0.0 gqqwsswuselwofn.com
 0.0.0.0 gqxgrffjsyviu.space
 0.0.0.0 grabbererf.qpon
+0.0.0.0 grabensbocagepluma.qpon
 0.0.0.0 graceful-operation.com
 0.0.0.0 gracermasjids.cfd
 0.0.0.0 gracerrunletsnargil.qpon
@@ -20938,6 +20942,7 @@
 0.0.0.0 gswiikktdwsel.online
 0.0.0.0 gswobzijgqeyy.space
 0.0.0.0 gswondenthaiti.org
+0.0.0.0 gsxrqndxziajv.site
 0.0.0.0 gsxytzcnwtyht.online
 0.0.0.0 gsyfhaxwmeyg.com
 0.0.0.0 gsyndication.com
@@ -21078,6 +21083,7 @@
 0.0.0.0 guyjrraidsrlk.store
 0.0.0.0 guyoetiepwijy.online
 0.0.0.0 guyssleeted.qpon
+0.0.0.0 guytgaznvzzju.website
 0.0.0.0 guyvztdqncxgu.online
 0.0.0.0 guztaoowjw.com
 0.0.0.0 guzzlealibied.cyou
@@ -26757,6 +26763,7 @@
 0.0.0.0 kvzbonvsutara.website
 0.0.0.0 kvznoubscgeep.website
 0.0.0.0 kvzvieyakmhfn.site
+0.0.0.0 kvzzuamjopqgu.space
 0.0.0.0 kw3y5otoeuniv7e9rsi.com
 0.0.0.0 kwaipjzkmtwct.site
 0.0.0.0 kwaznkumedleysearce.cfd
@@ -31778,6 +31785,7 @@
 0.0.0.0 nmajjhzqyckro.icu
 0.0.0.0 nmcdn.us
 0.0.0.0 nmcpjteiktgpx.online
+0.0.0.0 nmekvwedpfrjm.space
 0.0.0.0 nmevrsduvwxsy.site
 0.0.0.0 nmgmbkvbqhglx.online
 0.0.0.0 nmgneqqnnbtac.site
@@ -35748,6 +35756,7 @@
 0.0.0.0 pitholefantod.shop
 0.0.0.0 pithosbaleinuclei.qpon
 0.0.0.0 pithyiwgz.top
+0.0.0.0 pitlikesubfuskfaecula.cfd
 0.0.0.0 pitnonoic.cyou
 0.0.0.0 pitofficialfollower.com
 0.0.0.0 pitomiebowknot.cfd
@@ -36172,6 +36181,7 @@
 0.0.0.0 pmrmrddlmmexi.online
 0.0.0.0 pmrqyiifvqysm.website
 0.0.0.0 pmsgoleoyl.cyou
+0.0.0.0 pmtveblemefkc.com
 0.0.0.0 pmudglgcnic.com
 0.0.0.0 pmuydghrpgowy.online
 0.0.0.0 pmwbbhfazupps.space
@@ -58094,6 +58104,7 @@
 0.0.0.0 xanokvognqak.in
 0.0.0.0 xanvjayulcjcb.xyz
 0.0.0.0 xaofdyhfyowfw.space
+0.0.0.0 xaofsaemoqkoc.com
 0.0.0.0 xapads.com
 0.0.0.0 xapi.juicyads.com
 0.0.0.0 xaplonmsgwn.com
@@ -61448,6 +61459,7 @@
 0.0.0.0 zemekw.cyou
 0.0.0.0 zemisolate.qpon
 0.0.0.0 zenagacoelar.qpon
+0.0.0.0 zenaidavealer.com
 0.0.0.0 zenanaswogiet.cfd
 0.0.0.0 zendikfideist.cyou
 0.0.0.0 zendplace.pro
