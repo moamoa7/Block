@@ -17,7 +17,7 @@ EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
-REFERENCE_URL = "https://raw.githubusercontent.com/Cats-Team/AdRules/main/dns.txt"
+REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
 
 OUTPUT_DIR = Path("output")
 OUT_COMBINED = OUTPUT_DIR / "Block_DNS.txt"
@@ -54,8 +54,8 @@ def short_name(url: str) -> str:
         return "AdGuard DNS Exclusions"
     if "white.txt" in url:
         return "Personal Whitelist"
-    if "main/dns.txt" in url:
-        return "AdRules DNS List"
+    if "filters/15.txt" in url:
+        return "AdGuard DNS Filter"
     return url.split("/")[-1]
 
 def main():
