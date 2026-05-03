@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-03 22:04:56 UTC
+# Generated: 2026-05-03 23:07:46 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,361
-# 2. Removed by Reference       : 4,985
+# 1. Raw Domains Collected      : 67,370
+# 2. Removed by Reference       : 4,971
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,375
+# 4. Final Block Rules (||)     : 62,398
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -6219,6 +6219,7 @@ bavbfmokxwqtn.space
 bavdxafbegkvr.space
 bawattbzy.com
 bawblearrouse.qpon
+bawcockburstedmermis.qpon
 bawdiermundic.com
 bawixi.xyz
 bawosdwu.com
@@ -6532,6 +6533,7 @@ belongingstransform.com
 belovedsalesman.com
 belovedset.com
 belroryomypaf.website
+belsireipocras.qpon
 beltcological.com
 beltenefloit.com
 beludicolor.com
@@ -6682,6 +6684,7 @@ betr-for-tod.com
 betrad.com
 betrapnabalus.qpon
 betrayalbadger.com
+betrendceiler.shop
 betseycraft.cfd
 betsonsport.ru
 bettaninons.com
@@ -11686,6 +11689,7 @@ cuzkqk1z39e749vk18x.cfd
 cuzqaskcyjyut.site
 cuzrapaqs.in
 cuzthelilfut.in
+cv6r2zk11l5g2e.cfd
 cvacytaprfmow.website
 cvaiojnnjprul.space
 cvastico.com
@@ -14305,6 +14309,7 @@ dkiuzabnt.com
 dkjpozfpehc.com
 dkjtppgsfoiqd.site
 dkjwikrkrf.com
+dkkciptukakyc.website
 dkm6b5q0h53z4.cloudfront.net
 dknnlu3s1bnz7.cloudfront.net
 dkoyksanerezl.website
@@ -15817,6 +15822,7 @@ eghup6z33nqt238gez2qlnhm616zkj.cfd
 egighbqdtgyen.rocks
 egitqmdbccuih.space
 egjdmonarrdqj.site
+eglujzjlgxlhq.space
 egmjqaoequdsv.site
 egoismillogicaldegradation.com
 egopiyqfyhuvf.site
@@ -16897,6 +16903,7 @@ evokeinexpedientfastened.com
 evokesphlegmy.cyou
 evopmncakdrrg.site
 evrqojoallxal.com
+evtbxwemftqpl.space
 evuuiytrdkshg.website
 evwotgqeyulrw.site
 evxmwjqw.com
@@ -18360,6 +18367,7 @@ flattendollar.com
 flattenpliable.com
 flattenrestoration.com
 flattermonumentsbarren.com
+flauchtcajon.qpon
 flavinbuglers.shop
 flavoryhunger.cfd
 flaw.cloud
@@ -19218,6 +19226,7 @@ furzybrubruteck.cyou
 fuse-cloud.com
 fuseplatform.net
 fusetracking.com
+fusibletabstop.cfd
 fusion.sydsvenskan.se
 fusionads.net
 fusionironydaunt.com
@@ -21757,6 +21766,7 @@ helib.xyz
 helicient.com
 heliconthrap.qpon
 hellay.net
+hellmanloriesupdraw.qpon
 helltraffic.com
 helmssiestas.qpon
 helmsuction.com
@@ -24628,6 +24638,7 @@ jaattafibqjst.website
 jaavnacsdw.com
 jabgbmoddpmjp.site
 jaborinrally.com
+jabotsiever.qpon
 jacaleslegits.qpon
 jacensdsp.cfd
 jacinthbravishcirrhus.cyou
@@ -28802,6 +28813,7 @@ magicallypenitentiary.com
 magicianboundary.com
 magicianmost.com
 magictag.digislots.in
+magmatapiazine.cyou
 magnalesingly.cfd
 magnaleunmoldy.shop
 magnetchidden.qpon
@@ -30350,6 +30362,7 @@ motherconvene.com
 motherdandelionpert.com
 motherlyglad.com
 motherlynative.com
+motifmunsee.cyou
 motionless-exit.pro
 motionlessarmsvanished.com
 motionlessscholarsmarried.com
@@ -32175,6 +32188,7 @@ ntkimg.cloud
 ntkmmopjrpqdx.store
 ntlurfixeyzlf.vip
 ntlysearchingfora.com
+ntmfriuhwrnhvx.com
 ntmreohudibfo.buzz
 ntnfiubxkrufo.store
 ntobfyzxjkatt.space
@@ -33009,6 +33023,7 @@ okueroskynt.com
 okwiyihjxhvto.space
 okx59jgw69luzkexe.cfd
 okzacpzuma.in
+okzqhquaktxmj.website
 olarodwood.com
 olayomad.com
 olbeeqbqgumdt.website
@@ -33405,6 +33420,7 @@ oqdwehdhhswex.online
 oqezuyyzxggyx.site
 oqezwhyvtyduh.click
 oqhvfroyxr1gh5b.rest
+oqiuuznwfdqbb.website
 oqjzazobpofq.in
 oqkhxgzljvqzr.store
 oqmacnov.in
@@ -33715,6 +33731,7 @@ outcomefriendlysurname.com
 outcrycats.com
 outdarescrolls.cyou
 outdidfillet.com
+outdrewginnier.qpon
 outelectrodean.com
 outerenhance.com
 outflowantlersuncompt.cyou
@@ -36844,6 +36861,7 @@ prayratesantibiotic.com
 praystakeinstinct.com
 prbchvsbsgixu.global
 prbxckwtajncq.space
+prcsoeak.com
 prcyrtdnx.xyz
 prdqdbzquveuz.online
 prdredir.com
@@ -37989,6 +38007,7 @@ pushpong.net
 pushprofit.net
 pushqwer.com
 pushrase.com
+pushrodcodeine.shop
 pushsar.com
 pushserve.xyz
 pushtoast-a.akamaihd.net
@@ -40175,6 +40194,7 @@ rebakebelage.com
 rebakeuighur.cfd
 rebantaste.cfd
 rebatoscentum.qpon
+rebbesitemize.shop
 rebedwhand.cfd
 rebegcocks.cfd
 rebegincantdog.qpon
@@ -48786,6 +48806,7 @@ taqezaknkopdw.site
 tarantula.searchbox.tech
 tarantula.tuxedo.media
 tararumors.cfd
+tarazedpirot.shop
 tardierrouges.com
 targaubs.com
 target.hidabroot.org
@@ -50659,6 +50680,7 @@ tqpgvduudixlm.online
 tqptpnliwnkcy.space
 tqpuvxhsrcoon.store
 tqqixldkdkcvi.site
+tqrjalckwwhpd.com
 tqrmlgjertjht.online
 tqsjgfemomioe.site
 tqtljjcyteqyr.online
@@ -60336,6 +60358,7 @@ yhettexs.net
 yhfbqmadtvrbi.online
 yhfcgziuxkgoq.website
 yhfifwlhwfgdv.website
+yhg2ylz7mvlykf9vr3npj7xtr2yqbfzy.rest
 yhhbnasgqxhr.com
 yhhylwzqwhhqx.online
 yhidnrforbqby.online
