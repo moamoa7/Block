@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-03 11:32:47 UTC
+# Generated: 2026-05-03 12:37:30 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,264
-# 2. Removed by Reference       : 4,996
+# 1. Raw Domains Collected      : 67,275
+# 2. Removed by Reference       : 4,989
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,267
+# 4. Final Block Rules (||)     : 62,285
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -1411,6 +1411,7 @@
 0.0.0.0 7rqol65fky3vpik44xykgj.rest
 0.0.0.0 7tg9vr9pjloq5nl.rest
 0.0.0.0 7tvtn99fjf3btfj7u1k.rest
+0.0.0.0 7ui7eny4lgwyfwk.cfd
 0.0.0.0 7v6gvx5b5ywlu289zh.cfd
 0.0.0.0 7vf2llmkf59tl38o4ongf1c7.rest
 0.0.0.0 7w4f7nvo9j29zl6ptzqn2ft.cfd
@@ -1550,6 +1551,7 @@
 0.0.0.0 8giyhzqgxk2vyjcj21koo.rest
 0.0.0.0 8hwnenz8w55hiu3zxe.cfd
 0.0.0.0 8inhjmd.usefathom.com
+0.0.0.0 8iwyq46mqienxi81izfmcc51yrpnb.rest
 0.0.0.0 8j1f0af5.de
 0.0.0.0 8jfbt5va3r.com
 0.0.0.0 8kbulkq2mbhzu8.rest
@@ -7819,6 +7821,7 @@
 0.0.0.0 brmljcaxcchtu.space
 0.0.0.0 brmrfxnpajqqx.site
 0.0.0.0 brmyeyvjshqt.com
+0.0.0.0 brnhvchjhorpy.com
 0.0.0.0 brnju6iwxxgozijo3t.rest
 0.0.0.0 brnvimqdltzzk.online
 0.0.0.0 broadensilkslush.com
@@ -24025,6 +24028,7 @@
 0.0.0.0 intervalsgetaway.com
 0.0.0.0 interworksmedia.co.kr
 0.0.0.0 intibwyoigjpf.site
+0.0.0.0 intimabengals.shop
 0.0.0.0 intimacyreduce.com
 0.0.0.0 intimacysupervisor.com
 0.0.0.0 intimatediary.com
@@ -26313,6 +26317,7 @@
 0.0.0.0 kncecafvdeu.info
 0.0.0.0 kncecafvdeu.org
 0.0.0.0 kncqvvahytfdx.online
+0.0.0.0 knddnkopoqgpg.site
 0.0.0.0 kneeansweras.com
 0.0.0.0 kneeljav09212026.shop
 0.0.0.0 kneelspunkahpelt.cyou
@@ -26455,6 +26460,7 @@
 0.0.0.0 kopmsfmihhrlg.store
 0.0.0.0 koprinosoonerdecane.qpon
 0.0.0.0 koraitpringle.qpon
+0.0.0.0 koranicwonk.shop
 0.0.0.0 korbthejethii.org
 0.0.0.0 koreansearholeobsequy.cfd
 0.0.0.0 koreanzad.xyz
@@ -29734,6 +29740,7 @@
 0.0.0.0 minutedeplorable.com
 0.0.0.0 minutelight-1.online
 0.0.0.0 minutemedia-prebid.com
+0.0.0.0 minutesillock.cfd
 0.0.0.0 minutessmiles.com
 0.0.0.0 miomg53b4xlev45nw.rest
 0.0.0.0 miorokkyhdjna.store
@@ -30444,6 +30451,7 @@
 0.0.0.0 mrlangwkahuoh.space
 0.0.0.0 mrlscr.com
 0.0.0.0 mrmnd.com
+0.0.0.0 mrnwvcgjbpufg.online
 0.0.0.0 mrojeihalqsyl.online
 0.0.0.0 mrplmfulxetas.space
 0.0.0.0 mrpqqtuzjnkdc.site
@@ -31137,6 +31145,7 @@
 0.0.0.0 nderfulstatuehelooksj.org
 0.0.0.0 ndexww.com
 0.0.0.0 ndfaafrrjgjei.website
+0.0.0.0 ndfgoyhuugrar.space
 0.0.0.0 ndfkrdti.com
 0.0.0.0 ndha4sding6gf.com
 0.0.0.0 ndhvcwnczxupa.online
@@ -42591,6 +42600,7 @@
 0.0.0.0 rugsicotypebuttal.cyou
 0.0.0.0 rugyhrjawkmln.site
 0.0.0.0 ruhfpcfkysoxw.site
+0.0.0.0 ruhicofhzlyp.com
 0.0.0.0 ruhtgbkacgrqj.space
 0.0.0.0 ruicjtymslrkz.site
 0.0.0.0 ruikshdnmvxgo.website
@@ -43383,6 +43393,7 @@
 0.0.0.0 samplestupent.qpon
 0.0.0.0 samreshuu.online
 0.0.0.0 samsairtoula.net
+0.0.0.0 samshujoshimian.cyou
 0.0.0.0 samsungacr.com
 0.0.0.0 samsungads.com
 0.0.0.0 samsungtvads.com
@@ -47917,6 +47928,7 @@
 0.0.0.0 supposedlymadeup.com
 0.0.0.0 supposedsite.com
 0.0.0.0 supposeschool.com
+0.0.0.0 suppostskewly.qpon
 0.0.0.0 suppressedbottlesenjoyable.com
 0.0.0.0 suppresseduphousing.com
 0.0.0.0 suppresswhileobvious.com
@@ -51426,6 +51438,7 @@
 0.0.0.0 twcwzjckuuubq.website
 0.0.0.0 twdgdoukcxtby.xyz
 0.0.0.0 tweadsialing.com
+0.0.0.0 tweakerhrdwre.qpon
 0.0.0.0 tweakjerk.com
 0.0.0.0 tweakpersuadelowest.com
 0.0.0.0 tweelessatic.co.in
@@ -51766,6 +51779,7 @@
 0.0.0.0 ubgvqakukavmm.space
 0.0.0.0 ubhejhjegoglnm.com
 0.0.0.0 ubhoryjlvjfux.website
+0.0.0.0 ubiamgstuwc.com
 0.0.0.0 ubiepvmfdzkhx.online
 0.0.0.0 ubilinkbin.com
 0.0.0.0 ubittetdbvwux.online
@@ -51823,6 +51837,7 @@
 0.0.0.0 ucjfbrzxxlbok.online
 0.0.0.0 ucjzrtzavuizy.site
 0.0.0.0 uckcduwzkabhp.online
+0.0.0.0 uclitpakrzbkn.online
 0.0.0.0 ucmsrfvvjpht.net
 0.0.0.0 ucnwhhtaadaqp.site
 0.0.0.0 ucpdqmisqylsb.online
@@ -55369,6 +55384,7 @@
 0.0.0.0 vwcxjwtgssxrl.space
 0.0.0.0 vwcyuojicbvab.website
 0.0.0.0 vweuk9vf.hf7mlgjm6twbb5hjyn6b9xi2u.cyou
+0.0.0.0 vwewnxqaxkhkmvy.com
 0.0.0.0 vwflrpyyazjwy.space
 0.0.0.0 vwfurlcwpujuz.site
 0.0.0.0 vwfwdxariknxp.website
@@ -55637,6 +55653,7 @@
 0.0.0.0 waithetomaigrie.net
 0.0.0.0 waitingchimps.com
 0.0.0.0 waivedpatria.cyou
+0.0.0.0 waivodsubnex.shop
 0.0.0.0 waiwaimetage.com
 0.0.0.0 wajwfczrrnywp.space
 0.0.0.0 wajwzorujfi.in
@@ -61330,6 +61347,7 @@
 0.0.0.0 zeeshith.net
 0.0.0.0 zefbjdepbqlyq.online
 0.0.0.0 zefjanwgmeijq.site
+0.0.0.0 zefygukgwd.com
 0.0.0.0 zegegtvsxpxcg.space
 0.0.0.0 zeguklgrjilli.space
 0.0.0.0 zehdhcjxiugss.online

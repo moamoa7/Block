@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-03 11:32:47 UTC
+! Generated: 2026-05-03 12:37:30 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 67,264
-! 2. Removed by Reference       : 4,996
+! 1. Raw Domains Collected      : 67,275
+! 2. Removed by Reference       : 4,989
 ! 3. Removed by Whitelist       : 1
-! 4. Final Block Rules (||)     : 62,267
+! 4. Final Block Rules (||)     : 62,285
 ! 5. Final Exception Rules (@@) : 451
 ! (Calculation: 1 - 2 - 3 = 4)
 !
@@ -1412,6 +1412,7 @@
 ||7rqol65fky3vpik44xykgj.rest^
 ||7tg9vr9pjloq5nl.rest^
 ||7tvtn99fjf3btfj7u1k.rest^
+||7ui7eny4lgwyfwk.cfd^
 ||7v6gvx5b5ywlu289zh.cfd^
 ||7vf2llmkf59tl38o4ongf1c7.rest^
 ||7w4f7nvo9j29zl6ptzqn2ft.cfd^
@@ -1551,6 +1552,7 @@
 ||8giyhzqgxk2vyjcj21koo.rest^
 ||8hwnenz8w55hiu3zxe.cfd^
 ||8inhjmd.usefathom.com^
+||8iwyq46mqienxi81izfmcc51yrpnb.rest^
 ||8j1f0af5.de^
 ||8jfbt5va3r.com^
 ||8kbulkq2mbhzu8.rest^
@@ -7820,6 +7822,7 @@
 ||brmljcaxcchtu.space^
 ||brmrfxnpajqqx.site^
 ||brmyeyvjshqt.com^
+||brnhvchjhorpy.com^
 ||brnju6iwxxgozijo3t.rest^
 ||brnvimqdltzzk.online^
 ||broadensilkslush.com^
@@ -24026,6 +24029,7 @@
 ||intervalsgetaway.com^
 ||interworksmedia.co.kr^
 ||intibwyoigjpf.site^
+||intimabengals.shop^
 ||intimacyreduce.com^
 ||intimacysupervisor.com^
 ||intimatediary.com^
@@ -26314,6 +26318,7 @@
 ||kncecafvdeu.info^
 ||kncecafvdeu.org^
 ||kncqvvahytfdx.online^
+||knddnkopoqgpg.site^
 ||kneeansweras.com^
 ||kneeljav09212026.shop^
 ||kneelspunkahpelt.cyou^
@@ -26456,6 +26461,7 @@
 ||kopmsfmihhrlg.store^
 ||koprinosoonerdecane.qpon^
 ||koraitpringle.qpon^
+||koranicwonk.shop^
 ||korbthejethii.org^
 ||koreansearholeobsequy.cfd^
 ||koreanzad.xyz^
@@ -29735,6 +29741,7 @@
 ||minutedeplorable.com^
 ||minutelight-1.online^
 ||minutemedia-prebid.com^
+||minutesillock.cfd^
 ||minutessmiles.com^
 ||miomg53b4xlev45nw.rest^
 ||miorokkyhdjna.store^
@@ -30445,6 +30452,7 @@
 ||mrlangwkahuoh.space^
 ||mrlscr.com^
 ||mrmnd.com^
+||mrnwvcgjbpufg.online^
 ||mrojeihalqsyl.online^
 ||mrplmfulxetas.space^
 ||mrpqqtuzjnkdc.site^
@@ -31138,6 +31146,7 @@
 ||nderfulstatuehelooksj.org^
 ||ndexww.com^
 ||ndfaafrrjgjei.website^
+||ndfgoyhuugrar.space^
 ||ndfkrdti.com^
 ||ndha4sding6gf.com^
 ||ndhvcwnczxupa.online^
@@ -42592,6 +42601,7 @@
 ||rugsicotypebuttal.cyou^
 ||rugyhrjawkmln.site^
 ||ruhfpcfkysoxw.site^
+||ruhicofhzlyp.com^
 ||ruhtgbkacgrqj.space^
 ||ruicjtymslrkz.site^
 ||ruikshdnmvxgo.website^
@@ -43384,6 +43394,7 @@
 ||samplestupent.qpon^
 ||samreshuu.online^
 ||samsairtoula.net^
+||samshujoshimian.cyou^
 ||samsungacr.com^
 ||samsungads.com^
 ||samsungtvads.com^
@@ -47918,6 +47929,7 @@
 ||supposedlymadeup.com^
 ||supposedsite.com^
 ||supposeschool.com^
+||suppostskewly.qpon^
 ||suppressedbottlesenjoyable.com^
 ||suppresseduphousing.com^
 ||suppresswhileobvious.com^
@@ -51427,6 +51439,7 @@
 ||twcwzjckuuubq.website^
 ||twdgdoukcxtby.xyz^
 ||tweadsialing.com^
+||tweakerhrdwre.qpon^
 ||tweakjerk.com^
 ||tweakpersuadelowest.com^
 ||tweelessatic.co.in^
@@ -51767,6 +51780,7 @@
 ||ubgvqakukavmm.space^
 ||ubhejhjegoglnm.com^
 ||ubhoryjlvjfux.website^
+||ubiamgstuwc.com^
 ||ubiepvmfdzkhx.online^
 ||ubilinkbin.com^
 ||ubittetdbvwux.online^
@@ -51824,6 +51838,7 @@
 ||ucjfbrzxxlbok.online^
 ||ucjzrtzavuizy.site^
 ||uckcduwzkabhp.online^
+||uclitpakrzbkn.online^
 ||ucmsrfvvjpht.net^
 ||ucnwhhtaadaqp.site^
 ||ucpdqmisqylsb.online^
@@ -55370,6 +55385,7 @@
 ||vwcxjwtgssxrl.space^
 ||vwcyuojicbvab.website^
 ||vweuk9vf.hf7mlgjm6twbb5hjyn6b9xi2u.cyou^
+||vwewnxqaxkhkmvy.com^
 ||vwflrpyyazjwy.space^
 ||vwfurlcwpujuz.site^
 ||vwfwdxariknxp.website^
@@ -55638,6 +55654,7 @@
 ||waithetomaigrie.net^
 ||waitingchimps.com^
 ||waivedpatria.cyou^
+||waivodsubnex.shop^
 ||waiwaimetage.com^
 ||wajwfczrrnywp.space^
 ||wajwzorujfi.in^
@@ -61331,6 +61348,7 @@
 ||zeeshith.net^
 ||zefbjdepbqlyq.online^
 ||zefjanwgmeijq.site^
+||zefygukgwd.com^
 ||zegegtvsxpxcg.space^
 ||zeguklgrjilli.space^
 ||zehdhcjxiugss.online^
