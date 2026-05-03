@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-03 12:37:30 UTC
+  Generated: 2026-05-03 14:03:17 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -22,10 +22,10 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 89,800 | Extracted: 57,146
+       Total Lines: 89,815 | Extracted: 57,161
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 158,092 | Extracted: 65,918
+       Total Lines: 158,103 | Extracted: 65,929
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,545 | Extracted: 908
@@ -43,14 +43,14 @@
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
-  EasyList                      57,146     57,146         13
-  AdGuard Base                  65,918      8,785      8,760
+  EasyList                      57,161     57,161         17
+  AdGuard Base                  65,929      8,785      8,760
   AdGuard Mobile                   908        890        846
   AdGuard Japanese                 169        156        156
   List-KR                          352        265        265
   uBlock Filters                    50         33         33
   ───────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)          67,275
+  Total (deduplicated)          67,290
 
   * Extracted : 해당 필터에서 추출된 도메인 수
   * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
@@ -60,14 +60,14 @@
 ------------------------------------------------------------
   Reference: AdGuard DNS Filter (filters/15.txt)
   Reference Domains             : 164,460
-  Before Validation             : 67,275
-  Removed (not in reference)    : 4,989
+  Before Validation             : 67,290
+  Removed (not in reference)    : 5,004
   After Validation              : 62,286
 
 [ Final Summary ]
 ------------------------------------------------------------
-  1. Raw Domains Collected      : 67,275
-  2. Removed by Reference       : 4,989
+  1. Raw Domains Collected      : 67,290
+  2. Removed by Reference       : 5,004
   3. Removed by Whitelist       : 1
   4. Final Block Domains         : 62,285
   5. Final Exception Rules       : 451
