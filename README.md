@@ -11,7 +11,7 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_DNS.txt
 ```
 https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Domains.txt
 ```
-※ Block_Domains
+※ Block_Hosts
 ```
 https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Hosts.txt
 ```
