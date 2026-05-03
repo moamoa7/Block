@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-03 01:19:44 UTC
+  Generated: 2026-05-03 01:33:51 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -20,15 +20,9 @@
 
 [ Block Filter Sources ]
 ------------------------------------------------------------
-  [OK] EasyList
-       URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 89,690 | Extracted: 57,047
-  [OK] AdGuard Base
-       URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 157,974 | Extracted: 65,815
-  [OK] AdGuard Mobile
-       URL: https://filters.adtidy.org/windows/filters/11.txt
-       Total Lines: 9,545 | Extracted: 908
+  [OK] Ultimate Ad Filter
+       URL: https://filters.adavoid.org/ultimate-ad-filter.txt
+       Total Lines: 141,261 | Extracted: 65,815
   [OK] AdGuard Japanese
        URL: https://filters.adtidy.org/windows/filters/7.txt
        Total Lines: 12,544 | Extracted: 169
@@ -43,14 +37,12 @@
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
-  EasyList                      57,047     57,047         18
-  AdGuard Base                  65,815      8,786      8,761
-  AdGuard Mobile                   908        890        846
-  AdGuard Japanese                 169        156        156
-  List-KR                          352        265        265
+  Ultimate Ad Filter            65,815     65,815     65,743
+  AdGuard Japanese                 169        159        159
+  List-KR                          352        307        307
   uBlock Filters                    50         33         33
   ───────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)          67,177
+  Total (deduplicated)          66,314
 
   * Extracted : 해당 필터에서 추출된 도메인 수
   * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
@@ -60,16 +52,16 @@
 ------------------------------------------------------------
   Reference: AdGuard DNS Filter (filters/15.txt)
   Reference Domains             : 164,353
-  Before Validation             : 67,177
-  Removed (not in reference)    : 4,989
-  After Validation              : 62,188
+  Before Validation             : 66,314
+  Removed (not in reference)    : 4,913
+  After Validation              : 61,401
 
 [ Final Summary ]
 ------------------------------------------------------------
-  1. Raw Domains Collected      : 67,177
-  2. Removed by Reference       : 4,989
+  1. Raw Domains Collected      : 66,314
+  2. Removed by Reference       : 4,913
   3. Removed by Whitelist       : 1
-  4. Final Block Domains         : 62,187
+  4. Final Block Domains         : 61,400
   5. Final Exception Rules       : 451
   (Calculation: 1 - 2 - 3 = 4)
 ============================================================
