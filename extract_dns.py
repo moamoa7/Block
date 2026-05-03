@@ -7,6 +7,7 @@ from urllib.request import urlopen, Request
 # --- 설정 ---
 FILTER_URLS = [
     "https://filters.adavoid.org/ultimate-ad-filter.txt",
+    "https://filters.adtidy.org/windows/filters/11.txt",
     "https://filters.adtidy.org/windows/filters/7.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
@@ -37,7 +38,9 @@ def is_valid_domain(d: str) -> bool:
 
 def short_name(url: str) -> str:
     if "ultimate-ad-filter.txt" in url:
-        return "Ultimate Ad Filter"
+        return "Ultimate Ad"
+    if "filters/11.txt" in url:
+        return "AdGuard Mobile Ads"
     if "filters/7.txt" in url:
         return "AdGuard Japanese"
     if "list-kr" in url:
