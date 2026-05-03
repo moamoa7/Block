@@ -1,10 +1,32 @@
-# 설명
+# DNS
+<br>
+ADS 필터 위주로 조합해서 만든 개인 DNS
+<br>
+
+※ Block_DNS
+```
+https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_DNS.txt
+```
+※ Block_Domains
+```
+https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Domains.txt
+```
+※ Block_Domains
+```
+https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Hosts.txt
+```
+
 ※ GoodAD.txt
 - 아래 사용중인 Filter 목록 적용 후 필요하다고 생각되는 개인적인 차단 List
 
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
+<br>
+<br>
+
+# 스크립트
+
 <br>
 
 ※ Video_Control.js
