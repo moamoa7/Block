@@ -1,3 +1,5 @@
+#! 네이버 앱 깨지는거 방지 !#
 ||ad-creative.pstatic.net^
+#! 숲 무한로딩 방지 !#
 ||exlogcollector.sooplive.co.kr^
 ||exlogcollector.sooplive.com^
