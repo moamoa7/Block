@@ -1,6 +1,6 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-04 14:21:47 UTC
+! Generated: 2026-05-04 15:27:03 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
@@ -8,13 +8,13 @@
 ! Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 187,876
-! 2. Removed by Reference       : 96,071
+! 1. Raw Domains Collected      : 187,882
+! 2. Removed by Reference       : 96,053
 ! 3. Removed by Ext.Whitelist   : 0
 ! 4. Personal Block Added       : 58,122
 ! 5. Forced (White → Black)     : 4
 ! 6. Forced (Black → White)     : 2
-! 7. Final Block Rules (||)     : 97,395
+! 7. Final Block Rules (||)     : 97,416
 ! 8. Final Exception Rules (@@) : 449
 !
 ! === BLOCK RULES ===
@@ -9980,6 +9980,7 @@
 ||applicanttowardsbureau.com^
 ||application.taleo.com^
 ||applicationassistantpal.com^
+||applicationsighgolden.com^
 ||applicationsstereocanoe.com^
 ||applierlignes.com^
 ||applifier.com^
@@ -11346,6 +11347,7 @@
 ||axfgvvsvgwi.com^
 ||axfwlkeyqdntp.site^
 ||axgbr.com^
+||axhlacarcva.in^
 ||axhqzjtpfwrfg.tech^
 ||axiaffiliates.com^
 ||axifmuvrrxrvn.online^
@@ -13379,6 +13381,7 @@
 ||bisetsoliped.com^
 ||bisieextancedogsled.cfd^
 ||bisko.mall.tv^
+||biskquaggas.com^
 ||bison.ainslieart.com^
 ||bison.joshhanley.com.au^
 ||bison.stuffmatic.com^
@@ -14739,6 +14742,7 @@
 ||bruzzexacter.com^
 ||brvxflfhfehle.site^
 ||brwsrfrm.com^
+||brxjgvho5kkjuu.cfd^
 ||brxqlwrzcpcvx.website^
 ||brygella.com^
 ||brynzadolley.cyou^
@@ -22280,6 +22284,7 @@
 ||danatrak.com^
 ||danbo.org^
 ||danceddompt.cfd^
+||danceryteatswinged.cyou^
 ||dandiewealful.com^
 ||dandlealibied.cfd^
 ||dandvolary.cyou^
@@ -26687,6 +26692,7 @@
 ||elns12.com^
 ||elns4a.com^
 ||elnz02.com^
+||elocuteblinderovertip.cfd^
 ||elogiado.info^
 ||elogymayda.shop^
 ||elonreptiloid.com^
@@ -26945,6 +26951,7 @@
 ||endowmentoverhangutmost.com^
 ||endurablebulb.com^
 ||enduranceblond.com^
+||endurancedaylight.com^
 ||endurancesupervision.com^
 ||endurosweekday.com^
 ||enecto.com^
@@ -29181,6 +29188,7 @@
 ||fellaquery.qpon^
 ||fellatedrumly.cyou^
 ||fellatehyoids.cfd^
+||fellfortunatepassive.com^
 ||felllilyforegoing.com^
 ||felloesbehornbatfish.cfd^
 ||fellowshiplyricsceasless.com^
@@ -30335,6 +30343,7 @@
 ||fnyfiexpectth.org^
 ||fo0qofhtaw.com^
 ||fo1ykm6ph1.com^
+||foabswdfevcae.site^
 ||foaglaid.xyz^
 ||foaltax.com^
 ||foambench.com^
@@ -30664,6 +30673,7 @@
 ||fphzedckwhuab.website^
 ||fpiakdalzo.in^
 ||fpjehnliiuopfw.com^
+||fpjkarweguqyo.online^
 ||fpjs.io^
 ||fpjscdn.net^
 ||fplandxtxba.com^
@@ -32281,6 +32291,7 @@
 ||ggllekdgudxgx.store^
 ||gglx.me^
 ||ggmbjybfylctk.space^
+||ggmmupnudokjdcy.com^
 ||ggmseqjtwwslm.space^
 ||ggo10090lq.com^
 ||ggo10091lq.com^
@@ -37919,6 +37930,7 @@
 ||inetstats.org^
 ||inevitablyflop.com^
 ||inexactmisstay.cfd^
+||inexhaustiblenormcall.com^
 ||inexpedientlads.com^
 ||inexperiencedunseensuggested.com^
 ||inf.miui.com^
@@ -40061,6 +40073,7 @@
 ||jp532fdo5.com^
 ||jpaasne.e.shifen.com^
 ||jpackipmxsufz.online^
+||jpadxrydoiorz.online^
 ||jpbsggqehlopl.online^
 ||jpcjzcrkrugie.online^
 ||jpdrbeyrgjaav.site^
@@ -48891,6 +48904,7 @@
 ||moundconclusive.com^
 ||mountain.zhidao.baidu.com^
 ||mountain48.top^
+||mountainininstances.com^
 ||mountainousstop.pro^
 ||mountainrood.com^
 ||mountainsubmerge.com^
@@ -52467,6 +52481,7 @@
 ||ogpzwntwkuwyr.space^
 ||ogqatvqilm.in^
 ||ogqbkcfyvycna.space^
+||ogrhbjyjvdbct.online^
 ||ogscumkte.com^
 ||ogsdmamkeamq.in^
 ||ogt.jp^
@@ -54208,6 +54223,7 @@
 ||ozwaphqdzzrxp.space^
 ||ozwvd.com^
 ||ozwyhklovctrr.website^
+||ozxlkegwyxfa.in^
 ||ozxodzemhjmgq.site^
 ||ozxrgwqkxkydc.website^
 ||ozxvyaklufsce.space^
@@ -54540,6 +54556,7 @@
 ||palibzh.tech^
 ||palissestrake.cfd^
 ||pallairrate.com^
+||pallorsmitefungus.com^
 ||pallrutul.in^
 ||pallssayal.shop^
 ||palmerdebye.cfd^
@@ -59626,6 +59643,7 @@
 ||pwwghcyzsn.info^
 ||pwwopmrisjfnu.store^
 ||pwwwksjokcaaq.online^
+||pwxazoidrwlr.com^
 ||pwxnufxcwbbev.space^
 ||pwxunynbaplmm.site^
 ||pwxzkpspgaxxl.online^
@@ -77249,6 +77267,7 @@
 ||switch1266.fun^
 ||switchadhub.com^
 ||switchofers.com^
+||switchtwentiesduty.com^
 ||switheeyebalm.cyou^
 ||swiveiba.qpon^
 ||swivingvulvaechoky.qpon^
@@ -78534,6 +78553,7 @@
 ||tc.vbnmhjlp.com^
 ||tc.weszxdrf.com^
 ||tc.zxcvbnml.com^
+||tc1h6twmizuzr4nv.rest^
 ||tc911.vip^
 ||tcactivity.net^
 ||tcads.net^
@@ -78645,6 +78665,7 @@
 ||tdhalwxwdonxz.online^
 ||tdid.m.qq.com^
 ||tdivoehxsalpj.online^
+||tdiziyfbhydbu.online^
 ||tdk.petsplace.nl^
 ||tdkaapcziaoty.website^
 ||tdkwsppseymhf.space^

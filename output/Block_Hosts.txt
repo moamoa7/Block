@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 14:21:47 UTC
+# Generated: 2026-05-04 15:27:03 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 187,876
-# 2. Removed by Reference       : 96,071
+# 1. Raw Domains Collected      : 187,882
+# 2. Removed by Reference       : 96,053
 # 3. Removed by Ext.Whitelist   : 0
 # 4. Personal Block Added       : 58,122
 # 5. Forced (White → Black)     : 4
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 97,395
+# 7. Final Block Rules (||)     : 97,416
 # 8. Final Exception Rules (@@) : 449
 #
 0.0.0.0 0-02.net
@@ -9979,6 +9979,7 @@
 0.0.0.0 applicanttowardsbureau.com
 0.0.0.0 application.taleo.com
 0.0.0.0 applicationassistantpal.com
+0.0.0.0 applicationsighgolden.com
 0.0.0.0 applicationsstereocanoe.com
 0.0.0.0 applierlignes.com
 0.0.0.0 applifier.com
@@ -11345,6 +11346,7 @@
 0.0.0.0 axfgvvsvgwi.com
 0.0.0.0 axfwlkeyqdntp.site
 0.0.0.0 axgbr.com
+0.0.0.0 axhlacarcva.in
 0.0.0.0 axhqzjtpfwrfg.tech
 0.0.0.0 axiaffiliates.com
 0.0.0.0 axifmuvrrxrvn.online
@@ -13378,6 +13380,7 @@
 0.0.0.0 bisetsoliped.com
 0.0.0.0 bisieextancedogsled.cfd
 0.0.0.0 bisko.mall.tv
+0.0.0.0 biskquaggas.com
 0.0.0.0 bison.ainslieart.com
 0.0.0.0 bison.joshhanley.com.au
 0.0.0.0 bison.stuffmatic.com
@@ -14738,6 +14741,7 @@
 0.0.0.0 bruzzexacter.com
 0.0.0.0 brvxflfhfehle.site
 0.0.0.0 brwsrfrm.com
+0.0.0.0 brxjgvho5kkjuu.cfd
 0.0.0.0 brxqlwrzcpcvx.website
 0.0.0.0 brygella.com
 0.0.0.0 brynzadolley.cyou
@@ -22279,6 +22283,7 @@
 0.0.0.0 danatrak.com
 0.0.0.0 danbo.org
 0.0.0.0 danceddompt.cfd
+0.0.0.0 danceryteatswinged.cyou
 0.0.0.0 dandiewealful.com
 0.0.0.0 dandlealibied.cfd
 0.0.0.0 dandvolary.cyou
@@ -26686,6 +26691,7 @@
 0.0.0.0 elns12.com
 0.0.0.0 elns4a.com
 0.0.0.0 elnz02.com
+0.0.0.0 elocuteblinderovertip.cfd
 0.0.0.0 elogiado.info
 0.0.0.0 elogymayda.shop
 0.0.0.0 elonreptiloid.com
@@ -26944,6 +26950,7 @@
 0.0.0.0 endowmentoverhangutmost.com
 0.0.0.0 endurablebulb.com
 0.0.0.0 enduranceblond.com
+0.0.0.0 endurancedaylight.com
 0.0.0.0 endurancesupervision.com
 0.0.0.0 endurosweekday.com
 0.0.0.0 enecto.com
@@ -29180,6 +29187,7 @@
 0.0.0.0 fellaquery.qpon
 0.0.0.0 fellatedrumly.cyou
 0.0.0.0 fellatehyoids.cfd
+0.0.0.0 fellfortunatepassive.com
 0.0.0.0 felllilyforegoing.com
 0.0.0.0 felloesbehornbatfish.cfd
 0.0.0.0 fellowshiplyricsceasless.com
@@ -30334,6 +30342,7 @@
 0.0.0.0 fnyfiexpectth.org
 0.0.0.0 fo0qofhtaw.com
 0.0.0.0 fo1ykm6ph1.com
+0.0.0.0 foabswdfevcae.site
 0.0.0.0 foaglaid.xyz
 0.0.0.0 foaltax.com
 0.0.0.0 foambench.com
@@ -30663,6 +30672,7 @@
 0.0.0.0 fphzedckwhuab.website
 0.0.0.0 fpiakdalzo.in
 0.0.0.0 fpjehnliiuopfw.com
+0.0.0.0 fpjkarweguqyo.online
 0.0.0.0 fpjs.io
 0.0.0.0 fpjscdn.net
 0.0.0.0 fplandxtxba.com
@@ -32280,6 +32290,7 @@
 0.0.0.0 ggllekdgudxgx.store
 0.0.0.0 gglx.me
 0.0.0.0 ggmbjybfylctk.space
+0.0.0.0 ggmmupnudokjdcy.com
 0.0.0.0 ggmseqjtwwslm.space
 0.0.0.0 ggo10090lq.com
 0.0.0.0 ggo10091lq.com
@@ -37918,6 +37929,7 @@
 0.0.0.0 inetstats.org
 0.0.0.0 inevitablyflop.com
 0.0.0.0 inexactmisstay.cfd
+0.0.0.0 inexhaustiblenormcall.com
 0.0.0.0 inexpedientlads.com
 0.0.0.0 inexperiencedunseensuggested.com
 0.0.0.0 inf.miui.com
@@ -40060,6 +40072,7 @@
 0.0.0.0 jp532fdo5.com
 0.0.0.0 jpaasne.e.shifen.com
 0.0.0.0 jpackipmxsufz.online
+0.0.0.0 jpadxrydoiorz.online
 0.0.0.0 jpbsggqehlopl.online
 0.0.0.0 jpcjzcrkrugie.online
 0.0.0.0 jpdrbeyrgjaav.site
@@ -48890,6 +48903,7 @@
 0.0.0.0 moundconclusive.com
 0.0.0.0 mountain.zhidao.baidu.com
 0.0.0.0 mountain48.top
+0.0.0.0 mountainininstances.com
 0.0.0.0 mountainousstop.pro
 0.0.0.0 mountainrood.com
 0.0.0.0 mountainsubmerge.com
@@ -52466,6 +52480,7 @@
 0.0.0.0 ogpzwntwkuwyr.space
 0.0.0.0 ogqatvqilm.in
 0.0.0.0 ogqbkcfyvycna.space
+0.0.0.0 ogrhbjyjvdbct.online
 0.0.0.0 ogscumkte.com
 0.0.0.0 ogsdmamkeamq.in
 0.0.0.0 ogt.jp
@@ -54207,6 +54222,7 @@
 0.0.0.0 ozwaphqdzzrxp.space
 0.0.0.0 ozwvd.com
 0.0.0.0 ozwyhklovctrr.website
+0.0.0.0 ozxlkegwyxfa.in
 0.0.0.0 ozxodzemhjmgq.site
 0.0.0.0 ozxrgwqkxkydc.website
 0.0.0.0 ozxvyaklufsce.space
@@ -54539,6 +54555,7 @@
 0.0.0.0 palibzh.tech
 0.0.0.0 palissestrake.cfd
 0.0.0.0 pallairrate.com
+0.0.0.0 pallorsmitefungus.com
 0.0.0.0 pallrutul.in
 0.0.0.0 pallssayal.shop
 0.0.0.0 palmerdebye.cfd
@@ -59625,6 +59642,7 @@
 0.0.0.0 pwwghcyzsn.info
 0.0.0.0 pwwopmrisjfnu.store
 0.0.0.0 pwwwksjokcaaq.online
+0.0.0.0 pwxazoidrwlr.com
 0.0.0.0 pwxnufxcwbbev.space
 0.0.0.0 pwxunynbaplmm.site
 0.0.0.0 pwxzkpspgaxxl.online
@@ -77248,6 +77266,7 @@
 0.0.0.0 switch1266.fun
 0.0.0.0 switchadhub.com
 0.0.0.0 switchofers.com
+0.0.0.0 switchtwentiesduty.com
 0.0.0.0 switheeyebalm.cyou
 0.0.0.0 swiveiba.qpon
 0.0.0.0 swivingvulvaechoky.qpon
@@ -78533,6 +78552,7 @@
 0.0.0.0 tc.vbnmhjlp.com
 0.0.0.0 tc.weszxdrf.com
 0.0.0.0 tc.zxcvbnml.com
+0.0.0.0 tc1h6twmizuzr4nv.rest
 0.0.0.0 tc911.vip
 0.0.0.0 tcactivity.net
 0.0.0.0 tcads.net
@@ -78644,6 +78664,7 @@
 0.0.0.0 tdhalwxwdonxz.online
 0.0.0.0 tdid.m.qq.com
 0.0.0.0 tdivoehxsalpj.online
+0.0.0.0 tdiziyfbhydbu.online
 0.0.0.0 tdk.petsplace.nl
 0.0.0.0 tdkaapcziaoty.website
 0.0.0.0 tdkwsppseymhf.space
