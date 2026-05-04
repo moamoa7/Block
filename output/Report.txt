@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-04 13:13:23 UTC
+  Generated: 2026-05-04 13:16:12 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -43,7 +43,7 @@
        Total Lines: 46,602 | Extracted: 46,595
   [OK] Personal Blocklist
        URL: https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
-       Total Lines: 1 | Extracted: 0
+       Total Lines: 1 | Extracted: 1
 
 [ Overlap Analysis ]
 ------------------------------------------------------------
@@ -56,7 +56,7 @@
   List-KR                          352        265        192
   uBlock Filters                    50         33         28
   1Hosts (Lite)                 46,595     41,767     41,767
-  Personal Blocklist                 0          0          0
+  Personal Blocklist                 1          0          0
   ───────────────────────── ────────── ────────── ──────────
   Total (deduplicated)         109,271
 
