@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 00:07:22 UTC
+# Generated: 2026-05-04 04:13:59 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,377
-# 2. Removed by Reference       : 4,978
+# 1. Raw Domains Collected      : 67,414
+# 2. Removed by Reference       : 4,994
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,398
+# 4. Final Block Rules (||)     : 62,419
 # 5. Final Exception Rules (@@) : 451
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -1124,6 +1124,7 @@
 0.0.0.0 62ad.com
 0.0.0.0 62d57faaaf.a06c9a4dd7.com
 0.0.0.0 62n3rbevp51plmonuw3h.cfd
+0.0.0.0 632a08d66b.com
 0.0.0.0 635571329b.com
 0.0.0.0 63715207.xyz
 0.0.0.0 63801782.xyz
@@ -1240,6 +1241,7 @@
 0.0.0.0 6v5lljx5tj283h.rest
 0.0.0.0 6vio3b54hvbyolmfuwcbntxtngi.cfd
 0.0.0.0 6viwzxe332lftwhi77l79h984.rest
+0.0.0.0 6vpn5q7kvxjiq4qkejf46grobrn1fv.rest
 0.0.0.0 6wrmchzzrcfff2zp.cfd
 0.0.0.0 6x6iyrnym5uqpi.rest
 0.0.0.0 6yfjlm4lcmvrxkrlux1p.rest
@@ -5294,6 +5296,7 @@
 0.0.0.0 asterbiscusys.com
 0.0.0.0 asterouhavenev.org
 0.0.0.0 asterrakionor.com
+0.0.0.0 astertplashes.cyou
 0.0.0.0 asthmanotchcave.com
 0.0.0.0 astiteemoters.qpon
 0.0.0.0 astjigglypuffchan.com
@@ -5854,6 +5857,7 @@
 0.0.0.0 b2z1jc72v6m3cebke69k.cfd
 0.0.0.0 b2z7cv7hy4upnz.rest
 0.0.0.0 b35fc2842a.com
+0.0.0.0 b3953dfb4c.com
 0.0.0.0 b3beca4e4a.com
 0.0.0.0 b3c733588e.36dc612c23.com
 0.0.0.0 b3c8e0896a.com
@@ -6936,6 +6940,7 @@
 0.0.0.0 binomlink.com
 0.0.0.0 binomnet.com
 0.0.0.0 binomnet3.com
+0.0.0.0 binvacpa.in
 0.0.0.0 bioces.com
 0.0.0.0 biodegradable-building.pro
 0.0.0.0 biodegradablegrand.com
@@ -9370,6 +9375,7 @@
 0.0.0.0 cgtwccqrpbota.global
 0.0.0.0 cguv93.xhuytw3pl9cn6vvizk.cyou
 0.0.0.0 cgvoswfixuqoo.online
+0.0.0.0 cgyemhvxgjwub.com
 0.0.0.0 cgyuyfjabbjmh.online
 0.0.0.0 ch.tbllem.com
 0.0.0.0 chabadokor.com
@@ -16232,6 +16238,7 @@
 0.0.0.0 enchantingangle.pro
 0.0.0.0 enchantmentwhichever.com
 0.0.0.0 enchestskol.qpon
+0.0.0.0 encinalwoohoonicky.cfd
 0.0.0.0 encirclesheriffemit.com
 0.0.0.0 encnaialfvqm.com
 0.0.0.0 encodediagnosisrelish.com
@@ -26064,6 +26071,7 @@
 0.0.0.0 kgfjrb711.com
 0.0.0.0 kggnwgbrbawfg.space
 0.0.0.0 kgguxnrwpqoif.site
+0.0.0.0 kghiwhnb.com
 0.0.0.0 kgiqptmzhkidx.website
 0.0.0.0 kgkwahymywhf.com
 0.0.0.0 kgmhnaywmhtgi.website
@@ -26954,6 +26962,7 @@
 0.0.0.0 ladysabryna-xxiqlkt.work
 0.0.0.0 lafastnews.com
 0.0.0.0 lafundahyxevo.website
+0.0.0.0 laggarbedouse.cyou
 0.0.0.0 laharhamsterscreen.qpon
 0.0.0.0 lahsxicxicuvp.store
 0.0.0.0 laidgreens.com
@@ -28647,6 +28656,7 @@
 0.0.0.0 lxqnjotksfdsn.website
 0.0.0.0 lxqqbxhlvpxoi.online
 0.0.0.0 lxsewkypn.com
+0.0.0.0 lxshaxvgntkft.com
 0.0.0.0 lxstat.com
 0.0.0.0 lxtgkqanclxyf.space
 0.0.0.0 lxtitfmmhbhtehc.com
@@ -28799,6 +28809,7 @@
 0.0.0.0 madurird.com
 0.0.0.0 maebtjn.com
 0.0.0.0 maejzevcvnvlj.site
+0.0.0.0 mafahsosc.in
 0.0.0.0 mafeyyoyo.com
 0.0.0.0 mafflinsnorty.cfd
 0.0.0.0 mafjcihxtnrrv.com
@@ -29608,6 +29619,7 @@
 0.0.0.0 mgwxgxnpmzcqa.website
 0.0.0.0 mgxrwofnpbnof.com
 0.0.0.0 mgyccfrshz.com
+0.0.0.0 mgydbofeefljt.site
 0.0.0.0 mgywj74tic7ku474.rest
 0.0.0.0 mgzcphjqhqi.com
 0.0.0.0 mhaqzaoks.in
@@ -30575,6 +30587,7 @@
 0.0.0.0 mtddzanzcserh.space
 0.0.0.0 mtdmvmzxctwtk.site
 0.0.0.0 mtdutavlkpzzz.site
+0.0.0.0 mtfl8ug783z8jl.cfd
 0.0.0.0 mtfrljmoeyssz.website
 0.0.0.0 mtgglobals.com
 0.0.0.0 mthcplolzrszh.online
@@ -50672,6 +50685,7 @@
 0.0.0.0 tqkyfmdqgwvxx.online
 0.0.0.0 tqlkg.com
 0.0.0.0 tqlqfhmvainmn.one
+0.0.0.0 tqlqpxzywbomi.online
 0.0.0.0 tqnogxuqgwlmj.space
 0.0.0.0 tqofiyedqqxwq.online
 0.0.0.0 tqohvjbzxbgti.website
@@ -52718,6 +52732,7 @@
 0.0.0.0 unhoodtorrone.shop
 0.0.0.0 unhotpockily.help
 0.0.0.0 unhuedloviers.qpon
+0.0.0.0 unhumaniracund.qpon
 0.0.0.0 unicingmennuet.qpon
 0.0.0.0 unicornpride123.com
 0.0.0.0 unicume.com
@@ -52948,6 +52963,7 @@
 0.0.0.0 unsteelrimas.cyou
 0.0.0.0 unstoicingrave.cyou
 0.0.0.0 unstoreregrets.cfd
+0.0.0.0 unstripsawmont.com
 0.0.0.0 unsuccessfulimmense.com
 0.0.0.0 unsuitsipapuhogs.cyou
 0.0.0.0 unsung-act.pro
@@ -53009,6 +53025,7 @@
 0.0.0.0 unwelcometown.com
 0.0.0.0 unwelcomewave.pro
 0.0.0.0 unwheelpunster.cyou
+0.0.0.0 unwieldy-goal.com
 0.0.0.0 unwieldytowel.pro
 0.0.0.0 unwilling-cable.pro
 0.0.0.0 unwilling-space.com
@@ -54818,6 +54835,7 @@
 0.0.0.0 vjhxheqlglwtt.space
 0.0.0.0 vjkgjdtcucpiy.site
 0.0.0.0 vjkiaxkxnijvu.site
+0.0.0.0 vjklnuprlyaki.website
 0.0.0.0 vjlckfkbcuswo.site
 0.0.0.0 vjlocpypzmhzr.website
 0.0.0.0 vjmwnvteuhwhe.website
@@ -54902,6 +54920,7 @@
 0.0.0.0 vlflbbqnagpac.store
 0.0.0.0 vlfmcodhzuthr.website
 0.0.0.0 vlgmfdchutvxh.website
+0.0.0.0 vlhoopsc.com
 0.0.0.0 vlhqwfcajivguim.com
 0.0.0.0 vlitag.com
 0.0.0.0 vljmtgugalujt.website
@@ -57417,6 +57436,7 @@
 0.0.0.0 worstbreath.pro
 0.0.0.0 worstoffice.com
 0.0.0.0 worstpacifyflames.com
+0.0.0.0 worsumaristaeligula.cyou
 0.0.0.0 worthequally.com
 0.0.0.0 worthless-god.com
 0.0.0.0 worthlessbend.com
@@ -57787,6 +57807,7 @@
 0.0.0.0 wuytb.com
 0.0.0.0 wuytk.com
 0.0.0.0 wuzbhjpvsf.com
+0.0.0.0 wuzqqynu.com
 0.0.0.0 wvcvgezldpflf.website
 0.0.0.0 wvdkbuoimnxyu.site
 0.0.0.0 wvhba6470p.com

@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-04 00:07:22 UTC
+! Generated: 2026-05-04 04:13:59 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 67,377
-! 2. Removed by Reference       : 4,978
+! 1. Raw Domains Collected      : 67,414
+! 2. Removed by Reference       : 4,994
 ! 3. Removed by Whitelist       : 1
-! 4. Final Block Rules (||)     : 62,398
+! 4. Final Block Rules (||)     : 62,419
 ! 5. Final Exception Rules (@@) : 451
 ! (Calculation: 1 - 2 - 3 = 4)
 !
@@ -1125,6 +1125,7 @@
 ||62ad.com^
 ||62d57faaaf.a06c9a4dd7.com^
 ||62n3rbevp51plmonuw3h.cfd^
+||632a08d66b.com^
 ||635571329b.com^
 ||63715207.xyz^
 ||63801782.xyz^
@@ -1241,6 +1242,7 @@
 ||6v5lljx5tj283h.rest^
 ||6vio3b54hvbyolmfuwcbntxtngi.cfd^
 ||6viwzxe332lftwhi77l79h984.rest^
+||6vpn5q7kvxjiq4qkejf46grobrn1fv.rest^
 ||6wrmchzzrcfff2zp.cfd^
 ||6x6iyrnym5uqpi.rest^
 ||6yfjlm4lcmvrxkrlux1p.rest^
@@ -5295,6 +5297,7 @@
 ||asterbiscusys.com^
 ||asterouhavenev.org^
 ||asterrakionor.com^
+||astertplashes.cyou^
 ||asthmanotchcave.com^
 ||astiteemoters.qpon^
 ||astjigglypuffchan.com^
@@ -5855,6 +5858,7 @@
 ||b2z1jc72v6m3cebke69k.cfd^
 ||b2z7cv7hy4upnz.rest^
 ||b35fc2842a.com^
+||b3953dfb4c.com^
 ||b3beca4e4a.com^
 ||b3c733588e.36dc612c23.com^
 ||b3c8e0896a.com^
@@ -6937,6 +6941,7 @@
 ||binomlink.com^
 ||binomnet.com^
 ||binomnet3.com^
+||binvacpa.in^
 ||bioces.com^
 ||biodegradable-building.pro^
 ||biodegradablegrand.com^
@@ -9371,6 +9376,7 @@
 ||cgtwccqrpbota.global^
 ||cguv93.xhuytw3pl9cn6vvizk.cyou^
 ||cgvoswfixuqoo.online^
+||cgyemhvxgjwub.com^
 ||cgyuyfjabbjmh.online^
 ||ch.tbllem.com^
 ||chabadokor.com^
@@ -16233,6 +16239,7 @@
 ||enchantingangle.pro^
 ||enchantmentwhichever.com^
 ||enchestskol.qpon^
+||encinalwoohoonicky.cfd^
 ||encirclesheriffemit.com^
 ||encnaialfvqm.com^
 ||encodediagnosisrelish.com^
@@ -26065,6 +26072,7 @@
 ||kgfjrb711.com^
 ||kggnwgbrbawfg.space^
 ||kgguxnrwpqoif.site^
+||kghiwhnb.com^
 ||kgiqptmzhkidx.website^
 ||kgkwahymywhf.com^
 ||kgmhnaywmhtgi.website^
@@ -26955,6 +26963,7 @@
 ||ladysabryna-xxiqlkt.work^
 ||lafastnews.com^
 ||lafundahyxevo.website^
+||laggarbedouse.cyou^
 ||laharhamsterscreen.qpon^
 ||lahsxicxicuvp.store^
 ||laidgreens.com^
@@ -28648,6 +28657,7 @@
 ||lxqnjotksfdsn.website^
 ||lxqqbxhlvpxoi.online^
 ||lxsewkypn.com^
+||lxshaxvgntkft.com^
 ||lxstat.com^
 ||lxtgkqanclxyf.space^
 ||lxtitfmmhbhtehc.com^
@@ -28800,6 +28810,7 @@
 ||madurird.com^
 ||maebtjn.com^
 ||maejzevcvnvlj.site^
+||mafahsosc.in^
 ||mafeyyoyo.com^
 ||mafflinsnorty.cfd^
 ||mafjcihxtnrrv.com^
@@ -29609,6 +29620,7 @@
 ||mgwxgxnpmzcqa.website^
 ||mgxrwofnpbnof.com^
 ||mgyccfrshz.com^
+||mgydbofeefljt.site^
 ||mgywj74tic7ku474.rest^
 ||mgzcphjqhqi.com^
 ||mhaqzaoks.in^
@@ -30576,6 +30588,7 @@
 ||mtddzanzcserh.space^
 ||mtdmvmzxctwtk.site^
 ||mtdutavlkpzzz.site^
+||mtfl8ug783z8jl.cfd^
 ||mtfrljmoeyssz.website^
 ||mtgglobals.com^
 ||mthcplolzrszh.online^
@@ -50673,6 +50686,7 @@
 ||tqkyfmdqgwvxx.online^
 ||tqlkg.com^
 ||tqlqfhmvainmn.one^
+||tqlqpxzywbomi.online^
 ||tqnogxuqgwlmj.space^
 ||tqofiyedqqxwq.online^
 ||tqohvjbzxbgti.website^
@@ -52719,6 +52733,7 @@
 ||unhoodtorrone.shop^
 ||unhotpockily.help^
 ||unhuedloviers.qpon^
+||unhumaniracund.qpon^
 ||unicingmennuet.qpon^
 ||unicornpride123.com^
 ||unicume.com^
@@ -52949,6 +52964,7 @@
 ||unsteelrimas.cyou^
 ||unstoicingrave.cyou^
 ||unstoreregrets.cfd^
+||unstripsawmont.com^
 ||unsuccessfulimmense.com^
 ||unsuitsipapuhogs.cyou^
 ||unsung-act.pro^
@@ -53010,6 +53026,7 @@
 ||unwelcometown.com^
 ||unwelcomewave.pro^
 ||unwheelpunster.cyou^
+||unwieldy-goal.com^
 ||unwieldytowel.pro^
 ||unwilling-cable.pro^
 ||unwilling-space.com^
@@ -54819,6 +54836,7 @@
 ||vjhxheqlglwtt.space^
 ||vjkgjdtcucpiy.site^
 ||vjkiaxkxnijvu.site^
+||vjklnuprlyaki.website^
 ||vjlckfkbcuswo.site^
 ||vjlocpypzmhzr.website^
 ||vjmwnvteuhwhe.website^
@@ -54903,6 +54921,7 @@
 ||vlflbbqnagpac.store^
 ||vlfmcodhzuthr.website^
 ||vlgmfdchutvxh.website^
+||vlhoopsc.com^
 ||vlhqwfcajivguim.com^
 ||vlitag.com^
 ||vljmtgugalujt.website^
@@ -57418,6 +57437,7 @@
 ||worstbreath.pro^
 ||worstoffice.com^
 ||worstpacifyflames.com^
+||worsumaristaeligula.cyou^
 ||worthequally.com^
 ||worthless-god.com^
 ||worthlessbend.com^
@@ -57788,6 +57808,7 @@
 ||wuytb.com^
 ||wuytk.com^
 ||wuzbhjpvsf.com^
+||wuzqqynu.com^
 ||wvcvgezldpflf.website^
 ||wvdkbuoimnxyu.site^
 ||wvhba6470p.com^
