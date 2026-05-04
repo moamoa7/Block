@@ -1296,17 +1296,17 @@ tvhot.store##.object-cover
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
 ! - 로딩 동그라마
-!##.iframe-loading-spinner - ##[class*="iframe"]로 대체
+!##.iframe-loading-spinner - ##[class="iframe-loading"]로 대체
 ! - - - https://ko.javfc2.live/
-##[class*="iframe"]
+!##[class*="iframe"]
+##[class="iframe-loading"]
 ! - 로딩 텍스트
-!##.iframe-loading-text - ##[class*="iframe"]로 대체
+!##.iframe-loading-text - ##[class="iframe-loading"]로 대체
 ! - 예외
 ! - - - https://tv.naver.com/ - 클립 영상 안나옴
-tv.naver.com#@#[class*="iframe"]
+!tv.naver.com#@#[class*="iframe"]
 ! - - -https://hometax.go.kr/ - 화면 안보임
-hometax.go.kr#@#[class*="iframe"]
-
+!hometax.go.kr#@#[class*="iframe"]
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
@@ -4309,6 +4309,11 @@ noonnu.cc##.fc-dialog-container
 !
 !
 !
+!
+!
+!
+!
+!
 ! ((기타))
 !
 !
@@ -4568,6 +4573,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://www.clien.net/
 ##iframe[src*="iframe"]
 
+
 ! - https://tv.naver.com/ - 목록 안나옴
 !##iframe[class*="iframe"]
 
@@ -4581,6 +4587,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##iframe[src*="player"]
 !##iframe[src*="play"]
 
+
 ! - https://www.genspark.ai/
 ! - https://www.reddit.com/
 ! - https://mypikpak.com/
@@ -4593,13 +4600,23 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[name*="google"]
 
 
-##iframe[src*="googletagmanager.com"]
+##iframe[class*="google"]
+
+
+##iframe[id*="google"]
 
 
 ! - https://imagetwist.com/
 ! - https://ygosu.com/
 ! - https://www.teamblind.com/
 ##iframe[src*="banner"]
+
+
+##iframe[class*="banner"]
+
+
+! - https://nid.naver.com/ (로그인)
+##iframe[id*="banner"]
 
 
 ! https://hohoj.tv/
@@ -4611,6 +4628,9 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[src*="ads"]
 
 
+##iframe[class*="ads"]
+
+
 ##iframe[id*="ads"]
 
 
@@ -4618,15 +4638,20 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://pann.nate.com/
 ##iframe[src*="tracking"]
 
+
+##iframe[class*="tracking"]
+
+
+##iframe[id*="tracking"]
+
+
 ##iframe[src*="tracker"]
 
-##[class*="tracker"]
 
-##[class*="tracking"]
+##iframe[calss*="tracker"]
 
-##[id*="tracker"]
 
-##[id*="tracking"]
+##iframe[id*="tracker"]
 
 
 !- https://www.sooplive.com
@@ -4652,15 +4677,21 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ##iframe[src*="livevideo"]
 
+
 ##iframe[src*="live-video"]
+
 
 ##iframe[src*="iivestream"]
 
+
 ##iframe[src*="live-stream"]
+
 
 ##iframe[src*="videostream"]
 
+
 ##iframe[src*="video-stream"]
+
 
 ##iframe[src*="vod"]
 
@@ -4668,13 +4699,37 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[src*="promotion"]
 
 
+##iframe[class*="promotion"]
+
+
+##iframe[id*="promotion"]
+
+
 ##iframe[src*="popup"]
+
+
+##iframe[class*="popup"]
+
+
+##iframe[id*="popup"]
 
 
 ##iframe[src*="adsense"]
 
 
+##iframe[class*="adsense"]
+
+
+##iframe[id*="adsense"]
+
+
 ##iframe[src*="sponsor"]
+
+
+##iframe[class*="sponsor"]
+
+
+##iframe[id*="sponsor"]
 
 
 ! - https://www.genspark.ai/
@@ -4683,6 +4738,12 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ##iframe[src*="advertisement"]
+
+
+##iframe[class*="advertisement"]
+
+
+##iframe[id*="advertisement"]
 
 
 ! - https://www.ddanzi.com/
@@ -4694,7 +4755,19 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[src*="button"]
 
 
+##iframe[class*="button"]
+
+
+##iframe[id*="button"]
+
+
 ##iframe[src*="event"]
+
+
+##iframe[class*="event"]
+
+
+##iframe[id*="event"]
 
 
 ! - https://ygosu.com/
@@ -4703,13 +4776,22 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://www.gmarket.co.kr/
+! - https://supjav.com/
 ! - https://missav.ws/
 ! - https://ko.javfc2.live/
 ##iframe[src*="script"]
 
+##iframe[class*="script"]
+
+##iframe[id*="script"]
+
 
 ! - https://meeco.kr/
 ##iframe[src*="product"]
+
+##iframe[class*="product"]
+
+##iframe[id*="product"]
 
 
 ! - https://www.fmkorea.com/
@@ -4722,6 +4804,10 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://play.sooplive.com/ 
 ##iframe[src*="sooplive"]
 
+!##iframe[class*="sooplive"] - 없음
+
+!##iframe[id*="sooplive"] - 없음
+
 
 ! - https://ygosu.com/
 ! - https://tvwiki19.net/ - 영상 안나옴
@@ -4731,9 +4817,10 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##[id*="iframe"]
 
 
+##iframe[src*="hidden"]
+
 ! - https://ygosu.com/
 ##iframe[id*="hidden"]
-
 
 ##iframe[class*="hidden"]
 
@@ -4746,3 +4833,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://pann.nate.com/
 ##iframe[title*="스폰"]
+
+
+##[class^="iframe"]
