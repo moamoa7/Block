@@ -12,6 +12,7 @@ FILTER_URLS = [
     "https://filters.adtidy.org/windows/filters/7.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
+    "https://raw.githubusercontent.com/cbuijs/1hosts/main/Lite/domains.top-n.adblock",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
 ]
 EXCLUSION_URLS = [
@@ -51,6 +52,8 @@ def short_name(url: str) -> str:
         return "List-KR"
     if "uAssets" in url:
         return "uBlock Filters"
+    if "Lite/domains.top-n.adblock" in url:
+        return "1Hosts (Lite)"
     if "main/block.txt" in url:
         return "Personal Blocklist"
     if "exclusions.txt" in url:
