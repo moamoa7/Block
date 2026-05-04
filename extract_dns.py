@@ -12,14 +12,14 @@ FILTER_URLS = [
     "https://filters.adtidy.org/windows/filters/7.txt",
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
-    "https://raw.githubusercontent.com/cbuijs/1hosts/main/Lite/domains.top-n.adblock",
+    "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt",
 ]
 EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
-# 개인 블록리스트 (최우선 - 화이트리스트보다 우선)
-PERSONAL_BLOCK_URL = "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt"
+# 블록리스트 (최우선 - 화이트리스트보다 우선)
+PERSONAL_BLOCK_URL = "https://badmojr.github.io/1Hosts/Lite/adblock.txt"
 REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
 
 OUTPUT_DIR = Path("output")
@@ -47,8 +47,8 @@ def short_name(url: str) -> str:
     if "filters/7.txt" in url: return "AdGuard Japanese"
     if "list-kr" in url: return "List-KR"
     if "uAssets" in url: return "uBlock Filters"
-    if "Lite/domains.top-n.adblock" in url: return "1Hosts (Lite)"
-    if "main/block.txt" in url: return "Personal Blocklist"
+    if "adblock/multi.txt" in url: return "HaGeZi's Normal DNS Blocklist"
+    if "Lite/adblock.txt" in url: return "1Hosts (Lite)"
     if "exclusions.txt" in url: return "AdGuard DNS Exclusions"
     if "white.txt" in url: return "Personal Whitelist"
     if "filters/15.txt" in url: return "AdGuard DNS Filter"
