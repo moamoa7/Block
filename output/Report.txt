@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-04 13:16:12 UTC
+  Generated: 2026-05-04 13:22:29 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -41,6 +41,9 @@
   [OK] 1Hosts (Lite)
        URL: https://raw.githubusercontent.com/cbuijs/1hosts/main/Lite/domains.top-n.adblock
        Total Lines: 46,602 | Extracted: 46,595
+
+[ Personal Blocklist (Highest Priority) ]
+------------------------------------------------------------
   [OK] Personal Blocklist
        URL: https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
        Total Lines: 1 | Extracted: 1
@@ -56,28 +59,34 @@
   List-KR                          352        265        192
   uBlock Filters                    50         33         28
   1Hosts (Lite)                 46,595     41,767     41,767
-  Personal Blocklist                 1          0          0
   ───────────────────────── ────────── ────────── ──────────
   Total (deduplicated)         109,271
 
-  * Extracted : 해당 필터에서 추출된 도메인 수
-  * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
-  * Unique    : 오직 이 필터에만 존재하는 도메인 수
-
 [ Reference Filter Validation ]
 ------------------------------------------------------------
-  Reference: AdGuard DNS Filter (filters/15.txt)
   Reference Domains             : 164,699
   Before Validation             : 109,271
   Removed (not in reference)    : 38,068
   After Validation              : 71,203
+
+[ Whitelist Filtering ]
+------------------------------------------------------------
+  Removed by Whitelist          : 2
+  After Whitelist               : 71,201
+
+[ Personal Blocklist Override ]
+------------------------------------------------------------
+  Personal Block Domains        : 1
+  Forced (White → Black)        : 1
+  Added to Final Block          : 1
 
 [ Final Summary ]
 ------------------------------------------------------------
   1. Raw Domains Collected      : 109,271
   2. Removed by Reference       : 38,068
   3. Removed by Whitelist       : 2
-  4. Final Block Domains         : 71,201
-  5. Final Exception Rules       : 453
-  (Calculation: 1 - 2 - 3 = 4)
+  4. Personal Block Added       : 1
+  5. Forced (White → Black)     : 1
+  6. Final Block Rules          : 71,202
+  7. Final Exception Rules      : 452
 ============================================================

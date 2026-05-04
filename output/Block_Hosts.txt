@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 13:16:12 UTC
+# Generated: 2026-05-04 13:22:29 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,9 +8,10 @@
 # 1. Raw Domains Collected      : 109,271
 # 2. Removed by Reference       : 38,068
 # 3. Removed by Whitelist       : 2
-# 4. Final Block Rules (||)     : 71,201
-# 5. Final Exception Rules (@@) : 453
-# (Calculation: 1 - 2 - 3 = 4)
+# 4. Personal Block Added       : 1
+# 5. Forced (White → Black)     : 1
+# 6. Final Block Rules (||)     : 71,202
+# 7. Final Exception Rules (@@) : 452
 #
 0.0.0.0 0.www.3l521lt85429q1kn6-r770.xyz
 0.0.0.0 0.www.cheetahhowevertowardsfrom.com
@@ -5641,6 +5642,7 @@
 0.0.0.0 api-analytics-prd.pelcro.com
 0.0.0.0 api-analytics.prod.birdapp.com
 0.0.0.0 api-analytics.rozetka.com.ua
+0.0.0.0 api-ao.adison.co
 0.0.0.0 api-fp-retry-bj.fengkongcloud.com
 0.0.0.0 api-fp-retry-sa.fengkongcloud.com
 0.0.0.0 api-ktm.kkday.com
