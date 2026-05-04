@@ -1,15 +1,15 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 04:13:59 UTC
+# Generated: 2026-05-04 07:29:38 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,414
-# 2. Removed by Reference       : 4,994
+# 1. Raw Domains Collected      : 67,445
+# 2. Removed by Reference       : 5,002
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,419
-# 5. Final Exception Rules (@@) : 451
+# 4. Final Block Rules (||)     : 62,442
+# 5. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 - 3 = 4)
 #
 0.0.0.0 0.www.3l521lt85429q1kn6-r770.xyz
@@ -1120,6 +1120,7 @@
 0.0.0.0 6227bf19ed.com
 0.0.0.0 622bac31c1.a73c42223a.com
 0.0.0.0 62842068.xyz
+0.0.0.0 628f84ca27.com
 0.0.0.0 62a53367c9.com
 0.0.0.0 62ad.com
 0.0.0.0 62d57faaaf.a06c9a4dd7.com
@@ -4611,6 +4612,7 @@
 0.0.0.0 aolqejkjfgxpr.website
 0.0.0.0 aommvcuqktmls.site
 0.0.0.0 aomsitf.com
+0.0.0.0 aopglaiijv.com
 0.0.0.0 aopwtbxzenjva.online
 0.0.0.0 aoqenxgnxtnnc.club
 0.0.0.0 aoristsfonds.qpon
@@ -10348,6 +10350,7 @@
 0.0.0.0 coevalsmeriter.shop
 0.0.0.0 coffeajacens.qpon
 0.0.0.0 coffeavirify.com
+0.0.0.0 cofflednocturn.cfd
 0.0.0.0 coftfdtcjtnjt.website
 0.0.0.0 cogboatcanonry.qpon
 0.0.0.0 cogbogo.com
@@ -13166,6 +13169,7 @@
 0.0.0.0 daxtnnqlppovj.space
 0.0.0.0 day13vh1xl0gh.cloudfront.net
 0.0.0.0 dayboygubbincoexert.cyou
+0.0.0.0 dayboypillowyforrard.cyou
 0.0.0.0 daydawnabbot.shop
 0.0.0.0 dayghhobglfko.space
 0.0.0.0 dayglowmedille.com
@@ -14804,6 +14808,7 @@
 0.0.0.0 dratblissfully.com
 0.0.0.0 dratetillage.com
 0.0.0.0 drato.xyz
+0.0.0.0 draughtibericcurved.cyou
 0.0.0.0 dravidamkt.shop
 0.0.0.0 drawbackprotectivecut.com
 0.0.0.0 drawerexperienceletting.com
@@ -18343,6 +18348,7 @@
 0.0.0.0 flamboyanthopefully.com
 0.0.0.0 flamboyantideal.pro
 0.0.0.0 flamboyantoriginal.pro
+0.0.0.0 flamenshotdogsancylus.cyou
 0.0.0.0 flameordinaryhonours.com
 0.0.0.0 flamesgleamed.com
 0.0.0.0 flamingloweredchuckled.com
@@ -19050,6 +19056,7 @@
 0.0.0.0 frozenpayerpregnant.com
 0.0.0.0 frozenprofession.pro
 0.0.0.0 frpefhquywmje.store
+0.0.0.0 frpr82wtyocrjk4lmh.rest
 0.0.0.0 frrhcvblgskvz.site
 0.0.0.0 frrkdiszpiclc.online
 0.0.0.0 frs2c.com
@@ -19231,6 +19238,7 @@
 0.0.0.0 furzyaricin.shop
 0.0.0.0 furzybrubruteck.cyou
 0.0.0.0 fuse-cloud.com
+0.0.0.0 fuseaubedegar.qpon
 0.0.0.0 fuseplatform.net
 0.0.0.0 fusetracking.com
 0.0.0.0 fusibletabstop.cfd
@@ -19974,6 +19982,7 @@
 0.0.0.0 giganticmightyspook.com
 0.0.0.0 giganticnimblealways.com
 0.0.0.0 gigeodoci.com
+0.0.0.0 giggingelks.qpon
 0.0.0.0 gigglegrowlworrisome.com
 0.0.0.0 giggleinsinuate.com
 0.0.0.0 gigglysignoi.com
@@ -22795,6 +22804,7 @@
 0.0.0.0 hvefnbufkpxou.website
 0.0.0.0 hvert.site
 0.0.0.0 hvfbadvwihklc.com
+0.0.0.0 hvfojfzh.com
 0.0.0.0 hvgcguczoqvjr.site
 0.0.0.0 hvgttaygy.com
 0.0.0.0 hvgxphrklbtix.site
@@ -25635,6 +25645,7 @@
 0.0.0.0 juttkxcxflkao.space
 0.0.0.0 juttonight.com
 0.0.0.0 jutvrhttarkwi.space
+0.0.0.0 jutza.shop
 0.0.0.0 juujwyautyjjstq.com
 0.0.0.0 juvenile-vacation.pro
 0.0.0.0 juvenilecalendar.com
@@ -28619,6 +28630,7 @@
 0.0.0.0 lwlhmnqlzvjvu.site
 0.0.0.0 lwmpocteuzldy.world
 0.0.0.0 lwnbts.com
+0.0.0.0 lwnybjrrno.com
 0.0.0.0 lwoanmvmyjme.in
 0.0.0.0 lwonclbench.com
 0.0.0.0 lwqwlxzzujoof.space
@@ -38079,6 +38091,7 @@
 0.0.0.0 pvehzyniiayrm.website
 0.0.0.0 pveldvvjrvgru.site
 0.0.0.0 pvfmjxsvwgdqf.site
+0.0.0.0 pvfnwrppqjzpj.space
 0.0.0.0 pvgbwckgrfmic.site
 0.0.0.0 pvgbwgnyxintv.online
 0.0.0.0 pvgcedbveetxz.website
@@ -38984,6 +38997,7 @@
 0.0.0.0 qpjblxxjdatol.site
 0.0.0.0 qpjiwtxmjitde.site
 0.0.0.0 qpjwp8i3zbepp8i.rest
+0.0.0.0 qpkagebwelxhxtm.com
 0.0.0.0 qpknmanfrzxqw.space
 0.0.0.0 qpllellpinfes.com
 0.0.0.0 qplywkhnlfyfy.online
@@ -39454,6 +39468,7 @@
 0.0.0.0 qvzcjlybqjvgx.website
 0.0.0.0 qvzxpcedohgjp.website
 0.0.0.0 qw1yqjte8igbq8m2mk3.rest
+0.0.0.0 qw9xp8f49f2pfby.cfd
 0.0.0.0 qwbjriqd.com
 0.0.0.0 qwbrgeyutdnuj.website
 0.0.0.0 qwcagaftfkepf.website
@@ -42087,6 +42102,7 @@
 0.0.0.0 rrcesbvellohg.website
 0.0.0.0 rrchydcezpwia.site
 0.0.0.0 rrdfvxmumaxlt.online
+0.0.0.0 rrdkcjhnwibop.website
 0.0.0.0 rrdldrmfhefxf.online
 0.0.0.0 rreawgiuphlul.website
 0.0.0.0 rrentlysearchi.org
@@ -44751,6 +44767,7 @@
 0.0.0.0 shapecamping.com
 0.0.0.0 shapesdivide.shop
 0.0.0.0 shapo.fun
+0.0.0.0 shardybrubu.shop
 0.0.0.0 share-server.com
 0.0.0.0 sharebang.com
 0.0.0.0 sharepenknife.com
@@ -47859,6 +47876,7 @@
 0.0.0.0 suffocatedeliberatelyslid.com
 0.0.0.0 suffocatefried.com
 0.0.0.0 suffocateinnhandling.com
+0.0.0.0 suffuseoilcamp.qpon
 0.0.0.0 sugamoscry.com
 0.0.0.0 suganslurps.shop
 0.0.0.0 sugarruse.com
@@ -50590,6 +50608,7 @@
 0.0.0.0 tpovpwtqjeazz.website
 0.0.0.0 tppwkciiypmeh.site
 0.0.0.0 tppzhzfi3616lo4vri7z8pzc7kck461.rest
+0.0.0.0 tpqlkcltn.com
 0.0.0.0 tpubwzwrhdcst.store
 0.0.0.0 tpvmdlxpvcenz.vip
 0.0.0.0 tpwkbwphabbau.online
@@ -51736,6 +51755,7 @@
 0.0.0.0 tyserving.com
 0.0.0.0 tysigpzjxjegb.space
 0.0.0.0 tythingpurpledunfiery.cyou
+0.0.0.0 tytmjjiykugiw.space
 0.0.0.0 tytulcernodules.qpon
 0.0.0.0 tyuhwlerptkcl.website
 0.0.0.0 tyuknsyenergy.com
@@ -52412,6 +52432,7 @@
 0.0.0.0 ultrapartners.com
 0.0.0.0 ultrasoundpurchase.com
 0.0.0.0 uluhiiotas.com
+0.0.0.0 ulupimodfpksp.site
 0.0.0.0 uluuggxnhrxord.com
 0.0.0.0 ulvqhajbndnty.website
 0.0.0.0 ulwexxyucrdsm.online
@@ -55489,6 +55510,7 @@
 0.0.0.0 vvwrajbckvfng.website
 0.0.0.0 vvwrwrzrsuqug.site
 0.0.0.0 vvwskuuryf.com
+0.0.0.0 vvwyojkzqpvwb.space
 0.0.0.0 vvxxqpvylixke.store
 0.0.0.0 vvyffpulokdxe.website
 0.0.0.0 vvyqibaywupjz.site
@@ -56636,6 +56658,7 @@
 0.0.0.0 whirlwindobject.pro
 0.0.0.0 whirlwindofnews.com
 0.0.0.0 whirnbhiidvta.space
+0.0.0.0 whirrooduet.shop
 0.0.0.0 whirteetchi.net
 0.0.0.0 whishannuent.com
 0.0.0.0 whishedrebuilt.com
