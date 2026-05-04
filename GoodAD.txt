@@ -1301,6 +1301,9 @@ tvhot.store##.object-cover
 ##[class*="iframe"]
 ! - 로딩 텍스트
 !##.iframe-loading-text - ##[class*="iframe"]로 대체
+! - 예외
+! - - - https://tv.naver.com/ - 클립 영상 안나옴
+tv.naver.com#@#[class*="iframe"]
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
@@ -2112,7 +2115,8 @@ coupang.com###srpKeywordTopBanner
 ! ||*/*/*banner* 예외 (혜택 얼마 받았나 정보 안보임)
 !@@||escrow.auction.co.kr$script,xhr
 ! -광고
-! - - - ! G마켓 (https://www.gmarket.co.kr/)
+! - - - G마켓 (https://www.gmarket.co.kr/)
+! - - - 이토랜드 (https://etoland.co.kr/point)
 ##[alt$="광고"]
 ! - 배너
 ##[class*="ad_banner"]
@@ -4363,6 +4367,9 @@ _ads_
 ###ads
 !
 !
+/banners?
+!
+!
 !
 !
 !
@@ -4557,6 +4564,14 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://www.clien.net/
 ##iframe[src*="iframe"]
 
+! - https://tv.naver.com/ - 목록 안나옴
+!##iframe[class*="iframe"]
+
+
+! - https://ko.javfc2.live/
+! - https://tv.naver.com/ - 목록 안나옴
+!##iframe[class*="frame"]
+
 
 ! - 티바위키 안나옴 (https://tvwiki19.net/)
 !##iframe[src*="player"]
@@ -4590,6 +4605,9 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://inven.co.kr/
 ! - https://www.teamblind.com/
 ##iframe[src*="ads"]
+
+
+##iframe[id*="ads"]
 
 
 ! - https://www.teamblind.com/
@@ -4649,11 +4667,13 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://poooo.ml/ - 영상 안보임
 !##iframe[src*="chat"]
 
+
 ##iframe[src*="advertisement"]
 
 
 ! - https://www.ddanzi.com/
-##iframe[src*="media"]
+! - https://tv.naver.com/ - 영상 목록 안나옴
+!##iframe[src*="media"]
 
 
 ! - https://mypikpak.com/
@@ -4664,7 +4684,8 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://ygosu.com/
-##iframe[src*="click"]
+! - https://tv.naver.com/ - 영상 목록 안나옴
+!##iframe[src*="click"]
 
 
 ! - https://www.gmarket.co.kr/
@@ -4698,9 +4719,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://ygosu.com/
 ##iframe[id*="hidden"]
-
-! - https://ko.javfc2.live/
-##iframe[class*="frame"]
 
 
 ##iframe[class*="hidden"]
