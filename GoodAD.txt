@@ -726,7 +726,11 @@ fmkorea.com###fm_alert
 !etoland.co.kr#@#[class^="ad"]
 ! - - - - - - - - 신버젼
 ! - 게시물 하단 남는 공간 (모바일)
-etoland.co.kr##div.justify-center.w-full
+! - - - 오징어랜드 이미지 안보여서 해제
+!etoland.co.kr##div.justify-center.w-full
+etoland.co.kr##.justify-center.w-full.min-h-\[250px\].flex
+! -댓글 하단 빈 공간
+etoland.co.kr##.justify-center.w-full.min-h-\[280px\].flex.my-4
 ! Etoland 네이버 광고 차단 (공용)
 !etoland.co.kr##li:has(a[href*="ader.naver.com"])
 !etoland.co.kr##a[href*="ader.naver.com"]
@@ -4297,6 +4301,9 @@ noonnu.cc##.fc-dialog-container
 /ad_
 !
 !
+^ad|
+!
+!
 /adbanner
 !
 !
@@ -4491,3 +4498,126 @@ emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+
+
+
+
+
+
+
+
+
+==================================
+
+
+! 확인 중
+
+!- https://www.sooplive.com/ - 별 이상 없음
+! - https://play.sooplive.com/ - 별 이상 없음
+! - https://supjav.com/- 프레임영상 안나옴
+!##iframe
+
+##iframe[src*=""]
+
+! - https://randburg.com/ - 영상 안나옴
+!##iframe[src*="index"]
+
+
+! - https://hohoj.tv/
+! - https://www.reddit.com/
+! - https://etoland.co.kr/
+! - https://www.clien.net/
+! - https://mypikpak.com/
+! - https://ko.javfc2.live/
+! - https://supjav.com/
+##iframe[src*="iframe"]
+
+
+! - 티바위키 안나옴 (https://tvwiki19.net/)
+!##iframe[src*="player"]
+!##iframe[src*="play"]
+
+! - https://www.genspark.ai/
+! - https://www.reddit.com/
+! - https://mypikpak.com/ - 캡챠 안됨
+!##iframe[src*="google"]
+
+
+! - https://imagetwist.com/
+##iframe[src*="banner"]
+
+
+! https://hohoj.tv/  - 배너
+! - https://missav.ws/
+! - https://danawa.com/
+##iframe[src*="ads"]
+
+
+!- https://www.sooplive.com/ - 별 이상 없음
+! - https://play.sooplive.com/ - 별 이상 없음
+! - https://coktv1.com/ - 영상 안나옴
+!##iframe[src*="live"]
+
+
+##iframe[src*="promotion"]
+
+
+##iframe[src*="popup"]
+
+
+##iframe[src*="adsense"]
+
+
+##iframe[src*="sponsor"]
+
+
+! - https://www.genspark.ai/
+! - https://poooo.ml/ - 영상 안보임
+!#iframe[src*="chat"]
+
+
+! https://poooo.ml/ - 영상 안보임
+!##iframe[src*="video"]
+
+
+! - https://missav.ws/
+! - https://javgg.net/
+! - https://javgiga.com/ - 영상 안나옴
+!##iframe[src*="stream"]
+
+
+##iframe[src*="advertisement"]
+
+
+! - https://www.sooplive.com/
+! - https://play.sooplive.com/
+! - https://ko.javfc2.live/
+! - https://missav.ws/
+! - https://7tv034.com/
+! - https://imagetwist.com/
+! - https://javfc2.xyz/
+##iframe[src*="live"]
+
+
+##iframe[src*="vod"]
+
+
+##iframe[src*="media"]
+
+
+! - https://mypikpak.com/
+##iframe[src*="button"]
+
+
+##iframe[src*="event"]
+
+
+##iframe[src*="click"]
+
+! - https://www.gmarket.co.kr/
+##iframe[src*="script"]
+
+
+! - https://javgiga.com/
+! - https://123av.com/ - 영상 안나옴
+!##iframe[src*="http"]
