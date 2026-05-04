@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-04 09:35:49 UTC
+! Generated: 2026-05-04 09:43:40 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 67,467
-! 2. Removed by Reference       : 5,009
+! 1. Raw Domains Collected      : 67,469
+! 2. Removed by Reference       : 5,010
 ! 3. Removed by Whitelist       : 1
-! 4. Final Block Rules (||)     : 62,457
+! 4. Final Block Rules (||)     : 62,458
 ! 5. Final Exception Rules (@@) : 452
 ! (Calculation: 1 - 2 - 3 = 4)
 !
@@ -28170,6 +28170,7 @@
 ||logingenerosity.com^
 ||loginrubbishobey.com^
 ||logionsmincer.qpon^
+||logs.netflix.com^
 ||logsaddiction.com^
 ||logshandgripquarterback.com^
 ||loijtoottuleringv.info^
