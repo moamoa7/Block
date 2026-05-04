@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-04 09:43:40 UTC
+! Generated: 2026-05-04 11:29:47 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 67,469
-! 2. Removed by Reference       : 5,010
+! 1. Raw Domains Collected      : 67,481
+! 2. Removed by Reference       : 4,993
 ! 3. Removed by Whitelist       : 1
-! 4. Final Block Rules (||)     : 62,458
+! 4. Final Block Rules (||)     : 62,487
 ! 5. Final Exception Rules (@@) : 452
 ! (Calculation: 1 - 2 - 3 = 4)
 !
@@ -5683,6 +5683,7 @@
 ||awnexus.com^
 ||awnypearch.com^
 ||awolbitt.cyou^
+||awozdcvzjgbnh.online^
 ||awpcrpu.com^
 ||awprt.com^
 ||awptjmp.com^
@@ -5910,6 +5911,7 @@
 ||ba6174e1cd.com^
 ||ba64778bd4.81af8eb64e.com^
 ||ba69a24a2a.com^
+||baalathsodstechnol.qpon^
 ||baalistcornel.qpon^
 ||baatarveduteous.cyou^
 ||baauefhlsruga.online^
@@ -6276,6 +6278,7 @@
 ||bbpaakofsfydc.online^
 ||bbppwgyzxftcx.online^
 ||bbrdbr.com^
+||bbspnbahaepje.com^
 ||bbsrelpwjryqcnd.com^
 ||bbtvpnqyvdzmq.website^
 ||bbtzlrfuc.com^
@@ -7128,6 +7131,7 @@
 ||blbsyosefiwos.online^
 ||blcdog.com^
 ||blcknvr.com^
+||blclajmgsqq.com^
 ||bldkgmtnesbfp.site^
 ||bldklgxmbfemy.online^
 ||bldxtxnmhlhli.online^
@@ -7550,6 +7554,7 @@
 ||bothererune.com^
 ||botherlaying.com^
 ||bothyyuncagrulla.cfd^
+||botkdllphxivv.space^
 ||botpynlmmizsr.click^
 ||botsemends.cyou^
 ||botsxlhhjdvnp.online^
@@ -7942,6 +7947,7 @@
 ||brxqlwrzcpcvx.website^
 ||brygella.com^
 ||brynzadolley.cyou^
+||bryoncorpse.cfd^
 ||brzbrjycauqcf.site^
 ||brzjthsubtlwj.site^
 ||brzvtueeyyqdo.space^
@@ -11859,6 +11865,7 @@
 ||czsttsmgndlni.website^
 ||czsusasfoyqln.website^
 ||cztmmijwxiafu.click^
+||czuatpotvqip.in^
 ||czuwprnlhxpdh.site^
 ||czxnozkdqlcrk.online^
 ||czynhitkvjkkw.space^
@@ -14721,6 +14728,7 @@
 ||dp45nhyltt487.cloudfront.net^
 ||dp94m8xzwqsjk.cloudfront.net^
 ||dpagxmzhm.com^
+||dpanosjvcveona.com^
 ||dpd9yiocsyy6p.cloudfront.net^
 ||dpdvx.com^
 ||dpehzyosanbhl.website^
@@ -16394,6 +16402,7 @@
 ||enthusiasticinsanity.com^
 ||entia.site^
 ||entifyruiner.cyou^
+||entire-positive.com^
 ||entiremain.com^
 ||entjgcr.com^
 ||entlyhavebed.org^
@@ -23101,6 +23110,7 @@
 ||ichscannoli.cfd^
 ||ichwteqdufxed.website^
 ||icilyassertiveindoors.com^
+||icingatochaeboe.cfd^
 ||icjhjoe.studio^
 ||icjoiw71xp99oh42k7.cfd^
 ||ickersanthine.com^
@@ -24493,6 +24503,7 @@
 ||ivfjjyytna.com^
 ||ivgkdijwawpli.space^
 ||iviesreducer.cyou^
+||ivilhjopafobq.website^
 ||ivioukpnweuhr.space^
 ||iviovqxlpvptw.space^
 ||ivkgsdbvmtcnlhk.com^
@@ -26750,6 +26761,7 @@
 ||kumhgjxiuubeb.website^
 ||kumpulblogger.com^
 ||kumykdefrayscomicry.cfd^
+||kunmiutsnirtle.cyou^
 ||kunvertads.com^
 ||kuolkoola.com^
 ||kuosqjyasoh.com^
@@ -28918,6 +28930,7 @@
 ||makeupslulls.cfd^
 ||making.party^
 ||makingnude.com^
+||makingpsyches.shop^
 ||makumva.all-usanomination.com^
 ||makutastengere.cfd^
 ||malaccaamebas.cyou^
@@ -30612,6 +30625,7 @@
 ||mtgglobals.com^
 ||mthcplolzrszh.online^
 ||mtjglumdezujo.website^
+||mtkhbxksjjom.com^
 ||mtklngjjpzpwq.space^
 ||mtmqdcgzgduhb.website^
 ||mtnklans.cyou^
@@ -31005,6 +31019,7 @@
 ||n36bbvbrhwl6tem.rest^
 ||n4m5x60.com^
 ||n4sredirect.com^
+||n58qreikclnf24pwzebyg12oemxppgzv.rest^
 ||n61xupfken4ucmcu.rest^
 ||n62vgkvmecgpiw.mj35ntghqhg8rzvro3.cyou^
 ||n6wxm.com^
@@ -31707,6 +31722,7 @@
 ||niwinn.com^
 ||niwocgaqsx.in^
 ||niwooghu.com^
+||niwqupaz.in^
 ||nixeaperchmeltage.cfd^
 ||nixingminiateunpetal.qpon^
 ||nixkfmaywtugk.site^
@@ -33803,6 +33819,7 @@
 ||outnameprairie.qpon^
 ||outoctillerytor.com^
 ||outonebraxate.com^
+||outpacegeulah.cyou^
 ||outplotthamus.com^
 ||outponyglorious.com^
 ||outpopantre.qpon^
@@ -35523,6 +35540,7 @@
 ||phovursopsed.net^
 ||phowiver.qpon^
 ||phpbjalhigtqe.site^
+||phpdbetsjiywb.space^
 ||phphtjingkosayette.cfd^
 ||phphtscriver.com^
 ||phprdouhkyukn.space^
@@ -35576,6 +35594,7 @@
 ||physidbillowy.cyou^
 ||physidboorish.qpon^
 ||phytonsfurner.com^
+||pi243rnxjmqx6be3.cfd^
 ||piabalitersuncle.cfd^
 ||piachebrehonsong.cyou^
 ||piacirques.cfd^
@@ -36078,6 +36097,7 @@
 ||pliantethanyowing.qpon^
 ||pliblc.com^
 ||pliedhyper.cfd^
+||pliefarbdwnyd.website^
 ||pliescaelusinsuree.cyou^
 ||pliing.com^
 ||plinkedlindens.cfd^
@@ -38899,6 +38919,7 @@
 ||qmwonwowmytqf.store^
 ||qmxvcjravsxyu.online^
 ||qmyonfatxab.in^
+||qmyytcdhtvvcy.website^
 ||qmyzawzrqryjj.top^
 ||qmzikvkk.business^
 ||qn-5.com^
@@ -41490,6 +41511,7 @@
 ||rjw4obbw.com^
 ||rjxczvecqiipf.site^
 ||rjykjiitsaoyw.space^
+||rjyqgtlazaijq.site^
 ||rjzbvmbybvokw.top^
 ||rjzkulworyqil.space^
 ||rkby4boiqwkigetk5yxg8q41koiqokl.cfd^
@@ -42597,6 +42619,7 @@
 ||rtceeemh.com^
 ||rtdgdfdfehzrv.space^
 ||rtdpfwzxfajfl.online^
+||rtessfxxrqjbd.space^
 ||rtfsmrrvcmsoswm.com^
 ||rtfwbwstodqyj.site^
 ||rtgio.co^
@@ -43736,6 +43759,7 @@
 ||sawspignus.qpon^
 ||sayalunlaw.com^
 ||sayingbunked.qpon^
+||saykafiyqytue.website^
 ||saykezhabdbyk.online^
 ||saymedia.com^
 ||saynayegoizer.qpon^
@@ -44620,6 +44644,7 @@
 ||sewensiddurs.qpon^
 ||sewerfieryendurance.com^
 ||sewingfreaky.com^
+||sewinsuets.qpon^
 ||sewinturcian.cfd^
 ||sex-and-flirt.com^
 ||sex-chat.me^
@@ -50506,6 +50531,7 @@
 ||toshimtairteex.net^
 ||tosksprmwpkzf.site^
 ||tossedkryptol.cyou^
+||tossfaceboother.cyou^
 ||tossilyclosets.cyou^
 ||tossingtankage.cyou^
 ||tossingvivid.com^
@@ -50699,6 +50725,7 @@
 ||tqcppxvxhbzgi.site^
 ||tqctbjddb.xyz^
 ||tqdxwboexwawx.site^
+||tqecglnxyhqsnbp.com^
 ||tqevahjkdhapc.com^
 ||tqgayhnwphgxn.site^
 ||tqgdovbcivlfu.space^
@@ -60099,6 +60126,7 @@
 ||yawperssovkhoz.help^
 ||yawuyibzriuzn.space^
 ||yawytfr.cfd^
+||yaxiobbe.com^
 ||yaxsvnoftgzuj.website^
 ||yaylgwxilnrio.website^
 ||yb23b.com^
@@ -62391,6 +62419,7 @@
 ||zxuknfffkemse.space^
 ||zxvhxdpyordan.store^
 ||zxvxukirgmomz.site^
+||zxvzqrjtfijqq.website^
 ||zxwrgwncljanq.site^
 ||zxwzovvtppdbf.space^
 ||zxyb5cuiuwu2hhlo9jpwl8tee3ih6.rest^

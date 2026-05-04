@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 09:43:40 UTC
+# Generated: 2026-05-04 11:29:47 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,469
-# 2. Removed by Reference       : 5,010
+# 1. Raw Domains Collected      : 67,481
+# 2. Removed by Reference       : 4,993
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,458
+# 4. Final Block Rules (||)     : 62,487
 # 5. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -5682,6 +5682,7 @@ awmserve.com
 awnexus.com
 awnypearch.com
 awolbitt.cyou
+awozdcvzjgbnh.online
 awpcrpu.com
 awprt.com
 awptjmp.com
@@ -5909,6 +5910,7 @@ ba61261c39.com
 ba6174e1cd.com
 ba64778bd4.81af8eb64e.com
 ba69a24a2a.com
+baalathsodstechnol.qpon
 baalistcornel.qpon
 baatarveduteous.cyou
 baauefhlsruga.online
@@ -6275,6 +6277,7 @@ bboy1.com
 bbpaakofsfydc.online
 bbppwgyzxftcx.online
 bbrdbr.com
+bbspnbahaepje.com
 bbsrelpwjryqcnd.com
 bbtvpnqyvdzmq.website
 bbtzlrfuc.com
@@ -7127,6 +7130,7 @@ blazkppjtgekt.website
 blbsyosefiwos.online
 blcdog.com
 blcknvr.com
+blclajmgsqq.com
 bldkgmtnesbfp.site
 bldklgxmbfemy.online
 bldxtxnmhlhli.online
@@ -7549,6 +7553,7 @@ botchkaclk.cfd
 bothererune.com
 botherlaying.com
 bothyyuncagrulla.cfd
+botkdllphxivv.space
 botpynlmmizsr.click
 botsemends.cyou
 botsxlhhjdvnp.online
@@ -7941,6 +7946,7 @@ brvxflfhfehle.site
 brxqlwrzcpcvx.website
 brygella.com
 brynzadolley.cyou
+bryoncorpse.cfd
 brzbrjycauqcf.site
 brzjthsubtlwj.site
 brzvtueeyyqdo.space
@@ -11858,6 +11864,7 @@ czqvtn3elk64hq.rest
 czsttsmgndlni.website
 czsusasfoyqln.website
 cztmmijwxiafu.click
+czuatpotvqip.in
 czuwprnlhxpdh.site
 czxnozkdqlcrk.online
 czynhitkvjkkw.space
@@ -14720,6 +14727,7 @@ dozubatan.com
 dp45nhyltt487.cloudfront.net
 dp94m8xzwqsjk.cloudfront.net
 dpagxmzhm.com
+dpanosjvcveona.com
 dpd9yiocsyy6p.cloudfront.net
 dpdvx.com
 dpehzyosanbhl.website
@@ -16393,6 +16401,7 @@ enthusiasticfibreassembly.com
 enthusiasticinsanity.com
 entia.site
 entifyruiner.cyou
+entire-positive.com
 entiremain.com
 entjgcr.com
 entlyhavebed.org
@@ -23100,6 +23109,7 @@ ichlnk.com
 ichscannoli.cfd
 ichwteqdufxed.website
 icilyassertiveindoors.com
+icingatochaeboe.cfd
 icjhjoe.studio
 icjoiw71xp99oh42k7.cfd
 ickersanthine.com
@@ -24492,6 +24502,7 @@ ivcymdknugpjt.site
 ivfjjyytna.com
 ivgkdijwawpli.space
 iviesreducer.cyou
+ivilhjopafobq.website
 ivioukpnweuhr.space
 iviovqxlpvptw.space
 ivkgsdbvmtcnlhk.com
@@ -26749,6 +26760,7 @@ kumbitechnol.shop
 kumhgjxiuubeb.website
 kumpulblogger.com
 kumykdefrayscomicry.cfd
+kunmiutsnirtle.cyou
 kunvertads.com
 kuolkoola.com
 kuosqjyasoh.com
@@ -28917,6 +28929,7 @@ makeuppillow.com
 makeupslulls.cfd
 making.party
 makingnude.com
+makingpsyches.shop
 makumva.all-usanomination.com
 makutastengere.cfd
 malaccaamebas.cyou
@@ -30611,6 +30624,7 @@ mtfrljmoeyssz.website
 mtgglobals.com
 mthcplolzrszh.online
 mtjglumdezujo.website
+mtkhbxksjjom.com
 mtklngjjpzpwq.space
 mtmqdcgzgduhb.website
 mtnklans.cyou
@@ -31004,6 +31018,7 @@ n2yju89pe.tlbkbkm2cq18lp9l1xjxe6.cyou
 n36bbvbrhwl6tem.rest
 n4m5x60.com
 n4sredirect.com
+n58qreikclnf24pwzebyg12oemxppgzv.rest
 n61xupfken4ucmcu.rest
 n62vgkvmecgpiw.mj35ntghqhg8rzvro3.cyou
 n6wxm.com
@@ -31706,6 +31721,7 @@ nitsulquj.com
 niwinn.com
 niwocgaqsx.in
 niwooghu.com
+niwqupaz.in
 nixeaperchmeltage.cfd
 nixingminiateunpetal.qpon
 nixkfmaywtugk.site
@@ -33802,6 +33818,7 @@ outlungbossierpuplike.cyou
 outnameprairie.qpon
 outoctillerytor.com
 outonebraxate.com
+outpacegeulah.cyou
 outplotthamus.com
 outponyglorious.com
 outpopantre.qpon
@@ -35522,6 +35539,7 @@ phouvemp.net
 phovursopsed.net
 phowiver.qpon
 phpbjalhigtqe.site
+phpdbetsjiywb.space
 phphtjingkosayette.cfd
 phphtscriver.com
 phprdouhkyukn.space
@@ -35575,6 +35593,7 @@ physicspresume.com
 physidbillowy.cyou
 physidboorish.qpon
 phytonsfurner.com
+pi243rnxjmqx6be3.cfd
 piabalitersuncle.cfd
 piachebrehonsong.cyou
 piacirques.cfd
@@ -36077,6 +36096,7 @@ pliantdummyexasperation.com
 pliantethanyowing.qpon
 pliblc.com
 pliedhyper.cfd
+pliefarbdwnyd.website
 pliescaelusinsuree.cyou
 pliing.com
 plinkedlindens.cfd
@@ -38898,6 +38918,7 @@ qmwmq6c5zvxpmyzehn6tl9nft2ltorn7u.cfd
 qmwonwowmytqf.store
 qmxvcjravsxyu.online
 qmyonfatxab.in
+qmyytcdhtvvcy.website
 qmyzawzrqryjj.top
 qmzikvkk.business
 qn-5.com
@@ -41489,6 +41510,7 @@ rjuuqeeaopgld.website
 rjw4obbw.com
 rjxczvecqiipf.site
 rjykjiitsaoyw.space
+rjyqgtlazaijq.site
 rjzbvmbybvokw.top
 rjzkulworyqil.space
 rkby4boiqwkigetk5yxg8q41koiqokl.cfd
@@ -42596,6 +42618,7 @@ rtcdupmicrfkp.site
 rtceeemh.com
 rtdgdfdfehzrv.space
 rtdpfwzxfajfl.online
+rtessfxxrqjbd.space
 rtfsmrrvcmsoswm.com
 rtfwbwstodqyj.site
 rtgio.co
@@ -43735,6 +43758,7 @@ sawp.cloud
 sawspignus.qpon
 sayalunlaw.com
 sayingbunked.qpon
+saykafiyqytue.website
 saykezhabdbyk.online
 saymedia.com
 saynayegoizer.qpon
@@ -44619,6 +44643,7 @@ sewedhacker.shop
 sewensiddurs.qpon
 sewerfieryendurance.com
 sewingfreaky.com
+sewinsuets.qpon
 sewinturcian.cfd
 sex-and-flirt.com
 sex-chat.me
@@ -50505,6 +50530,7 @@ tosfeed.com
 toshimtairteex.net
 tosksprmwpkzf.site
 tossedkryptol.cyou
+tossfaceboother.cyou
 tossilyclosets.cyou
 tossingtankage.cyou
 tossingvivid.com
@@ -50698,6 +50724,7 @@ tqbveqacewwac.online
 tqcppxvxhbzgi.site
 tqctbjddb.xyz
 tqdxwboexwawx.site
+tqecglnxyhqsnbp.com
 tqevahjkdhapc.com
 tqgayhnwphgxn.site
 tqgdovbcivlfu.space
@@ -60098,6 +60125,7 @@ yawperalluvio.cyou
 yawperssovkhoz.help
 yawuyibzriuzn.space
 yawytfr.cfd
+yaxiobbe.com
 yaxsvnoftgzuj.website
 yaylgwxilnrio.website
 yb23b.com
@@ -62390,6 +62418,7 @@ zxttvkshqbded.space
 zxuknfffkemse.space
 zxvhxdpyordan.store
 zxvxukirgmomz.site
+zxvzqrjtfijqq.website
 zxwrgwncljanq.site
 zxwzovvtppdbf.space
 zxyb5cuiuwu2hhlo9jpwl8tee3ih6.rest
