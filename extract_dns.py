@@ -14,14 +14,18 @@ FILTER_URLS = [
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
     "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt",
 ]
+# 외부 화이트리스트 (개인 블록리스트보다 우선순위 낮음)
 EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
-    "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
-# 블록리스트 (최우선 - 화이트리스트보다 우선)
+# 블록리스트 (외부 화이트리스트보다 우선)
 PERSONAL_BLOCK_URLS = [
     "https://badmojr.github.io/1Hosts/Lite/adblock.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
+]
+# 개인 화이트리스트 (최종 - 모든 블록리스트보다 우선)
+PERSONAL_WHITE_URLS = [
+    "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
 REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
 
@@ -97,9 +101,9 @@ def main():
         report_lines.append(f"  [FAIL] AdGuard DNS Filter - {e}")
         print(f"[WARN] 기준 필터 실패: {REFERENCE_URL} ({e})")
 
-    # 1. 화이트리스트 로드
+    # 1. 외부 화이트리스트 로드
     white_set = set()
-    report_lines.append(f"\n[ Whitelist Sources ]")
+    report_lines.append(f"\n[ External Whitelist Sources ]")
     report_lines.append(f"{'-' * 60}")
     for url in EXCLUSION_URLS:
         name = short_name(url)
@@ -141,11 +145,9 @@ def main():
             report_lines.append(f"  [FAIL] {name} - {e}")
             print(f"[WARN] 필터 실패: {url} ({e})")
 
-    # 2-1. 개인 블록리스트 로드 - 최우선 처리용 (여러 소스 합산)
+    # 2-1. 개인 블록리스트 로드 (외부 화이트리스트보다 우선)
     personal_block_set = set()
-    personal_filter_domains = {}
-    personal_names = []
-    report_lines.append(f"\n[ Personal Blocklist (Highest Priority) ]")
+    report_lines.append(f"\n[ Personal Blocklist (Override Whitelist) ]")
     report_lines.append(f"{'-' * 60}")
     for url in PERSONAL_BLOCK_URLS:
         name = short_name(url)
@@ -154,8 +156,6 @@ def main():
             total_lines = len(text.splitlines())
             domains_this = extract_block_domains(text)
             personal_block_set.update(domains_this)
-            personal_filter_domains[name] = domains_this
-            personal_names.append(name)
             report_lines.append(f"  [OK] {name}")
             report_lines.append(f"       URL: {url}")
             report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {len(domains_this):,}")
@@ -164,6 +164,30 @@ def main():
             print(f"[WARN] 개인 블록리스트 실패: {url} ({e})")
     report_lines.append(f"  {'─' * 60}")
     report_lines.append(f"  Total Personal Block (deduplicated): {len(personal_block_set):,}")
+
+    # 2-2. 개인 화이트리스트 로드 (최종 - 모든 블록리스트보다 우선)
+    personal_white_set = set()
+    report_lines.append(f"\n[ Personal Whitelist (Final Override) ]")
+    report_lines.append(f"{'-' * 60}")
+    for url in PERSONAL_WHITE_URLS:
+        name = short_name(url)
+        try:
+            text = fetch(url)
+            total_lines = len(text.splitlines())
+            count = 0
+            for line in text.splitlines():
+                m = re.match(r"^\|\|([a-z0-9\-\.]+)\^(\$popup)?\s*$", line.strip().lower())
+                if m and is_valid_domain(m.group(1)):
+                    personal_white_set.add(m.group(1))
+                    count += 1
+            report_lines.append(f"  [OK] {name}")
+            report_lines.append(f"       URL: {url}")
+            report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {count:,}")
+        except Exception as e:
+            report_lines.append(f"  [FAIL] {name} - {e}")
+            print(f"[WARN] 개인 화이트리스트 실패: {url} ({e})")
+    report_lines.append(f"  {'─' * 60}")
+    report_lines.append(f"  Total Personal White (deduplicated): {len(personal_white_set):,}")
 
     # 3. 중복 분석 (일반 필터만)
     report_lines.append(f"\n[ Overlap Analysis ]")
@@ -201,26 +225,37 @@ def main():
     report_lines.append(f"  Removed (not in reference)    : {ref_removed:,}")
     report_lines.append(f"  After Validation              : {after_ref:,}")
 
-    # 5. 화이트리스트 제외
+    # 5. 외부 화이트리스트 제외
     removed_by_white = raw_block_set & white_set
     removed_white_count = len(removed_by_white)
     block_after_white = raw_block_set - white_set
 
-    report_lines.append(f"\n[ Whitelist Filtering ]")
+    report_lines.append(f"\n[ External Whitelist Filtering ]")
     report_lines.append(f"{'-' * 60}")
     report_lines.append(f"  Removed by Whitelist          : {removed_white_count:,}")
     report_lines.append(f"  After Whitelist               : {len(block_after_white):,}")
 
-    # 6. ★ 개인 블록리스트 강제 적용 (화이트리스트 무시) ★
-    forced_back = personal_block_set & white_set
-    final_block_set = block_after_white | personal_block_set
-    final_white_set = white_set - personal_block_set
+    # 6. 개인 블록리스트 강제 적용 (외부 화이트리스트 무시)
+    forced_to_black = personal_block_set & white_set  # 외부 화이트 → 블랙 전환
+    block_after_personal = block_after_white | personal_block_set
 
     report_lines.append(f"\n[ Personal Blocklist Override ]")
     report_lines.append(f"{'-' * 60}")
     report_lines.append(f"  Personal Block Domains        : {len(personal_block_set):,}")
-    report_lines.append(f"  Forced (White → Black)        : {len(forced_back):,}")
-    report_lines.append(f"  Added to Final Block          : {len(personal_block_set - block_after_white):,}")
+    report_lines.append(f"  Forced (White → Black)        : {len(forced_to_black):,}")
+    report_lines.append(f"  After Personal Block          : {len(block_after_personal):,}")
+
+    # 7. ★ 개인 화이트리스트 강제 적용 (최종 - 모든 블록 무시) ★
+    forced_to_white = block_after_personal & personal_white_set  # 블랙 → 화이트 전환
+    final_block_set = block_after_personal - personal_white_set
+    # 최종 화이트리스트: 외부 화이트 + 개인 화이트 (단, 개인 블록과 충돌하는 외부 화이트는 제외)
+    final_white_set = (white_set - personal_block_set) | personal_white_set
+
+    report_lines.append(f"\n[ Personal Whitelist Final Override ]")
+    report_lines.append(f"{'-' * 60}")
+    report_lines.append(f"  Personal White Domains        : {len(personal_white_set):,}")
+    report_lines.append(f"  Forced (Black → White)        : {len(forced_to_white):,}")
+    report_lines.append(f"  After Personal White          : {len(final_block_set):,}")
 
     final_blocks = sorted(final_block_set)
     final_whites = sorted(final_white_set)
@@ -229,16 +264,19 @@ def main():
 
     report_lines.append(f"\n[ Final Summary ]")
     report_lines.append(f"{'-' * 60}")
+    report_lines.append(f"  Priority: Filter < ExtWhite < PersonalBlock < PersonalWhite")
+    report_lines.append(f"  {'─' * 60}")
     report_lines.append(f"  1. Raw Domains Collected      : {before_ref:,}")
     report_lines.append(f"  2. Removed by Reference       : {ref_removed:,}")
-    report_lines.append(f"  3. Removed by Whitelist       : {removed_white_count:,}")
+    report_lines.append(f"  3. Removed by Ext.Whitelist   : {removed_white_count:,}")
     report_lines.append(f"  4. Personal Block Added       : {len(personal_block_set):,}")
-    report_lines.append(f"  5. Forced (White → Black)     : {len(forced_back):,}")
-    report_lines.append(f"  6. Final Block Rules          : {final_block_count:,}")
-    report_lines.append(f"  7. Final Exception Rules      : {final_white_count:,}")
+    report_lines.append(f"  5. Forced (White → Black)     : {len(forced_to_black):,}")
+    report_lines.append(f"  6. Forced (Black → White)     : {len(forced_to_white):,}")
+    report_lines.append(f"  7. Final Block Rules          : {final_block_count:,}")
+    report_lines.append(f"  8. Final Exception Rules      : {final_white_count:,}")
     report_lines.append(f"{'=' * 60}")
 
-    # 7. 출력
+    # 8. 출력
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     header = (
@@ -248,14 +286,18 @@ def main():
         f"! Expires: 12 hours (update frequency)\n"
         f"! Homepage: https://github.com/moamoa7/Block\n"
         f"!\n"
+        f"! [Priority]\n"
+        f"! Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)\n"
+        f"!\n"
         f"! [Statistics]\n"
         f"! 1. Raw Domains Collected      : {before_ref:,}\n"
         f"! 2. Removed by Reference       : {ref_removed:,}\n"
-        f"! 3. Removed by Whitelist       : {removed_white_count:,}\n"
+        f"! 3. Removed by Ext.Whitelist   : {removed_white_count:,}\n"
         f"! 4. Personal Block Added       : {len(personal_block_set):,}\n"
-        f"! 5. Forced (White → Black)     : {len(forced_back):,}\n"
-        f"! 6. Final Block Rules (||)     : {final_block_count:,}\n"
-        f"! 7. Final Exception Rules (@@) : {final_white_count:,}\n"
+        f"! 5. Forced (White → Black)     : {len(forced_to_black):,}\n"
+        f"! 6. Forced (Black → White)     : {len(forced_to_white):,}\n"
+        f"! 7. Final Block Rules (||)     : {final_block_count:,}\n"
+        f"! 8. Final Exception Rules (@@) : {final_white_count:,}\n"
         f"!\n"
     )
 
