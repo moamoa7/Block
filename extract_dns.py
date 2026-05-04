@@ -20,7 +20,7 @@ EXCLUSION_URLS = [
 ]
 # 블록리스트 (외부 화이트리스트보다 우선)
 PERSONAL_BLOCK_URLS = [
-    "https://badmojr.github.io/1Hosts/Lite/adblock.txt",
+    "https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
 ]
 # 개인 화이트리스트 (최종 - 모든 블록리스트보다 우선)
@@ -55,7 +55,7 @@ def short_name(url: str) -> str:
     if "list-kr" in url: return "List-KR"
     if "uAssets" in url: return "uBlock Filters"
     if "adblock/multi.txt" in url: return "HaGeZi's Normal DNS Blocklist"
-    if "Lite/adblock.txt" in url: return "1Hosts (Lite)"
+    if "oisd_small.txt" in url: return "oisd small"
     if "main/block.txt" in url: return "Personal Blocklist"
     if "exclusions.txt" in url: return "AdGuard DNS Exclusions"
     if "white.txt" in url: return "Personal Whitelist"
