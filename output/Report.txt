@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-04 13:07:22 UTC
+  Generated: 2026-05-04 13:13:23 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -16,13 +16,13 @@
        Total Lines: 1,091 | Extracted: 451
   [OK] Personal Whitelist
        URL: https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt
-       Total Lines: 2 | Extracted: 2
+       Total Lines: 3 | Extracted: 3
 
 [ Block Filter Sources ]
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 90,031 | Extracted: 57,373
+       Total Lines: 90,032 | Extracted: 57,374
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
        Total Lines: 158,356 | Extracted: 66,136
@@ -38,23 +38,27 @@
   [OK] uBlock Filters
        URL: https://ublockorigin.github.io/uAssets/filters/filters.txt
        Total Lines: 11,089 | Extracted: 50
+  [OK] 1Hosts (Lite)
+       URL: https://raw.githubusercontent.com/cbuijs/1hosts/main/Lite/domains.top-n.adblock
+       Total Lines: 46,602 | Extracted: 46,595
   [OK] Personal Blocklist
        URL: https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
-       Total Lines: 2 | Extracted: 2
+       Total Lines: 1 | Extracted: 0
 
 [ Overlap Analysis ]
 ------------------------------------------------------------
   Filter                     Extracted        New     Unique
   ───────────────────────── ────────── ────────── ──────────
-  EasyList                      57,373     57,373         22
-  AdGuard Base                  66,136      8,785      8,759
-  AdGuard Mobile                   909        891        847
-  AdGuard Japanese                 169        156        156
-  List-KR                          352        265        265
-  uBlock Filters                    50         33         33
-  Personal Blocklist                 2          1          1
+  EasyList                      57,374     57,374         23
+  AdGuard Base                  66,136      8,785      8,294
+  AdGuard Mobile                   909        891        417
+  AdGuard Japanese                 169        156         84
+  List-KR                          352        265        192
+  uBlock Filters                    50         33         28
+  1Hosts (Lite)                 46,595     41,767     41,767
+  Personal Blocklist                 0          0          0
   ───────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)          67,504
+  Total (deduplicated)         109,271
 
   * Extracted : 해당 필터에서 추출된 도메인 수
   * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)
@@ -64,16 +68,16 @@
 ------------------------------------------------------------
   Reference: AdGuard DNS Filter (filters/15.txt)
   Reference Domains             : 164,699
-  Before Validation             : 67,504
-  Removed (not in reference)    : 4,994
-  After Validation              : 62,510
+  Before Validation             : 109,271
+  Removed (not in reference)    : 38,068
+  After Validation              : 71,203
 
 [ Final Summary ]
 ------------------------------------------------------------
-  1. Raw Domains Collected      : 67,504
-  2. Removed by Reference       : 4,994
-  3. Removed by Whitelist       : 1
-  4. Final Block Domains         : 62,509
-  5. Final Exception Rules       : 452
+  1. Raw Domains Collected      : 109,271
+  2. Removed by Reference       : 38,068
+  3. Removed by Whitelist       : 2
+  4. Final Block Domains         : 71,201
+  5. Final Exception Rules       : 453
   (Calculation: 1 - 2 - 3 = 4)
 ============================================================
