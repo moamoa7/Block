@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 07:29:38 UTC
+# Generated: 2026-05-04 09:35:49 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,445
-# 2. Removed by Reference       : 5,002
+# 1. Raw Domains Collected      : 67,467
+# 2. Removed by Reference       : 5,009
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,442
+# 4. Final Block Rules (||)     : 62,457
 # 5. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -6558,6 +6558,7 @@
 0.0.0.0 bemolelanguidepirot.cyou
 0.0.0.0 bemoltconopid.shop
 0.0.0.0 bemottoincord.com
+0.0.0.0 bemptdhubuizyg.com
 0.0.0.0 benamednidulus.cyou
 0.0.0.0 benatrogon.qpon
 0.0.0.0 benchsuited.com
@@ -9399,6 +9400,7 @@
 0.0.0.0 chaitpapered.cfd
 0.0.0.0 chaiwnaoytjig.site
 0.0.0.0 chakobusteamerglazer.cyou
+0.0.0.0 chalahsturkess.cyou
 0.0.0.0 chaliceguzzlerlandlord.com
 0.0.0.0 chalkedretrieval.com
 0.0.0.0 chalkerfecundmannose.cfd
@@ -22444,6 +22446,7 @@
 0.0.0.0 hotbyidide.cc
 0.0.0.0 hotggguvav.com
 0.0.0.0 hotgvibe.com
+0.0.0.0 hotilbthj.com
 0.0.0.0 hotkabachok.com
 0.0.0.0 hotlinedisappointed.com
 0.0.0.0 hotlinevarietymorrow.com
@@ -25859,6 +25862,7 @@
 0.0.0.0 kaqootniqwkfp.space
 0.0.0.0 karafutem.com
 0.0.0.0 karaismagacant.com
+0.0.0.0 karelobolesgelate.cyou
 0.0.0.0 karlukslavey.qpon
 0.0.0.0 karma.mdpcdn.com
 0.0.0.0 karnwduphelya.cyou
@@ -26366,6 +26370,7 @@
 0.0.0.0 kmuedwvaezote.online
 0.0.0.0 kmueihqkuy.com
 0.0.0.0 kmurwyixudezb.space
+0.0.0.0 kmvkipdsbckq.com
 0.0.0.0 kmvkkwwlluwgx.site
 0.0.0.0 kmwpxrau.com
 0.0.0.0 kmwzyajvivjuz.space
@@ -27730,6 +27735,7 @@
 0.0.0.0 lipemiaaliptae.com
 0.0.0.0 lipemiaknotteroffic.cyou
 0.0.0.0 liphicafo.com
+0.0.0.0 lipideludo.cyou
 0.0.0.0 lipidichoutou.cfd
 0.0.0.0 liplesssaligot.com
 0.0.0.0 lipsanographer.monster
@@ -39023,6 +39029,7 @@
 0.0.0.0 qqeamubuikcai.site
 0.0.0.0 qqfksaamrtzvl.site
 0.0.0.0 qqgjvgudcntvw.online
+0.0.0.0 qqglxofnwxa.com
 0.0.0.0 qqgspelswxiok.website
 0.0.0.0 qqhjdsbubacon.online
 0.0.0.0 qqhuwthhmxeuc.space
@@ -46562,6 +46569,7 @@
 0.0.0.0 splash-ad.classting.com
 0.0.0.0 splash.appsgeyser.com
 0.0.0.0 splashfailed.com
+0.0.0.0 splayarawak.cyou
 0.0.0.0 splaysyrian.help
 0.0.0.0 spleennest.com
 0.0.0.0 splendid-lake.pro
@@ -50516,6 +50524,7 @@
 0.0.0.0 toucan.ateliermilky.com
 0.0.0.0 toucan.the-faithful.com
 0.0.0.0 touchdowndeveloping.com
+0.0.0.0 toucheskey.cyou
 0.0.0.0 touchjav09212026.shop
 0.0.0.0 touchstronglymuseum.com
 0.0.0.0 tough-professional.pro
@@ -53247,6 +53256,7 @@
 0.0.0.0 uptjtciycieat.online
 0.0.0.0 uptornmehutched.cyou
 0.0.0.0 uptracefeis.com
+0.0.0.0 upttorecoojaaxone.cfd
 0.0.0.0 upttoreremet.cfd
 0.0.0.0 upttorevirify.cyou
 0.0.0.0 uptubefargood.shop
@@ -55656,6 +55666,7 @@
 0.0.0.0 vyxsgealwarnz.website
 0.0.0.0 vyxyydqivugrv.online
 0.0.0.0 vyxzeemxrwnqs.online
+0.0.0.0 vyzmtwpokygpm.space
 0.0.0.0 vz.7vid.net
 0.0.0.0 vz2qt7y4fgffbc85x39wkjwtig.cfd
 0.0.0.0 vzakrwqsbbsro.site
@@ -59561,6 +59572,7 @@
 0.0.0.0 xqxgcdhfkccgg.site
 0.0.0.0 xqxplqzqywvcj.website
 0.0.0.0 xqz4uivkc4lkukb35z6g7fxrihki.rest
+0.0.0.0 xraira.shop
 0.0.0.0 xrbcmxuzmyfzj.website
 0.0.0.0 xrbtfev4hm5r7kk.cfd
 0.0.0.0 xrburmrbscpnb.online
@@ -61004,6 +61016,7 @@
 0.0.0.0 ytqzrtpejocyh.space
 0.0.0.0 ytsa.net
 0.0.0.0 ytseotpnuzrdc.site
+0.0.0.0 ytsivzidynwtl.site
 0.0.0.0 ytsjtdehsznbu.online
 0.0.0.0 ytsmqchsmmozq.space
 0.0.0.0 ytsuptbpkgdq.net
@@ -61858,6 +61871,7 @@
 0.0.0.0 zlnzioxqvzfxp.store
 0.0.0.0 zlosabftzqikz.site
 0.0.0.0 zlqgrxuoxqpbd.website
+0.0.0.0 zlqzkbycvhnye.website
 0.0.0.0 zlrjshctqzxlk.site
 0.0.0.0 zlrwxkrwslawu.online
 0.0.0.0 zlsvhossbiuwq.space
@@ -62311,6 +62325,7 @@
 0.0.0.0 zw7kvifj268tmhfgp6.cfd
 0.0.0.0 zwaar.net
 0.0.0.0 zwcmwvklhkfhh.website
+0.0.0.0 zwcuougbmsdbl.online
 0.0.0.0 zwfbkyofoaqlj.site
 0.0.0.0 zwfkvkmkmdoji.website
 0.0.0.0 zwgcldrjgtvkx.online

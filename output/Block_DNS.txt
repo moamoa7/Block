@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-04 07:29:38 UTC
+! Generated: 2026-05-04 09:35:49 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 67,445
-! 2. Removed by Reference       : 5,002
+! 1. Raw Domains Collected      : 67,467
+! 2. Removed by Reference       : 5,009
 ! 3. Removed by Whitelist       : 1
-! 4. Final Block Rules (||)     : 62,442
+! 4. Final Block Rules (||)     : 62,457
 ! 5. Final Exception Rules (@@) : 452
 ! (Calculation: 1 - 2 - 3 = 4)
 !
@@ -6559,6 +6559,7 @@
 ||bemolelanguidepirot.cyou^
 ||bemoltconopid.shop^
 ||bemottoincord.com^
+||bemptdhubuizyg.com^
 ||benamednidulus.cyou^
 ||benatrogon.qpon^
 ||benchsuited.com^
@@ -9400,6 +9401,7 @@
 ||chaitpapered.cfd^
 ||chaiwnaoytjig.site^
 ||chakobusteamerglazer.cyou^
+||chalahsturkess.cyou^
 ||chaliceguzzlerlandlord.com^
 ||chalkedretrieval.com^
 ||chalkerfecundmannose.cfd^
@@ -22445,6 +22447,7 @@
 ||hotbyidide.cc^
 ||hotggguvav.com^
 ||hotgvibe.com^
+||hotilbthj.com^
 ||hotkabachok.com^
 ||hotlinedisappointed.com^
 ||hotlinevarietymorrow.com^
@@ -25860,6 +25863,7 @@
 ||kaqootniqwkfp.space^
 ||karafutem.com^
 ||karaismagacant.com^
+||karelobolesgelate.cyou^
 ||karlukslavey.qpon^
 ||karma.mdpcdn.com^
 ||karnwduphelya.cyou^
@@ -26367,6 +26371,7 @@
 ||kmuedwvaezote.online^
 ||kmueihqkuy.com^
 ||kmurwyixudezb.space^
+||kmvkipdsbckq.com^
 ||kmvkkwwlluwgx.site^
 ||kmwpxrau.com^
 ||kmwzyajvivjuz.space^
@@ -27731,6 +27736,7 @@
 ||lipemiaaliptae.com^
 ||lipemiaknotteroffic.cyou^
 ||liphicafo.com^
+||lipideludo.cyou^
 ||lipidichoutou.cfd^
 ||liplesssaligot.com^
 ||lipsanographer.monster^
@@ -39024,6 +39030,7 @@
 ||qqeamubuikcai.site^
 ||qqfksaamrtzvl.site^
 ||qqgjvgudcntvw.online^
+||qqglxofnwxa.com^
 ||qqgspelswxiok.website^
 ||qqhjdsbubacon.online^
 ||qqhuwthhmxeuc.space^
@@ -46563,6 +46570,7 @@
 ||splash-ad.classting.com^
 ||splash.appsgeyser.com^
 ||splashfailed.com^
+||splayarawak.cyou^
 ||splaysyrian.help^
 ||spleennest.com^
 ||splendid-lake.pro^
@@ -50517,6 +50525,7 @@
 ||toucan.ateliermilky.com^
 ||toucan.the-faithful.com^
 ||touchdowndeveloping.com^
+||toucheskey.cyou^
 ||touchjav09212026.shop^
 ||touchstronglymuseum.com^
 ||tough-professional.pro^
@@ -53248,6 +53257,7 @@
 ||uptjtciycieat.online^
 ||uptornmehutched.cyou^
 ||uptracefeis.com^
+||upttorecoojaaxone.cfd^
 ||upttoreremet.cfd^
 ||upttorevirify.cyou^
 ||uptubefargood.shop^
@@ -55657,6 +55667,7 @@
 ||vyxsgealwarnz.website^
 ||vyxyydqivugrv.online^
 ||vyxzeemxrwnqs.online^
+||vyzmtwpokygpm.space^
 ||vz.7vid.net^
 ||vz2qt7y4fgffbc85x39wkjwtig.cfd^
 ||vzakrwqsbbsro.site^
@@ -59562,6 +59573,7 @@
 ||xqxgcdhfkccgg.site^
 ||xqxplqzqywvcj.website^
 ||xqz4uivkc4lkukb35z6g7fxrihki.rest^
+||xraira.shop^
 ||xrbcmxuzmyfzj.website^
 ||xrbtfev4hm5r7kk.cfd^
 ||xrburmrbscpnb.online^
@@ -61005,6 +61017,7 @@
 ||ytqzrtpejocyh.space^
 ||ytsa.net^
 ||ytseotpnuzrdc.site^
+||ytsivzidynwtl.site^
 ||ytsjtdehsznbu.online^
 ||ytsmqchsmmozq.space^
 ||ytsuptbpkgdq.net^
@@ -61859,6 +61872,7 @@
 ||zlnzioxqvzfxp.store^
 ||zlosabftzqikz.site^
 ||zlqgrxuoxqpbd.website^
+||zlqzkbycvhnye.website^
 ||zlrjshctqzxlk.site^
 ||zlrwxkrwslawu.online^
 ||zlsvhossbiuwq.space^
@@ -62312,6 +62326,7 @@
 ||zw7kvifj268tmhfgp6.cfd^
 ||zwaar.net^
 ||zwcmwvklhkfhh.website^
+||zwcuougbmsdbl.online^
 ||zwfbkyofoaqlj.site^
 ||zwfkvkmkmdoji.website^
 ||zwgcldrjgtvkx.online^
