@@ -17,7 +17,7 @@ FILTER_URLS = [
 # 외부 화이트리스트 (개인 블록리스트보다 우선순위 낮음)
 EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
-    "https://raw.githubusercontent.com/KnightmareVIIVIIXC/AIO-Firebog-Blocklists/main/exclusions/exclusions.txt"
+    "https://raw.githubusercontent.com/KnightmareVIIVIIXC/AIO-Firebog-Blocklists/main/exclusions/exclusions.txt",
 ]
 # 블록리스트 (외부 화이트리스트보다 우선)
 PERSONAL_BLOCK_URLS = [
@@ -28,7 +28,7 @@ PERSONAL_BLOCK_URLS = [
 PERSONAL_WHITE_URLS = [
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
-REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
+REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt",
 
 OUTPUT_DIR = Path("output")
 OUT_COMBINED = OUTPUT_DIR / "Block_DNS.txt"
