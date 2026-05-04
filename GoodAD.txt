@@ -490,6 +490,12 @@ daum.net##div#trendKeywordsContainer
 daum.net##.wrap_trend
 !
 !
+! 다음 카페 (https://cafe.daum.net/)
+! - 최하단 배너
+daum.net##.cafe-banner
+##.bottom_banner
+!
+!
 ! 다음 스포츠 (https://sports.daum.net/)
 ! - ##[class^="ad"] 해제 - 영상 안나옴
 kakaotv.daum.net#@#[class^="ad"]
@@ -983,6 +989,13 @@ instiz.net##div[style]:has(> [id^='sense'])
 instiz.net##[id*="sense"]
 !
 !
+! 유머픽 (https://humorpick.com/)
+! -게시글 내 상단 배너
+##[href*="https://open.kakao.com/"]
+! - 게시글 내 상단 배너 공간
+humorpick.com##.ie-center.ie-zone > p
+!
+!
 ! 나무위키 (https://namu.wiki/)
 ! - 상단 및 오른쪽 공간(배너?) - EasyList (없어진듯)
 !namu.wiki##div[id][class]:empty
@@ -1283,9 +1296,11 @@ tvhot.store##.object-cover
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
 ! - 로딩 동그라마
-##.iframe-loading-spinner
+!##.iframe-loading-spinner - ##[class*="iframe"]로 대체
+! - - - https://ko.javfc2.live/
+##[class*="iframe"]
 ! - 로딩 텍스트
-##.iframe-loading-text
+!##.iframe-loading-text - ##[class*="iframe"]로 대체
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
@@ -2202,6 +2217,7 @@ danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-midd
 ! - - - - - YousList
 danawa.com#@#iframe[src*="/RealMedia/ads/"]
 ! - 광고 배너
+! - - - https://pann.nate.com/
 danawa.com/###adSmartProductContainer
 ##iframe[title*="배너"]
 ##iframe[title*="광고"]
@@ -2426,6 +2442,9 @@ sextb.date##.hidden-md.right.col-3
 !- - - https://7tv034.com/
 ! -- - https://javgiga.com/
 ! - - - 눈팅 (https://nunting.kr/)
+! - - - 이토랜드 (https://etoland.co.kr/)
+! - - - 블라인드 (https://www.teamblind.com/)
+! - - - 클리앙 (https://www.clien.net/)
 !##iframe[src^="https://creative."][src*="/widgets/v4/Universal?"]
 ##iframe[src*="widgets"]
 
@@ -4510,19 +4529,20 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ==================================
 
 
-! 확인 중
-
-!- https://www.sooplive.com/ - 별 이상 없음
-! - https://play.sooplive.com/ - 별 이상 없음
-! - https://supjav.com/- 프레임영상 안나옴
-!##iframe
+! 작업 중
 
 ##iframe[src*=""]
+
+
+! - https://pann.nate.com/
+##iframe[src*="about:blank"]
+
 
 ! - https://randburg.com/ - 영상 안나옴
 !##iframe[src*="index"]
 
 
+! - https://tvwiki19.net/
 ! - https://hohoj.tv/
 ! - https://www.reddit.com/
 ! - https://etoland.co.kr/
@@ -4530,6 +4550,11 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://mypikpak.com/
 ! - https://ko.javfc2.live/
 ! - https://supjav.com/
+! - https://www.ddanzi.com/
+! - https://www.82cook.com/
+! - https://web.humoruniv.com/
+! - https://www.goodgag.net/
+! - https://www.clien.net/
 ##iframe[src*="iframe"]
 
 
@@ -4539,24 +4564,73 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://www.genspark.ai/
 ! - https://www.reddit.com/
-! - https://mypikpak.com/ - 캡챠 안됨
-!##iframe[src*="google"]
+! - https://mypikpak.com/
+! - https://gall.dcinside.com/
+! - ! - https://inven.co.kr/
+##iframe[src*="google"]:not([src*="recaptcha"])
+
+
+! - https://www.goodgag.net/
+##iframe[name*="google"]
+
+
+##iframe[src*="googletagmanager.com"]
 
 
 ! - https://imagetwist.com/
+! - https://ygosu.com/
+! - https://www.teamblind.com/
 ##iframe[src*="banner"]
 
 
-! https://hohoj.tv/  - 배너
+! https://hohoj.tv/
 ! - https://missav.ws/
 ! - https://danawa.com/
+! - https://nunting.kr/
+! - https://inven.co.kr/
+! - https://www.teamblind.com/
 ##iframe[src*="ads"]
 
 
-!- https://www.sooplive.com/ - 별 이상 없음
-! - https://play.sooplive.com/ - 별 이상 없음
+! - https://www.teamblind.com/
+! - https://pann.nate.com/
+##iframe[src*="tracking"]
+
+
+!- https://www.sooplive.com
+! - https://play.sooplive.com
 ! - https://coktv1.com/ - 영상 안나옴
+! - https://ko.javfc2.live/
+! - https://missav.ws/
+! - https://7tv034.com/
+! - https://imagetwist.com/
+! - https://javfc2.xyz/
 !##iframe[src*="live"]
+
+
+! https://poooo.ml/ - 영상 안보임
+!##iframe[src*="video"]
+
+
+! - https://missav.ws/
+! - https://javgg.net/
+! - https://javgiga.com/ - 영상 안나옴
+!##iframe[src*="stream"]
+
+
+##iframe[src*="livevideo"]
+
+##iframe[src*="live-video"]
+
+##iframe[src*="iivestream"]
+
+##iframe[src*="live-stream"]
+
+##iframe[src*="videostream"]
+
+##iframe[src*="video-stream"]
+
+##iframe[src*="vod"]
 
 
 ##iframe[src*="promotion"]
@@ -4573,35 +4647,12 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://www.genspark.ai/
 ! - https://poooo.ml/ - 영상 안보임
-!#iframe[src*="chat"]
-
-
-! https://poooo.ml/ - 영상 안보임
-!##iframe[src*="video"]
-
-
-! - https://missav.ws/
-! - https://javgg.net/
-! - https://javgiga.com/ - 영상 안나옴
-!##iframe[src*="stream"]
-
+!##iframe[src*="chat"]
 
 ##iframe[src*="advertisement"]
 
 
-! - https://www.sooplive.com/
-! - https://play.sooplive.com/
-! - https://ko.javfc2.live/
-! - https://missav.ws/
-! - https://7tv034.com/
-! - https://imagetwist.com/
-! - https://javfc2.xyz/
-##iframe[src*="live"]
-
-
-##iframe[src*="vod"]
-
-
+! - https://www.ddanzi.com/
 ##iframe[src*="media"]
 
 
@@ -4612,12 +4663,54 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[src*="event"]
 
 
+! - https://ygosu.com/
 ##iframe[src*="click"]
 
+
 ! - https://www.gmarket.co.kr/
+! - https://missav.ws/
+! - https://ko.javfc2.live/
 ##iframe[src*="script"]
 
 
-! - https://javgiga.com/
-! - https://123av.com/ - 영상 안나옴
-!##iframe[src*="http"]
+! - https://meeco.kr/
+##iframe[src*="product"]
+
+
+! - https://www.fmkorea.com/
+##iframe[attribution-reporting]
+
+
+##iframe[src*="update"]
+
+! - https://www.sooplive.com/
+! - https://play.sooplive.com/
+##iframe[src*="sooplive"]
+
+
+! - https://ygosu.com/
+! - https://tvwiki19.net/ - 영상 안나옴
+!##iframe[id*="frame"]
+
+! - https://tvwiki19.net/ - 영상 안나옴
+!##[id*="iframe"]
+
+
+! - https://ygosu.com/
+##iframe[id*="hidden"]
+
+! - https://ko.javfc2.live/
+##iframe[class*="frame"]
+
+
+##iframe[class*="hidden"]
+
+
+! - https://missav.ws/
+! - https://www.goodgag.net/
+! - https://coktv1.com/ - 영상 안나옴
+!##iframe[style*="hidden"]
+
+
+! - https://pann.nate.com/
+##iframe[title*="스폰"]
