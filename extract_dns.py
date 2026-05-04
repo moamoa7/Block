@@ -19,7 +19,10 @@ EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
 # 블록리스트 (최우선 - 화이트리스트보다 우선)
-PERSONAL_BLOCK_URL = "https://badmojr.github.io/1Hosts/Lite/adblock.txt"
+PERSONAL_BLOCK_URLS = [
+    "https://badmojr.github.io/1Hosts/Lite/adblock.txt",
+    "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
+]
 REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
 
 OUTPUT_DIR = Path("output")
@@ -49,6 +52,7 @@ def short_name(url: str) -> str:
     if "uAssets" in url: return "uBlock Filters"
     if "adblock/multi.txt" in url: return "HaGeZi's Normal DNS Blocklist"
     if "Lite/adblock.txt" in url: return "1Hosts (Lite)"
+    if "main/block.txt" in url: return "Personal Blocklist"
     if "exclusions.txt" in url: return "AdGuard DNS Exclusions"
     if "white.txt" in url: return "Personal Whitelist"
     if "filters/15.txt" in url: return "AdGuard DNS Filter"
@@ -115,7 +119,7 @@ def main():
             report_lines.append(f"  [FAIL] {name} - {e}")
             print(f"[WARN] 화이트리스트 실패: {url} ({e})")
 
-    # 2. 일반 차단 필터 로드 (block.txt 제외)
+    # 2. 일반 차단 필터 로드
     raw_block_set = set()
     filter_domains = {}
     names = []
@@ -137,26 +141,35 @@ def main():
             report_lines.append(f"  [FAIL] {name} - {e}")
             print(f"[WARN] 필터 실패: {url} ({e})")
 
-    # 2-1. 개인 블록리스트(block.txt) 로드 - 최우선 처리용
+    # 2-1. 개인 블록리스트 로드 - 최우선 처리용 (여러 소스 합산)
     personal_block_set = set()
+    personal_filter_domains = {}
+    personal_names = []
     report_lines.append(f"\n[ Personal Blocklist (Highest Priority) ]")
     report_lines.append(f"{'-' * 60}")
-    try:
-        text = fetch(PERSONAL_BLOCK_URL)
-        total_lines = len(text.splitlines())
-        personal_block_set = extract_block_domains(text)
-        report_lines.append(f"  [OK] Personal Blocklist")
-        report_lines.append(f"       URL: {PERSONAL_BLOCK_URL}")
-        report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {len(personal_block_set):,}")
-    except Exception as e:
-        report_lines.append(f"  [FAIL] Personal Blocklist - {e}")
-        print(f"[WARN] 개인 블록리스트 실패: {PERSONAL_BLOCK_URL} ({e})")
+    for url in PERSONAL_BLOCK_URLS:
+        name = short_name(url)
+        try:
+            text = fetch(url)
+            total_lines = len(text.splitlines())
+            domains_this = extract_block_domains(text)
+            personal_block_set.update(domains_this)
+            personal_filter_domains[name] = domains_this
+            personal_names.append(name)
+            report_lines.append(f"  [OK] {name}")
+            report_lines.append(f"       URL: {url}")
+            report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {len(domains_this):,}")
+        except Exception as e:
+            report_lines.append(f"  [FAIL] {name} - {e}")
+            print(f"[WARN] 개인 블록리스트 실패: {url} ({e})")
+    report_lines.append(f"  {'─' * 60}")
+    report_lines.append(f"  Total Personal Block (deduplicated): {len(personal_block_set):,}")
 
     # 3. 중복 분석 (일반 필터만)
     report_lines.append(f"\n[ Overlap Analysis ]")
     report_lines.append(f"{'-' * 60}")
-    report_lines.append(f"  {'Filter':<25} {'Extracted':>10} {'New':>10} {'Unique':>10}")
-    report_lines.append(f"  {'─' * 25} {'─' * 10} {'─' * 10} {'─' * 10}")
+    report_lines.append(f"  {'Filter':<32} {'Extracted':>10} {'New':>10} {'Unique':>10}")
+    report_lines.append(f"  {'─' * 32} {'─' * 10} {'─' * 10} {'─' * 10}")
 
     seen = set()
     for name in names:
@@ -170,10 +183,10 @@ def main():
             if other_name != name:
                 unique -= filter_domains[other_name]
         unique_count = len(unique)
-        report_lines.append(f"  {name:<25} {extracted:>10,} {new_count:>10,} {unique_count:>10,}")
+        report_lines.append(f"  {name:<32} {extracted:>10,} {new_count:>10,} {unique_count:>10,}")
 
-    report_lines.append(f"  {'─' * 25} {'─' * 10} {'─' * 10} {'─' * 10}")
-    report_lines.append(f"  {'Total (deduplicated)':<25} {len(raw_block_set):>10,}")
+    report_lines.append(f"  {'─' * 32} {'─' * 10} {'─' * 10} {'─' * 10}")
+    report_lines.append(f"  {'Total (deduplicated)':<32} {len(raw_block_set):>10,}")
 
     # 4. 기준 필터 검증
     before_ref = len(raw_block_set)
@@ -199,11 +212,8 @@ def main():
     report_lines.append(f"  After Whitelist               : {len(block_after_white):,}")
 
     # 6. ★ 개인 블록리스트 강제 적용 (화이트리스트 무시) ★
-    #    - block.txt에 있는 도메인은 무조건 차단
-    #    - 화이트리스트에 있어도 강제 블랙리스트로 전환
-    forced_back = personal_block_set & white_set  # 화이트→블랙 전환된 항목
+    forced_back = personal_block_set & white_set
     final_block_set = block_after_white | personal_block_set
-    # 최종 화이트리스트는 personal_block_set과 충돌하는 것 제외
     final_white_set = white_set - personal_block_set
 
     report_lines.append(f"\n[ Personal Blocklist Override ]")
