@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-04 14:01:51 UTC
+  Generated: 2026-05-04 14:21:47 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -19,7 +19,7 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 90,039 | Extracted: 57,381
+       Total Lines: 90,044 | Extracted: 57,386
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
        Total Lines: 158,375 | Extracted: 66,153
@@ -41,14 +41,14 @@
 
 [ Personal Blocklist (Override Whitelist) ]
 ------------------------------------------------------------
-  [OK] 1Hosts (Lite)
-       URL: https://badmojr.github.io/1Hosts/Lite/adblock.txt
-       Total Lines: 92,600 | Extracted: 92,581
+  [OK] oisd small
+       URL: https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt
+       Total Lines: 58,135 | Extracted: 58,122
   [OK] Personal Blocklist
        URL: https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
        Total Lines: 1 | Extracted: 0
   ────────────────────────────────────────────────────────────
-  Total Personal Block (deduplicated): 92,581
+  Total Personal Block (deduplicated): 58,122
 
 [ Personal Whitelist (Final Override) ]
 ------------------------------------------------------------
@@ -62,7 +62,7 @@
 ------------------------------------------------------------
   Filter                            Extracted        New     Unique
   ──────────────────────────────── ────────── ────────── ──────────
-  EasyList                             57,381     57,381         13
+  EasyList                             57,386     57,386         18
   AdGuard Base                         66,153      8,785      4,612
   AdGuard Mobile                          909        891        230
   AdGuard Japanese                        169        156         17
@@ -70,13 +70,13 @@
   uBlock Filters                           50         33          5
   HaGeZi's Normal DNS Blocklist       168,549    120,360    120,360
   ──────────────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)                187,871
+  Total (deduplicated)                187,876
 
 [ Reference Filter Validation ]
 ------------------------------------------------------------
   Reference Domains             : 164,699
-  Before Validation             : 187,871
-  Removed (not in reference)    : 96,066
+  Before Validation             : 187,876
+  Removed (not in reference)    : 96,071
   After Validation              : 91,805
 
 [ External Whitelist Filtering ]
@@ -86,26 +86,26 @@
 
 [ Personal Blocklist Override ]
 ------------------------------------------------------------
-  Personal Block Domains        : 92,581
-  Forced (White → Black)        : 86
-  After Personal Block          : 138,827
+  Personal Block Domains        : 58,122
+  Forced (White → Black)        : 4
+  After Personal Block          : 97,397
 
 [ Personal Whitelist Final Override ]
 ------------------------------------------------------------
   Personal White Domains        : 3
   Forced (Black → White)        : 2
-  After Personal White          : 138,825
+  After Personal White          : 97,395
 
 [ Final Summary ]
 ------------------------------------------------------------
   Priority: Filter < ExtWhite < PersonalBlock < PersonalWhite
   ────────────────────────────────────────────────────────────
-  1. Raw Domains Collected      : 187,871
-  2. Removed by Reference       : 96,066
+  1. Raw Domains Collected      : 187,876
+  2. Removed by Reference       : 96,071
   3. Removed by Ext.Whitelist   : 0
-  4. Personal Block Added       : 92,581
-  5. Forced (White → Black)     : 86
+  4. Personal Block Added       : 58,122
+  5. Forced (White → Black)     : 4
   6. Forced (Black → White)     : 2
-  7. Final Block Rules          : 138,825
-  8. Final Exception Rules      : 367
+  7. Final Block Rules          : 97,395
+  8. Final Exception Rules      : 449
 ============================================================
