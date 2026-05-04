@@ -1,14 +1,14 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 11:29:47 UTC
+# Generated: 2026-05-04 13:07:22 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 67,481
-# 2. Removed by Reference       : 4,993
+# 1. Raw Domains Collected      : 67,504
+# 2. Removed by Reference       : 4,994
 # 3. Removed by Whitelist       : 1
-# 4. Final Block Rules (||)     : 62,487
+# 4. Final Block Rules (||)     : 62,509
 # 5. Final Exception Rules (@@) : 452
 # (Calculation: 1 - 2 - 3 = 4)
 #
@@ -940,6 +940,7 @@
 0.0.0.0 4ucwg8mu4txq5jr5n19.rest
 0.0.0.0 4urrobfjygm9mnwyt.cfd
 0.0.0.0 4uzknty9cgzfitho8.rest
+0.0.0.0 4vfrjbghb85rv8q7wqwyumckgu478u3p1.cfd
 0.0.0.0 4vn6y527c4mmvi1t53z9n.cfd
 0.0.0.0 4w3tmyk8tzll5qvjwv2qmlwv52elkmpk.rest
 0.0.0.0 4wnetwork.com
@@ -5333,6 +5334,7 @@
 0.0.0.0 atala-apw.com
 0.0.0.0 atamarvtcznxj.website
 0.0.0.0 atampharosom.com
+0.0.0.0 atauntglopnen.qpon
 0.0.0.0 atavismbesoul.cyou
 0.0.0.0 ataxywash.cyou
 0.0.0.0 ataykgrzwrplt.site
@@ -7386,6 +7388,7 @@
 0.0.0.0 bodilysubtractoversight.com
 0.0.0.0 bodilywondering.com
 0.0.0.0 bodleanarcho.com
+0.0.0.0 bodragglairsaesop.cyou
 0.0.0.0 bodybossmotivate.com
 0.0.0.0 bodystrickenmultitude.com
 0.0.0.0 boehwxhleexzc.website
@@ -8154,6 +8157,7 @@
 0.0.0.0 bunnyassetsworn.com
 0.0.0.0 bunterstty.com
 0.0.0.0 bunth.net
+0.0.0.0 buntypuddee.qpon
 0.0.0.0 buoyant-coast.com
 0.0.0.0 buoyant-most.pro
 0.0.0.0 buoyantbug.pro
@@ -10506,6 +10510,7 @@
 0.0.0.0 comparedwooscore.com
 0.0.0.0 comparepoisonous.com
 0.0.0.0 compassionate-boot.com
+0.0.0.0 compassionatereach.pro
 0.0.0.0 compassionatespreadinquire.com
 0.0.0.0 compassionunsuccessful.com
 0.0.0.0 compelbruises.com
@@ -14555,6 +14560,7 @@
 0.0.0.0 dollphoin.site
 0.0.0.0 dollylarkjeweller.com
 0.0.0.0 dollyspreadingbeer.com
+0.0.0.0 dolmanshamelt.cfd
 0.0.0.0 dolmenscragganmiswern.cyou
 0.0.0.0 dolphin.brandname.tech
 0.0.0.0 dolphin.sfelc.com
@@ -14649,6 +14655,7 @@
 0.0.0.0 dosslaccase.shop
 0.0.0.0 dosvaultgame.com
 0.0.0.0 dothbungedwriest.cyou
+0.0.0.0 dotiestcatteddetruss.cfd
 0.0.0.0 doting-rush.pro
 0.0.0.0 dotingrevenue.pro
 0.0.0.0 dotishmojarraaglets.qpon
@@ -15425,6 +15432,7 @@
 0.0.0.0 e696432950.e6c84e5378.com
 0.0.0.0 e6b4cfdb36.8381a73c4d.com
 0.0.0.0 e6c5f295b4.com
+0.0.0.0 e6yq2371py7o8pojcv.rest
 0.0.0.0 e709b26fc0.f9abdf7da0.com
 0.0.0.0 e779dae19c.com
 0.0.0.0 e78c7a74e7.com
@@ -17910,6 +17918,7 @@
 0.0.0.0 ficklerjain.cfd
 0.0.0.0 ficmxrutlrhig.store
 0.0.0.0 fictionbusinessmensoloist.com
+0.0.0.0 fictorupflood.shop
 0.0.0.0 fidar.site
 0.0.0.0 fidawirhyssa.shop
 0.0.0.0 fiddedrfound.shop
@@ -17961,6 +17970,7 @@
 0.0.0.0 filletfiguredconstrain.com
 0.0.0.0 filllocate.com
 0.0.0.0 fillpoliteness.com
+0.0.0.0 fillybode.cyou
 0.0.0.0 filmderange.shop
 0.0.0.0 filmingazulineflamens.cyou
 0.0.0.0 filosetramman.shop
@@ -20153,6 +20163,7 @@
 0.0.0.0 gleampointscrystal.com
 0.0.0.0 gleanertzaam.shop
 0.0.0.0 glecjwgrihxui.site
+0.0.0.0 gleedbusters.qpon
 0.0.0.0 gleeful-metal.pro
 0.0.0.0 gleefulnote.com
 0.0.0.0 gleefulsolvingsaxophone.com
@@ -25374,6 +25385,7 @@
 0.0.0.0 jpwwqujvnoskd.site
 0.0.0.0 jpwzbglshulfq.space
 0.0.0.0 jpzswwzdicijf.online
+0.0.0.0 jpzyeqobploxo.website
 0.0.0.0 jq8efbj3wcfhqblq3.rest
 0.0.0.0 jqabemjlgisej.website
 0.0.0.0 jqacpuetzhjta.space
@@ -29608,6 +29620,7 @@
 0.0.0.0 mfqsbgbmd.com
 0.0.0.0 mfrvwwyviutsk.website
 0.0.0.0 mfrwyailfrrxm.website
+0.0.0.0 mfsfjgsbov.com
 0.0.0.0 mfwbsveljxjsq.space
 0.0.0.0 mfwktcbgnpbgg.space
 0.0.0.0 mfyavsmiha.com
@@ -29844,6 +29857,7 @@
 0.0.0.0 minutemedia-prebid.com
 0.0.0.0 minutesillock.cfd
 0.0.0.0 minutessmiles.com
+0.0.0.0 miogjhwfpg.com
 0.0.0.0 miomg53b4xlev45nw.rest
 0.0.0.0 miorokkyhdjna.store
 0.0.0.0 mioymlvrhmlsk.online
@@ -30476,6 +30490,7 @@
 0.0.0.0 mpanfzgvlgwvt.space
 0.0.0.0 mpanythathaveresulte.com
 0.0.0.0 mpanythathaveresultet.info
+0.0.0.0 mpcsbtbipqzfa.space
 0.0.0.0 mpdkfhyvpvttt.site
 0.0.0.0 mpebncqjoepwq.space
 0.0.0.0 mpeowvqnbeoah.online
@@ -30538,6 +30553,7 @@
 0.0.0.0 mqszaiyafukar.online
 0.0.0.0 mquoemywissvp.tech
 0.0.0.0 mqutibglqfjmq.website
+0.0.0.0 mqwdgnbntkgen.space
 0.0.0.0 mqxbtsawpuulc.store
 0.0.0.0 mr2cnjuh34jb.com
 0.0.0.0 mr9rxihn18wbh4pqkkjzb6go86.cfd
@@ -31070,6 +31086,7 @@
 0.0.0.0 naivepot.com
 0.0.0.0 naivestphytane.cyou
 0.0.0.0 naivewidespreadbody.com
+0.0.0.0 najkojkkxotes.site
 0.0.0.0 nakbattikwourari.cyou
 0.0.0.0 nakdboeukjriq.space
 0.0.0.0 nakooarsenal.com
@@ -31527,6 +31544,7 @@
 0.0.0.0 ngbc3wgx5nw9xqw413qo1fmz7rc9hf8tulhh6o.rest
 0.0.0.0 ngbixvopoqccq.website
 0.0.0.0 ngbmozpzslhtu.site
+0.0.0.0 ngcdsavchpmorm.com
 0.0.0.0 ngcghsdvjfcpp.club
 0.0.0.0 ngdrfbutynlnu.website
 0.0.0.0 ngdxwfjtdfxoq.com
@@ -36674,6 +36692,7 @@
 0.0.0.0 potencebeknit.help
 0.0.0.0 potencyidrooping.com
 0.0.0.0 potfulsburro.qpon
+0.0.0.0 pothookknoppy.qpon
 0.0.0.0 pothuntmemorda.cyou
 0.0.0.0 pothutepu.com
 0.0.0.0 potionsfurther.com
@@ -37207,6 +37226,7 @@
 0.0.0.0 problemscrupulous.com
 0.0.0.0 problemsmaillibel.com
 0.0.0.0 problemsmajority.com
+0.0.0.0 probplanted.qpon
 0.0.0.0 probtn.com
 0.0.0.0 proceduredisrespect.com
 0.0.0.0 proceduresinfox.net
@@ -47747,6 +47767,7 @@
 0.0.0.0 stupid-police.com
 0.0.0.0 stupidconveniences.com
 0.0.0.0 stuposekg.qpon
+0.0.0.0 sturdy-town.com
 0.0.0.0 sturdyarrival.com
 0.0.0.0 sturdyassociate.pro
 0.0.0.0 sturdycow.pro
@@ -57399,6 +57420,7 @@
 0.0.0.0 woodpecker.ember.ly
 0.0.0.0 woodpecker.mikehalliday.com
 0.0.0.0 woodracial.com
+0.0.0.0 woodrisaweel.cyou
 0.0.0.0 woodrismucosal.help
 0.0.0.0 woodsfalsie.com
 0.0.0.0 woodymotherhood.com

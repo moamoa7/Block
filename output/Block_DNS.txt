@@ -1,14 +1,14 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-04 11:29:47 UTC
+! Generated: 2026-05-04 13:07:22 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 67,481
-! 2. Removed by Reference       : 4,993
+! 1. Raw Domains Collected      : 67,504
+! 2. Removed by Reference       : 4,994
 ! 3. Removed by Whitelist       : 1
-! 4. Final Block Rules (||)     : 62,487
+! 4. Final Block Rules (||)     : 62,509
 ! 5. Final Exception Rules (@@) : 452
 ! (Calculation: 1 - 2 - 3 = 4)
 !
@@ -941,6 +941,7 @@
 ||4ucwg8mu4txq5jr5n19.rest^
 ||4urrobfjygm9mnwyt.cfd^
 ||4uzknty9cgzfitho8.rest^
+||4vfrjbghb85rv8q7wqwyumckgu478u3p1.cfd^
 ||4vn6y527c4mmvi1t53z9n.cfd^
 ||4w3tmyk8tzll5qvjwv2qmlwv52elkmpk.rest^
 ||4wnetwork.com^
@@ -5334,6 +5335,7 @@
 ||atala-apw.com^
 ||atamarvtcznxj.website^
 ||atampharosom.com^
+||atauntglopnen.qpon^
 ||atavismbesoul.cyou^
 ||ataxywash.cyou^
 ||ataykgrzwrplt.site^
@@ -7387,6 +7389,7 @@
 ||bodilysubtractoversight.com^
 ||bodilywondering.com^
 ||bodleanarcho.com^
+||bodragglairsaesop.cyou^
 ||bodybossmotivate.com^
 ||bodystrickenmultitude.com^
 ||boehwxhleexzc.website^
@@ -8155,6 +8158,7 @@
 ||bunnyassetsworn.com^
 ||bunterstty.com^
 ||bunth.net^
+||buntypuddee.qpon^
 ||buoyant-coast.com^
 ||buoyant-most.pro^
 ||buoyantbug.pro^
@@ -10507,6 +10511,7 @@
 ||comparedwooscore.com^
 ||comparepoisonous.com^
 ||compassionate-boot.com^
+||compassionatereach.pro^
 ||compassionatespreadinquire.com^
 ||compassionunsuccessful.com^
 ||compelbruises.com^
@@ -14556,6 +14561,7 @@
 ||dollphoin.site^
 ||dollylarkjeweller.com^
 ||dollyspreadingbeer.com^
+||dolmanshamelt.cfd^
 ||dolmenscragganmiswern.cyou^
 ||dolphin.brandname.tech^
 ||dolphin.sfelc.com^
@@ -14650,6 +14656,7 @@
 ||dosslaccase.shop^
 ||dosvaultgame.com^
 ||dothbungedwriest.cyou^
+||dotiestcatteddetruss.cfd^
 ||doting-rush.pro^
 ||dotingrevenue.pro^
 ||dotishmojarraaglets.qpon^
@@ -15426,6 +15433,7 @@
 ||e696432950.e6c84e5378.com^
 ||e6b4cfdb36.8381a73c4d.com^
 ||e6c5f295b4.com^
+||e6yq2371py7o8pojcv.rest^
 ||e709b26fc0.f9abdf7da0.com^
 ||e779dae19c.com^
 ||e78c7a74e7.com^
@@ -17911,6 +17919,7 @@
 ||ficklerjain.cfd^
 ||ficmxrutlrhig.store^
 ||fictionbusinessmensoloist.com^
+||fictorupflood.shop^
 ||fidar.site^
 ||fidawirhyssa.shop^
 ||fiddedrfound.shop^
@@ -17962,6 +17971,7 @@
 ||filletfiguredconstrain.com^
 ||filllocate.com^
 ||fillpoliteness.com^
+||fillybode.cyou^
 ||filmderange.shop^
 ||filmingazulineflamens.cyou^
 ||filosetramman.shop^
@@ -20154,6 +20164,7 @@
 ||gleampointscrystal.com^
 ||gleanertzaam.shop^
 ||glecjwgrihxui.site^
+||gleedbusters.qpon^
 ||gleeful-metal.pro^
 ||gleefulnote.com^
 ||gleefulsolvingsaxophone.com^
@@ -25375,6 +25386,7 @@
 ||jpwwqujvnoskd.site^
 ||jpwzbglshulfq.space^
 ||jpzswwzdicijf.online^
+||jpzyeqobploxo.website^
 ||jq8efbj3wcfhqblq3.rest^
 ||jqabemjlgisej.website^
 ||jqacpuetzhjta.space^
@@ -29609,6 +29621,7 @@
 ||mfqsbgbmd.com^
 ||mfrvwwyviutsk.website^
 ||mfrwyailfrrxm.website^
+||mfsfjgsbov.com^
 ||mfwbsveljxjsq.space^
 ||mfwktcbgnpbgg.space^
 ||mfyavsmiha.com^
@@ -29845,6 +29858,7 @@
 ||minutemedia-prebid.com^
 ||minutesillock.cfd^
 ||minutessmiles.com^
+||miogjhwfpg.com^
 ||miomg53b4xlev45nw.rest^
 ||miorokkyhdjna.store^
 ||mioymlvrhmlsk.online^
@@ -30477,6 +30491,7 @@
 ||mpanfzgvlgwvt.space^
 ||mpanythathaveresulte.com^
 ||mpanythathaveresultet.info^
+||mpcsbtbipqzfa.space^
 ||mpdkfhyvpvttt.site^
 ||mpebncqjoepwq.space^
 ||mpeowvqnbeoah.online^
@@ -30539,6 +30554,7 @@
 ||mqszaiyafukar.online^
 ||mquoemywissvp.tech^
 ||mqutibglqfjmq.website^
+||mqwdgnbntkgen.space^
 ||mqxbtsawpuulc.store^
 ||mr2cnjuh34jb.com^
 ||mr9rxihn18wbh4pqkkjzb6go86.cfd^
@@ -31071,6 +31087,7 @@
 ||naivepot.com^
 ||naivestphytane.cyou^
 ||naivewidespreadbody.com^
+||najkojkkxotes.site^
 ||nakbattikwourari.cyou^
 ||nakdboeukjriq.space^
 ||nakooarsenal.com^
@@ -31528,6 +31545,7 @@
 ||ngbc3wgx5nw9xqw413qo1fmz7rc9hf8tulhh6o.rest^
 ||ngbixvopoqccq.website^
 ||ngbmozpzslhtu.site^
+||ngcdsavchpmorm.com^
 ||ngcghsdvjfcpp.club^
 ||ngdrfbutynlnu.website^
 ||ngdxwfjtdfxoq.com^
@@ -36675,6 +36693,7 @@
 ||potencebeknit.help^
 ||potencyidrooping.com^
 ||potfulsburro.qpon^
+||pothookknoppy.qpon^
 ||pothuntmemorda.cyou^
 ||pothutepu.com^
 ||potionsfurther.com^
@@ -37208,6 +37227,7 @@
 ||problemscrupulous.com^
 ||problemsmaillibel.com^
 ||problemsmajority.com^
+||probplanted.qpon^
 ||probtn.com^
 ||proceduredisrespect.com^
 ||proceduresinfox.net^
@@ -47748,6 +47768,7 @@
 ||stupid-police.com^
 ||stupidconveniences.com^
 ||stuposekg.qpon^
+||sturdy-town.com^
 ||sturdyarrival.com^
 ||sturdyassociate.pro^
 ||sturdycow.pro^
@@ -57400,6 +57421,7 @@
 ||woodpecker.ember.ly^
 ||woodpecker.mikehalliday.com^
 ||woodracial.com^
+||woodrisaweel.cyou^
 ||woodrismucosal.help^
 ||woodsfalsie.com^
 ||woodymotherhood.com^
