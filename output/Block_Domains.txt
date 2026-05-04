@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 17:09:11 UTC
+# Generated: 2026-05-04 19:00:40 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 187,893
-# 2. Removed by Reference       : 96,046
+# 1. Raw Domains Collected      : 187,916
+# 2. Removed by Reference       : 96,057
 # 3. Removed by Ext.Whitelist   : 0
 # 4. Personal Block Added       : 58,102
 # 5. Forced (White → Black)     : 4
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 97,395
+# 7. Final Block Rules (||)     : 97,407
 # 8. Final Exception Rules (@@) : 449
 #
 0-02.net
@@ -7383,6 +7383,7 @@ ajs.bowintelligence.com
 ajs.laketrend.com
 ajs.statelinear.com
 ajscdn.com
+ajskgbnmafymf.space
 ajugalknxcrmr.com
 ajuhjaeaztfor.site
 ajump1.com
@@ -10116,6 +10117,7 @@ aqjobalgpyqrfkh.com
 aqjyauycgpbcwl.com
 aqkcuwojb.in
 aqkqlshhyfmbf.store
+aqkvvkwriwqzm.space
 aqle3.com
 aqluiuckcnxkg.website
 aqnqaohb.com
@@ -14787,6 +14789,7 @@ bt.murfcoin66v234gh8.cyou
 bt1.patexplorer.com
 bt2pt.com
 bt4.o7mtmyik4ucqefhq.cyou
+bt83y12tlch5v9gzngifrozcjgo.cfd
 btagmedia.com
 btbsv.theinkeylist.com
 btbuckets.com
@@ -15537,6 +15540,7 @@ c9nyrr.puurfiguur.nl
 c9pgryrmt4.com
 c9qy2q9v217bt6klz5zhlz.rest
 c9r71x11cpfq2byjkxy13q.cfd
+c9ur4uepx2egbfqfck33.rest
 ca-api.cafe24data.com
 ca-log.cafe24data.com
 ca.429men.com
@@ -17376,6 +17380,7 @@ ciottajopbjtf.space
 cipherroves.cfd
 cipledecline.buzz
 cipledeclinerybe.org
+cipqzgarguxht.online
 ciqeccourbpxp.space
 ciqvaiywqpkpk.club
 ciqwkqfapdq.com
@@ -25103,7 +25108,6 @@ dsmueyhhycr.com
 dsnfo.pokemoncenter.com
 dsntah.com
 dsnymrk0k4p3v.cloudfront.net
-dsp-api.moloco.com
 dsp-api.xaprio.com
 dsp-east.nativeads.com
 dsp-eu.nativeads.com
@@ -33275,6 +33279,7 @@ goto.riseofthetide.xyz
 goto.simplywall.st
 goto.suno.com
 goto.www.iciba.com
+gotoda.co
 gotopshawed.cyou
 gotoyahoo.com
 gotrackier.com
@@ -35374,6 +35379,7 @@ hiiona.com
 hikari.jiocinema.com
 hikdojlbwqqpq.online
 hikdwioc.in
+hikermulley.cfd
 hikingbars.com
 hikingsunspecialty.com
 hikvar.ru
@@ -38530,6 +38536,7 @@ ip2phrase.com
 ip356694986.ahcdn.com
 ip7prksb2muxvmmh25t6rxl2te0tfulc.lambda-url.eu-west-1.on.aws
 ipad.pc899.cn
+ipairnmnwapx.com
 ipallhpscbdou.site
 ipcatch.com
 ipcc.vnpt.com.vn
@@ -41526,6 +41533,7 @@ knphmeiypdwcu.space
 knpocsexswplq.space
 knrhwhkxytfiu.com
 knsoknmyvyhab.website
+knucklebelliedpawed.qpon
 knucklemonthsedifice.com
 knudsengrillee.cyou
 knutenegros.pro
@@ -68579,6 +68587,7 @@ shamelessoperation.pro
 shamerain.com
 shamimtanguin.com
 shamining.com
+shammyantonym.qpon
 shamoylumbus.cyou
 shamyouthattach.com
 shanaurg.net
@@ -68790,6 +68799,7 @@ shirkedmicrobe.cyou
 shirrelcosins.cfd
 shirtbladder.com
 shirtsamends.help
+shirtsdrawdoomage.qpon
 shirtseasons.com
 shirtsidewalk.com
 shisanmaozser.com
@@ -74341,6 +74351,7 @@ sqmn4wncty.com
 sqoo.co
 sqowxfenvwht.com
 sqpcjfvdgnemlhf.net
+sqpqwbvgthe.com
 sqpyclvkzpgnw.space
 sqrekndc.fun
 sqrt-5041.de
@@ -96126,6 +96137,7 @@ zdbuagetodumy.website
 zddfupohzurso.website
 zddipepgvdwfp.online
 zddsnuxow.icu
+zdetisemotpvj.site
 zdflwpfeshpqd.site
 zdfwmkfxwrlht.online
 zdg2g7v5xe.com

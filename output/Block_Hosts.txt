@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 17:09:11 UTC
+# Generated: 2026-05-04 19:00:40 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 187,893
-# 2. Removed by Reference       : 96,046
+# 1. Raw Domains Collected      : 187,916
+# 2. Removed by Reference       : 96,057
 # 3. Removed by Ext.Whitelist   : 0
 # 4. Personal Block Added       : 58,102
 # 5. Forced (White → Black)     : 4
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 97,395
+# 7. Final Block Rules (||)     : 97,407
 # 8. Final Exception Rules (@@) : 449
 #
 0.0.0.0 0-02.net
@@ -7383,6 +7383,7 @@
 0.0.0.0 ajs.laketrend.com
 0.0.0.0 ajs.statelinear.com
 0.0.0.0 ajscdn.com
+0.0.0.0 ajskgbnmafymf.space
 0.0.0.0 ajugalknxcrmr.com
 0.0.0.0 ajuhjaeaztfor.site
 0.0.0.0 ajump1.com
@@ -10116,6 +10117,7 @@
 0.0.0.0 aqjyauycgpbcwl.com
 0.0.0.0 aqkcuwojb.in
 0.0.0.0 aqkqlshhyfmbf.store
+0.0.0.0 aqkvvkwriwqzm.space
 0.0.0.0 aqle3.com
 0.0.0.0 aqluiuckcnxkg.website
 0.0.0.0 aqnqaohb.com
@@ -14787,6 +14789,7 @@
 0.0.0.0 bt1.patexplorer.com
 0.0.0.0 bt2pt.com
 0.0.0.0 bt4.o7mtmyik4ucqefhq.cyou
+0.0.0.0 bt83y12tlch5v9gzngifrozcjgo.cfd
 0.0.0.0 btagmedia.com
 0.0.0.0 btbsv.theinkeylist.com
 0.0.0.0 btbuckets.com
@@ -15537,6 +15540,7 @@
 0.0.0.0 c9pgryrmt4.com
 0.0.0.0 c9qy2q9v217bt6klz5zhlz.rest
 0.0.0.0 c9r71x11cpfq2byjkxy13q.cfd
+0.0.0.0 c9ur4uepx2egbfqfck33.rest
 0.0.0.0 ca-api.cafe24data.com
 0.0.0.0 ca-log.cafe24data.com
 0.0.0.0 ca.429men.com
@@ -17376,6 +17380,7 @@
 0.0.0.0 cipherroves.cfd
 0.0.0.0 cipledecline.buzz
 0.0.0.0 cipledeclinerybe.org
+0.0.0.0 cipqzgarguxht.online
 0.0.0.0 ciqeccourbpxp.space
 0.0.0.0 ciqvaiywqpkpk.club
 0.0.0.0 ciqwkqfapdq.com
@@ -25103,7 +25108,6 @@
 0.0.0.0 dsnfo.pokemoncenter.com
 0.0.0.0 dsntah.com
 0.0.0.0 dsnymrk0k4p3v.cloudfront.net
-0.0.0.0 dsp-api.moloco.com
 0.0.0.0 dsp-api.xaprio.com
 0.0.0.0 dsp-east.nativeads.com
 0.0.0.0 dsp-eu.nativeads.com
@@ -33275,6 +33279,7 @@
 0.0.0.0 goto.simplywall.st
 0.0.0.0 goto.suno.com
 0.0.0.0 goto.www.iciba.com
+0.0.0.0 gotoda.co
 0.0.0.0 gotopshawed.cyou
 0.0.0.0 gotoyahoo.com
 0.0.0.0 gotrackier.com
@@ -35374,6 +35379,7 @@
 0.0.0.0 hikari.jiocinema.com
 0.0.0.0 hikdojlbwqqpq.online
 0.0.0.0 hikdwioc.in
+0.0.0.0 hikermulley.cfd
 0.0.0.0 hikingbars.com
 0.0.0.0 hikingsunspecialty.com
 0.0.0.0 hikvar.ru
@@ -38530,6 +38536,7 @@
 0.0.0.0 ip356694986.ahcdn.com
 0.0.0.0 ip7prksb2muxvmmh25t6rxl2te0tfulc.lambda-url.eu-west-1.on.aws
 0.0.0.0 ipad.pc899.cn
+0.0.0.0 ipairnmnwapx.com
 0.0.0.0 ipallhpscbdou.site
 0.0.0.0 ipcatch.com
 0.0.0.0 ipcc.vnpt.com.vn
@@ -41526,6 +41533,7 @@
 0.0.0.0 knpocsexswplq.space
 0.0.0.0 knrhwhkxytfiu.com
 0.0.0.0 knsoknmyvyhab.website
+0.0.0.0 knucklebelliedpawed.qpon
 0.0.0.0 knucklemonthsedifice.com
 0.0.0.0 knudsengrillee.cyou
 0.0.0.0 knutenegros.pro
@@ -68579,6 +68587,7 @@
 0.0.0.0 shamerain.com
 0.0.0.0 shamimtanguin.com
 0.0.0.0 shamining.com
+0.0.0.0 shammyantonym.qpon
 0.0.0.0 shamoylumbus.cyou
 0.0.0.0 shamyouthattach.com
 0.0.0.0 shanaurg.net
@@ -68790,6 +68799,7 @@
 0.0.0.0 shirrelcosins.cfd
 0.0.0.0 shirtbladder.com
 0.0.0.0 shirtsamends.help
+0.0.0.0 shirtsdrawdoomage.qpon
 0.0.0.0 shirtseasons.com
 0.0.0.0 shirtsidewalk.com
 0.0.0.0 shisanmaozser.com
@@ -74341,6 +74351,7 @@
 0.0.0.0 sqoo.co
 0.0.0.0 sqowxfenvwht.com
 0.0.0.0 sqpcjfvdgnemlhf.net
+0.0.0.0 sqpqwbvgthe.com
 0.0.0.0 sqpyclvkzpgnw.space
 0.0.0.0 sqrekndc.fun
 0.0.0.0 sqrt-5041.de
@@ -96126,6 +96137,7 @@
 0.0.0.0 zddfupohzurso.website
 0.0.0.0 zddipepgvdwfp.online
 0.0.0.0 zddsnuxow.icu
+0.0.0.0 zdetisemotpvj.site
 0.0.0.0 zdflwpfeshpqd.site
 0.0.0.0 zdfwmkfxwrlht.online
 0.0.0.0 zdg2g7v5xe.com
