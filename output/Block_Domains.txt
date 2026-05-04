@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 21:49:20 UTC
+# Generated: 2026-05-04 22:43:45 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 175,307
-# 2. Removed by Reference       : 83,424
+# 1. Raw Domains Collected      : 175,315
+# 2. Removed by Reference       : 83,419
 # 3. Removed by Ext.Whitelist   : 0
 # 4. Personal Block Added       : 58,173
 # 5. Forced (White → Black)     : 4
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 97,439
+# 7. Final Block Rules (||)     : 97,446
 # 8. Final Exception Rules (@@) : 449
 #
 0-02.net
@@ -35165,10 +35165,12 @@ hetbvptffmxgj.site
 hetcash.com
 hethongnoibo.bio.link
 hethongvaynhanh247.com
+hethsminter.com
 hetnu.com
 hetterrazzly.cyou
 hetuwnhqvjdss.store
 heukmsactivator.com
+heuquabdvgccd.online
 heuristic95.top
 hevqoporwqwueok.com
 hewornpllzsau.site
@@ -36324,6 +36326,7 @@ hubrisone.com
 hubrus.com
 hubvisor.io
 hucklelugging.com
+hucklequiverslipa.cfd
 hucx8c1vjbxvzuvhu3uygvhp6tv.rest
 hudmmxrbwnbwl.fun
 hue11.com
@@ -47682,6 +47685,7 @@ mfqsbgbmd.com
 mfrvwwyviutsk.website
 mfrwyailfrrxm.website
 mfsfjgsbov.com
+mftnsjsenkwau.online
 mfwbsveljxjsq.space
 mfwktcbgnpbgg.space
 mfyavsmiha.com
@@ -59771,6 +59775,7 @@ pypgvdvnysphc.space
 pypjsjswidwnlhq.com
 pyqezmcomuayf.website
 pyralidtaiwan.shop
+pyralmite.com
 pyramidpaw.com
 pyrfpb.icu
 pyrrhaglazensmatch.qpon
@@ -90611,6 +90616,7 @@ wilted-carry.com
 wiltedpreference.pro
 wiltingnorman.cfd
 wilucuwzvc88g6vr9c7rr.cfd
+wimbrelduftitedillisk.qpon
 wimpimpatience.com
 wimplesmiens.cfd
 wimxvpcbsfhyz.store
@@ -94256,6 +94262,7 @@ xyqrkqolynwyi.site
 xyrnvufrgnzhn.site
 xyroxqxhjcjzd.store
 xysbvkskxvsyj.online
+xyslcrmgwxyxev.com
 xystculdee.qpon
 xystersfurmety.cfd
 xysxkzzygujpn.website
