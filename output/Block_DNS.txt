@@ -1,17 +1,21 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-04 13:45:51 UTC
+! Generated: 2026-05-04 14:01:51 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
+!
+! [Priority]
+! Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 !
 ! [Statistics]
 ! 1. Raw Domains Collected      : 187,871
 ! 2. Removed by Reference       : 96,066
-! 3. Removed by Whitelist       : 2
+! 3. Removed by Ext.Whitelist   : 0
 ! 4. Personal Block Added       : 92,581
-! 5. Forced (White → Black)     : 88
-! 6. Final Block Rules (||)     : 138,827
-! 7. Final Exception Rules (@@) : 365
+! 5. Forced (White → Black)     : 86
+! 6. Forced (Black → White)     : 2
+! 7. Final Block Rules (||)     : 138,825
+! 8. Final Exception Rules (@@) : 367
 !
 ! === BLOCK RULES ===
 ||0.avmarket.rs^
@@ -4699,7 +4703,6 @@
 ||ad-count.jp^
 ||ad-courier.com^
 ||ad-creative.projectcarmen.com^
-||ad-creative.pstatic.net^
 ||ad-creatives-public.commondatastorage.googleapis.com^
 ||ad-dal-prd-1056964492.ap-northeast-1.elb.amazonaws.com^
 ||ad-delivery.net^
@@ -40868,7 +40871,6 @@
 ||exkgtbwoereyg.online^
 ||exkunden.info^
 ||exlavolsciganged.qpon^
-||exlogcollector.sooplive.com^
 ||exlrwgrhfqakc.site^
 ||exlzgmwsnvdpf.space^
 ||exmainclck.com^
@@ -138850,6 +138852,7 @@
 @@||a2z.com^
 @@||aa.tweakers.nl^
 @@||ab.tweakers.nl^
+@@||ad-creative.pstatic.net^
 @@||ad-shield.io^
 @@||ad.nwi.jp^
 @@||adc.api.nine.com.au^
@@ -138964,6 +138967,7 @@
 @@||exactag.com^
 @@||exchange4media.com^
 @@||exlogcollector.sooplive.co.kr^
+@@||exlogcollector.sooplive.com^
 @@||extreme-ip-lookup.com^
 @@||f97ae142.online^
 @@||fapality.com^

@@ -1,17 +1,21 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-04 13:45:51 UTC
+# Generated: 2026-05-04 14:01:51 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
+#
+# [Priority]
+# Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
 # 1. Raw Domains Collected      : 187,871
 # 2. Removed by Reference       : 96,066
-# 3. Removed by Whitelist       : 2
+# 3. Removed by Ext.Whitelist   : 0
 # 4. Personal Block Added       : 92,581
-# 5. Forced (White → Black)     : 88
-# 6. Final Block Rules (||)     : 138,827
-# 7. Final Exception Rules (@@) : 365
+# 5. Forced (White → Black)     : 86
+# 6. Forced (Black → White)     : 2
+# 7. Final Block Rules (||)     : 138,825
+# 8. Final Exception Rules (@@) : 367
 #
 0.0.0.0 0.avmarket.rs
 0.0.0.0 0.myikas.com
@@ -4698,7 +4702,6 @@
 0.0.0.0 ad-count.jp
 0.0.0.0 ad-courier.com
 0.0.0.0 ad-creative.projectcarmen.com
-0.0.0.0 ad-creative.pstatic.net
 0.0.0.0 ad-creatives-public.commondatastorage.googleapis.com
 0.0.0.0 ad-dal-prd-1056964492.ap-northeast-1.elb.amazonaws.com
 0.0.0.0 ad-delivery.net
@@ -40867,7 +40870,6 @@
 0.0.0.0 exkgtbwoereyg.online
 0.0.0.0 exkunden.info
 0.0.0.0 exlavolsciganged.qpon
-0.0.0.0 exlogcollector.sooplive.com
 0.0.0.0 exlrwgrhfqakc.site
 0.0.0.0 exlzgmwsnvdpf.space
 0.0.0.0 exmainclck.com

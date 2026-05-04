@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-04 13:45:51 UTC
+  Generated: 2026-05-04 14:01:51 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -9,14 +9,11 @@
        URL: https://filters.adtidy.org/windows/filters/15.txt
        Total Lines: 167,188 | Domains: 164,699
 
-[ Whitelist Sources ]
+[ External Whitelist Sources ]
 ------------------------------------------------------------
   [OK] AdGuard DNS Exclusions
        URL: https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt
        Total Lines: 1,091 | Extracted: 451
-  [OK] Personal Whitelist
-       URL: https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt
-       Total Lines: 3 | Extracted: 3
 
 [ Block Filter Sources ]
 ------------------------------------------------------------
@@ -25,7 +22,7 @@
        Total Lines: 90,039 | Extracted: 57,381
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 158,356 | Extracted: 66,136
+       Total Lines: 158,375 | Extracted: 66,153
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,543 | Extracted: 909
@@ -42,23 +39,31 @@
        URL: https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
        Total Lines: 168,575 | Extracted: 168,549
 
-[ Personal Blocklist (Highest Priority) ]
+[ Personal Blocklist (Override Whitelist) ]
 ------------------------------------------------------------
   [OK] 1Hosts (Lite)
        URL: https://badmojr.github.io/1Hosts/Lite/adblock.txt
        Total Lines: 92,600 | Extracted: 92,581
   [OK] Personal Blocklist
        URL: https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
-       Total Lines: 1 | Extracted: 1
+       Total Lines: 1 | Extracted: 0
   ────────────────────────────────────────────────────────────
   Total Personal Block (deduplicated): 92,581
+
+[ Personal Whitelist (Final Override) ]
+------------------------------------------------------------
+  [OK] Personal Whitelist
+       URL: https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt
+       Total Lines: 3 | Extracted: 3
+  ────────────────────────────────────────────────────────────
+  Total Personal White (deduplicated): 3
 
 [ Overlap Analysis ]
 ------------------------------------------------------------
   Filter                            Extracted        New     Unique
   ──────────────────────────────── ────────── ────────── ──────────
-  EasyList                             57,381     57,381         30
-  AdGuard Base                         66,136      8,785      4,612
+  EasyList                             57,381     57,381         13
+  AdGuard Base                         66,153      8,785      4,612
   AdGuard Mobile                          909        891        230
   AdGuard Japanese                        169        156         17
   List-KR                                 352        265         82
@@ -74,24 +79,33 @@
   Removed (not in reference)    : 96,066
   After Validation              : 91,805
 
-[ Whitelist Filtering ]
+[ External Whitelist Filtering ]
 ------------------------------------------------------------
-  Removed by Whitelist          : 2
-  After Whitelist               : 91,803
+  Removed by Whitelist          : 0
+  After Whitelist               : 91,805
 
 [ Personal Blocklist Override ]
 ------------------------------------------------------------
   Personal Block Domains        : 92,581
-  Forced (White → Black)        : 88
-  Added to Final Block          : 47,024
+  Forced (White → Black)        : 86
+  After Personal Block          : 138,827
+
+[ Personal Whitelist Final Override ]
+------------------------------------------------------------
+  Personal White Domains        : 3
+  Forced (Black → White)        : 2
+  After Personal White          : 138,825
 
 [ Final Summary ]
 ------------------------------------------------------------
+  Priority: Filter < ExtWhite < PersonalBlock < PersonalWhite
+  ────────────────────────────────────────────────────────────
   1. Raw Domains Collected      : 187,871
   2. Removed by Reference       : 96,066
-  3. Removed by Whitelist       : 2
+  3. Removed by Ext.Whitelist   : 0
   4. Personal Block Added       : 92,581
-  5. Forced (White → Black)     : 88
-  6. Final Block Rules          : 138,827
-  7. Final Exception Rules      : 365
+  5. Forced (White → Black)     : 86
+  6. Forced (Black → White)     : 2
+  7. Final Block Rules          : 138,825
+  8. Final Exception Rules      : 367
 ============================================================
