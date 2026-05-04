@@ -1304,6 +1304,9 @@ tvhot.store##.object-cover
 ! - 예외
 ! - - - https://tv.naver.com/ - 클립 영상 안나옴
 tv.naver.com#@#[class*="iframe"]
+! - - -https://hometax.go.kr/ - 화면 안보임
+hometax.go.kr#@#[class*="iframe"]
+
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
@@ -4542,7 +4545,8 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://pann.nate.com/
-##iframe[src*="about:blank"]
+! - 국세청(https://hometax.go.kr/) - 이용 불가
+!##iframe[src*="about:blank"]
 
 
 ! - https://randburg.com/ - 영상 안나옴
@@ -4613,6 +4617,16 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://www.teamblind.com/
 ! - https://pann.nate.com/
 ##iframe[src*="tracking"]
+
+##iframe[src*="tracker"]
+
+##[class*="tracker"]
+
+##[class*="tracking"]
+
+##[id*="tracker"]
+
+##[id*="tracking"]
 
 
 !- https://www.sooplive.com
@@ -4705,7 +4719,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[src*="update"]
 
 ! - https://www.sooplive.com/
-! - https://play.sooplive.com/
+! - https://play.sooplive.com/ 
 ##iframe[src*="sooplive"]
 
 
