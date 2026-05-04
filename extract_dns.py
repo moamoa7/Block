@@ -13,12 +13,13 @@ FILTER_URLS = [
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
     "https://raw.githubusercontent.com/cbuijs/1hosts/main/Lite/domains.top-n.adblock",
-    "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
 ]
 EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
+# 개인 블록리스트 (최우선 - 화이트리스트보다 우선)
+PERSONAL_BLOCK_URL = "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt"
 REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
 
 OUTPUT_DIR = Path("output")
@@ -40,29 +41,30 @@ def is_valid_domain(d: str) -> bool:
     ))
 
 def short_name(url: str) -> str:
-    if "easylist.txt" in url:
-        return "EasyList"
-    if "filters/2.txt" in url:
-        return "AdGuard Base"
-    if "filters/11.txt" in url:
-        return "AdGuard Mobile"
-    if "filters/7.txt" in url:
-        return "AdGuard Japanese"
-    if "list-kr" in url:
-        return "List-KR"
-    if "uAssets" in url:
-        return "uBlock Filters"
-    if "Lite/domains.top-n.adblock" in url:
-        return "1Hosts (Lite)"
-    if "main/block.txt" in url:
-        return "Personal Blocklist"
-    if "exclusions.txt" in url:
-        return "AdGuard DNS Exclusions"
-    if "white.txt" in url:
-        return "Personal Whitelist"
-    if "filters/15.txt" in url:
-        return "AdGuard DNS Filter"
+    if "easylist.txt" in url: return "EasyList"
+    if "filters/2.txt" in url: return "AdGuard Base"
+    if "filters/11.txt" in url: return "AdGuard Mobile"
+    if "filters/7.txt" in url: return "AdGuard Japanese"
+    if "list-kr" in url: return "List-KR"
+    if "uAssets" in url: return "uBlock Filters"
+    if "Lite/domains.top-n.adblock" in url: return "1Hosts (Lite)"
+    if "main/block.txt" in url: return "Personal Blocklist"
+    if "exclusions.txt" in url: return "AdGuard DNS Exclusions"
+    if "white.txt" in url: return "Personal Whitelist"
+    if "filters/15.txt" in url: return "AdGuard DNS Filter"
     return url.split("/")[-1]
+
+def extract_block_domains(text: str) -> set:
+    """||domain^ 형태에서 도메인 추출 (popup/document 옵션 허용)"""
+    out = set()
+    for line in text.splitlines():
+        m = re.match(
+            r"^\|\|([a-z0-9\-\.]+)\^(\$(popup|document)(,(popup|document))?)?\s*$",
+            line.strip().lower()
+        )
+        if m and is_valid_domain(m.group(1)):
+            out.add(m.group(1))
+    return out
 
 def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -72,7 +74,7 @@ def main():
     report_lines.append(f"  Generated: {ts}")
     report_lines.append(f"{'=' * 60}")
 
-    # 0. 기준 필터 (AdGuard DNS Filter) 로드
+    # 0. 기준 필터 로드
     reference_set = set()
     report_lines.append(f"\n[ Reference Filter ]")
     report_lines.append(f"{'-' * 60}")
@@ -81,7 +83,6 @@ def main():
         total_lines = len(text.splitlines())
         for line in text.splitlines():
             stripped = line.strip().lower()
-            # "!+ NOT_OPTIMIZED" 등 주석 제거, ||domain^ 형태 추출
             m = re.match(r"^\|\|([a-z0-9\-\.]+)\^", stripped)
             if m and is_valid_domain(m.group(1)):
                 reference_set.add(m.group(1))
@@ -89,9 +90,7 @@ def main():
         report_lines.append(f"       URL: {REFERENCE_URL}")
         report_lines.append(f"       Total Lines: {total_lines:,} | Domains: {len(reference_set):,}")
     except Exception as e:
-        report_lines.append(f"  [FAIL] AdGuard DNS Filter")
-        report_lines.append(f"         URL: {REFERENCE_URL}")
-        report_lines.append(f"         Error: {e}")
+        report_lines.append(f"  [FAIL] AdGuard DNS Filter - {e}")
         print(f"[WARN] 기준 필터 실패: {REFERENCE_URL} ({e})")
 
     # 1. 화이트리스트 로드
@@ -113,12 +112,10 @@ def main():
             report_lines.append(f"       URL: {url}")
             report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {count:,}")
         except Exception as e:
-            report_lines.append(f"  [FAIL] {name}")
-            report_lines.append(f"         URL: {url}")
-            report_lines.append(f"         Error: {e}")
+            report_lines.append(f"  [FAIL] {name} - {e}")
             print(f"[WARN] 화이트리스트 실패: {url} ({e})")
 
-    # 2. 차단 대상 로드
+    # 2. 일반 차단 필터 로드 (block.txt 제외)
     raw_block_set = set()
     filter_domains = {}
     names = []
@@ -129,14 +126,7 @@ def main():
         try:
             text = fetch(url)
             total_lines = len(text.splitlines())
-            domains_this = set()
-            for line in text.splitlines():
-                m = re.match(
-                    r"^\|\|([a-z0-9\-\.]+)\^(\$(popup|document)(,(popup|document))?)?\s*$",
-                    line.strip().lower()
-                )
-                if m and is_valid_domain(m.group(1)):
-                    domains_this.add(m.group(1))
+            domains_this = extract_block_domains(text)
             raw_block_set.update(domains_this)
             filter_domains[name] = domains_this
             names.append(name)
@@ -144,12 +134,25 @@ def main():
             report_lines.append(f"       URL: {url}")
             report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {len(domains_this):,}")
         except Exception as e:
-            report_lines.append(f"  [FAIL] {name}")
-            report_lines.append(f"         URL: {url}")
-            report_lines.append(f"         Error: {e}")
+            report_lines.append(f"  [FAIL] {name} - {e}")
             print(f"[WARN] 필터 실패: {url} ({e})")
 
-    # 3. 중복 분석
+    # 2-1. 개인 블록리스트(block.txt) 로드 - 최우선 처리용
+    personal_block_set = set()
+    report_lines.append(f"\n[ Personal Blocklist (Highest Priority) ]")
+    report_lines.append(f"{'-' * 60}")
+    try:
+        text = fetch(PERSONAL_BLOCK_URL)
+        total_lines = len(text.splitlines())
+        personal_block_set = extract_block_domains(text)
+        report_lines.append(f"  [OK] Personal Blocklist")
+        report_lines.append(f"       URL: {PERSONAL_BLOCK_URL}")
+        report_lines.append(f"       Total Lines: {total_lines:,} | Extracted: {len(personal_block_set):,}")
+    except Exception as e:
+        report_lines.append(f"  [FAIL] Personal Blocklist - {e}")
+        print(f"[WARN] 개인 블록리스트 실패: {PERSONAL_BLOCK_URL} ({e})")
+
+    # 3. 중복 분석 (일반 필터만)
     report_lines.append(f"\n[ Overlap Analysis ]")
     report_lines.append(f"{'-' * 60}")
     report_lines.append(f"  {'Filter':<25} {'Extracted':>10} {'New':>10} {'Unique':>10}")
@@ -159,61 +162,73 @@ def main():
     for name in names:
         domains = filter_domains[name]
         extracted = len(domains)
-
         new = domains - seen
         new_count = len(new)
         seen.update(domains)
-
         unique = domains.copy()
         for other_name in names:
             if other_name != name:
                 unique -= filter_domains[other_name]
         unique_count = len(unique)
-
         report_lines.append(f"  {name:<25} {extracted:>10,} {new_count:>10,} {unique_count:>10,}")
 
     report_lines.append(f"  {'─' * 25} {'─' * 10} {'─' * 10} {'─' * 10}")
     report_lines.append(f"  {'Total (deduplicated)':<25} {len(raw_block_set):>10,}")
-    report_lines.append(f"")
-    report_lines.append(f"  * Extracted : 해당 필터에서 추출된 도메인 수")
-    report_lines.append(f"  * New       : 위 필터들과 중복 제외, 새로 추가된 수 (순서 의존)")
-    report_lines.append(f"  * Unique    : 오직 이 필터에만 존재하는 도메인 수")
 
-    # 4. 기준 필터 검증 (AdGuard DNS Filter에 없는 도메인 제거)
+    # 4. 기준 필터 검증
     before_ref = len(raw_block_set)
-    not_in_ref = raw_block_set - reference_set
     raw_block_set = raw_block_set & reference_set
     after_ref = len(raw_block_set)
     ref_removed = before_ref - after_ref
 
     report_lines.append(f"\n[ Reference Filter Validation ]")
     report_lines.append(f"{'-' * 60}")
-    report_lines.append(f"  Reference: AdGuard DNS Filter (filters/15.txt)")
     report_lines.append(f"  Reference Domains             : {len(reference_set):,}")
     report_lines.append(f"  Before Validation             : {before_ref:,}")
     report_lines.append(f"  Removed (not in reference)    : {ref_removed:,}")
     report_lines.append(f"  After Validation              : {after_ref:,}")
 
-    # 5. 통계 계산
-    removed_list = raw_block_set & white_set
-    removed_count = len(removed_list)
-    total_raw = len(raw_block_set)
-    final_blocks = sorted(raw_block_set - white_set)
+    # 5. 화이트리스트 제외
+    removed_by_white = raw_block_set & white_set
+    removed_white_count = len(removed_by_white)
+    block_after_white = raw_block_set - white_set
+
+    report_lines.append(f"\n[ Whitelist Filtering ]")
+    report_lines.append(f"{'-' * 60}")
+    report_lines.append(f"  Removed by Whitelist          : {removed_white_count:,}")
+    report_lines.append(f"  After Whitelist               : {len(block_after_white):,}")
+
+    # 6. ★ 개인 블록리스트 강제 적용 (화이트리스트 무시) ★
+    #    - block.txt에 있는 도메인은 무조건 차단
+    #    - 화이트리스트에 있어도 강제 블랙리스트로 전환
+    forced_back = personal_block_set & white_set  # 화이트→블랙 전환된 항목
+    final_block_set = block_after_white | personal_block_set
+    # 최종 화이트리스트는 personal_block_set과 충돌하는 것 제외
+    final_white_set = white_set - personal_block_set
+
+    report_lines.append(f"\n[ Personal Blocklist Override ]")
+    report_lines.append(f"{'-' * 60}")
+    report_lines.append(f"  Personal Block Domains        : {len(personal_block_set):,}")
+    report_lines.append(f"  Forced (White → Black)        : {len(forced_back):,}")
+    report_lines.append(f"  Added to Final Block          : {len(personal_block_set - block_after_white):,}")
+
+    final_blocks = sorted(final_block_set)
+    final_whites = sorted(final_white_set)
     final_block_count = len(final_blocks)
-    final_whites = sorted(white_set)
     final_white_count = len(final_whites)
 
     report_lines.append(f"\n[ Final Summary ]")
     report_lines.append(f"{'-' * 60}")
     report_lines.append(f"  1. Raw Domains Collected      : {before_ref:,}")
     report_lines.append(f"  2. Removed by Reference       : {ref_removed:,}")
-    report_lines.append(f"  3. Removed by Whitelist       : {removed_count:,}")
-    report_lines.append(f"  4. Final Block Domains         : {final_block_count:,}")
-    report_lines.append(f"  5. Final Exception Rules       : {final_white_count:,}")
-    report_lines.append(f"  (Calculation: 1 - 2 - 3 = 4)")
+    report_lines.append(f"  3. Removed by Whitelist       : {removed_white_count:,}")
+    report_lines.append(f"  4. Personal Block Added       : {len(personal_block_set):,}")
+    report_lines.append(f"  5. Forced (White → Black)     : {len(forced_back):,}")
+    report_lines.append(f"  6. Final Block Rules          : {final_block_count:,}")
+    report_lines.append(f"  7. Final Exception Rules      : {final_white_count:,}")
     report_lines.append(f"{'=' * 60}")
 
-    # 6. 출력
+    # 7. 출력
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     header = (
@@ -226,10 +241,11 @@ def main():
         f"! [Statistics]\n"
         f"! 1. Raw Domains Collected      : {before_ref:,}\n"
         f"! 2. Removed by Reference       : {ref_removed:,}\n"
-        f"! 3. Removed by Whitelist       : {removed_count:,}\n"
-        f"! 4. Final Block Rules (||)     : {final_block_count:,}\n"
-        f"! 5. Final Exception Rules (@@) : {final_white_count:,}\n"
-        f"! (Calculation: 1 - 2 - 3 = 4)\n"
+        f"! 3. Removed by Whitelist       : {removed_white_count:,}\n"
+        f"! 4. Personal Block Added       : {len(personal_block_set):,}\n"
+        f"! 5. Forced (White → Black)     : {len(forced_back):,}\n"
+        f"! 6. Final Block Rules (||)     : {final_block_count:,}\n"
+        f"! 7. Final Exception Rules (@@) : {final_white_count:,}\n"
         f"!\n"
     )
 
