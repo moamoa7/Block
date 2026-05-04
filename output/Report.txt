@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-04 20:43:36 UTC
+  Generated: 2026-05-04 21:49:20 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -19,10 +19,10 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 90,102 | Extracted: 57,440
+       Total Lines: 90,117 | Extracted: 57,455
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 158,436 | Extracted: 66,208
+       Total Lines: 158,445 | Extracted: 66,217
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,542 | Extracted: 908
@@ -43,12 +43,12 @@
 ------------------------------------------------------------
   [OK] oisd small
        URL: https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt
-       Total Lines: 58,218 | Extracted: 58,205
+       Total Lines: 58,186 | Extracted: 58,173
   [OK] Personal Blocklist
        URL: https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
        Total Lines: 1 | Extracted: 0
   ────────────────────────────────────────────────────────────
-  Total Personal Block (deduplicated): 58,205
+  Total Personal Block (deduplicated): 58,173
 
 [ Personal Whitelist (Final Override) ]
 ------------------------------------------------------------
@@ -62,21 +62,21 @@
 ------------------------------------------------------------
   Filter                            Extracted        New     Unique
   ──────────────────────────────── ────────── ────────── ──────────
-  EasyList                             57,440     57,440         17
-  AdGuard Base                         66,208      8,785      4,613
+  EasyList                             57,455     57,455         23
+  AdGuard Base                         66,217      8,785      4,613
   AdGuard Mobile                          908        890        230
   AdGuard Japanese                        169        156         19
   List-KR                                 352        265         82
   uBlock Filters                           50         33          5
   HaGeZi's Normal DNS Blocklist       155,679    107,723    107,723
   ──────────────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)                175,292
+  Total (deduplicated)                175,307
 
 [ Reference Filter Validation ]
 ------------------------------------------------------------
   Reference Domains             : 164,787
-  Before Validation             : 175,292
-  Removed (not in reference)    : 83,409
+  Before Validation             : 175,307
+  Removed (not in reference)    : 83,424
   After Validation              : 91,883
 
 [ External Whitelist Filtering ]
@@ -86,26 +86,26 @@
 
 [ Personal Blocklist Override ]
 ------------------------------------------------------------
-  Personal Block Domains        : 58,205
+  Personal Block Domains        : 58,173
   Forced (White → Black)        : 4
-  After Personal Block          : 97,442
+  After Personal Block          : 97,441
 
 [ Personal Whitelist Final Override ]
 ------------------------------------------------------------
   Personal White Domains        : 3
   Forced (Black → White)        : 2
-  After Personal White          : 97,440
+  After Personal White          : 97,439
 
 [ Final Summary ]
 ------------------------------------------------------------
   Priority: Filter < ExtWhite < PersonalBlock < PersonalWhite
   ────────────────────────────────────────────────────────────
-  1. Raw Domains Collected      : 175,292
-  2. Removed by Reference       : 83,409
+  1. Raw Domains Collected      : 175,307
+  2. Removed by Reference       : 83,424
   3. Removed by Ext.Whitelist   : 0
-  4. Personal Block Added       : 58,205
+  4. Personal Block Added       : 58,173
   5. Forced (White → Black)     : 4
   6. Forced (Black → White)     : 2
-  7. Final Block Rules          : 97,440
+  7. Final Block Rules          : 97,439
   8. Final Exception Rules      : 449
 ============================================================
