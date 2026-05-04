@@ -1,6 +1,6 @@
 # DNS
 <br>
-- ADS 필터 위주로 조합해서 만든 개인 DNS
+- 개인적으로 맞춤 설게한 개인 DNS
 <br><br>
 
 ※ Block_DNS
