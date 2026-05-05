@@ -4876,11 +4876,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[src*="update"]
 
 
-! - https://www.sooplive.com/
-! - https://play.sooplive.com/ 
-##iframe[src*="sooplive"]
-
-
 !##iframe[class*="sooplive"] - 없음
 
 
