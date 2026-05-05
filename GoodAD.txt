@@ -1343,17 +1343,9 @@ tvhot.store##.object-cover
 [$domain=/^tvroom\d+.org/]##.mq-notice
 !
 !
-! 누누티비 (https://www.ntnt4.tv/)
+! 누누티비 (https://www.nnuutv2.tv/)
 ! - 배너
-![$domain=/^www.ntnt\d+.tv/]##.wixui-column-strip.CohWsy.comp-lhh974lu
-!
-!
-! 누누티비 (https://www.nnootv1.tv/)
-! - 배너
-[$domain=/^www.nnootv\d+.tv/]##.wixui-column-strip.CohWsy.comp-mcu94uy5
-! - 기타글
-[$domain=/^www.nnootv\d+.tv/]##.wixui-section.comp-lhh7gmml2.Oqnisf
-[$domain=/^www.nnootv\d+.tv/]##.mfxFLH.NZHLsZ.comp-lhhamk3o
+[$domain=/^www.nnuutv\d+.tv/]###comp-lhh974mf2
 !
 !
 ! 티비위키 (https://tv61.wiki/)
@@ -1503,6 +1495,13 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ###left_chat
 !
 !
+! 365티비 (https://sgtpapas.com/)
+! - 배너
+!||*/theme/basic/img/*
+! - 배너 공간
+sgtpapas.com##div.d-lg-block.d-none.na-col.col-lg-4:nth-of-type(1)
+!
+!
 ! 쿨티비 (https://www.cool111.com/)
 ! 굿라이브티비 (https://gltv88.com/)
 ! 블랙티비 (https://blacktv88.com/)
@@ -1512,8 +1511,6 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ###hd_pop
 ! - - - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 ##[id^="hd_pop"]
-
-
 !
 !
 ! 굿라이브티비 (https://gltv88.com/)
@@ -1603,7 +1600,9 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !named.com###sport_mobile_banner_right
 !
 !
-! 헐크티비 (https://www.hulk24.com/)
+! 헐크티비 (https://www.hulk24.com/) (https://xn--2p7bp2h.tv/)
+! - 오른쪽 상단 배너
+[$domain=/^www.hulk\d+.com/]##.right_top_banner
 ! - 채팅 공간
 [$domain=/^www.hulk\d+.com/]##.left_chat_box
 ! - 중계방송 아래 흐르는 배너
