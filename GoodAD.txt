@@ -4769,6 +4769,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[src*="video-stream"]
 
 
+! - https://jav.sb/ - 영상 안나옴? 정확하지 않음. 여기 영상 안나오는곳인듯
 ##iframe[src*="vod"]
 
 
@@ -4928,3 +4929,13 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ##[alt$="스폰"]
+
+
+! - https://missav.ws/
+! - https://njavtv.com/
+##iframe[src*="javascript"]
+
+
+! - https://missav.ws/
+! - https://njavtv.com/
+##iframe[src*="window.location"]
