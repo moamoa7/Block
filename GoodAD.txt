@@ -1485,6 +1485,9 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ! - - - 배트맨티비 (https://bmtv24.com/)
 ! - - - 놀고가닷컴 (https://nolgoga365.com/)
 ##u-chat
+! - 예외
+! - --  https://poooo.ml/ - ㅡ채팅창 내 배너(채팅방 배너) 안보임 해결
+poooo.ml/#@#u-chat
 !
 !
 ! VIP TV (https://viptv24.com/)
@@ -4400,6 +4403,9 @@ zod.kr###icl28teUVav8
 *##.ad
 !
 !
+/ad.
+!
+!
 /ad/*$frame
 !
 !
@@ -4668,6 +4674,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://www.goodgag.net/
+! - https://www.sooplive.com/
 ##iframe[name*="google"]
 
 
@@ -4789,6 +4796,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[class*="popup"]
 
 
+! - https://poooo.ml/
 ##iframe[id*="popup"]
 
 
@@ -4895,7 +4903,9 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://ygosu.com/
-##iframe[id*="hidden"]
+! - https://poooo.ml/zodudghkj - 채팅창 내 배너 안보임
+!##iframe[id*="hidden"]
+
 
 
 ! - https://dvdprime.com/
