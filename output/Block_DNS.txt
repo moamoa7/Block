@@ -1,6 +1,6 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-05 18:50:49 UTC
+! Generated: 2026-05-05 20:01:42 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
@@ -8,13 +8,13 @@
 ! Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 182,418
-! 2. Removed by Reference       : 90,321
+! 1. Raw Domains Collected      : 182,721
+! 2. Removed by Reference       : 90,637
 ! 3. Removed by Ext.Whitelist   : 49
 ! 4. Personal Block Added       : 56,786
 ! 5. Forced (White → Black)     : 13
 ! 6. Forced (Black → White)     : 2
-! 7. Final Block Rules (||)     : 97,591
+! 7. Final Block Rules (||)     : 97,578
 ! 8. Final Exception Rules (@@) : 7,884
 !
 ! === BLOCK RULES ===
@@ -6788,6 +6788,7 @@
 ||affiliate.juno.co.uk^
 ||affiliate.k4.tinhte.vn^
 ||affiliate.kinguin.net^
+||affiliate.klook.com^
 ||affiliate.konibet.com^
 ||affiliate.mediatemple.net^
 ||affiliate.mogs.com^
@@ -11590,7 +11591,6 @@
 ||b1.51scw.net^
 ||b1.b2b168.com^
 ||b1.b2b168.net^
-||b1.c1km4.com^
 ||b1.engdvd.com^
 ||b1.hentaibaka.one^
 ||b1.xiao84.com^
@@ -18561,7 +18561,6 @@
 ||collector.cakeresume.com^
 ||collector.cdp.cnn.com^
 ||collector.cint.com^
-||collector.dgnet.ltd.uk^
 ||collector.ex.co^
 ||collector.fiverr.com^
 ||collector.fullxh.com^
@@ -19461,7 +19460,6 @@
 ||counter.rambler.ru^
 ||counter.reddigital.ru^
 ||counter.sberbank.ru^
-||counter.scribblelive.com^
 ||counter.search.bg^
 ||counter.sibnet.ru^
 ||counter.sina.com.cn^
@@ -22937,7 +22935,6 @@
 ||deathcoho.com^
 ||debatabletent.com^
 ||debaucky.com^
-||debitcrebit669.com^
 ||deblockusques.cfd^
 ||deboitephil.qpon^
 ||debojuagug1sf.cloudfront.net^
@@ -28028,6 +28025,7 @@
 ||eventsquiteclick.com^
 ||eventstream.dodopizza.com^
 ||eventsv2balanced.malpagames.com^
+||eventtrace.ru^
 ||eventtracking.hubapi.com^
 ||eventuryremov.com^
 ||eventweepinghoarse.com^
@@ -30005,6 +30003,7 @@
 ||fkzcrofqtjawk.space^
 ||fkzmvsmbnblvu.life^
 ||fl0hg5wlr.com^
+||fl4md7mm8.com^
 ||fl7i15bxzr.com^
 ||flaconshe.qpon^
 ||flaegrudad.com^
@@ -39044,6 +39043,7 @@
 ||ivioukpnweuhr.space^
 ||iviovqxlpvptw.space^
 ||ivitrack.com^
+||ivizbbqma.com^
 ||ivkgsdbvmtcnlhk.com^
 ||ivlnszjtorszh.website^
 ||ivonnurb.com^
@@ -45369,6 +45369,7 @@
 ||magnolian07.top^
 ||magpie.onething.org^
 ||magsrv.com^
+||magtorr.com^
 ||maguruphreuza.store^
 ||magyarszo.com^
 ||mahassvibccui.store^
@@ -45860,7 +45861,6 @@
 ||maumetfluxed.cyou^
 ||maungyji.cfd^
 ||mautic-learn.teky.edu.vn^
-||mautic.200lab.io^
 ||mautic.teky.edu.vn^
 ||mavamuwwnkksn.store^
 ||maviesbenmost.cfd^
@@ -47420,7 +47420,6 @@
 ||metrics.sciencemag.org^
 ||metrics.scottishpower.co.uk^
 ||metrics.scottrade.com^
-||metrics.scribblelive.com^
 ||metrics.sdcvisit.com^
 ||metrics.seabourn.com^
 ||metrics.seagale.fr^
@@ -47510,7 +47509,6 @@
 ||metrics.tdn.com^
 ||metrics.te.com^
 ||metrics.teampages.com^
-||metrics.teamviewer.cn^
 ||metrics.teamviewer.com^
 ||metrics.tecentriq.com^
 ||metrics.ted.com^
@@ -48187,7 +48185,6 @@
 ||mixdgcqhfil.com^
 ||mixed-bother.pro^
 ||mixedissue.pro^
-||mixedreading.com^
 ||mixer.sina.cn^
 ||mixhillvedism.com^
 ||mixi.media^
@@ -50028,7 +50025,6 @@
 ||native-ad.net^
 ||native-ads-events-api2.c4s-rd.services^
 ||native-adserver.com^
-||native-cdn.com^
 ||native-log-collect.gryphline.com^
 ||native-track.com^
 ||native.ai^
@@ -50177,7 +50173,6 @@
 ||ncqfppkwczjal.site^
 ||ncqhgmxnpywal.website^
 ||ncqtxzmuffxiwk.cfd^
-||ncs.eadaily.com^
 ||ncszswtpaguzr.online^
 ||nct2-logging.nct.vn^
 ||nctmwluyknbwl.website^
@@ -69083,7 +69078,6 @@
 ||showmebars.com^
 ||showmeyouradsnow.com^
 ||showootsoaftah.net^
-||showsclick.com^
 ||showsclicka.com^
 ||showsteel.com^
 ||showyfee.pro^
@@ -72014,7 +72008,6 @@
 ||smetrics.orenciapatient.se^
 ||smetrics.orlandofuntickets.com^
 ||smetrics.otsukapatientsupport.com^
-||smetrics.ott.showmax.com^
 ||smetrics.ove.com^
 ||smetrics.ownertoownercommunication.com^
 ||smetrics.oxfam.org.uk^
@@ -72489,7 +72482,6 @@
 ||smetrics.skechers.com.au^
 ||smetrics.skipton.co.uk^
 ||smetrics.skoal.com^
-||smetrics.skodafinancialservices.nl^
 ||smetrics.sky.com^
 ||smetrics.sky.de^
 ||smetrics.sky.it^
@@ -72683,7 +72675,6 @@
 ||smetrics.sysmex-support.com^
 ||smetrics.systemofchoice.com^
 ||smetrics.t-mobile.com^
-||smetrics.t-mobilemoney.com^
 ||smetrics.tab.com.au^
 ||smetrics.tabletable.co.uk^
 ||smetrics.tackntogs.com^
@@ -73093,7 +73084,6 @@
 ||smheyshqkrwms.online^
 ||smichcavalrubber.cfd^
 ||smifzyuottaxc.website^
-||smigid.ru^
 ||smigro.info^
 ||smilered.com^
 ||smiletavenine.cyou^
@@ -73106,7 +73096,6 @@
 ||smilingswim.com^
 ||smind.hr^
 ||sminerva.healthcentral.com^
-||sminewsnet.ru^
 ||smiteanimatedbeaker.com^
 ||smithburka.com^
 ||smithsbotte.cfd^
@@ -81194,7 +81183,6 @@
 ||tr.c-tag.net^
 ||tr.clients.boursobank.info^
 ||tr.cloud-media.fr^
-||tr.communication.harmonie-mutuelle.fr^
 ||tr.computeruniverse.net^
 ||tr.confirmation.com^
 ||tr.dec-connect.decsuite.com^
@@ -86788,7 +86776,6 @@
 ||vast.filmnet.ir^
 ||vast.pet^
 ||vast.playmatic.video^
-||vast.videocdn.tv^
 ||vastease.pro^
 ||vasteeds.net^
 ||vastlyvizirs.shop^
@@ -96054,6 +96041,7 @@
 ||z198vxfuy3.com^
 ||z1e2vp1gw.com^
 ||z1el6lgol.com^
+||z1fl848ft.com^
 ||z1hihu.xmcimg.com^
 ||z210.manisteenews.com^
 ||z211.yourconroenews.com^
@@ -97578,7 +97566,6 @@
 ||zzdvsgnxamcmq.website^
 ||zzedibnapli.in^
 ||zzfikyawmqtmw.website^
-||zzfoms.com^
 ||zzfxfz.com^
 ||zzhengre.com^
 ||zzhlssowvzfds.online^

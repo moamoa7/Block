@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-05 18:50:49 UTC
+# Generated: 2026-05-05 20:01:42 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 182,418
-# 2. Removed by Reference       : 90,321
+# 1. Raw Domains Collected      : 182,721
+# 2. Removed by Reference       : 90,637
 # 3. Removed by Ext.Whitelist   : 49
 # 4. Personal Block Added       : 56,786
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 97,591
+# 7. Final Block Rules (||)     : 97,578
 # 8. Final Exception Rules (@@) : 7,884
 #
 0.0.0.0 0-02.net
@@ -6787,6 +6787,7 @@
 0.0.0.0 affiliate.juno.co.uk
 0.0.0.0 affiliate.k4.tinhte.vn
 0.0.0.0 affiliate.kinguin.net
+0.0.0.0 affiliate.klook.com
 0.0.0.0 affiliate.konibet.com
 0.0.0.0 affiliate.mediatemple.net
 0.0.0.0 affiliate.mogs.com
@@ -11589,7 +11590,6 @@
 0.0.0.0 b1.51scw.net
 0.0.0.0 b1.b2b168.com
 0.0.0.0 b1.b2b168.net
-0.0.0.0 b1.c1km4.com
 0.0.0.0 b1.engdvd.com
 0.0.0.0 b1.hentaibaka.one
 0.0.0.0 b1.xiao84.com
@@ -18560,7 +18560,6 @@
 0.0.0.0 collector.cakeresume.com
 0.0.0.0 collector.cdp.cnn.com
 0.0.0.0 collector.cint.com
-0.0.0.0 collector.dgnet.ltd.uk
 0.0.0.0 collector.ex.co
 0.0.0.0 collector.fiverr.com
 0.0.0.0 collector.fullxh.com
@@ -19460,7 +19459,6 @@
 0.0.0.0 counter.rambler.ru
 0.0.0.0 counter.reddigital.ru
 0.0.0.0 counter.sberbank.ru
-0.0.0.0 counter.scribblelive.com
 0.0.0.0 counter.search.bg
 0.0.0.0 counter.sibnet.ru
 0.0.0.0 counter.sina.com.cn
@@ -22936,7 +22934,6 @@
 0.0.0.0 deathcoho.com
 0.0.0.0 debatabletent.com
 0.0.0.0 debaucky.com
-0.0.0.0 debitcrebit669.com
 0.0.0.0 deblockusques.cfd
 0.0.0.0 deboitephil.qpon
 0.0.0.0 debojuagug1sf.cloudfront.net
@@ -28027,6 +28024,7 @@
 0.0.0.0 eventsquiteclick.com
 0.0.0.0 eventstream.dodopizza.com
 0.0.0.0 eventsv2balanced.malpagames.com
+0.0.0.0 eventtrace.ru
 0.0.0.0 eventtracking.hubapi.com
 0.0.0.0 eventuryremov.com
 0.0.0.0 eventweepinghoarse.com
@@ -30004,6 +30002,7 @@
 0.0.0.0 fkzcrofqtjawk.space
 0.0.0.0 fkzmvsmbnblvu.life
 0.0.0.0 fl0hg5wlr.com
+0.0.0.0 fl4md7mm8.com
 0.0.0.0 fl7i15bxzr.com
 0.0.0.0 flaconshe.qpon
 0.0.0.0 flaegrudad.com
@@ -39043,6 +39042,7 @@
 0.0.0.0 ivioukpnweuhr.space
 0.0.0.0 iviovqxlpvptw.space
 0.0.0.0 ivitrack.com
+0.0.0.0 ivizbbqma.com
 0.0.0.0 ivkgsdbvmtcnlhk.com
 0.0.0.0 ivlnszjtorszh.website
 0.0.0.0 ivonnurb.com
@@ -45368,6 +45368,7 @@
 0.0.0.0 magnolian07.top
 0.0.0.0 magpie.onething.org
 0.0.0.0 magsrv.com
+0.0.0.0 magtorr.com
 0.0.0.0 maguruphreuza.store
 0.0.0.0 magyarszo.com
 0.0.0.0 mahassvibccui.store
@@ -45859,7 +45860,6 @@
 0.0.0.0 maumetfluxed.cyou
 0.0.0.0 maungyji.cfd
 0.0.0.0 mautic-learn.teky.edu.vn
-0.0.0.0 mautic.200lab.io
 0.0.0.0 mautic.teky.edu.vn
 0.0.0.0 mavamuwwnkksn.store
 0.0.0.0 maviesbenmost.cfd
@@ -47419,7 +47419,6 @@
 0.0.0.0 metrics.sciencemag.org
 0.0.0.0 metrics.scottishpower.co.uk
 0.0.0.0 metrics.scottrade.com
-0.0.0.0 metrics.scribblelive.com
 0.0.0.0 metrics.sdcvisit.com
 0.0.0.0 metrics.seabourn.com
 0.0.0.0 metrics.seagale.fr
@@ -47509,7 +47508,6 @@
 0.0.0.0 metrics.tdn.com
 0.0.0.0 metrics.te.com
 0.0.0.0 metrics.teampages.com
-0.0.0.0 metrics.teamviewer.cn
 0.0.0.0 metrics.teamviewer.com
 0.0.0.0 metrics.tecentriq.com
 0.0.0.0 metrics.ted.com
@@ -48186,7 +48184,6 @@
 0.0.0.0 mixdgcqhfil.com
 0.0.0.0 mixed-bother.pro
 0.0.0.0 mixedissue.pro
-0.0.0.0 mixedreading.com
 0.0.0.0 mixer.sina.cn
 0.0.0.0 mixhillvedism.com
 0.0.0.0 mixi.media
@@ -50027,7 +50024,6 @@
 0.0.0.0 native-ad.net
 0.0.0.0 native-ads-events-api2.c4s-rd.services
 0.0.0.0 native-adserver.com
-0.0.0.0 native-cdn.com
 0.0.0.0 native-log-collect.gryphline.com
 0.0.0.0 native-track.com
 0.0.0.0 native.ai
@@ -50176,7 +50172,6 @@
 0.0.0.0 ncqfppkwczjal.site
 0.0.0.0 ncqhgmxnpywal.website
 0.0.0.0 ncqtxzmuffxiwk.cfd
-0.0.0.0 ncs.eadaily.com
 0.0.0.0 ncszswtpaguzr.online
 0.0.0.0 nct2-logging.nct.vn
 0.0.0.0 nctmwluyknbwl.website
@@ -69082,7 +69077,6 @@
 0.0.0.0 showmebars.com
 0.0.0.0 showmeyouradsnow.com
 0.0.0.0 showootsoaftah.net
-0.0.0.0 showsclick.com
 0.0.0.0 showsclicka.com
 0.0.0.0 showsteel.com
 0.0.0.0 showyfee.pro
@@ -72013,7 +72007,6 @@
 0.0.0.0 smetrics.orenciapatient.se
 0.0.0.0 smetrics.orlandofuntickets.com
 0.0.0.0 smetrics.otsukapatientsupport.com
-0.0.0.0 smetrics.ott.showmax.com
 0.0.0.0 smetrics.ove.com
 0.0.0.0 smetrics.ownertoownercommunication.com
 0.0.0.0 smetrics.oxfam.org.uk
@@ -72488,7 +72481,6 @@
 0.0.0.0 smetrics.skechers.com.au
 0.0.0.0 smetrics.skipton.co.uk
 0.0.0.0 smetrics.skoal.com
-0.0.0.0 smetrics.skodafinancialservices.nl
 0.0.0.0 smetrics.sky.com
 0.0.0.0 smetrics.sky.de
 0.0.0.0 smetrics.sky.it
@@ -72682,7 +72674,6 @@
 0.0.0.0 smetrics.sysmex-support.com
 0.0.0.0 smetrics.systemofchoice.com
 0.0.0.0 smetrics.t-mobile.com
-0.0.0.0 smetrics.t-mobilemoney.com
 0.0.0.0 smetrics.tab.com.au
 0.0.0.0 smetrics.tabletable.co.uk
 0.0.0.0 smetrics.tackntogs.com
@@ -73092,7 +73083,6 @@
 0.0.0.0 smheyshqkrwms.online
 0.0.0.0 smichcavalrubber.cfd
 0.0.0.0 smifzyuottaxc.website
-0.0.0.0 smigid.ru
 0.0.0.0 smigro.info
 0.0.0.0 smilered.com
 0.0.0.0 smiletavenine.cyou
@@ -73105,7 +73095,6 @@
 0.0.0.0 smilingswim.com
 0.0.0.0 smind.hr
 0.0.0.0 sminerva.healthcentral.com
-0.0.0.0 sminewsnet.ru
 0.0.0.0 smiteanimatedbeaker.com
 0.0.0.0 smithburka.com
 0.0.0.0 smithsbotte.cfd
@@ -81193,7 +81182,6 @@
 0.0.0.0 tr.c-tag.net
 0.0.0.0 tr.clients.boursobank.info
 0.0.0.0 tr.cloud-media.fr
-0.0.0.0 tr.communication.harmonie-mutuelle.fr
 0.0.0.0 tr.computeruniverse.net
 0.0.0.0 tr.confirmation.com
 0.0.0.0 tr.dec-connect.decsuite.com
@@ -86787,7 +86775,6 @@
 0.0.0.0 vast.filmnet.ir
 0.0.0.0 vast.pet
 0.0.0.0 vast.playmatic.video
-0.0.0.0 vast.videocdn.tv
 0.0.0.0 vastease.pro
 0.0.0.0 vasteeds.net
 0.0.0.0 vastlyvizirs.shop
@@ -96053,6 +96040,7 @@
 0.0.0.0 z198vxfuy3.com
 0.0.0.0 z1e2vp1gw.com
 0.0.0.0 z1el6lgol.com
+0.0.0.0 z1fl848ft.com
 0.0.0.0 z1hihu.xmcimg.com
 0.0.0.0 z210.manisteenews.com
 0.0.0.0 z211.yourconroenews.com
@@ -97577,7 +97565,6 @@
 0.0.0.0 zzdvsgnxamcmq.website
 0.0.0.0 zzedibnapli.in
 0.0.0.0 zzfikyawmqtmw.website
-0.0.0.0 zzfoms.com
 0.0.0.0 zzfxfz.com
 0.0.0.0 zzhengre.com
 0.0.0.0 zzhlssowvzfds.online

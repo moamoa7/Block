@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-05 18:50:49 UTC
+  Generated: 2026-05-05 20:01:42 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -22,10 +22,10 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 90,308 | Extracted: 57,641
+       Total Lines: 90,315 | Extracted: 57,648
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 158,666 | Extracted: 66,406
+       Total Lines: 158,689 | Extracted: 66,426
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,545 | Extracted: 908
@@ -40,7 +40,7 @@
        Total Lines: 11,089 | Extracted: 50
   [OK] HaGeZi's Normal DNS Blocklist
        URL: https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
-       Total Lines: 162,108 | Extracted: 162,081
+       Total Lines: 160,916 | Extracted: 160,889
 
 [ Personal Blocklist (Override Whitelist) ]
 ------------------------------------------------------------
@@ -65,50 +65,50 @@
 ------------------------------------------------------------
   Filter                            Extracted        New     Unique
   ──────────────────────────────── ────────── ────────── ──────────
-  EasyList                             57,641     57,641         20
-  AdGuard Base                         66,406      8,785      4,609
+  EasyList                             57,648     57,648          7
+  AdGuard Base                         66,426      8,785      4,621
   AdGuard Mobile                          908        890        230
   AdGuard Japanese                        169        156         19
   List-KR                                 352        265         82
   uBlock Filters                           50         33          5
-  HaGeZi's Normal DNS Blocklist       162,081    114,648    114,648
+  HaGeZi's Normal DNS Blocklist       160,889    114,944    114,944
   ──────────────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)                182,418
+  Total (deduplicated)                182,721
 
 [ Reference Filter Validation ]
 ------------------------------------------------------------
   Reference Domains             : 164,993
-  Before Validation             : 182,418
-  Removed (not in reference)    : 90,321
-  After Validation              : 92,097
+  Before Validation             : 182,721
+  Removed (not in reference)    : 90,637
+  After Validation              : 92,084
 
 [ External Whitelist Filtering ]
 ------------------------------------------------------------
   Removed by Whitelist          : 49
-  After Whitelist               : 92,048
+  After Whitelist               : 92,035
 
 [ Personal Blocklist Override ]
 ------------------------------------------------------------
   Personal Block Domains        : 56,786
   Forced (White → Black)        : 13
-  After Personal Block          : 97,593
+  After Personal Block          : 97,580
 
 [ Personal Whitelist Final Override ]
 ------------------------------------------------------------
   Personal White Domains        : 3
   Forced (Black → White)        : 2
-  After Personal White          : 97,591
+  After Personal White          : 97,578
 
 [ Final Summary ]
 ------------------------------------------------------------
   Priority: Filter < ExtWhite < PersonalBlock < PersonalWhite
   ────────────────────────────────────────────────────────────
-  1. Raw Domains Collected      : 182,418
-  2. Removed by Reference       : 90,321
+  1. Raw Domains Collected      : 182,721
+  2. Removed by Reference       : 90,637
   3. Removed by Ext.Whitelist   : 49
   4. Personal Block Added       : 56,786
   5. Forced (White → Black)     : 13
   6. Forced (Black → White)     : 2
-  7. Final Block Rules          : 97,591
+  7. Final Block Rules          : 97,578
   8. Final Exception Rules      : 7,884
 ============================================================
