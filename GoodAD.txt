@@ -2124,6 +2124,7 @@ coupang.com###srpKeywordTopBanner
 ! ||*/*/*banner* 예외 (혜택 얼마 받았나 정보 안보임)
 !@@||escrow.auction.co.kr$script,xhr
 ! -광고
+##[alt$="배너"]
 ! - - - G마켓 (https://www.gmarket.co.kr/)
 ! - - - 이토랜드 (https://etoland.co.kr/point)
 ##[alt$="광고"]
@@ -4347,9 +4348,6 @@ noonnu.cc##.fc-dialog-container
 ||ad-
 !
 !
-/ad/*$script
-!
-!
 ##[id$="-ad"]
 !
 !
@@ -4842,3 +4840,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ##[class^="iframe"]
+
+
+##[alt$="스폰"]
