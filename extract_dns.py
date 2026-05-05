@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import re
+import time
 from pathlib import Path
 from datetime import datetime, timezone
 from urllib.request import urlopen, Request
@@ -28,7 +29,8 @@ PERSONAL_BLOCK_URLS = [
 PERSONAL_WHITE_URLS = [
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
-REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt",
+# ★ 수정: 끝에 있던 쉼표 제거 (튜플이 되어버려서 fetch 실패의 원인이었음)
+REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
 
 OUTPUT_DIR = Path("output")
 OUT_COMBINED = OUTPUT_DIR / "Block_DNS.txt"
@@ -36,10 +38,19 @@ OUT_DOMAINS = OUTPUT_DIR / "Block_Domains.txt"
 OUT_HOSTS = OUTPUT_DIR / "Block_Hosts.txt"
 OUT_REPORT = OUTPUT_DIR / "Report.txt"
 
-def fetch(url: str) -> str:
-    req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(req, timeout=30) as resp:
-        return resp.read().decode("utf-8", errors="ignore")
+# ★ 수정: 일시적 네트워크 장애 대비 재시도 로직 추가
+def fetch(url: str, retries: int = 3) -> str:
+    last_err = None
+    for attempt in range(retries):
+        try:
+            req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urlopen(req, timeout=30) as resp:
+                return resp.read().decode("utf-8", errors="ignore")
+        except Exception as e:
+            last_err = e
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)  # 1초, 2초, 4초 대기
+    raise last_err
 
 def is_valid_domain(d: str) -> bool:
     if not d or len(d) < 3:
@@ -58,8 +69,8 @@ def short_name(url: str) -> str:
     if "adblock/multi.txt" in url: return "HaGeZi's Normal DNS Blocklist"
     if "oisd_small.txt" in url: return "oisd small"
     if "main/block.txt" in url: return "Personal Blocklist"
-    if "exclusions.txt" in url: return "AdGuard DNS Exclusions"
     if "AIO-Firebog-Blocklists" in url: return "AIO-Firebog Exclusions"
+    if "exclusions.txt" in url: return "AdGuard DNS Exclusions"
     if "white.txt" in url: return "Personal Whitelist"
     if "filters/15.txt" in url: return "AdGuard DNS Filter"
     return url.split("/")[-1]
@@ -215,17 +226,24 @@ def main():
     report_lines.append(f"  {'Total (deduplicated)':<32} {len(raw_block_set):>10,}")
 
     # 4. 기준 필터 검증
+    # ★ 수정: 기준 필터가 비어있으면(로드 실패) 검증을 건너뛰어 결과물 보호
     before_ref = len(raw_block_set)
-    raw_block_set = raw_block_set & reference_set
-    after_ref = len(raw_block_set)
-    ref_removed = before_ref - after_ref
-
     report_lines.append(f"\n[ Reference Filter Validation ]")
     report_lines.append(f"{'-' * 60}")
-    report_lines.append(f"  Reference Domains             : {len(reference_set):,}")
-    report_lines.append(f"  Before Validation             : {before_ref:,}")
-    report_lines.append(f"  Removed (not in reference)    : {ref_removed:,}")
-    report_lines.append(f"  After Validation              : {after_ref:,}")
+    if reference_set:
+        raw_block_set = raw_block_set & reference_set
+        after_ref = len(raw_block_set)
+        ref_removed = before_ref - after_ref
+        report_lines.append(f"  Reference Domains             : {len(reference_set):,}")
+        report_lines.append(f"  Before Validation             : {before_ref:,}")
+        report_lines.append(f"  Removed (not in reference)    : {ref_removed:,}")
+        report_lines.append(f"  After Validation              : {after_ref:,}")
+    else:
+        after_ref = before_ref
+        ref_removed = 0
+        report_lines.append(f"  [SKIPPED] Reference filter unavailable - validation bypassed")
+        report_lines.append(f"  Domains kept as-is            : {before_ref:,}")
+        print(f"[WARN] 기준 필터 미로드 - 검증 단계 건너뜀")
 
     # 5. 외부 화이트리스트 제외
     removed_by_white = raw_block_set & white_set
@@ -238,7 +256,7 @@ def main():
     report_lines.append(f"  After Whitelist               : {len(block_after_white):,}")
 
     # 6. 개인 블록리스트 강제 적용 (외부 화이트리스트 무시)
-    forced_to_black = personal_block_set & white_set  # 외부 화이트 → 블랙 전환
+    forced_to_black = personal_block_set & white_set
     block_after_personal = block_after_white | personal_block_set
 
     report_lines.append(f"\n[ Personal Blocklist Override ]")
@@ -247,10 +265,9 @@ def main():
     report_lines.append(f"  Forced (White → Black)        : {len(forced_to_black):,}")
     report_lines.append(f"  After Personal Block          : {len(block_after_personal):,}")
 
-    # 7. ★ 개인 화이트리스트 강제 적용 (최종 - 모든 블록 무시) ★
-    forced_to_white = block_after_personal & personal_white_set  # 블랙 → 화이트 전환
+    # 7. 개인 화이트리스트 강제 적용 (최종)
+    forced_to_white = block_after_personal & personal_white_set
     final_block_set = block_after_personal - personal_white_set
-    # 최종 화이트리스트: 외부 화이트 + 개인 화이트 (단, 개인 블록과 충돌하는 외부 화이트는 제외)
     final_white_set = (white_set - personal_block_set) | personal_white_set
 
     report_lines.append(f"\n[ Personal Whitelist Final Override ]")
