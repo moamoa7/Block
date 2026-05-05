@@ -2399,10 +2399,9 @@ avsee.ru##.nav-justified
 avsee.ru##.list-category
 ! - - - 스크립트의 ui 탭 을 막아서 해제
 avsee.ru#@#.tabs
-! - 새창 방지
+! - 팝업 (새창) 방지
 !avsee.ru#%#//scriptlet("prevent-window-open")
-! - - - - - uBlock filters – Ads
-!/^https:\/\/[a-z]{8,12}\.com\/en\/(?:[a-z]{2,10}\/){0,2}[a-z]{2,}\?(?:[a-z]+=[^&=?\s]*?&)*?id=[12]\d{6}/$script,third-party,match-case
+/^https:\/\/[0-9a-z]{6,12}\.in(?:\/[a-z]{2,10}){1,3}$/$script,third-party,match-case
 !
 !
 ! supjav (https://supjav.com/)
@@ -3847,13 +3846,15 @@ hitomi.la###immersive-translate-popup
 [$domain=/^of\d+.com/]##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximize.ftwp-wrap
 !
 !
-! 팬더티비 (https://www.pandalive.co.kr/)
+! 팬더티비 (https://www.pandalive.co.kr/) - 회원가입 못함
 ! - 딩 동그라미 삭제
-##.-translate-y-1\/2.-translate-x-1\/2.w-\[50px\].h-\[50px\].z-\[1\].top-1\/2.left-1\/2.absolute
+!##.-translate-y-1\/2.-translate-x-1\/2.w-\[50px\].h-\[50px\].z-\[1\].top-1\/2.left-1\/2.absolute
 ! - 팝업 - 막으면 스크롤 안되서 해제
-!###portal
-! - ##[class^="ad"] 해제 - 팝업 일부 사라짐
-wasp.pandalive.co.kr#@#[class^="ad"]
+!##.max-h-screen
+!##.bg-black\/50
+##.pointer-events-auto
+! - 팝업 차단으로 막힌 스크롤 차단 해제
+pandalive.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
 ! 링크판 (https://linkpan71.com/)
@@ -4929,13 +4930,3 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ##[alt$="스폰"]
-
-
-! - https://missav.ws/
-! - https://njavtv.com/
-##iframe[src*="javascript"]
-
-
-! - https://missav.ws/
-! - https://njavtv.com/
-##iframe[src*="window.location"]
