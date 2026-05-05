@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-05 01:22:54 UTC
+# Generated: 2026-05-05 04:31:24 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 175,337
-# 2. Removed by Reference       : 175,337
+# 1. Raw Domains Collected      : 175,359
+# 2. Removed by Reference       : 175,359
 # 3. Removed by Ext.Whitelist   : 0
-# 4. Personal Block Added       : 58,206
+# 4. Personal Block Added       : 58,193
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 1
-# 7. Final Block Rules (||)     : 58,205
+# 7. Final Block Rules (||)     : 58,192
 # 8. Final Exception Rules (@@) : 7,884
 #
 0.0.0.0 0-02.net
@@ -1622,7 +1622,6 @@
 0.0.0.0 8104863542.com
 0.0.0.0 812f3647c3.com
 0.0.0.0 813c5.v.fwmrm.net
-0.0.0.0 81ll7z7vlhfpigzx3e.rest
 0.0.0.0 82067251a6.com
 0.0.0.0 821e113467.com
 0.0.0.0 8231e5c33a.com
@@ -6788,7 +6787,6 @@
 0.0.0.0 arcticclairvoyant.com
 0.0.0.0 arcticinspector.com
 0.0.0.0 arctwjodckpyz.site
-0.0.0.0 arcuseskerner.cfd
 0.0.0.0 ard.xxxblackbook.com
 0.0.0.0 ardentlydrivablepagan.com
 0.0.0.0 ardodfrar.in
@@ -8676,7 +8674,6 @@
 0.0.0.0 bifctyclfcwli.online
 0.0.0.0 bifdfzioylxdu.online
 0.0.0.0 bifetfhzyqkgs.site
-0.0.0.0 biffiescycle.qpon
 0.0.0.0 biffingmatina.com
 0.0.0.0 bifocalacid.com
 0.0.0.0 big-brief.com
@@ -21514,7 +21511,6 @@
 0.0.0.0 gegqyfewpclyb.site
 0.0.0.0 geih.cn
 0.0.0.0 geirathorpe.qpon
-0.0.0.0 geishaskaryonpaggle.cfd
 0.0.0.0 gekeebsirs.com
 0.0.0.0 gekhasaks.com
 0.0.0.0 gekpjfmuzimlg.online
@@ -23579,7 +23575,6 @@
 0.0.0.0 hetaruvg.com
 0.0.0.0 hetbvptffmxgj.site
 0.0.0.0 hetcash.com
-0.0.0.0 hethsminter.com
 0.0.0.0 hetnu.com
 0.0.0.0 hetuwnhqvjdss.store
 0.0.0.0 heukmsactivator.com
@@ -24380,7 +24375,6 @@
 0.0.0.0 hubhubhub.name
 0.0.0.0 hublosk.com
 0.0.0.0 hubrisone.com
-0.0.0.0 hucklequiverslipa.cfd
 0.0.0.0 hudmmxrbwnbwl.fun
 0.0.0.0 hue11.com
 0.0.0.0 hue2b.com
@@ -28072,7 +28066,6 @@
 0.0.0.0 koawfitxqieyj.site
 0.0.0.0 kobdhivliptc.com
 0.0.0.0 kobel.services
-0.0.0.0 kodaguwhymouzah.cyou
 0.0.0.0 kodbafryxemdz.website
 0.0.0.0 kodmagic1.me
 0.0.0.0 kodqizvptvr.com
@@ -39057,7 +39050,6 @@
 0.0.0.0 pypjsjswidwnlhq.com
 0.0.0.0 pyqezmcomuayf.website
 0.0.0.0 pyralidtaiwan.shop
-0.0.0.0 pyralmite.com
 0.0.0.0 pyrfpb.icu
 0.0.0.0 pysdvwrawkwjz.space
 0.0.0.0 pyswtbuakzcnm.website
@@ -39427,7 +39419,6 @@
 0.0.0.0 qkdrsi4et.com
 0.0.0.0 qkedloyxrfsxx.net
 0.0.0.0 qkeweajdxbmqy.space
-0.0.0.0 qkf3pkvqwcpiitj.cfd
 0.0.0.0 qkg7yplpfo.com
 0.0.0.0 qkgoahutyimrf.site
 0.0.0.0 qkieitettuode.store
@@ -42946,7 +42937,6 @@
 0.0.0.0 santuao.xyz
 0.0.0.0 sanynouncem.org
 0.0.0.0 sanywnnlhmual.space
-0.0.0.0 saoplisses.shop
 0.0.0.0 sapeleteeny.shop
 0.0.0.0 sapi.tremendous.com
 0.0.0.0 sapmgtkvtoulm.space
@@ -46651,7 +46641,6 @@
 0.0.0.0 sulkweapon.com
 0.0.0.0 sultrymomentarily.com
 0.0.0.0 sumatoad.com
-0.0.0.0 sumitrotheoricviolate.cyou
 0.0.0.0 summeanwhile.com
 0.0.0.0 summerday.christmas
 0.0.0.0 summerleftover.com
@@ -47549,7 +47538,6 @@
 0.0.0.0 tarantula.searchbox.tech
 0.0.0.0 tarantula.tuxedo.media
 0.0.0.0 tarazedpirot.shop
-0.0.0.0 tarbleseri.cfd
 0.0.0.0 tardierrouges.com
 0.0.0.0 targad.de
 0.0.0.0 targaubs.com
@@ -52496,7 +52484,6 @@
 0.0.0.0 viphirsaick.net
 0.0.0.0 viqunrpt.com
 0.0.0.0 viral782.com
-0.0.0.0 viralflashed.cfd
 0.0.0.0 viralmediatech.com
 0.0.0.0 viralnewsbd.xyz
 0.0.0.0 viralnewssystems.com
