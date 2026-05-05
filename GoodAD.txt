@@ -2409,6 +2409,7 @@ avsee.ru##.list-category
 avsee.ru#@#.tabs
 ! - 팝업 (새창) 방지
 !avsee.ru#%#//scriptlet("prevent-window-open")
+! - - - https://j91.asia/
 /^https:\/\/[0-9a-z]{6,12}\.in(?:\/[a-z]{2,10}){1,3}$/$script,third-party,match-case
 !
 !
@@ -2472,8 +2473,7 @@ sextb.date##.hidden-md.right.col-3
 ! - - - 블라인드 (https://www.teamblind.com/)
 ! - - - 클리앙 (https://www.clien.net/)
 !##iframe[src^="https://creative."][src*="/widgets/v4/Universal?"]
-##iframe[src*="widgets"]
-
+##iframe[src*="/widgets/"]
 !
 !
 ! - https://ko.javfc2.live/
@@ -2528,12 +2528,8 @@ javgg.net##.home_iframead
 ! - 영상 하단 배너
 ##.dark-banner-group
 !  - 팝업 방지
-!||adxadserv.com^$popup
-! - 차단 사이트
-!||profitabledisplaynetwork.com^
-!||6v41p4bsq.com^
-!||shboshbok.com^
-!||mbidadm.com^
+!91.asia^$popup
+!
 !
 ! 7MMTV (https://7tv033.com/)
 ! - 유니콘Pro에서는 ST영상 재생 불가
@@ -2551,6 +2547,12 @@ javgg.net##.home_iframead
 !||labadena.com^
 !||tapioni.com^
 !||wpadmngr.com^
+!
+!
+! https://javgiga.com/
+! - 팝업(새창) 방지 (uBlock filters – Ads)
+/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-.\/A-Z_a-z][DHWXm][-.\/A-Z_a-z][59FVZ][-.\/A-Z_a-z][6swyz][-.\/A-Z_a-z][-\/0-9A-Z_a-z][-.\/A-Z_a-z][-\/0-9A-Z_a-z]{22,162}(?:$|\?)/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
+!javgiga.com^$popup
 !
 !
 ! https://javbraze.com/
@@ -4417,6 +4419,10 @@ zod.kr###icl28teUVav8
 ##.ad-pc
 !
 !
+/ad?
+!
+!
+
 /ad.
 !
 !
@@ -4679,6 +4685,11 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://ko.javfc2.live/
 ! - https://tv.naver.com/ - 목록 안나옴
 !##iframe[class*="frame"]
+
+
+! - https://supjav.com/
+! - https://missav.ws/
+##iframe[src*="/smartpop/"]
 
 
 ! - 티바위키 안나옴 (https://tvwiki19.net/)
@@ -4964,4 +4975,14 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##[class$="iframe"]
 
 
+! - https://missav.ws/
+##iframe[src*="javascript"]
+
+
 ##[alt$="스폰"]
+
+
+! - https://7tv034.com/
+##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
+! - - - 옥션 배너 사라짐
+!##[class*="_banner"]
