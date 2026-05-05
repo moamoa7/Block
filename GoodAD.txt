@@ -1999,16 +1999,18 @@ hankyung.com##.stock-marquee-wrap
 !
 ! 한국일보 (https://www.hankookilbo.com/)
 ! - 상단 배너
-hankookilbo.com##.end-top-ad-wrap
+!hankookilbo.com##.end-top-ad-wrap
+! - 기사 상단 배너
+hankookilbo.com##.rounded-t-lg
 !
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
 ! - 영상 플레이어
-joongang.co.kr##.player_area
+!joongang.co.kr##.player_area
 ! - 많이 본 기사
-joongang.co.kr##.widget--v.ad_sm_hidden.chain_wrap
+!joongang.co.kr##.widget--v.ad_sm_hidden.chain_wrap
 ! - 추천 기사
-joongang.co.kr##.contents_issue_sticky.contents > .row > .col_lg3
+!joongang.co.kr##.contents_issue_sticky.contents > .row > .col_lg3
 !
 !
 ! 경향신문 (https://www.khan.co.kr/)
@@ -2019,8 +2021,7 @@ khan.co.kr##[class*="banner-"]
 joynjoy.com#@#[class*="banner-"]
 !
 !
-! 뉴데일리 (https://www.newdaily.co.kr/) 삭제
-!newdaily.co.kr##html
+! 뉴데일리 (https://www.newdaily.co.kr/)
 ##iframe[src*="newdaily"]
 !
 !
@@ -2040,13 +2041,13 @@ mtn.co.kr##.w_308px
 ! - 상단 배너
 ##.special_area
 ! - 팝업형식 유튜브 배너
-edaily.co.kr##.show.hover.special_box
+!edaily.co.kr##.show.hover.special_box
 ! - 오른쪽 공간 전부 삭제
-edaily.co.kr###right-sticky
+!edaily.co.kr###right-sticky
 ! - 하단 쓸데없는거 삭제
-edaily.co.kr##.article_newsetc
-edaily.co.kr##.list_gg
-edaily.co.kr##.boxshow_footer_dable
+!edaily.co.kr##.article_newsetc
+!edaily.co.kr##.list_gg
+!edaily.co.kr##.boxshow_footer_dable
 !
 !
 ! 서울경제 (https://www.sedaily.com/)
@@ -2071,7 +2072,7 @@ mk.co.kr###floating_banner_button
 !
 ! JTBC뉴스 (https://news.jtbc.co.kr/)
 ! 광고 영역
-jtbc.co.kr##.set_contents_video_ad
+!jtbc.co.kr##.set_contents_video_ad
 !
 !
 ! https://www.topstarnews.net/
@@ -2082,14 +2083,11 @@ jtbc.co.kr##.set_contents_video_ad
 !||piclick.kr^
 !||optad360.io^1
 !||quantserve.com^$3p
-! - 차단 목록 (Adblock-Rule-Collection-Lit)
-||digitalcamp.co.kr^
-||quantserve.com^
 !
 !
 ! 스포탈코리아 (https://sportalkorea.com/)
 ! - 상단 배너 공간
-sportalkorea.com##.common_top_ad1
+!sportalkorea.com##.common_top_ad1
 !
 !
 ! 스포조이 (https://www.spojoy.com/)
@@ -2099,7 +2097,7 @@ www.spojoy.com###TopAdv250
 !
 ! 스포츠 동아 (https://sports.donga.com/)
 ! - 상단 배너
-##.ad_top
+!##.ad_top
 ! - 기사내 배너
 sports.donga.com##[class*="subcont_ad"]
 sports.donga.com##.view_center
@@ -4360,9 +4358,8 @@ issuya.com##body:style(pointer-events: auto !important; overflow: auto !importan
 !
 !
 ! 개드립 (https://www.dogdrip.net/)
-! - 배너
-dogdrip.net##[class$="right-ad"]
-dogdrip.net##[class$="left-ad"]
+! - 상단 배너
+!##.ddnad
 !
 !
 ! https://dvdprime.com/
@@ -4396,11 +4393,16 @@ zod.kr###icl28teUVav8
 !
 ! - 광고 스킵
 ##.playerads
+!
+!
 ! - 배너 공간
 ##.header-banners
 !
 !
 *##.ad
+!
+!
+##.ad-pc
 !
 !
 /ad.
@@ -4453,6 +4455,13 @@ _ads_
 !
 !
 /banners?
+!
+!
+##[class$="right-ad"]
+!
+!
+##[class$="left-ad"]
+
 !
 !
 !
@@ -4778,6 +4787,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://jav.sb/ - 영상 안나옴? 정확하지 않음. 여기 영상 안나오는곳인듯
+! - https://sports.donga.com/
 ##iframe[src*="vod"]
 
 
@@ -4790,6 +4800,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[id*="promotion"]
 
 
+! - https://sports.donga.com/
 ##iframe[src*="popup"]
 
 
@@ -4931,7 +4942,8 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##[class*="popup"]
 
 
-##[class$="iframe"]
+! - https://sports.donga.com/ - 기사 내 이미지 안보임
+!##[class$="iframe"]
 
 
 ##[alt$="스폰"]
