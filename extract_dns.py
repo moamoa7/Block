@@ -11,6 +11,7 @@ FILTER_URLS = [
     "https://filters.adtidy.org/windows/filters/2.txt",
     "https://filters.adtidy.org/windows/filters/11.txt",
     "https://filters.adtidy.org/windows/filters/7.txt",
+    "https://filters.adtidy.org/windows/filters/224.txt", 
     "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
     "https://ublockorigin.github.io/uAssets/filters/filters.txt",
     "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt",
@@ -64,6 +65,7 @@ def short_name(url: str) -> str:
     if "filters/2.txt" in url: return "AdGuard Base"
     if "filters/11.txt" in url: return "AdGuard Mobile"
     if "filters/7.txt" in url: return "AdGuard Japanese"
+    if "filters/224.txt" in url: return "AdGuard Chinese"
     if "list-kr" in url: return "List-KR"
     if "uAssets" in url: return "uBlock Filters"
     if "adblock/multi.txt" in url: return "HaGeZi's Normal DNS Blocklist"
