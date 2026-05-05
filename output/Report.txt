@@ -1,6 +1,6 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-05 20:01:42 UTC
+  Generated: 2026-05-05 20:23:57 UTC
 ============================================================
 
 [ Reference Filter ]
@@ -22,7 +22,7 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 90,315 | Extracted: 57,648
+       Total Lines: 90,316 | Extracted: 57,649
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
        Total Lines: 158,689 | Extracted: 66,426
@@ -32,6 +32,9 @@
   [OK] AdGuard Japanese
        URL: https://filters.adtidy.org/windows/filters/7.txt
        Total Lines: 12,546 | Extracted: 169
+  [OK] AdGuard Chinese
+       URL: https://filters.adtidy.org/windows/filters/224.txt
+       Total Lines: 23,169 | Extracted: 6,114
   [OK] List-KR
        URL: https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt
        Total Lines: 4,571 | Extracted: 352
@@ -65,50 +68,51 @@
 ------------------------------------------------------------
   Filter                            Extracted        New     Unique
   ──────────────────────────────── ────────── ────────── ──────────
-  EasyList                             57,648     57,648          7
-  AdGuard Base                         66,426      8,785      4,621
-  AdGuard Mobile                          908        890        230
+  EasyList                             57,649     57,649          8
+  AdGuard Base                         66,426      8,785      4,620
+  AdGuard Mobile                          908        890        229
   AdGuard Japanese                        169        156         19
+  AdGuard Chinese                       6,114      6,098        515
   List-KR                                 352        265         82
   uBlock Filters                           50         33          5
-  HaGeZi's Normal DNS Blocklist       160,889    114,944    114,944
+  HaGeZi's Normal DNS Blocklist       160,889    109,361    109,361
   ──────────────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)                182,721
+  Total (deduplicated)                183,237
 
 [ Reference Filter Validation ]
 ------------------------------------------------------------
   Reference Domains             : 164,993
-  Before Validation             : 182,721
-  Removed (not in reference)    : 90,637
-  After Validation              : 92,084
+  Before Validation             : 183,237
+  Removed (not in reference)    : 90,644
+  After Validation              : 92,593
 
 [ External Whitelist Filtering ]
 ------------------------------------------------------------
   Removed by Whitelist          : 49
-  After Whitelist               : 92,035
+  After Whitelist               : 92,544
 
 [ Personal Blocklist Override ]
 ------------------------------------------------------------
   Personal Block Domains        : 56,786
   Forced (White → Black)        : 13
-  After Personal Block          : 97,580
+  After Personal Block          : 98,054
 
 [ Personal Whitelist Final Override ]
 ------------------------------------------------------------
   Personal White Domains        : 3
   Forced (Black → White)        : 2
-  After Personal White          : 97,578
+  After Personal White          : 98,052
 
 [ Final Summary ]
 ------------------------------------------------------------
   Priority: Filter < ExtWhite < PersonalBlock < PersonalWhite
   ────────────────────────────────────────────────────────────
-  1. Raw Domains Collected      : 182,721
-  2. Removed by Reference       : 90,637
+  1. Raw Domains Collected      : 183,237
+  2. Removed by Reference       : 90,644
   3. Removed by Ext.Whitelist   : 49
   4. Personal Block Added       : 56,786
   5. Forced (White → Black)     : 13
   6. Forced (Black → White)     : 2
-  7. Final Block Rules          : 97,578
+  7. Final Block Rules          : 98,052
   8. Final Exception Rules      : 7,884
 ============================================================
