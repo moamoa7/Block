@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-05 22:42:05 UTC
+# Generated: 2026-05-05 23:36:57 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,8 +8,8 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 183,258
-# 2. Removed by Reference       : 90,634
+# 1. Raw Domains Collected      : 183,262
+# 2. Removed by Reference       : 90,638
 # 3. Removed by Ext.Whitelist   : 49
 # 4. Personal Block Added       : 56,846
 # 5. Forced (White → Black)     : 13
