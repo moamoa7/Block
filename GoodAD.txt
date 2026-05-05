@@ -1047,6 +1047,8 @@ ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 ##.ad-banner
 ! - 게시물 위 상단 공간
 ppomppu.co.kr##.main.container > div>[style]
+! - 오른쪽 배너
+ppomppu.co.kr##.sidebar
 ! - 뽐쿠폰 배너
 ppomppu.co.kr##.ppomCou
 ! - 모바일 하단 배너 공간 삭제
@@ -2124,10 +2126,12 @@ coupang.com###srpKeywordTopBanner
 ! ||*/*/*banner* 예외 (혜택 얼마 받았나 정보 안보임)
 !@@||escrow.auction.co.kr$script,xhr
 ! -광고
+! - - - https://cafe.daum.net/
 ##[alt$="배너"]
 ! - - - G마켓 (https://www.gmarket.co.kr/)
 ! - - - 이토랜드 (https://etoland.co.kr/point)
 ! - - - 네이버 블로그 (https://blog.naver.com/)
+! - - - 와이고수 (https://ygosu.com/)
 ##[alt$="광고"]
 ! - 배너
 ##[class*="ad_banner"]
@@ -4331,6 +4335,17 @@ ajd.co.kr##.active.bottom-floating
 algumon.com##div:has([data-tip^='파트너스'], div[style*='height'], ins):is(.card, .deal-2col)
 !
 !
+! 뉴덕 (https://newduck.net/)
+! - 상단 배너
+newduck.net##.code-content-top
+! - 게시물간 중간 빈 공간
+newduck.net##.code-list-top
+! - 게시물 하단 배너 (댓글 바로 위)
+##.custom-banner
+! - 최하단 파워링크
+##.powerlink
+!
+!
 !
 !
 !
@@ -4554,3 +4569,317 @@ emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+
+
+
+
+
+
+
+
+
+==================================
+
+
+! 작업 중
+
+##iframe[src*=""]
+
+
+! - https://pann.nate.com/
+! - 국세청(https://hometax.go.kr/) - 이용 불가
+!##iframe[src*="about:blank"]
+
+
+! - https://randburg.com/ - 영상 안나옴
+!##iframe[src*="index"]
+
+
+! - https://tvwiki19.net/
+! - https://hohoj.tv/
+! - https://www.reddit.com/
+! - https://etoland.co.kr/
+! - https://www.clien.net/
+! - https://mypikpak.com/
+! - https://ko.javfc2.live/
+! - https://supjav.com/
+! - https://www.ddanzi.com/
+! - https://www.82cook.com/
+! - https://web.humoruniv.com/
+! - https://www.goodgag.net/
+! - https://www.clien.net/
+##iframe[src*="iframe"]
+
+
+! - https://tv.naver.com/ - 목록 안나옴
+!##iframe[class*="iframe"]
+
+
+! - https://ko.javfc2.live/
+! - https://tv.naver.com/ - 목록 안나옴
+!##iframe[class*="frame"]
+
+
+! - 티바위키 안나옴 (https://tvwiki19.net/)
+!##iframe[src*="player"]
+!##iframe[src*="play"]
+
+
+! - https://www.genspark.ai/
+! - https://www.reddit.com/
+! - https://mypikpak.com/
+! - https://gall.dcinside.com/
+! - ! - https://inven.co.kr/
+##iframe[src*="google"]:not([src*="recaptcha"])
+
+
+! - https://www.goodgag.net/
+##iframe[name*="google"]
+
+
+##iframe[class*="google"]
+
+! - https://www.bandwidthplace.com/
+! - 티스토리 (https://www.tistory.com/)
+! - https://www.algumon.com/
+! - 가생이닷컴 (https://www.gasengi.com/)
+##iframe[id*="google"]
+
+
+! - https://imagetwist.com/
+! - https://www.ppomppu.co.kr/
+! - https://ygosu.com/
+! - https://www.teamblind.com/
+##iframe[src*="banner"]
+
+
+##iframe[class*="banner"]
+
+
+! - https://nid.naver.com/ (로그인)
+##iframe[id*="banner"]
+
+
+! https://hohoj.tv/
+! - https://missav.ws/
+! - https://danawa.com/
+! - https://nunting.kr/
+! - https://inven.co.kr/
+! - https://www.teamblind.com/
+! - https://www.bandwidthplace.com/
+##iframe[src*="ads"]
+
+
+##iframe[class*="ads"]
+
+! - https://www.algumon.com/
+##iframe[id*="ads"]
+
+
+! - https://www.teamblind.com/
+! - https://pann.nate.com/
+! - https://blog.naver.com/ - 로딩 안됨
+!##iframe[src*="tracking"]
+
+
+##iframe[class*="tracking"]
+
+
+##iframe[id*="tracking"]
+
+
+##iframe[src*="tracker"]
+
+
+##iframe[calss*="tracker"]
+
+
+##iframe[id*="tracker"]
+
+
+!- https://www.sooplive.com
+! - https://play.sooplive.com
+! - https://coktv1.com/ - 영상 안나옴
+! - https://ko.javfc2.live/
+! - https://missav.ws/
+! - https://7tv034.com/
+! - https://imagetwist.com/
+! - https://javfc2.xyz/
+!##iframe[src*="live"]
+
+
+! https://poooo.ml/ - 영상 안보임
+!##iframe[src*="video"]
+
+
+! - https://missav.ws/
+! - https://javgg.net/
+! - https://javgiga.com/ - 영상 안나옴
+!##iframe[src*="stream"]
+
+
+##iframe[src*="livevideo"]
+
+
+##iframe[src*="live-video"]
+
+
+##iframe[src*="iivestream"]
+
+
+##iframe[src*="live-stream"]
+
+
+##iframe[src*="videostream"]
+
+
+##iframe[src*="video-stream"]
+
+
+##iframe[src*="vod"]
+
+
+##iframe[src*="promotion"]
+
+
+##iframe[class*="promotion"]
+
+
+##iframe[id*="promotion"]
+
+
+##iframe[src*="popup"]
+
+
+##iframe[class*="popup"]
+
+
+##iframe[id*="popup"]
+
+
+##iframe[src*="adsense"]
+
+
+##iframe[class*="adsense"]
+
+
+##iframe[id*="adsense"]
+
+
+##iframe[src*="sponsor"]
+
+
+##iframe[class*="sponsor"]
+
+! - https://pann.nate.com/
+##iframe[id*="sponsor"]
+
+
+! - https://www.genspark.ai/
+! - https://poooo.ml/ - 영상 안보임
+!##iframe[src*="chat"]
+
+
+##iframe[src*="advertisement"]
+
+
+##iframe[class*="advertisement"]
+
+
+##iframe[id*="advertisement"]
+
+
+! - https://www.ddanzi.com/
+! - https://tv.naver.com/ - 영상 목록 안나옴
+!##iframe[src*="media"]
+
+
+! - https://mypikpak.com/
+##iframe[src*="button"]
+
+
+##iframe[class*="button"]
+
+
+##iframe[id*="button"]
+
+
+##iframe[src*="event"]
+
+
+##iframe[class*="event"]
+
+
+##iframe[id*="event"]
+
+
+! - https://ygosu.com/
+! - https://tv.naver.com/ - 영상 목록 안나옴
+!##iframe[src*="click"]
+
+
+! - https://www.gmarket.co.kr/
+! - https://supjav.com/
+! - https://missav.ws/
+! - https://ko.javfc2.live/
+##iframe[src*="script"]
+
+##iframe[class*="script"]
+
+##iframe[id*="script"]
+
+
+! - https://meeco.kr/
+##iframe[src*="product"]
+
+##iframe[class*="product"]
+
+##iframe[id*="product"]
+
+
+! - https://www.fmkorea.com/
+##iframe[attribution-reporting]
+
+
+##iframe[src*="update"]
+
+! - https://www.sooplive.com/
+! - https://play.sooplive.com/ 
+##iframe[src*="sooplive"]
+
+!##iframe[class*="sooplive"] - 없음
+
+!##iframe[id*="sooplive"] - 없음
+
+
+! - https://ygosu.com/
+! - https://tvwiki19.net/ - 영상 안나옴
+!##iframe[id*="frame"]
+
+! - https://tvwiki19.net/ - 영상 안나옴
+!##[id*="iframe"]
+
+
+##iframe[src*="hidden"]
+
+! - https://ygosu.com/
+##iframe[id*="hidden"]
+
+##iframe[class*="hidden"]
+
+
+! - https://missav.ws/
+! - https://www.goodgag.net/
+! - https://coktv1.com/ - 영상 안나옴
+!##iframe[style*="hidden"]
+
+
+! - https://pann.nate.com/
+##iframe[title*="스폰"]
+
+
+! - https://speedtest.telstra.com/
+##[class^="iframe"]
+
+
+##[alt$="스폰"]
