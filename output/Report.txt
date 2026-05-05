@@ -1,18 +1,20 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-05 04:31:24 UTC
+  Generated: 2026-05-05 04:41:43 UTC
 ============================================================
 
 [ Reference Filter ]
 ------------------------------------------------------------
-  [FAIL] AdGuard DNS Filter - <urlopen error unknown url type: ('https>
+  [OK] AdGuard DNS Filter
+       URL: https://filters.adtidy.org/windows/filters/15.txt
+       Total Lines: 167,362 | Domains: 164,873
 
 [ External Whitelist Sources ]
 ------------------------------------------------------------
   [OK] AdGuard DNS Exclusions
        URL: https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt
        Total Lines: 1,091 | Extracted: 451
-  [OK] AdGuard DNS Exclusions
+  [OK] AIO-Firebog Exclusions
        URL: https://raw.githubusercontent.com/KnightmareVIIVIIXC/AIO-Firebog-Blocklists/main/exclusions/exclusions.txt
        Total Lines: 7,840 | Extracted: 7,829
 
@@ -20,7 +22,7 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 90,169 | Extracted: 57,507
+       Total Lines: 90,172 | Extracted: 57,510
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
        Total Lines: 158,516 | Extracted: 66,284
@@ -63,7 +65,7 @@
 ------------------------------------------------------------
   Filter                            Extracted        New     Unique
   ──────────────────────────────── ────────── ────────── ──────────
-  EasyList                             57,507     57,507          8
+  EasyList                             57,510     57,510         11
   AdGuard Base                         66,284      8,785      4,613
   AdGuard Mobile                          908        890        230
   AdGuard Japanese                        169        156         19
@@ -71,42 +73,42 @@
   uBlock Filters                           50         33          5
   HaGeZi's Normal DNS Blocklist       155,679    107,723    107,723
   ──────────────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)                175,359
+  Total (deduplicated)                175,362
 
 [ Reference Filter Validation ]
 ------------------------------------------------------------
-  Reference Domains             : 0
-  Before Validation             : 175,359
-  Removed (not in reference)    : 175,359
-  After Validation              : 0
+  Reference Domains             : 164,873
+  Before Validation             : 175,362
+  Removed (not in reference)    : 83,400
+  After Validation              : 91,962
 
 [ External Whitelist Filtering ]
 ------------------------------------------------------------
-  Removed by Whitelist          : 0
-  After Whitelist               : 0
+  Removed by Whitelist          : 49
+  After Whitelist               : 91,913
 
 [ Personal Blocklist Override ]
 ------------------------------------------------------------
   Personal Block Domains        : 58,193
   Forced (White → Black)        : 13
-  After Personal Block          : 58,193
+  After Personal Block          : 97,494
 
 [ Personal Whitelist Final Override ]
 ------------------------------------------------------------
   Personal White Domains        : 3
-  Forced (Black → White)        : 1
-  After Personal White          : 58,192
+  Forced (Black → White)        : 2
+  After Personal White          : 97,492
 
 [ Final Summary ]
 ------------------------------------------------------------
   Priority: Filter < ExtWhite < PersonalBlock < PersonalWhite
   ────────────────────────────────────────────────────────────
-  1. Raw Domains Collected      : 175,359
-  2. Removed by Reference       : 175,359
-  3. Removed by Ext.Whitelist   : 0
+  1. Raw Domains Collected      : 175,362
+  2. Removed by Reference       : 83,400
+  3. Removed by Ext.Whitelist   : 49
   4. Personal Block Added       : 58,193
   5. Forced (White → Black)     : 13
-  6. Forced (Black → White)     : 1
-  7. Final Block Rules          : 58,192
+  6. Forced (Black → White)     : 2
+  7. Final Block Rules          : 97,492
   8. Final Exception Rules      : 7,884
 ============================================================
