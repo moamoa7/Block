@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-05 21:31:27 UTC
+# Generated: 2026-05-05 22:42:05 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 183,246
-# 2. Removed by Reference       : 90,633
+# 1. Raw Domains Collected      : 183,258
+# 2. Removed by Reference       : 90,634
 # 3. Removed by Ext.Whitelist   : 49
 # 4. Personal Block Added       : 56,846
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 98,048
+# 7. Final Block Rules (||)     : 98,051
 # 8. Final Exception Rules (@@) : 7,891
 #
 0-02.net
@@ -20640,6 +20640,7 @@ curlsbatter.com
 curlsseizuregolan.com
 curlycannon.com
 curlygirl.pro
+curnocksentidervish.cfd
 curoax.com
 curogmc.com
 curraneboyerramenta.qpon
@@ -50455,6 +50456,7 @@ nbwxpfkdjlbas.space
 nbxcijnlqfrbd.website
 nbyhovdpjmhit.site
 nbyzrdjsondlh.space
+nbzzajyotndew.website
 ncagwiubkrzij.space
 ncapocjvsgdba.online
 ncb6t8bn4.com
@@ -96110,6 +96112,7 @@ ysdtufmmswzwh.online
 yseodjirzuuax.website
 ysesials.net
 ysftuvmrfuojk.online
+ysggsbyhwvtabi.com
 ysgvhmiwrvsvt.website
 yshfyhfhzvcik.club
 ysjffeahkpzeb.online

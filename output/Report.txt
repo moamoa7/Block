@@ -1,13 +1,13 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-05 21:31:27 UTC
+  Generated: 2026-05-05 22:42:05 UTC
 ============================================================
 
 [ Reference Filter ]
 ------------------------------------------------------------
   [OK] AdGuard DNS Filter
        URL: https://filters.adtidy.org/windows/filters/15.txt
-       Total Lines: 167,502 | Domains: 165,013
+       Total Lines: 167,513 | Domains: 165,024
 
 [ External Whitelist Sources ]
 ------------------------------------------------------------
@@ -22,10 +22,10 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 90,325 | Extracted: 57,658
+       Total Lines: 90,337 | Extracted: 57,670
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 158,696 | Extracted: 66,433
+       Total Lines: 158,697 | Extracted: 66,434
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,545 | Extracted: 908
@@ -68,8 +68,8 @@
 ------------------------------------------------------------
   Filter                            Extracted        New     Unique
   ──────────────────────────────── ────────── ────────── ──────────
-  EasyList                             57,658     57,658         10
-  AdGuard Base                         66,433      8,785      4,620
+  EasyList                             57,670     57,670         21
+  AdGuard Base                         66,434      8,785      4,620
   AdGuard Mobile                          908        890        229
   AdGuard Japanese                        169        156         19
   AdGuard Chinese                       6,114      6,098        515
@@ -77,42 +77,42 @@
   uBlock Filters                           50         33          5
   HaGeZi's Normal DNS Blocklist       160,889    109,361    109,361
   ──────────────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)                183,246
+  Total (deduplicated)                183,258
 
 [ Reference Filter Validation ]
 ------------------------------------------------------------
-  Reference Domains             : 165,013
-  Before Validation             : 183,246
-  Removed (not in reference)    : 90,633
-  After Validation              : 92,613
+  Reference Domains             : 165,024
+  Before Validation             : 183,258
+  Removed (not in reference)    : 90,634
+  After Validation              : 92,624
 
 [ External Whitelist Filtering ]
 ------------------------------------------------------------
   Removed by Whitelist          : 49
-  After Whitelist               : 92,564
+  After Whitelist               : 92,575
 
 [ Personal Blocklist Override ]
 ------------------------------------------------------------
   Personal Block Domains        : 56,846
   Forced (White → Black)        : 13
-  After Personal Block          : 98,050
+  After Personal Block          : 98,053
 
 [ Personal Whitelist Final Override ]
 ------------------------------------------------------------
   Personal White Domains        : 3
   Forced (Black → White)        : 2
-  After Personal White          : 98,048
+  After Personal White          : 98,051
 
 [ Final Summary ]
 ------------------------------------------------------------
   Priority: Filter < ExtWhite < PersonalBlock < PersonalWhite
   ────────────────────────────────────────────────────────────
-  1. Raw Domains Collected      : 183,246
-  2. Removed by Reference       : 90,633
+  1. Raw Domains Collected      : 183,258
+  2. Removed by Reference       : 90,634
   3. Removed by Ext.Whitelist   : 49
   4. Personal Block Added       : 56,846
   5. Forced (White → Black)     : 13
   6. Forced (Black → White)     : 2
-  7. Final Block Rules          : 98,048
+  7. Final Block Rules          : 98,051
   8. Final Exception Rules      : 7,891
 ============================================================
