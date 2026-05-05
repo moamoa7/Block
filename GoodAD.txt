@@ -2127,6 +2127,7 @@ coupang.com###srpKeywordTopBanner
 !@@||escrow.auction.co.kr$script,xhr
 ! -광고
 ! - - - https://cafe.daum.net/
+! - - - https://brunch.co.kr/
 ##[alt$="배너"]
 ! - - - G마켓 (https://www.gmarket.co.kr/)
 ! - - - 이토랜드 (https://etoland.co.kr/point)
@@ -4346,6 +4347,37 @@ newduck.net##.code-list-top
 ##.powerlink
 !
 !
+! 이슈야 (https://www.issuya.com/)
+! - 안내 배너?
+issuya.com##.fc-ab-root
+! - 안내 배너 차단으로 인한 스크롤 차단 해제
+issuya.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+!
+!
+! 개드립 (https://www.dogdrip.net/)
+! - 배너
+dogdrip.net##[class$="right-ad"]
+dogdrip.net##[class$="left-ad"]
+!
+!
+! https://dvdprime.com/
+! - 상단 배너
+###top_banner
+! - 오른쪽 배너
+dvdprime.com###sidebar_container
+! - 왼쪽 하단 배너
+dvdprime.com##.menu_left_banner
+!
+!
+! https://zod.kr/
+! - 상단 배너
+zod.kr##.swiper-backface-hidden
+! - 오른쪽 배너
+zod.kr##.swiper-container
+zod.kr##.zod-widgets--deal_partner
+! - 왼쪽 배너
+zod.kr###icl28teUVav8
+!
 !
 !
 !
@@ -4862,9 +4894,12 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ##iframe[src*="hidden"]
 
+
 ! - https://ygosu.com/
 ##iframe[id*="hidden"]
 
+
+! - https://dvdprime.com/
 ##iframe[class*="hidden"]
 
 
@@ -4879,7 +4914,15 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://speedtest.telstra.com/
-##[class^="iframe"]
+! -  https://dvdprime.com/ - 영상 안보임
+!##[class^="iframe"]
+
+
+! - https://dvdprime.com/ - 영상 안보임
+!##[class*="popup"]
+
+
+##[class$="iframe"]
 
 
 ##[alt$="스폰"]
