@@ -1,6 +1,6 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-05 04:41:43 UTC
+! Generated: 2026-05-05 07:08:31 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
@@ -8,13 +8,13 @@
 ! Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 175,362
-! 2. Removed by Reference       : 83,400
+! 1. Raw Domains Collected      : 175,385
+! 2. Removed by Reference       : 83,415
 ! 3. Removed by Ext.Whitelist   : 49
-! 4. Personal Block Added       : 58,193
+! 4. Personal Block Added       : 58,280
 ! 5. Forced (White → Black)     : 13
 ! 6. Forced (Black → White)     : 2
-! 7. Final Block Rules (||)     : 97,492
+! 7. Final Block Rules (||)     : 97,515
 ! 8. Final Exception Rules (@@) : 7,884
 !
 ! === BLOCK RULES ===
@@ -1133,7 +1133,6 @@
 ||3bc2a6115d.com^
 ||3bj8h6hcqtj1tpoc.m3e2wtrol97bcxygo.cyou^
 ||3bzsoex618.com^
-||3c241b2b3e.com^
 ||3ca9dc59cc.com^
 ||3cabf4dbb4.da1b05834d.com^
 ||3cbxqifhd.com^
@@ -5680,6 +5679,7 @@
 ||ads.townhall.com^
 ||ads.travelaudience.com^
 ||ads.tripod.lycos.co.uk^
+||ads.tripod.lycos.de^
 ||ads.tripod.lycos.es^
 ||ads.tripod.lycos.it^
 ||ads.tripod.lycos.nl^
@@ -8028,6 +8028,7 @@
 ||amuyongsentsarachne.cyou^
 ||amveojmbffpma.online^
 ||amwgisnagixqe.store^
+||amwm.cn^
 ||amwmxldlxyc.com^
 ||amwoukrkskillso.com^
 ||amxdxahyhsvjpr.com^
@@ -11188,6 +11189,7 @@
 ||avowersimino.shop^
 ||avp.labanquepostale.fr^
 ||avpjihtkjsnfe.space^
+||avpr.cn^
 ||avpztadpi.in^
 ||avqovczcoanp.com^
 ||avs.adpinfo.com^
@@ -12905,6 +12907,7 @@
 ||bestrewdeplace.cfd^
 ||bestridabendssiccing.qpon^
 ||bestrutazygous.shop^
+||bestsearch.net^
 ||bestshoesboot.com^
 ||bestsmartvpn.com^
 ||bestssrv.com^
@@ -15650,7 +15653,6 @@
 ||cahierswet.cyou^
 ||cahootdisodic.com^
 ||cai75tp.com^
-||caicaipoop.com^
 ||caiqbjsmnpkkq.com^
 ||cairnaswellcrim.cyou^
 ||caitlinagathami.com^
@@ -19674,6 +19676,7 @@
 ||cpmstar.com^
 ||cpmterra.com^
 ||cpmtree.com^
+||cpnsbxkibvbhw.space^
 ||cpokulack.com^
 ||cpoysuoqiuwvm.online^
 ||cppopmfbsoohj.top^
@@ -26686,6 +26689,7 @@
 ||elnz02.com^
 ||elocuteblinderovertip.cfd^
 ||elogiado.info^
+||elogs.vnexpress.net^
 ||elogymayda.shop^
 ||elonreptiloid.com^
 ||elonreptiloid.pw^
@@ -32033,6 +32037,7 @@
 ||geo.bdg.com^
 ||geo.digitalpoint.com^
 ||geo.ertya.com^
+||geo.go2s.co^
 ||geo.gorillanation.com^
 ||geo.hltv.org^
 ||geo.homepage-web.com^
@@ -35459,6 +35464,7 @@
 ||hippenbatton.cyou^
 ||hipperbreton.qpon^
 ||hippierrapiner.com^
+||hippingdsectspitapat.qpon^
 ||hippobulse.com^
 ||hippojump.com^
 ||hippopantile.cyou^
@@ -36678,6 +36684,7 @@
 ||hythroqu.com^
 ||hytufdrcsrpbc.space^
 ||hytxg2.com^
+||hyunolgvmtuoo.site^
 ||hyvirttguqnwt.online^
 ||hyvmmxgohrnpc.site^
 ||hywwxqhxtoxxb.com^
@@ -37567,6 +37574,7 @@
 ||imgsct.cookiebot.com^
 ||imgsniper.com^
 ||imgx.jampp.com^
+||imgzxr.cn^
 ||imhd.io^
 ||imho.ru^
 ||imiclick.org^
@@ -39535,6 +39543,7 @@
 ||jegrbkenarvan.website^
 ||jegyojben.com^
 ||jehovahcoptis.qpon^
+||jehqreubicoagss.com^
 ||jehudf.com^
 ||jehxfphxnbeze.online^
 ||jejlaueaxfsjt.website^
@@ -40793,6 +40802,7 @@
 ||kaozemnizhheg.website^
 ||kapetracking.com^
 ||kapitalrus.ru^
+||kapkh.cn^
 ||kaplanindex.com^
 ||kaplay.com^
 ||kaprila.com^
@@ -42186,6 +42196,7 @@
 ||la-la-sf.com^
 ||la.vietid.net^
 ||la.vnbusiness.vn^
+||la.vnecdn.net^
 ||la2.vnecdn.net^
 ||la3.vnecdn.net^
 ||laarmwcgehodw.website^
@@ -43176,6 +43187,7 @@
 ||liklojigctaog.space^
 ||likondok.com^
 ||lilacdazedawe.com^
+||lilkdtrwspxvk.website^
 ||lilonews.com^
 ||lilxvvndclgcs.space^
 ||limansshastri.cyou^
@@ -44658,6 +44670,7 @@
 ||lrlqiohtorwwl.website^
 ||lrnetherlands.wolterskluwer.com^
 ||lrorwzpayomsy.space^
+||lrphk.cn^
 ||lrqho.gldn.com^
 ||lrqnjyplwtnsw.website^
 ||lrqqsseldxksb.online^
@@ -59521,6 +59534,7 @@
 ||pushq.ir^
 ||pushqwer.com^
 ||pushrase.com^
+||pushrb.pro^
 ||pushrodcodeine.shop^
 ||pushsar.com^
 ||pushserve.xyz^
@@ -60038,6 +60052,7 @@
 ||qc.coccoc.com^
 ||qc.coccoc.vn^
 ||qc.designervn.net^
+||qc.japo.vn^
 ||qc.kqbd88.com^
 ||qc.ultraviewer.net^
 ||qc.violet.vn^
@@ -60380,6 +60395,7 @@
 ||qihnajipjpmii.online^
 ||qihpwojcazrje.website^
 ||qiji1.jdwx.info^
+||qijinrdipjqcnj.com^
 ||qijl.cn^
 ||qijnwislyiceh.website^
 ||qikjqmbxvpdpw.online^
@@ -62015,6 +62031,7 @@
 ||rbm.tbmods.ru^
 ||rbmamttdoifoc.online^
 ||rbmarzhsintfc.website^
+||rbmcnf.pro^
 ||rbmuftevtugwy.site^
 ||rbnfyqwhkwffg.website^
 ||rbnt.org^
@@ -62329,6 +62346,7 @@
 ||rebiaoharepanace.cfd^
 ||rebiasglandstorcs.cyou^
 ||rebindsrodge.cfd^
+||rebirththocht.qpon^
 ||reboantzarf.com^
 ||reboardwhoop.cfd^
 ||reboastdromeestoc.cyou^
@@ -69021,6 +69039,7 @@
 ||showmebars.com^
 ||showmeyouradsnow.com^
 ||showootsoaftah.net^
+||showsclick.com^
 ||showsclicka.com^
 ||showsteel.com^
 ||showyfee.pro^
@@ -75859,6 +75878,7 @@
 ||stats.stg.zaloapp.com^
 ||stats.streamhub.io^
 ||stats.studyquicks.com^
+||stats.stylight.de^
 ||stats.suedtirolerjobs.it^
 ||stats.suenicholls.com^
 ||stats.suite101.com^
@@ -79385,7 +79405,6 @@
 ||thauksunih.net^
 ||thaulseltompad.net^
 ||thaumsudsestees.net^
-||thaurgaiboocoah.com^
 ||thaveforst.help^
 ||thavxaiwvxtja.website^
 ||thawbootsamplitude.com^
@@ -81976,6 +81995,7 @@
 ||traffic.cam4pays.com^
 ||traffic.club^
 ||traffic.feedremedy.com^
+||traffic.focuusing.com^
 ||traffic.jotterads.com^
 ||traffic.nvcms.net^
 ||traffic.prod.cobaltgroup.com^
@@ -87089,6 +87109,7 @@
 ||veqekuph.com^
 ||veqlcndoufbsu.space^
 ||ver-pelis.me^
+||ver1f3y.com^
 ||verandasandbag.cfd^
 ||verbalimpliedgorilla.com^
 ||verbalpedestalchilly.com^
@@ -94875,6 +94896,7 @@
 ||ygqkmvlgampp.com^
 ||ygrgyhhexvwvs.site^
 ||ygtbzpdemamrn.online^
+||ygtdegcuuteq.com^
 ||ygtonnwghswtx.space^
 ||ygtzipndentuz.online^
 ||ygumseqbggl.com^
@@ -97480,6 +97502,7 @@
 ||zzdvsgnxamcmq.website^
 ||zzedibnapli.in^
 ||zzfikyawmqtmw.website^
+||zzfoms.com^
 ||zzfxfz.com^
 ||zzhengre.com^
 ||zzhlssowvzfds.online^

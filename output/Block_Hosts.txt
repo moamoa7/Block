@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-05 04:41:43 UTC
+# Generated: 2026-05-05 07:08:31 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 175,362
-# 2. Removed by Reference       : 83,400
+# 1. Raw Domains Collected      : 175,385
+# 2. Removed by Reference       : 83,415
 # 3. Removed by Ext.Whitelist   : 49
-# 4. Personal Block Added       : 58,193
+# 4. Personal Block Added       : 58,280
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 97,492
+# 7. Final Block Rules (||)     : 97,515
 # 8. Final Exception Rules (@@) : 7,884
 #
 0.0.0.0 0-02.net
@@ -1132,7 +1132,6 @@
 0.0.0.0 3bc2a6115d.com
 0.0.0.0 3bj8h6hcqtj1tpoc.m3e2wtrol97bcxygo.cyou
 0.0.0.0 3bzsoex618.com
-0.0.0.0 3c241b2b3e.com
 0.0.0.0 3ca9dc59cc.com
 0.0.0.0 3cabf4dbb4.da1b05834d.com
 0.0.0.0 3cbxqifhd.com
@@ -5679,6 +5678,7 @@
 0.0.0.0 ads.townhall.com
 0.0.0.0 ads.travelaudience.com
 0.0.0.0 ads.tripod.lycos.co.uk
+0.0.0.0 ads.tripod.lycos.de
 0.0.0.0 ads.tripod.lycos.es
 0.0.0.0 ads.tripod.lycos.it
 0.0.0.0 ads.tripod.lycos.nl
@@ -8027,6 +8027,7 @@
 0.0.0.0 amuyongsentsarachne.cyou
 0.0.0.0 amveojmbffpma.online
 0.0.0.0 amwgisnagixqe.store
+0.0.0.0 amwm.cn
 0.0.0.0 amwmxldlxyc.com
 0.0.0.0 amwoukrkskillso.com
 0.0.0.0 amxdxahyhsvjpr.com
@@ -11187,6 +11188,7 @@
 0.0.0.0 avowersimino.shop
 0.0.0.0 avp.labanquepostale.fr
 0.0.0.0 avpjihtkjsnfe.space
+0.0.0.0 avpr.cn
 0.0.0.0 avpztadpi.in
 0.0.0.0 avqovczcoanp.com
 0.0.0.0 avs.adpinfo.com
@@ -12904,6 +12906,7 @@
 0.0.0.0 bestrewdeplace.cfd
 0.0.0.0 bestridabendssiccing.qpon
 0.0.0.0 bestrutazygous.shop
+0.0.0.0 bestsearch.net
 0.0.0.0 bestshoesboot.com
 0.0.0.0 bestsmartvpn.com
 0.0.0.0 bestssrv.com
@@ -15649,7 +15652,6 @@
 0.0.0.0 cahierswet.cyou
 0.0.0.0 cahootdisodic.com
 0.0.0.0 cai75tp.com
-0.0.0.0 caicaipoop.com
 0.0.0.0 caiqbjsmnpkkq.com
 0.0.0.0 cairnaswellcrim.cyou
 0.0.0.0 caitlinagathami.com
@@ -19673,6 +19675,7 @@
 0.0.0.0 cpmstar.com
 0.0.0.0 cpmterra.com
 0.0.0.0 cpmtree.com
+0.0.0.0 cpnsbxkibvbhw.space
 0.0.0.0 cpokulack.com
 0.0.0.0 cpoysuoqiuwvm.online
 0.0.0.0 cppopmfbsoohj.top
@@ -26685,6 +26688,7 @@
 0.0.0.0 elnz02.com
 0.0.0.0 elocuteblinderovertip.cfd
 0.0.0.0 elogiado.info
+0.0.0.0 elogs.vnexpress.net
 0.0.0.0 elogymayda.shop
 0.0.0.0 elonreptiloid.com
 0.0.0.0 elonreptiloid.pw
@@ -32032,6 +32036,7 @@
 0.0.0.0 geo.bdg.com
 0.0.0.0 geo.digitalpoint.com
 0.0.0.0 geo.ertya.com
+0.0.0.0 geo.go2s.co
 0.0.0.0 geo.gorillanation.com
 0.0.0.0 geo.hltv.org
 0.0.0.0 geo.homepage-web.com
@@ -35458,6 +35463,7 @@
 0.0.0.0 hippenbatton.cyou
 0.0.0.0 hipperbreton.qpon
 0.0.0.0 hippierrapiner.com
+0.0.0.0 hippingdsectspitapat.qpon
 0.0.0.0 hippobulse.com
 0.0.0.0 hippojump.com
 0.0.0.0 hippopantile.cyou
@@ -36677,6 +36683,7 @@
 0.0.0.0 hythroqu.com
 0.0.0.0 hytufdrcsrpbc.space
 0.0.0.0 hytxg2.com
+0.0.0.0 hyunolgvmtuoo.site
 0.0.0.0 hyvirttguqnwt.online
 0.0.0.0 hyvmmxgohrnpc.site
 0.0.0.0 hywwxqhxtoxxb.com
@@ -37566,6 +37573,7 @@
 0.0.0.0 imgsct.cookiebot.com
 0.0.0.0 imgsniper.com
 0.0.0.0 imgx.jampp.com
+0.0.0.0 imgzxr.cn
 0.0.0.0 imhd.io
 0.0.0.0 imho.ru
 0.0.0.0 imiclick.org
@@ -39534,6 +39542,7 @@
 0.0.0.0 jegrbkenarvan.website
 0.0.0.0 jegyojben.com
 0.0.0.0 jehovahcoptis.qpon
+0.0.0.0 jehqreubicoagss.com
 0.0.0.0 jehudf.com
 0.0.0.0 jehxfphxnbeze.online
 0.0.0.0 jejlaueaxfsjt.website
@@ -40792,6 +40801,7 @@
 0.0.0.0 kaozemnizhheg.website
 0.0.0.0 kapetracking.com
 0.0.0.0 kapitalrus.ru
+0.0.0.0 kapkh.cn
 0.0.0.0 kaplanindex.com
 0.0.0.0 kaplay.com
 0.0.0.0 kaprila.com
@@ -42185,6 +42195,7 @@
 0.0.0.0 la-la-sf.com
 0.0.0.0 la.vietid.net
 0.0.0.0 la.vnbusiness.vn
+0.0.0.0 la.vnecdn.net
 0.0.0.0 la2.vnecdn.net
 0.0.0.0 la3.vnecdn.net
 0.0.0.0 laarmwcgehodw.website
@@ -43175,6 +43186,7 @@
 0.0.0.0 liklojigctaog.space
 0.0.0.0 likondok.com
 0.0.0.0 lilacdazedawe.com
+0.0.0.0 lilkdtrwspxvk.website
 0.0.0.0 lilonews.com
 0.0.0.0 lilxvvndclgcs.space
 0.0.0.0 limansshastri.cyou
@@ -44657,6 +44669,7 @@
 0.0.0.0 lrlqiohtorwwl.website
 0.0.0.0 lrnetherlands.wolterskluwer.com
 0.0.0.0 lrorwzpayomsy.space
+0.0.0.0 lrphk.cn
 0.0.0.0 lrqho.gldn.com
 0.0.0.0 lrqnjyplwtnsw.website
 0.0.0.0 lrqqsseldxksb.online
@@ -59520,6 +59533,7 @@
 0.0.0.0 pushq.ir
 0.0.0.0 pushqwer.com
 0.0.0.0 pushrase.com
+0.0.0.0 pushrb.pro
 0.0.0.0 pushrodcodeine.shop
 0.0.0.0 pushsar.com
 0.0.0.0 pushserve.xyz
@@ -60037,6 +60051,7 @@
 0.0.0.0 qc.coccoc.com
 0.0.0.0 qc.coccoc.vn
 0.0.0.0 qc.designervn.net
+0.0.0.0 qc.japo.vn
 0.0.0.0 qc.kqbd88.com
 0.0.0.0 qc.ultraviewer.net
 0.0.0.0 qc.violet.vn
@@ -60379,6 +60394,7 @@
 0.0.0.0 qihnajipjpmii.online
 0.0.0.0 qihpwojcazrje.website
 0.0.0.0 qiji1.jdwx.info
+0.0.0.0 qijinrdipjqcnj.com
 0.0.0.0 qijl.cn
 0.0.0.0 qijnwislyiceh.website
 0.0.0.0 qikjqmbxvpdpw.online
@@ -62014,6 +62030,7 @@
 0.0.0.0 rbm.tbmods.ru
 0.0.0.0 rbmamttdoifoc.online
 0.0.0.0 rbmarzhsintfc.website
+0.0.0.0 rbmcnf.pro
 0.0.0.0 rbmuftevtugwy.site
 0.0.0.0 rbnfyqwhkwffg.website
 0.0.0.0 rbnt.org
@@ -62328,6 +62345,7 @@
 0.0.0.0 rebiaoharepanace.cfd
 0.0.0.0 rebiasglandstorcs.cyou
 0.0.0.0 rebindsrodge.cfd
+0.0.0.0 rebirththocht.qpon
 0.0.0.0 reboantzarf.com
 0.0.0.0 reboardwhoop.cfd
 0.0.0.0 reboastdromeestoc.cyou
@@ -69020,6 +69038,7 @@
 0.0.0.0 showmebars.com
 0.0.0.0 showmeyouradsnow.com
 0.0.0.0 showootsoaftah.net
+0.0.0.0 showsclick.com
 0.0.0.0 showsclicka.com
 0.0.0.0 showsteel.com
 0.0.0.0 showyfee.pro
@@ -75858,6 +75877,7 @@
 0.0.0.0 stats.stg.zaloapp.com
 0.0.0.0 stats.streamhub.io
 0.0.0.0 stats.studyquicks.com
+0.0.0.0 stats.stylight.de
 0.0.0.0 stats.suedtirolerjobs.it
 0.0.0.0 stats.suenicholls.com
 0.0.0.0 stats.suite101.com
@@ -79384,7 +79404,6 @@
 0.0.0.0 thauksunih.net
 0.0.0.0 thaulseltompad.net
 0.0.0.0 thaumsudsestees.net
-0.0.0.0 thaurgaiboocoah.com
 0.0.0.0 thaveforst.help
 0.0.0.0 thavxaiwvxtja.website
 0.0.0.0 thawbootsamplitude.com
@@ -81975,6 +81994,7 @@
 0.0.0.0 traffic.cam4pays.com
 0.0.0.0 traffic.club
 0.0.0.0 traffic.feedremedy.com
+0.0.0.0 traffic.focuusing.com
 0.0.0.0 traffic.jotterads.com
 0.0.0.0 traffic.nvcms.net
 0.0.0.0 traffic.prod.cobaltgroup.com
@@ -87088,6 +87108,7 @@
 0.0.0.0 veqekuph.com
 0.0.0.0 veqlcndoufbsu.space
 0.0.0.0 ver-pelis.me
+0.0.0.0 ver1f3y.com
 0.0.0.0 verandasandbag.cfd
 0.0.0.0 verbalimpliedgorilla.com
 0.0.0.0 verbalpedestalchilly.com
@@ -94874,6 +94895,7 @@
 0.0.0.0 ygqkmvlgampp.com
 0.0.0.0 ygrgyhhexvwvs.site
 0.0.0.0 ygtbzpdemamrn.online
+0.0.0.0 ygtdegcuuteq.com
 0.0.0.0 ygtonnwghswtx.space
 0.0.0.0 ygtzipndentuz.online
 0.0.0.0 ygumseqbggl.com
@@ -97479,6 +97501,7 @@
 0.0.0.0 zzdvsgnxamcmq.website
 0.0.0.0 zzedibnapli.in
 0.0.0.0 zzfikyawmqtmw.website
+0.0.0.0 zzfoms.com
 0.0.0.0 zzfxfz.com
 0.0.0.0 zzhengre.com
 0.0.0.0 zzhlssowvzfds.online
