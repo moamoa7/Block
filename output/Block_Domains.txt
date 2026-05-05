@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-05 07:08:31 UTC
+# Generated: 2026-05-05 09:24:59 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 175,385
-# 2. Removed by Reference       : 83,415
+# 1. Raw Domains Collected      : 175,410
+# 2. Removed by Reference       : 83,420
 # 3. Removed by Ext.Whitelist   : 49
-# 4. Personal Block Added       : 58,280
+# 4. Personal Block Added       : 57,666
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 97,515
+# 7. Final Block Rules (||)     : 97,516
 # 8. Final Exception Rules (@@) : 7,884
 #
 0-02.net
@@ -750,6 +750,7 @@
 24log.fr
 24log.it
 24log.ru
+24n8yiitjivty3vlg1rl9n2tmr.rest
 24new.ru
 24newstech.com
 24nf8sxd9p.com
@@ -11172,6 +11173,7 @@ avionbatfowl.shop
 avisosrevving.cfd
 avjlllfpqvloi.website
 avkauywgzdxlx.online
+avkvkeohr.in
 avlmy.com
 avmmsekplixsk.space
 avmws.com
@@ -11275,7 +11277,6 @@ awiikkjgstrym.online
 awimsqcakvnq.com
 awistats.com
 awjakpos.com
-awkbkkqkqeqkr.top
 awkbkkqkqmmva.top
 awkward-body.pro
 awkward-clue.com
@@ -12560,7 +12561,6 @@ becreepcartway.cyou
 becrowdrecalls.cfd
 becurstpoffle.cfd
 bedaffyamen.cfd
-bedaoibe.com
 bedaregein.cfd
 bedarksolans.cfd
 bedashliegiersubset.cyou
@@ -15948,7 +15948,6 @@ cardinal.newman.is
 cardinal.zenting.app
 cardmethod.com
 cardoonnaias.qpon
-caredhumilis.top
 careensbodies.cyou
 careers.hotjar.com
 careerunderstatement.com
@@ -17278,7 +17277,6 @@ choppedremains.com
 choppedtrimboulevard.com
 chopsticks22.com
 chordbelievingpossible.com
-chordeehepcats.shop
 chorgioliban.qpon
 choricpitting.qpon
 chorionkayaker.cfd
@@ -19973,6 +19971,7 @@ crimsonmeadow.com
 crimsonrhyme.com
 crinchallegro.com
 cringezonearistocracy.com
+crinitewiggish.cyou
 crinkanonymelyn.cyou
 crinukpd.com
 crinulaoutbegs.cfd
@@ -25057,7 +25056,6 @@ drunkarddignifyheather.com
 drunkardlukecoverage.com
 drunkwinter.com
 drupalmetrics.ppg.apple.com
-druqkstwwvg.com
 drusescheneau.cfd
 drusetrusts.shop
 drutsylaylzqx.site
@@ -29223,7 +29221,6 @@ ferdarius.com
 ferialpatel.cfd
 feriassaimiri.com
 fermebrickel.qpon
-fermistychism.shop
 fermolo.info
 ferninsecurecrawling.com
 ferntravelleddeduct.com
@@ -34401,6 +34398,7 @@ h9806gjhz.com
 ha-api.pushwoosh.com
 haberdasherycorpse.com
 habetcrammer.qpon
+habilepopshop.cyou
 habirimodioli.com
 habitattexture.com
 habituecharrostudder.qpon
@@ -38511,7 +38509,6 @@ iobswixghwftq.site
 iocnt.net
 iodideeyebath.cam
 iodolruddock.com
-ioefhvcc.com
 ioeivzhw.com
 iofeguoyhemey.space
 iofferphoto.com
@@ -38559,6 +38556,7 @@ iotapool.com
 iotfovmvclciq.site
 iothkkqpgplrc.website
 ioujibes.cyou
+iouloliplfc.com
 iouyechctsbmz.vip
 iowanseck.com
 ioynumodqydgd.site
@@ -38639,6 +38637,7 @@ iqcontentplatform.de
 iqdbxlkqbpppb.site
 iqdlhrulwhnzt.space
 iqenxmmktuhrz.site
+iqfhjvwzpqg.com
 iqfhydrurclkp.space
 iqgblqeihwhvw.website
 iqgrerrkcwdxj.store
@@ -40327,7 +40326,6 @@ jsoggeqfmzzqi.website
 json.smotri.com
 jsonads.upnerd.net
 jspcdn.cn
-jsrcxfoeheaki.com
 jsretra.com
 jssckcpqylmzc.site
 jssearch.net
@@ -44802,6 +44800,7 @@ ludicrousavalancheherald.com
 ludicrousfreshencovering.com
 ludpvyyfohlgi.space
 ludurxwgzzvdg.site
+lueticsbeaky.cfd
 lueticssheave.cfd
 lufmlapgrpooc.site
 lufydapo.com
@@ -44949,7 +44948,6 @@ lvqg.cn
 lvrixcbdhinwu.website
 lvrq.cn
 lvsm.cn
-lvtuucmyfpz.com
 lvuafqlps.com
 lvubwrnhxktlo.online
 lvvbqeaqvrmvy.top
@@ -45180,6 +45178,7 @@ m1tm.motor1.com
 m1vvvv1k2.com
 m2.ai
 m2.lelemh.com
+m2fpkp2bq6k6ooorq5fy.cfd
 m2track.co
 m3.repka.online
 m32.media
@@ -45923,6 +45922,7 @@ mbchpvbeujokh.online
 mbcm2.com
 mbddip.com
 mbdippex.com
+mbdleafdom.cyou
 mbdlog.iqiyi.com
 mbdmildishzontian.cfd
 mbg06251pg.com
@@ -49657,6 +49657,7 @@ mygjunfjozcxz.online
 mygtmn.com
 myhfblzjkhvfq.website
 myiads.com
+myiasesswords.qpon
 myieldell.com
 myijgzvgluvai.site
 mykydlznkanfk.online
@@ -49667,7 +49668,6 @@ mymatch.site
 mymcxxguwlzjc.website
 mymexpsaqjzfj.site
 mymukindwould.com
-mynativeplatform.com
 mynealpttfyoq.space
 mynewcounter.com
 myntelligence.com
@@ -53175,6 +53175,7 @@ opalmetely.com
 opaloidrepayal.cfd
 opalsmeer.com
 opbrelooman.com
+opchqpnpdvbqn.website
 opclck.com
 opcpepwyl.com
 opdrkeqdvzgoi.website
@@ -53682,6 +53683,7 @@ otowlgplnxtmk.website
 otoyueuprumok.icu
 otpankbixgcy.in
 otsoasxgsyabr.online
+otsvzohc.in
 otswhtxkfprcy.online
 ottadvisors.com
 otter.emdegmbh.com
@@ -55059,7 +55061,6 @@ paxxfiss.com
 paxzslunbisvh.online
 pay-click.ru
 pay-hit.com
-pay.sboot.cn
 payamdbgy.com
 paybackmodified.com
 payclick.it
@@ -55868,6 +55869,7 @@ pharehocks.cfd
 pharmacycoercive.com
 pharmcash.com
 pharoilrw.com
+pharosbostons.qpon
 pharteewhi.xyz
 phaseshift.almagrow.com
 phaseunfabularhefting.cfd
@@ -56317,6 +56319,7 @@ pionaocmsbrfx.site
 pioneerbusy.com
 pioneercomparatively.com
 piotyo.xyz
+piovokqpethen.website
 pip-pip-pop.com
 pip.jhbsdds.com
 pipa.topvacuumrobot.com
@@ -57277,7 +57280,6 @@ pofflefactors.cfd
 poflix.com
 pofookhmbkwuf.site
 pofyybwevmids.online
-poggdgdwutcmbx.com
 pogghkrtow.net
 pogmimonomdyc.space
 pogothere.xyz
@@ -58369,6 +58371,7 @@ pro100news.ru
 pro119marketing.com
 proactivationkey.com
 proadscdn.com
+proavisroutsbulges.cyou
 probabilidades.net
 probablebassinvoke.com
 probablepartner.com
@@ -63608,6 +63611,7 @@ rgqneyzmihvdg.space
 rgrcucwgjj896ibkk47b5thv.cfd
 rgrtuqhubwrwr.site
 rgskrmtckgwwl.online
+rgsoxfrxdalom.website
 rgsqnlcimzekb.space
 rgstispqfesdl.website
 rgtghulduk.com
@@ -69410,7 +69414,6 @@ sissingfiredog.cyou
 sisskellum.shop
 sistentcabbing.qpon
 sistowxlxfdtn.website
-sitaopiqure.com
 sitathurls.cfd
 site-azp.slgnt.eu
 site-config.com
@@ -77559,6 +77562,7 @@ synergy-e.com
 syneticoverfewaglossa.cfd
 synkd.life
 synodalcackled.cfd
+synodusdifdacoenoby.qpon
 synoecyjouks.cfd
 synoekybrent.qpon
 synonymoussticks.com
@@ -78552,6 +78556,7 @@ taxaffections.com
 taxashaft.shop
 taxdifferenceinvestor.com
 taxel.jp
+taxiingablend.qpon
 taxility.com
 taximenforwelk.cyou
 taxinenaives.cfd
@@ -79142,7 +79147,6 @@ teracreative.com
 teralog.techhub.co.kr
 teranootka.cyou
 teraverseapp.com
-terbicdiau.click
 terbit2.com
 tercabilis.info
 tercegherkin.cyou
@@ -82043,7 +82047,6 @@ trafficstars.com
 trafficswarm.com
 trafficsyncpro.com
 traffictrack.de
-traffictrader.net
 trafficundercontrol.com
 trafficz.com
 traffiq.com
@@ -85116,6 +85119,7 @@ upayaaztecan.help
 upayasquin.qpon
 upbbklofphpay.online
 upbearheezie.cfd
+upbeat-original.com
 upbeatdualyahoo.com
 upbindsswythe.com
 upboresoutar.com
@@ -88540,6 +88544,7 @@ vsfgd.searchatlas.com
 vsfnmefuhbnj.xyz
 vsfowtixgsjed.website
 vsfswhpnyjnbv.space
+vsgpxqdqk.com
 vshpajniedp.com
 vsiawfdrnqmasvt.com
 vsimyppptdxdo.site
@@ -90672,7 +90677,6 @@ wilrouncineole.cfd
 wilslide.com
 wilsomekindlybleach.cyou
 wiltaustaug.com
-wilted-carry.com
 wiltedpreference.pro
 wiltingnorman.cfd
 wilucuwzvc88g6vr9c7rr.cfd
@@ -91385,7 +91389,6 @@ worrisomedifference.com
 worrisomeshop.pro
 worrycuriositymafia.com
 worryinginadmissible.com
-worse-mine.com
 worserharrid.cfd
 worshippers.store
 worst-parent.pro
@@ -95959,7 +95962,6 @@ yzyjcjmsylgbv.site
 yzzakfgemqbsj.site
 z.5xntkn9je414bv.cyou
 z.auvik.com
-z.cdn.braun634.com
 z.cdn.protect-ad.com
 z.grfyw.com
 z.nowscore.com
@@ -96409,7 +96411,6 @@ zeruwzwdzfpeo.site
 zesainuxaimoots.net
 zesep.com
 zesrsywjvphmj.store
-zestfulpate.click
 zestsmohursmut.qpon
 zesty-temporary.pro
 zestycrime.com
