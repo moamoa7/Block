@@ -2127,6 +2127,7 @@ coupang.com###srpKeywordTopBanner
 ##[alt$="배너"]
 ! - - - G마켓 (https://www.gmarket.co.kr/)
 ! - - - 이토랜드 (https://etoland.co.kr/point)
+! - - - 네이버 블로그 (https://blog.naver.com/)
 ##[alt$="광고"]
 ! - 배너
 ##[class*="ad_banner"]
@@ -4313,6 +4314,15 @@ noonnu.cc##.fc-dialog-container
 ##.top-banner-box
 !
 !
+! 아정당 (https://www.ajd.co.kr/)
+! - 상단 배너
+##.banner-link
+! - 상단 배너 공간
+ajd.co.kr##.on.top-banner-slider
+! -하단 상담하기 (따라 다니는거)
+ajd.co.kr##.active.bottom-floating
+!
+!
 !
 !
 !
@@ -4606,7 +4616,8 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ##iframe[class*="google"]
 
-
+! - https://www.bandwidthplace.com/
+! - 티스토리 (https://www.tistory.com/)
 ##iframe[id*="google"]
 
 
@@ -4629,6 +4640,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://nunting.kr/
 ! - https://inven.co.kr/
 ! - https://www.teamblind.com/
+! - https://www.bandwidthplace.com/
 ##iframe[src*="ads"]
 
 
@@ -4839,6 +4851,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[title*="스폰"]
 
 
+! - https://speedtest.telstra.com/
 ##[class^="iframe"]
 
 
