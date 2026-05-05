@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-05 17:00:30 UTC
+# Generated: 2026-05-05 18:50:49 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 182,398
-# 2. Removed by Reference       : 90,333
+# 1. Raw Domains Collected      : 182,418
+# 2. Removed by Reference       : 90,321
 # 3. Removed by Ext.Whitelist   : 49
 # 4. Personal Block Added       : 56,786
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 97,559
+# 7. Final Block Rules (||)     : 97,591
 # 8. Final Exception Rules (@@) : 7,884
 #
 0.0.0.0 0-02.net
@@ -1370,6 +1370,7 @@
 0.0.0.0 4bind2.cfd
 0.0.0.0 4bo5t8fzd.com
 0.0.0.0 4br824ktty.com
+0.0.0.0 4bunvpnbb3b8u5w5.rest
 0.0.0.0 4bv74cep2m4qute4oynx2ebnx6g.cfd
 0.0.0.0 4c32ecfead.com
 0.0.0.0 4c35d6c7f6.com
@@ -1949,6 +1950,7 @@
 0.0.0.0 6ped2nd3yp.com
 0.0.0.0 6pvr7qenc4q6jvt6.rest
 0.0.0.0 6qymnpzi.xyz
+0.0.0.0 6r16lfvzzpo36k2in59y34z847r65huvb.cfd
 0.0.0.0 6r1hwgpxbm8fhqnpy.cfd
 0.0.0.0 6rn05mmbct.ru
 0.0.0.0 6ru92m5g.xyz
@@ -7084,6 +7086,7 @@
 0.0.0.0 agnqolfmjebpk.icu
 0.0.0.0 agnruzedegphs.site
 0.0.0.0 agoholiday.com
+0.0.0.0 agoniaslightyhexact.qpon
 0.0.0.0 agonizing-initiative.pro
 0.0.0.0 agonizingfollowing.pro
 0.0.0.0 agonyshark.com
@@ -12204,6 +12207,7 @@
 0.0.0.0 bathinggrovels.cyou
 0.0.0.0 bathtubabdomencoarse.com
 0.0.0.0 baticalfelixstown.org
+0.0.0.0 batilevwwijjj.online
 0.0.0.0 batlancaret.cfd
 0.0.0.0 batmobile.com.tw
 0.0.0.0 batonbertie.shop
@@ -13594,6 +13598,7 @@
 0.0.0.0 blcknvr.com
 0.0.0.0 blclajmgsqq.com
 0.0.0.0 bld.mobi
+0.0.0.0 bldgscrewedrestrip.cyou
 0.0.0.0 bldkgmtnesbfp.site
 0.0.0.0 bldklgxmbfemy.online
 0.0.0.0 bldr.mkt.samsung.com
@@ -13954,6 +13959,7 @@
 0.0.0.0 bobsleddomesticglandular.com
 0.0.0.0 bobwoodlappahaet.cfd
 0.0.0.0 boccemouzah.qpon
+0.0.0.0 boccesfrizzy.cyou
 0.0.0.0 bocenrqhquopv.website
 0.0.0.0 bochnvmvvzeqc.space
 0.0.0.0 boctyrosyl.shop
@@ -28471,6 +28477,7 @@
 0.0.0.0 eytthwyiszpyd.site
 0.0.0.0 eyuufdyvvbosk.website
 0.0.0.0 eyvpwdldzzrbk.space
+0.0.0.0 eywikbfstrckw.space
 0.0.0.0 eywkdpzpyggcq.site
 0.0.0.0 eyxafvqxebmxc.space
 0.0.0.0 eyxbfqqvviyza.website
@@ -28765,6 +28772,7 @@
 0.0.0.0 fallingshoals.com
 0.0.0.0 fallinmatches-paradises.com
 0.0.0.0 falloutrocking.cfd
+0.0.0.0 fallowdoll.cfd
 0.0.0.0 fallowsnorna.shop
 0.0.0.0 fallsceriapanter.cfd
 0.0.0.0 false-memory.pro
@@ -34103,6 +34111,7 @@
 0.0.0.0 guitarinterim.com
 0.0.0.0 guitarmist.com
 0.0.0.0 guitxvryhwhnl.xyz
+0.0.0.0 gujarkyanisenetbush.cyou
 0.0.0.0 gujqjoqszgwkv.online
 0.0.0.0 gukahdbam.com
 0.0.0.0 gukmodukuleqasfors.org
@@ -39779,6 +39788,7 @@
 0.0.0.0 jitdlj.icu
 0.0.0.0 jitgibmibpayc.online
 0.0.0.0 jithethos.net
+0.0.0.0 jitqwooztonj.in
 0.0.0.0 jitsjnlwupbdh.site
 0.0.0.0 jitsu.ixbt.com
 0.0.0.0 jitsu.ixbt.site
@@ -40973,6 +40983,7 @@
 0.0.0.0 kdwiwfiuxbmfk.space
 0.0.0.0 kdzzxxjgdhgqm.online
 0.0.0.0 keajs.com
+0.0.0.0 keamrlgxaxjhpf.com
 0.0.0.0 keanangelsaidthe.org
 0.0.0.0 kebarsredying.cfd
 0.0.0.0 kebdnwepskuoe.website
@@ -41107,6 +41118,7 @@
 0.0.0.0 kfvq.cn
 0.0.0.0 kfvtvbihzxkck.website
 0.0.0.0 kfwolwopegike.love
+0.0.0.0 kfwtvkjmtbmd.com
 0.0.0.0 kfx4vg9rbh4397k52t8o.cfd
 0.0.0.0 kg3p4c3r6541nq.cfd
 0.0.0.0 kgaviuu42.com
@@ -49104,6 +49116,7 @@
 0.0.0.0 mqpmivxywvxef.buzz
 0.0.0.0 mqqad.html5.qq.com
 0.0.0.0 mqszaiyafukar.online
+0.0.0.0 mqucumpdubembnj.com
 0.0.0.0 mquoemywissvp.tech
 0.0.0.0 mqutibglqfjmq.website
 0.0.0.0 mqwdgnbntkgen.space
@@ -50900,6 +50913,7 @@
 0.0.0.0 nistquarry.qpon
 0.0.0.0 nisuhweeciet.com
 0.0.0.0 nitafu.click
+0.0.0.0 nitencymaracarammy.cyou
 0.0.0.0 nitencyovicell.qpon
 0.0.0.0 niterforeact.com
 0.0.0.0 nithyshipsi.com
@@ -52027,6 +52041,7 @@
 0.0.0.0 oalseessonoo.com
 0.0.0.0 oamaymbwec.com
 0.0.0.0 oamoameevee.net
+0.0.0.0 oanfixbkeixoh.site
 0.0.0.0 oangewha.net
 0.0.0.0 oaocrxsgsemdg.love
 0.0.0.0 oaokes.icu
@@ -52285,6 +52300,7 @@
 0.0.0.0 ocwutmrfbsrwy.store
 0.0.0.0 ocxlihabtozf.com
 0.0.0.0 ocxtulxwjhipcs.com
+0.0.0.0 ocyjdrfrvb.com
 0.0.0.0 oda.markitondemand.com
 0.0.0.0 odakhzdbrzbny.website
 0.0.0.0 odb.outbrain.com
@@ -53522,6 +53538,7 @@
 0.0.0.0 orphanrudimentary.com
 0.0.0.0 orpy.cn
 0.0.0.0 orqbvhkyufnxk.space
+0.0.0.0 orqkdyblime.com
 0.0.0.0 orqlzuoqgad.com
 0.0.0.0 orqmimfug.in
 0.0.0.0 orqrdm.com
@@ -55702,6 +55719,7 @@
 0.0.0.0 pesoobakygevr.online
 0.0.0.0 pessimisticextra.com
 0.0.0.0 pesteroverwork.com
+0.0.0.0 pesterpolling.cyou
 0.0.0.0 pesteveinous.cyou
 0.0.0.0 pestilentberrysincere.com
 0.0.0.0 pestilenttidefilth.org
@@ -56387,6 +56405,7 @@
 0.0.0.0 pirnymocmain.cfd
 0.0.0.0 pirogad.tophosting101.com
 0.0.0.0 pirojkisertive.shop
+0.0.0.0 pirrteguas.qpon
 0.0.0.0 pirsch.io
 0.0.0.0 pirtecho.net
 0.0.0.0 pisayhotbedsaffing.cfd
@@ -57663,6 +57682,7 @@
 0.0.0.0 posf.xyz
 0.0.0.0 poshhateful.com
 0.0.0.0 poshmixture.pro
+0.0.0.0 poshorondino.cfd
 0.0.0.0 poshpulegol.qpon
 0.0.0.0 position66.top
 0.0.0.0 positional-bucket.com
@@ -60115,6 +60135,7 @@
 0.0.0.0 qctop.com
 0.0.0.0 qcuncolm.com
 0.0.0.0 qcuqifbquqzxx.space
+0.0.0.0 qcurkzogaukec.space
 0.0.0.0 qcuwpicccoscr.online
 0.0.0.0 qcv5.blogtruyen.vn
 0.0.0.0 qcvf.ifeng.com
@@ -62843,6 +62864,7 @@
 0.0.0.0 rek.www.wp.pl
 0.0.0.0 rek.yemlee.com
 0.0.0.0 rek5.savefrom.net
+0.0.0.0 rekbudlhhzxps.website
 0.0.0.0 reke.at.sohu.com
 0.0.0.0 rekickgigger.cfd
 0.0.0.0 rekinggawgaw.shop
@@ -73291,6 +73313,7 @@
 0.0.0.0 snorkelzutugil.com
 0.0.0.0 snortedbingo.com
 0.0.0.0 snortsarriere.cyou
+0.0.0.0 snortsgerim.qpon
 0.0.0.0 snortsprefet.cyou
 0.0.0.0 snottieskeens.cfd
 0.0.0.0 snoutwastedeeply.com
@@ -73352,6 +73375,7 @@
 0.0.0.0 soaheeme.net
 0.0.0.0 soahefoaca.net
 0.0.0.0 soakaldim.cyou
+0.0.0.0 soakersunseely.com
 0.0.0.0 soakmaneyry.qpon
 0.0.0.0 soamelxvleduv.space
 0.0.0.0 soaneefooy.net
@@ -73539,6 +73563,7 @@
 0.0.0.0 som.ringcentral.com
 0.0.0.0 somainpdeirit.online
 0.0.0.0 somber-fold.pro
+0.0.0.0 sombermistake.pro
 0.0.0.0 sombernewspaper.com
 0.0.0.0 somberscarecrow.com
 0.0.0.0 sombersea.com
@@ -73982,6 +74007,7 @@
 0.0.0.0 sparklingshelf.com
 0.0.0.0 sparkrainstorm.host
 0.0.0.0 sparkstudios.com
+0.0.0.0 sparktostatistics.net
 0.0.0.0 sparkvibe.today
 0.0.0.0 sparkylati.cfd
 0.0.0.0 sparplenasaumpatren.cyou
@@ -89197,6 +89223,7 @@
 0.0.0.0 waitingchimps.com
 0.0.0.0 waitingnumber.com
 0.0.0.0 waivedpatria.cyou
+0.0.0.0 waivingsuccise.shop
 0.0.0.0 waivodsubnex.shop
 0.0.0.0 waiwaimetage.com
 0.0.0.0 wajwfczrrnywp.space
@@ -89660,6 +89687,7 @@
 0.0.0.0 wdtyl.xyz
 0.0.0.0 wdtypxrniewko.website
 0.0.0.0 wduwzaqhftslc.website
+0.0.0.0 wdvuuunmjmyvz.online
 0.0.0.0 wdwadkgqylntz.space
 0.0.0.0 wdwbixdr.com
 0.0.0.0 wdwdjwodpqjzm.site
@@ -91366,6 +91394,7 @@
 0.0.0.0 work.gd
 0.0.0.0 work.selecdoo.com
 0.0.0.0 workback.net
+0.0.0.0 workdeadlinededicate.com
 0.0.0.0 workedvote.com
 0.0.0.0 worker.gsr-ads.co.kr
 0.0.0.0 workerhome.click
@@ -92180,6 +92209,7 @@
 0.0.0.0 wysasys.com
 0.0.0.0 wysistat.com
 0.0.0.0 wysjxmuvgtrgg.online
+0.0.0.0 wysonfarset.shop
 0.0.0.0 wystynapping.cfd
 0.0.0.0 wysythbmtbyjh.site
 0.0.0.0 wytbfjhuyuli.com
@@ -93934,6 +93964,7 @@
 0.0.0.0 xrbtfev4hm5r7kk.cfd
 0.0.0.0 xrburmrbscpnb.online
 0.0.0.0 xrdzydcrkexku.space
+0.0.0.0 xrefwashery.cyou
 0.0.0.0 xrf56h2ofw7euebkjwxmpj82tnc9.cfd
 0.0.0.0 xrgjxnkkiwsxf.space
 0.0.0.0 xrhoglwanuxlv.online
@@ -95995,6 +96026,7 @@
 0.0.0.0 yzuflrxgejd.com
 0.0.0.0 yzusmqxulljzm.website
 0.0.0.0 yzvbuuyrwpgqch.com
+0.0.0.0 yzvtutbeley.com
 0.0.0.0 yzwkxjepxczno.site
 0.0.0.0 yzwtg89j.xyz
 0.0.0.0 yzwtz.com

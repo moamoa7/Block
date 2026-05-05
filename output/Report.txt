@@ -1,13 +1,13 @@
 ============================================================
   Filter Extraction Report
-  Generated: 2026-05-05 17:00:30 UTC
+  Generated: 2026-05-05 18:50:49 UTC
 ============================================================
 
 [ Reference Filter ]
 ------------------------------------------------------------
   [OK] AdGuard DNS Filter
        URL: https://filters.adtidy.org/windows/filters/15.txt
-       Total Lines: 167,450 | Domains: 164,961
+       Total Lines: 167,482 | Domains: 164,993
 
 [ External Whitelist Sources ]
 ------------------------------------------------------------
@@ -22,10 +22,10 @@
 ------------------------------------------------------------
   [OK] EasyList
        URL: https://easylist-downloads.adblockplus.org/easylist.txt
-       Total Lines: 90,288 | Extracted: 57,621
+       Total Lines: 90,308 | Extracted: 57,641
   [OK] AdGuard Base
        URL: https://filters.adtidy.org/windows/filters/2.txt
-       Total Lines: 158,658 | Extracted: 66,398
+       Total Lines: 158,666 | Extracted: 66,406
   [OK] AdGuard Mobile
        URL: https://filters.adtidy.org/windows/filters/11.txt
        Total Lines: 9,545 | Extracted: 908
@@ -65,50 +65,50 @@
 ------------------------------------------------------------
   Filter                            Extracted        New     Unique
   ──────────────────────────────── ────────── ────────── ──────────
-  EasyList                             57,621     57,621          7
-  AdGuard Base                         66,398      8,785      4,609
+  EasyList                             57,641     57,641         20
+  AdGuard Base                         66,406      8,785      4,609
   AdGuard Mobile                          908        890        230
   AdGuard Japanese                        169        156         19
   List-KR                                 352        265         82
   uBlock Filters                           50         33          5
   HaGeZi's Normal DNS Blocklist       162,081    114,648    114,648
   ──────────────────────────────── ────────── ────────── ──────────
-  Total (deduplicated)                182,398
+  Total (deduplicated)                182,418
 
 [ Reference Filter Validation ]
 ------------------------------------------------------------
-  Reference Domains             : 164,961
-  Before Validation             : 182,398
-  Removed (not in reference)    : 90,333
-  After Validation              : 92,065
+  Reference Domains             : 164,993
+  Before Validation             : 182,418
+  Removed (not in reference)    : 90,321
+  After Validation              : 92,097
 
 [ External Whitelist Filtering ]
 ------------------------------------------------------------
   Removed by Whitelist          : 49
-  After Whitelist               : 92,016
+  After Whitelist               : 92,048
 
 [ Personal Blocklist Override ]
 ------------------------------------------------------------
   Personal Block Domains        : 56,786
   Forced (White → Black)        : 13
-  After Personal Block          : 97,561
+  After Personal Block          : 97,593
 
 [ Personal Whitelist Final Override ]
 ------------------------------------------------------------
   Personal White Domains        : 3
   Forced (Black → White)        : 2
-  After Personal White          : 97,559
+  After Personal White          : 97,591
 
 [ Final Summary ]
 ------------------------------------------------------------
   Priority: Filter < ExtWhite < PersonalBlock < PersonalWhite
   ────────────────────────────────────────────────────────────
-  1. Raw Domains Collected      : 182,398
-  2. Removed by Reference       : 90,333
+  1. Raw Domains Collected      : 182,418
+  2. Removed by Reference       : 90,321
   3. Removed by Ext.Whitelist   : 49
   4. Personal Block Added       : 56,786
   5. Forced (White → Black)     : 13
   6. Forced (Black → White)     : 2
-  7. Final Block Rules          : 97,559
+  7. Final Block Rules          : 97,591
   8. Final Exception Rules      : 7,884
 ============================================================
