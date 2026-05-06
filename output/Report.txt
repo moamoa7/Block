@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report
-  Generated: 2026-05-06 19:44:12 UTC
+  Generated: 2026-05-06 20:50:02 UTC
 ======================================================================
 
 [ Reference Filter ]
@@ -48,10 +48,10 @@
 ----------------------------------------------------------------------
   [OK]  EasyList
         URL       : https://easylist-downloads.adblockplus.org/easylist.txt
-        Lines     : 90,507   Extracted: 57,840   New: 57,840
+        Lines     : 90,511   Extracted: 57,844   New: 57,844
   [OK]  AdGuard Base
         URL       : https://filters.adtidy.org/windows/filters/2.txt
-        Lines     : 158,894   Extracted: 66,608   New: 8,786
+        Lines     : 158,905   Extracted: 66,619   New: 8,786
   [OK]  AdGuard Mobile
         URL       : https://filters.adtidy.org/windows/filters/11.txt
         Lines     : 9,546   Extracted: 908   New: 890
@@ -90,8 +90,8 @@
 [ Overlap Analysis (per filter) ]
 ----------------------------------------------------------------------
   Filter                            Extracted        New     Unique
-  EasyList                             57,840     57,840         18
-  AdGuard Base                         66,608      8,786      4,624
+  EasyList                             57,844     57,844         11
+  AdGuard Base                         66,619      8,786      4,624
   AdGuard Mobile                          908        890        229
   AdGuard Japanese                        169        156         19
   AdGuard Chinese                       6,129      6,113        516
@@ -101,14 +101,14 @@
 
 [ Reference Filter Validation ]
 ----------------------------------------------------------------------
-  Before              : 184,377
-  Removed (not in ref): 91,519
+  Before              : 184,381
+  Removed (not in ref): 91,523
   After               : 92,858
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Raw domains collected           : 184,377
-  2. Removed by reference filter     : 91,519
+  1. Raw domains collected           : 184,381
+  2. Removed by reference filter     : 91,523
   3. Removed by external whitelist   : 28
   4. Personal block added            : 0  (forced black: 0)
   5. Personal white applied          : 3  (forced white: 2)
