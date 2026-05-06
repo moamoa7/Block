@@ -2376,16 +2376,18 @@ pedia.watcha.com##.adFixed
 ![$domain=/^t\d+.torrentpi150.com/]##.sero1 > span
 !
 !
-! AVseeTV (https://05.avsee.ru/)
-! - - - 조개파티 (https://jogaeparty139.com/)
-! -  배너 이미지 등 (여러 사이트에 적용됨)
-! - - -  출처 : https://raw.githubusercontent.com/damengzhu/banad/main/jiekouAD.txt
-!##A[target='_blank'] > IMG[width='100%'][src*='.gif']
-##a[target*="blank"]:has(img[width='100%'][src*=".gif"])
-! - 아래 2개는 배너 이미지 공간 규칙 사용안할려고 class 사용
-##[class="title"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
-##[class="main-box"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
-!##A[target='_blank'] > IMG[width='100%'][src$='.gif']
+! AVseeTV (https://06.avsee.ru/)
+! - 메인 배너
+!##[class="title"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
+##[class="title"]:has(a[target*="blank"] img[src*=".gif"])
+! - 메인 배너 (다른 페이지에서) - 광역 적용 가능
+##a[target='_blank'] > img[width='100%'][src*=".gif"]
+##a[target='_blank'] > img[width='100%'][src*="/imgs/"]
+
+!##a[target='_blank'] > img[width='100%'][src*='.gif']
+! - 오른쪽 상단 배너
+!##[class="main-head"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
+##[class="main-head"]:has(a[target*="blank"] img[src*=".gif"])
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !##div[style]:has(> [target='_blank'])
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
@@ -2536,7 +2538,7 @@ javgg.net##.home_iframead
 ! - 영상 하단 배너
 ##.dark-banner-group
 !  - 팝업 방지
-!91.asia^$popup
+91.asia^$popup
 !
 !
 ! 7MMTV (https://7tv033.com/)
@@ -2560,7 +2562,7 @@ javgg.net##.home_iframead
 ! https://javgiga.com/
 ! - 팝업(새창) 방지 (uBlock filters – Ads)
 /^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-.\/A-Z_a-z][DHWXm][-.\/A-Z_a-z][59FVZ][-.\/A-Z_a-z][6swyz][-.\/A-Z_a-z][-\/0-9A-Z_a-z][-.\/A-Z_a-z][-\/0-9A-Z_a-z]{22,162}(?:$|\?)/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
-!javgiga.com^$popup
+javgiga.com^$popup
 !
 !
 ! https://netflav.com/
@@ -4523,6 +4525,15 @@ _ads_
 
 
 
+!!! 광역
+
+! - https://06.avsee.ru/
+##a[target='_blank'] > img[src*=".gif"]
+
+
+! - https://06.avsee.ru/
+##a[target='_blank'] > img[src*="/imgs/"]
+
 
 
 
@@ -4824,7 +4835,8 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[src*="ads"]):not(html):not(body)
 
 
-##div[class*="ads"]:has(iframe)
+! - https://javdoe.to/ - 영상 안나옴
+!##div[class*="ads"]:has(iframe)
 
 
 ! - https://www.algumon.com/
@@ -4872,7 +4884,8 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[src*="popup"]):not(html):not(body)
 
 
-##div[class*="popup"]:has(iframe)
+! - https://javgiga.com/ - 영상 안보임
+!##div[class*="popup"]:has(iframe)
 
 
 ##div[id*="popup"]:has(iframe)
