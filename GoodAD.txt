@@ -4743,48 +4743,10 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ##*:has(> iframe[src*=""]):not(html):not(body)
 
-! - https://pann.nate.com/
-! - 국세청(https://hometax.go.kr/) - 이용 불가
-!##div:has(> iframe[src*="about:blank"])
-
-
-! - https://randburg.com/ - 영상 안나옴
-!##iframe[src*="index"]
-
-
-! - https://tvwiki19.net/
-! - https://hohoj.tv/
-! - https://www.reddit.com/
-! - https://etoland.co.kr/
-! - https://www.clien.net/
-! - https://mypikpak.com/
-! - https://ko.javfc2.live/ - 영상 안나옴
-! - https://supjav.com/
-! - https://www.ddanzi.com/
-! - https://www.82cook.com/
-! - https://web.humoruniv.com/
-! - https://www.goodgag.net/
-! - https://www.clien.net/
-!##div:has(> iframe[src*="iframe"])
-
-
-! - https://tv.naver.com/ - 목록 안나옴
-!##iframe[class*="iframe"]
-
-
-! - https://ko.javfc2.live/
-! - https://tv.naver.com/ - 목록 안나옴
-!##iframe[class*="frame"]
-
 
 ! - https://supjav.com/
 ! - https://missav.ws/
 ##*:has(> iframe[src*="/smartpop/"]):not(html):not(body)
-
-
-! - 티바위키 안나옴 (https://tvwiki19.net/)
-!##iframe[src*="player"]
-!##iframe[src*="play"]
 
 
 ! - https://www.genspark.ai/
@@ -4842,44 +4804,9 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##div[class*="banner"]:has(iframe)
 
 
-! - https://funlove.info/ - 영상 클릭 안됨
-!##*:has(> iframe[src*="ads"]):not(html):not(body)
-
-
-! - https://javdoe.to/ - 영상 안나옴
-!##div[class*="ads"]:has(iframe)
-
-
 ! - https://www.algumon.com/
 ! - https://noonnu.cc/
 ##div[id*="ads"]:has(iframe)
-
-
-!- https://www.sooplive.com
-! - https://play.sooplive.com
-! - https://coktv1.com/ - 영상 안나옴
-! - https://ko.javfc2.live/
-! - https://missav.ws/
-! - https://7tv034.com/
-! - https://imagetwist.com/
-! - https://javfc2.xyz/
-!##iframe[src*="live"]
-!##div:has(> iframe[src*="live"])
-
-
-! https://poooo.ml/ - 영상 안보임
-!##div:has(> iframe[src*="video"])
-
-
-! - https://missav.ws/
-! - https://javgg.net/
-! - https://javgiga.com/ - 영상 안나옴
-!##div:has(> iframe[src*="stream"])
-
-
-! - https://jav.sb/ - 영상틀 사라잠 - 여기 영상 안나오는곳인가..
-! - https://sports.donga.com/
-!##div:has(> iframe[src*="vod"])
 
 
 ##*:has(> iframe[src*="promotion"]):not(html):not(body)
@@ -4893,10 +4820,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://sports.donga.com/
 ##*:has(> iframe[src*="popup"]):not(html):not(body)
-
-
-! - https://javgiga.com/ - 영상 안보임
-!##div[class*="popup"]:has(iframe)
 
 
 ##div[id*="popup"]:has(iframe)
@@ -4926,11 +4849,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##[id*="sponsor"]
 
 
-! - https://www.genspark.ai/
-! - https://poooo.ml/ - 영상 안보임
-!##iframe[src*="chat"]
-
-
 ##*:has(> iframe[src*="advertisement"]):not(html):not(body)
 
 
@@ -4938,11 +4856,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ##div[id*="advertisement"]:has(iframe)
-
-
-! - https://www.ddanzi.com/
-! - https://tv.naver.com/ - 영상 목록 안나옴
-!##iframe[src*="media"]
 
 
 ! - https://mypikpak.com/
@@ -4989,20 +4902,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[attribution-reporting]):not(html):not(body)
 
 
-! - https://ygosu.com/
-! - https://tvwiki19.net/ - 영상 안나옴
-!##iframe[id*="frame"]
-
-
-! - https://tvwiki19.net/ - 영상 안나옴
-!##[id*="iframe"]
-
-
 ##div:has(> iframe[src*="hidden"]):not(html):not(body)
-
-
-! - https://ygosu.com/ - 전체 안보임
-!##div[class*="hidden"]:has(iframe)
 
 
 ! - https://ygosu.com/
@@ -5010,10 +4910,8 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##div[id*="hidden"]:has(iframe)
 
 
-! - https://missav.ws/
-! - https://www.goodgag.net/
-! - https://coktv1.com/ - 영상 안나옴
-!##div:has(> iframe[style*="hidden"])
+! - https://www.ddanzi.com/
+##div:has(> iframe[src*="media"]):not(html):not(body)
 
 
 ! - https://pann.nate.com/
@@ -5021,20 +4919,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[title*="스폰"]):not(html):not(body)
 
 
-! - https://speedtest.telstra.com/
-! -  https://dvdprime.com/ - 영상 안보임
-!##[class^="iframe"]
 
-
-! - https://dvdprime.com/ - 영상 안보임
-!##[class*="popup"]
-
-
-! - https://sports.donga.com/ - 기사 내 이미지 안보임
-!##[class$="iframe"]
-
-
-!##[alt$="스폰"]
 
 
 
@@ -5053,3 +4938,10 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !
 !
 land.hotgoddess.icu##html
+
+
+
+
+
+
+=======================================
