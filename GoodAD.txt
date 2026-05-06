@@ -745,6 +745,9 @@ etoland.co.kr##.justify-center.w-full.min-h-\[280px\]
 etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
 ! Etoland 네이버 광고 차단 (모바일)
 etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
+! - 애드블럭 감지 해제
+etoland.co.kr#@#[class^="ads"]
+etoland.co.kr#@#[class^="ad"]
 !
 !
 !
@@ -4711,7 +4714,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! 작업 중
 
-##div:has(> iframe[src*=""])
+##*:has(> iframe[src*=""]):not(html):not(body)
 
 ! - https://pann.nate.com/
 ! - 국세청(https://hometax.go.kr/) - 이용 불가
@@ -4749,7 +4752,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://supjav.com/
 ! - https://missav.ws/
-##div:has(> iframe[src*="/smartpop/"])
+##*:has(> iframe[src*="/smartpop/"]):not(html):not(body)
 
 
 ! - 티바위키 안나옴 (https://tvwiki19.net/)
@@ -4762,17 +4765,17 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://mypikpak.com/
 ! - https://gall.dcinside.com/
 ! - ! - https://inven.co.kr/
-##div:has(> iframe[src*="google"])
+##div:has(> iframe[src*="google"]):not(html):not(body)
 
 
 ! - https://namu.wiki/
 ! - https://www.goodgag.net/
 ! - https://www.sooplive.com/
 ! - https://noonnu.cc/
-##div:has(> iframe[name*="google"])
+##*:has(> iframe[name*="google"]):not(html):not(body)
 
 
-##div:has(> iframe[src*="doubleclick"])
+##*:has(> iframe[src*="doubleclick"]):not(html):not(body)
 
 
 ##[class*="doubleclick"]
@@ -4781,7 +4784,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##[id*="doubleclick"]
 
 
-##div:has(> iframe[src*="googleadservices"])
+##*:has(> iframe[src*="googleadservices"]):not(html):not(body)
 
 
 ##div[class*="google"]:has(iframe)
@@ -4818,7 +4821,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://inven.co.kr/
 ! - https://www.teamblind.com/
 ! - https://www.bandwidthplace.com/
-##div:has(> iframe[src*="ads"])
+##*:has(> iframe[src*="ads"]):not(html):not(body)
 
 
 ##div[class*="ads"]:has(iframe)
@@ -4856,7 +4859,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##div:has(> iframe[src*="vod"])
 
 
-##div:has(> iframe[src*="promotion"])
+##*:has(> iframe[src*="promotion"]):not(html):not(body)
 
 
 ##div[class*="promotion"]:has(iframe)
@@ -4866,7 +4869,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://sports.donga.com/
-##div:has(> iframe[src*="popup"])
+##*:has(> iframe[src*="popup"]):not(html):not(body)
 
 
 ##div[class*="popup"]:has(iframe)
@@ -4875,7 +4878,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##div[id*="popup"]:has(iframe)
 
 
-##div:has(> iframe[src*="adsense"])
+##*:has(> iframe[src*="adsense"]):not(html):not(body)
 
 
 ##div[class*="adsense"]:has(iframe)
@@ -4884,7 +4887,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##div[id*="adsense"]:has(iframe)
 
 
-##div:has(> iframe[src*="sponsor"])
+##*:has(> iframe[src*="sponsor"]):not(html):not(body)
 
 
 ##div[class*="sponsor"]:has(iframe)
@@ -4904,13 +4907,13 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##iframe[src*="chat"]
 
 
-##iframe[src*="advertisement"]
+##*:has(> iframe[src*="advertisement"]):not(html):not(body)
 
 
-##iframe[class*="advertisement"]
+##div[class*="advertisement"]:has(iframe)
 
 
-##iframe[id*="advertisement"]
+##div[id*="advertisement"]:has(iframe)
 
 
 ! - https://www.ddanzi.com/
@@ -4919,16 +4922,16 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://mypikpak.com/
-##iframe[src*="button"]
+##*:has(> iframe[src*="button"]):not(html):not(body)
 
 
-##iframe[class*="button"]
+##div[class*="button"]:has(iframe)
 
 
-##iframe[id*="button"]
+##div[id*="button"]:has(iframe)
 
 
-##div:has(> iframe[src*="event"])
+##*:has(> iframe[src*="event"]):not(html):not(body)
 
 
 ##div[class*="event"]:has(iframe)
@@ -4938,7 +4941,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://ygosu.com/
-##div:has(> iframe[src*="click"])
+##*:has(> iframe[src*="click"]):not(html):not(body)
 
 
 ##div[class*="script"]:has(iframe)
@@ -4948,7 +4951,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://meeco.kr/
-##div:has(> iframe[src*="product"])
+##*:has(> iframe[src*="product"]):not(html):not(body)
 
 
 ##div[class*="product"]:has(iframe)
@@ -4958,7 +4961,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://www.fmkorea.com/
-##div:has(> iframe[attribution-reporting])
+##*:has(> iframe[attribution-reporting]):not(html):not(body)
 
 
 ! - https://ygosu.com/
@@ -4970,7 +4973,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##[id*="iframe"]
 
 
-##div:has(> iframe[src*="hidden"])
+##div:has(> iframe[src*="hidden"]):not(html):not(body)
 
 
 ! - https://ygosu.com/ - 전체 안보임
@@ -4990,7 +4993,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://pann.nate.com/
 !##iframe[title*="스폰"]
-##div:has(> iframe[title*="스폰"])
+##*:has(> iframe[title*="스폰"]):not(html):not(body)
 
 
 ! - https://speedtest.telstra.com/
@@ -5007,3 +5010,21 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 !##[alt$="스폰"]
+
+
+
+
+
+
+
+
+
+
+=======================================
+!
+!
+!!!~귀찮은 팝업으로 인해 어쩔수 없이 열린 사이트 무력화!
+!
+!
+!
+land.hotgoddess.icu##html
