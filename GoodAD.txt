@@ -4484,6 +4484,9 @@ _ads_
 ##[class$="left-ad"]
 !
 !
+##[class*="popup-banner"]
+!
+!
 !##[class*="popup-mobile"]
 ##[class*="popup-mo"]
 !
