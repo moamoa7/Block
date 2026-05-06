@@ -1,7 +1,7 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-06 20:50:02 UTC
+! Generated: 2026-05-06 21:49:35 UTC
 ! Homepage: https://github.com/moamoa7/adblock
-! Block Rules: 92,828
+! Block Rules: 92,846
 ! Exception Rules: 6,435
 !
 ||0.avmarket.rs^
@@ -8343,6 +8343,7 @@
 ||anyxp.com^
 ||anzeigen-vor-ort.de^
 ||anzu.io^
+||anzzixca.in^
 ||ao-freegeoip.herokuapp.com^
 ||ao.city24.lv^
 ||ao.la.lv^
@@ -9283,6 +9284,7 @@
 ||asp.russkiyseks.vip^
 ||asp.sepiasoft.eu^
 ||asp.sexmy.site^
+||aspalaxhiccups.shop^
 ||aspectreinforce.com^
 ||aspectsunfightsephen.cyou^
 ||aspensripost.qpon^
@@ -15084,6 +15086,7 @@
 ||centimetrebracketasperity.com^
 ||centipede.davimug.com^
 ||centipede.roasted.dev^
+||centorancer.com^
 ||centorodge.cyou^
 ||centralized.zaloapp.com^
 ||centralnervous.net^
@@ -21702,6 +21705,7 @@
 ||dinapengar.compricer.se^
 ||dinatoikw.com^
 ||dindeedtheriver.com^
+||dindonnaoibernese.qpon^
 ||dineproteinhamlet.com^
 ||dineroburner.shop^
 ||dingbu.bj.bcebos.com^
@@ -24180,6 +24184,7 @@
 ||ehvxrxndjgzbb.online^
 ||ehwjabvdtzqge.website^
 ||ehwtrxeivhora.site^
+||ehybaqhsucdmsoi.com^
 ||ehygkgvwxipes.website^
 ||ehzxvqyrxydqv.space^
 ||ei7buknu82.com^
@@ -28017,6 +28022,7 @@
 ||foldingcutleryhelium.com^
 ||foldinsinuate.com^
 ||foldyahoolestorderly.com^
+||folkscaravel.qpon^
 ||folkswrymyrtle.com^
 ||folliedrestio.cfd^
 ||follilyinvites.cfd^
@@ -28607,6 +28613,7 @@
 ||frothadditions.com^
 ||frounceuayeb.qpon^
 ||frousyaliped.cyou^
+||frowncarcoon.qpon^
 ||frownlag.com^
 ||froxuqviwh.com^
 ||frozekitchen.com^
@@ -41794,6 +41801,7 @@
 ||ltrs8bv54p.com^
 ||ltruhowa.com^
 ||ltssbgqqrivtk.online^
+||ltssxkwful.com^
 ||ltst.kiplingtravel.dk^
 ||ltsveh.wetteronline.de^
 ||lttceuqgmuxal.store^
@@ -45510,6 +45518,7 @@
 ||mohardinomys.cyou^
 ||mohdzwdqjdfvn.online^
 ||mohekxetvpnjm.website^
+||mohicangutting.cyou^
 ||mohurnoose.com^
 ||mohursanders.cfd^
 ||moiderincepts.cyou^
@@ -46413,6 +46422,7 @@
 ||mwstats.net^
 ||mwsvsmhfwpffc.club^
 ||mwtwzzeyvnwdx.site^
+||mwuzj1o7m731lr.cfd^
 ||mwvirquasetgiry.com^
 ||mwvpjvvnovuqb.website^
 ||mwvt.cn^
@@ -49223,6 +49233,7 @@
 ||oftheownouncillo.com^
 ||ofwq.cn^
 ||ofxbxiqadouwo.space^
+||ofyuawtbjmbgt.website^
 ||og4cyempxfuvnw.cfd^
 ||og7231kq7.com^
 ||ogads-pa.clients6.google.com^
@@ -50267,6 +50278,7 @@
 ||oskiwood.com^
 ||osldalquhk.in^
 ||osm-onead.cdn.hinet.net^
+||osmolalsunned.com^
 ||osmosisfalerno.com^
 ||osncrdtgymcux.online^
 ||osoneskulled.cfd^
@@ -54483,6 +54495,7 @@
 ||prasegillie.cfd^
 ||prateyclin.qpon^
 ||pratingreeshie.cyou^
+||pratscearin.shop^
 ||prawn.lionsmouth.digital^
 ||prayakonigashu.cfd^
 ||prayer05032026.shop^
@@ -59904,6 +59917,7 @@
 ||rgtiwzsncqfyd.space^
 ||rgtteakmumqha.website^
 ||rgubidzwowcpf.space^
+||rgv6pbmrvxo2ii68ylz5.rest^
 ||rgvjwqxmpalb.com^
 ||rgvptabzpwsou.website^
 ||rgvxfkrhnovqp.store^
@@ -61993,6 +62007,7 @@
 ||rxvyaqqvdnblc.space^
 ||rxwadvdjclvum.website^
 ||rxwjetugafkwt.online^
+||rxxnwnnpakktx.site^
 ||rxys.cn^
 ||rxzefz.icu^
 ||rxzqwvoqqfafw.website^
@@ -72087,6 +72102,7 @@
 ||stimulatingsneeze.com^
 ||stinafulltiukmep.org^
 ||stingerfound.com^
+||stingosbecut.shop^
 ||stingray.communityally.org^
 ||stingray.danielzoller.com^
 ||stingray.reform.app^
@@ -72906,6 +72922,7 @@
 ||suptraf.com^
 ||supuv3.com^
 ||suqhhoywdpvly.space^
+||suqvqadmmslsd.website^
 ||surahsbimas.com^
 ||surancetowns.com^
 ||suratimmund.com^
@@ -74313,6 +74330,7 @@
 ||tasksimplify.com^
 ||taskskareau.help^
 ||tasktrivialaggregated.com^
+||tassardarthelchurns.cyou^
 ||tasselapp.com^
 ||tasselbarye.cfd^
 ||tassoonuddle.cyou^

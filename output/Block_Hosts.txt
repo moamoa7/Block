@@ -1,5 +1,5 @@
-# Generated: 2026-05-06 20:50:02 UTC
-# Block Domains: 92,828
+# Generated: 2026-05-06 21:49:35 UTC
+# Block Domains: 92,846
 #
 0.0.0.0 0.avmarket.rs
 0.0.0.0 0.myikas.com
@@ -8340,6 +8340,7 @@
 0.0.0.0 anyxp.com
 0.0.0.0 anzeigen-vor-ort.de
 0.0.0.0 anzu.io
+0.0.0.0 anzzixca.in
 0.0.0.0 ao-freegeoip.herokuapp.com
 0.0.0.0 ao.city24.lv
 0.0.0.0 ao.la.lv
@@ -9280,6 +9281,7 @@
 0.0.0.0 asp.russkiyseks.vip
 0.0.0.0 asp.sepiasoft.eu
 0.0.0.0 asp.sexmy.site
+0.0.0.0 aspalaxhiccups.shop
 0.0.0.0 aspectreinforce.com
 0.0.0.0 aspectsunfightsephen.cyou
 0.0.0.0 aspensripost.qpon
@@ -15081,6 +15083,7 @@
 0.0.0.0 centimetrebracketasperity.com
 0.0.0.0 centipede.davimug.com
 0.0.0.0 centipede.roasted.dev
+0.0.0.0 centorancer.com
 0.0.0.0 centorodge.cyou
 0.0.0.0 centralized.zaloapp.com
 0.0.0.0 centralnervous.net
@@ -21699,6 +21702,7 @@
 0.0.0.0 dinapengar.compricer.se
 0.0.0.0 dinatoikw.com
 0.0.0.0 dindeedtheriver.com
+0.0.0.0 dindonnaoibernese.qpon
 0.0.0.0 dineproteinhamlet.com
 0.0.0.0 dineroburner.shop
 0.0.0.0 dingbu.bj.bcebos.com
@@ -24177,6 +24181,7 @@
 0.0.0.0 ehvxrxndjgzbb.online
 0.0.0.0 ehwjabvdtzqge.website
 0.0.0.0 ehwtrxeivhora.site
+0.0.0.0 ehybaqhsucdmsoi.com
 0.0.0.0 ehygkgvwxipes.website
 0.0.0.0 ehzxvqyrxydqv.space
 0.0.0.0 ei7buknu82.com
@@ -28014,6 +28019,7 @@
 0.0.0.0 foldingcutleryhelium.com
 0.0.0.0 foldinsinuate.com
 0.0.0.0 foldyahoolestorderly.com
+0.0.0.0 folkscaravel.qpon
 0.0.0.0 folkswrymyrtle.com
 0.0.0.0 folliedrestio.cfd
 0.0.0.0 follilyinvites.cfd
@@ -28604,6 +28610,7 @@
 0.0.0.0 frothadditions.com
 0.0.0.0 frounceuayeb.qpon
 0.0.0.0 frousyaliped.cyou
+0.0.0.0 frowncarcoon.qpon
 0.0.0.0 frownlag.com
 0.0.0.0 froxuqviwh.com
 0.0.0.0 frozekitchen.com
@@ -41791,6 +41798,7 @@
 0.0.0.0 ltrs8bv54p.com
 0.0.0.0 ltruhowa.com
 0.0.0.0 ltssbgqqrivtk.online
+0.0.0.0 ltssxkwful.com
 0.0.0.0 ltst.kiplingtravel.dk
 0.0.0.0 ltsveh.wetteronline.de
 0.0.0.0 lttceuqgmuxal.store
@@ -45507,6 +45515,7 @@
 0.0.0.0 mohardinomys.cyou
 0.0.0.0 mohdzwdqjdfvn.online
 0.0.0.0 mohekxetvpnjm.website
+0.0.0.0 mohicangutting.cyou
 0.0.0.0 mohurnoose.com
 0.0.0.0 mohursanders.cfd
 0.0.0.0 moiderincepts.cyou
@@ -46410,6 +46419,7 @@
 0.0.0.0 mwstats.net
 0.0.0.0 mwsvsmhfwpffc.club
 0.0.0.0 mwtwzzeyvnwdx.site
+0.0.0.0 mwuzj1o7m731lr.cfd
 0.0.0.0 mwvirquasetgiry.com
 0.0.0.0 mwvpjvvnovuqb.website
 0.0.0.0 mwvt.cn
@@ -49220,6 +49230,7 @@
 0.0.0.0 oftheownouncillo.com
 0.0.0.0 ofwq.cn
 0.0.0.0 ofxbxiqadouwo.space
+0.0.0.0 ofyuawtbjmbgt.website
 0.0.0.0 og4cyempxfuvnw.cfd
 0.0.0.0 og7231kq7.com
 0.0.0.0 ogads-pa.clients6.google.com
@@ -50264,6 +50275,7 @@
 0.0.0.0 oskiwood.com
 0.0.0.0 osldalquhk.in
 0.0.0.0 osm-onead.cdn.hinet.net
+0.0.0.0 osmolalsunned.com
 0.0.0.0 osmosisfalerno.com
 0.0.0.0 osncrdtgymcux.online
 0.0.0.0 osoneskulled.cfd
@@ -54480,6 +54492,7 @@
 0.0.0.0 prasegillie.cfd
 0.0.0.0 prateyclin.qpon
 0.0.0.0 pratingreeshie.cyou
+0.0.0.0 pratscearin.shop
 0.0.0.0 prawn.lionsmouth.digital
 0.0.0.0 prayakonigashu.cfd
 0.0.0.0 prayer05032026.shop
@@ -59901,6 +59914,7 @@
 0.0.0.0 rgtiwzsncqfyd.space
 0.0.0.0 rgtteakmumqha.website
 0.0.0.0 rgubidzwowcpf.space
+0.0.0.0 rgv6pbmrvxo2ii68ylz5.rest
 0.0.0.0 rgvjwqxmpalb.com
 0.0.0.0 rgvptabzpwsou.website
 0.0.0.0 rgvxfkrhnovqp.store
@@ -61990,6 +62004,7 @@
 0.0.0.0 rxvyaqqvdnblc.space
 0.0.0.0 rxwadvdjclvum.website
 0.0.0.0 rxwjetugafkwt.online
+0.0.0.0 rxxnwnnpakktx.site
 0.0.0.0 rxys.cn
 0.0.0.0 rxzefz.icu
 0.0.0.0 rxzqwvoqqfafw.website
@@ -72084,6 +72099,7 @@
 0.0.0.0 stimulatingsneeze.com
 0.0.0.0 stinafulltiukmep.org
 0.0.0.0 stingerfound.com
+0.0.0.0 stingosbecut.shop
 0.0.0.0 stingray.communityally.org
 0.0.0.0 stingray.danielzoller.com
 0.0.0.0 stingray.reform.app
@@ -72903,6 +72919,7 @@
 0.0.0.0 suptraf.com
 0.0.0.0 supuv3.com
 0.0.0.0 suqhhoywdpvly.space
+0.0.0.0 suqvqadmmslsd.website
 0.0.0.0 surahsbimas.com
 0.0.0.0 surancetowns.com
 0.0.0.0 suratimmund.com
@@ -74310,6 +74327,7 @@
 0.0.0.0 tasksimplify.com
 0.0.0.0 taskskareau.help
 0.0.0.0 tasktrivialaggregated.com
+0.0.0.0 tassardarthelchurns.cyou
 0.0.0.0 tasselapp.com
 0.0.0.0 tasselbarye.cfd
 0.0.0.0 tassoonuddle.cyou
