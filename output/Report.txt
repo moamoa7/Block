@@ -1,19 +1,19 @@
 ======================================================================
   Filter Extraction Report
-  Generated: 2026-05-06 09:41:06 UTC
+  Generated: 2026-05-06 11:34:00 UTC
 ======================================================================
 
 [ Reference Filter ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
-        Lines   : 167,595   Domains: 165,106
+        Lines   : 167,617   Domains: 165,128
 
 [ External Whitelist Sources ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Exclusions
         URL       : https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt
-        Lines     : 1,091   Extracted: 536   New: 536
+        Lines     : 1,091   Extracted: 540   New: 540
   [OK]  AdGuard HTTPS - Banks
         URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/banks.txt
         Lines     : 3,988   Extracted: 3,978   New: 3,977
@@ -35,23 +35,23 @@
   [OK]  AdGuard HTTPS - Mac
         URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/mac.txt
         Lines     : 30   Extracted: 11   New: 11
-  [OK]  HaGeZi Referral Whitelist
-        URL       : https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/whitelist-referral.txt
-        Lines     : 2,177   Extracted: 2,104   New: 2,071
+  [OK]  HaGeZi Referral Whitelist (Native)
+        URL       : https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/whitelist-referral-native.txt
+        Lines     : 1,543   Extracted: 1,531   New: 1,498
   [OK]  Discord Official Domains
         URL       : https://raw.githubusercontent.com/Dogino/Discord-Phishing-URLs/main/official-domains.txt
         Lines     : 48   Extracted: 43   New: 42
 
-  Total whitelist domains (deduplicated): 7,001
+  Total whitelist domains (deduplicated): 6,432
 
 [ Block Filter Sources ]
 ----------------------------------------------------------------------
   [OK]  EasyList
         URL       : https://easylist-downloads.adblockplus.org/easylist.txt
-        Lines     : 90,433   Extracted: 57,764   New: 57,764
+        Lines     : 90,442   Extracted: 57,773   New: 57,773
   [OK]  AdGuard Base
         URL       : https://filters.adtidy.org/windows/filters/2.txt
-        Lines     : 158,795   Extracted: 66,525   New: 8,785
+        Lines     : 158,821   Extracted: 66,549   New: 8,785
   [OK]  AdGuard Mobile
         URL       : https://filters.adtidy.org/windows/filters/11.txt
         Lines     : 9,546   Extracted: 908   New: 890
@@ -60,7 +60,7 @@
         Lines     : 12,546   Extracted: 169   New: 156
   [OK]  AdGuard Chinese
         URL       : https://filters.adtidy.org/windows/filters/224.txt
-        Lines     : 23,179   Extracted: 6,124   New: 6,108
+        Lines     : 23,178   Extracted: 6,124   New: 6,108
   [OK]  List-KR
         URL       : https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt
         Lines     : 4,600   Extracted: 353   New: 266
@@ -69,18 +69,18 @@
         Lines     : 11,089   Extracted: 50   New: 33
   [OK]  HaGeZi DNS Blocklist
         URL       : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
-        Lines     : 160,916   Extracted: 160,889   New: 109,361
+        Lines     : 156,362   Extracted: 156,337   New: 105,453
 
-[ Personal Blocklist (Overrides External Whitelist) ]
+[ Personal Blocklist (Overrides External Whitelist, Skips Reference Validation) ]
 ----------------------------------------------------------------------
   [OK]  oisd small
         URL       : https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt
-        Lines     : 56,852   Extracted: 56,839
+        Lines     : 56,848   Extracted: 56,835
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
         Lines     : 1   Extracted: 0
 
-  Total personal block (deduplicated): 56,839
+  Total personal block (deduplicated): 56,835
 
 [ Personal Whitelist (Final Override) ]
 ----------------------------------------------------------------------
@@ -93,27 +93,27 @@
 [ Overlap Analysis (per filter) ]
 ----------------------------------------------------------------------
   Filter                            Extracted        New     Unique
-  EasyList                             57,764     57,764         24
-  AdGuard Base                         66,525      8,785      4,620
+  EasyList                             57,773     57,773          9
+  AdGuard Base                         66,549      8,785      4,622
   AdGuard Mobile                          908        890        229
   AdGuard Japanese                        169        156         19
-  AdGuard Chinese                       6,124      6,108        525
+  AdGuard Chinese                       6,124      6,108        516
   List-KR                                 353        266         83
   uBlock Filters                           50         33          5
-  HaGeZi DNS Blocklist                160,889    109,361    109,361
+  HaGeZi DNS Blocklist                156,337    105,453    105,453
 
 [ Reference Filter Validation ]
 ----------------------------------------------------------------------
-  Before              : 183,363
-  Removed (not in ref): 90,660
-  After               : 92,703
+  Before              : 179,464
+  Removed (not in ref): 86,676
+  After               : 92,788
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Raw domains collected           : 183,363
-  2. Removed by reference filter     : 90,660
-  3. Removed by external whitelist   : 27
-  4. Personal block added            : 56,839  (forced black: 11)
+  1. Raw domains collected           : 179,464
+  2. Removed by reference filter     : 86,676
+  3. Removed by external whitelist   : 28
+  4. Personal block added            : 56,835  (forced black: 11)
   5. Personal white applied          : 3  (forced white: 2)
-  6. Final Block Rules               : 98,150
-  7. Final Exception Rules           : 6,992
+  6. Final Block Rules               : 98,234
+  7. Final Exception Rules           : 6,423
