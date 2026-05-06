@@ -1261,7 +1261,7 @@ poooo.ml#@#.ad
 ! - 상단 배너
 ! - - - 티비위키 / 티비몬 / 티비핫
 !##[target="_blank"]:has([src*="/data/banner/"])
-*##[target="_blank"]:has([src*="/banner/"])
+##[target="_blank"]:has([src*="/banner/"])
 !##[class="banner2"]
 !##.banner2
 ##[id="bannerList"]
@@ -2855,12 +2855,17 @@ jav.direct##div:nth-of-type(12)
 !
 !
 ! https://javtiful.com/
-! - 영상 위 배너
-javtiful.com##.nopop.fah-btn
+! - 메인 배너 (프리미엄 가입)
+javtiful.com##.front-home-premium-alert
+! - 영상 위 텍스트 배너
+javtiful.com##.front-watch-text-feature
 ! - - 영상 플레이내 버튼
-javtiful.com##.v3sb-box
-! -스폰 배너
-javtiful.com##div.pb-3.col:nth-of-type(1)
+javtiful.com##.front-feature-placement-player
+! -영상 옆 스폰 배너
+javtiful.com##.front-partner-card
+! - 영상 옆 빈 공간
+javtiful.com##.front-feature-placement-side
+
 !
 !
 ! 야통령 (https://xn--6-v10fo35av1l.com/)
@@ -3047,6 +3052,8 @@ missav.*,njavtv.com##.lg\:block
 ! - 예외
 ! - - - https://etoland.co.kr/ - 상단 일부 짤림
 etoland.co.kr#@#[class^="mx-auto"]
+! - - - https://avple.tv/ - 영상 안나옴
+avple.tv#@#[class^="mx-auto"]
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
@@ -3058,6 +3065,11 @@ etoland.co.kr#@#[class^="mx-auto"]
 ! Jable.TV (https://jable.tv/)
 !
 ##a[href*="/smartpop/"]
+!
+!
+! https://popjav.in/
+! -  상단부 빈 공간 (상단 바로 아래)
+popjav.in##div.pop--excl
 
 !
 !
@@ -4535,6 +4547,10 @@ _ads_
 ##a[target='_blank'] > img[src*="/imgs/"]
 
 
+! - 티비위키 (https://tvwiki19.net/)
+##[target="_blank"]:has([src*="/banner/"])
+
+
 
 
 
@@ -4776,6 +4792,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://mypikpak.com/
 ! - https://gall.dcinside.com/
 ! - ! - https://inven.co.kr/
+! - https://avple.tv/
 ##div:has(> iframe[src*="google"]):not(html):not(body)
 
 
@@ -4825,14 +4842,8 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##div[class*="banner"]:has(iframe)
 
 
-! https://hohoj.tv/
-! - https://missav.ws/
-! - https://danawa.com/
-! - https://nunting.kr/
-! - https://inven.co.kr/
-! - https://www.teamblind.com/
-! - https://www.bandwidthplace.com/
-##*:has(> iframe[src*="ads"]):not(html):not(body)
+! - https://funlove.info/ - 영상 클릭 안됨
+!##*:has(> iframe[src*="ads"]):not(html):not(body)
 
 
 ! - https://javdoe.to/ - 영상 안나옴
@@ -4944,6 +4955,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##div[id*="button"]:has(iframe)
 
 
+! - https://avple.tv/
 ##*:has(> iframe[src*="event"]):not(html):not(body)
 
 
