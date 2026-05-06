@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260506
+! Version: 20260507
 !
 !
 !
@@ -748,6 +748,7 @@ etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.f
 ! - 애드블럭 감지 해제
 etoland.co.kr#@#[class^="ads"]
 etoland.co.kr#@#[class^="ad"]
+@@||doubleclick.net^$domain=etoland.co.kr
 !
 !
 !
@@ -4736,6 +4737,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 
+
 ==================================
 
 
@@ -4747,15 +4749,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://supjav.com/
 ! - https://missav.ws/
 ##*:has(> iframe[src*="/smartpop/"]):not(html):not(body)
-
-
-! - https://www.genspark.ai/
-! - https://www.reddit.com/
-! - https://mypikpak.com/
-! - https://gall.dcinside.com/
-! - ! - https://inven.co.kr/
-! - https://avple.tv/
-##div:has(> iframe[src*="google"]):not(html):not(body)
 
 
 ! - https://namu.wiki/
@@ -4777,7 +4770,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[src*="googleadservices"]):not(html):not(body)
 
 
-##div[class*="google"]:has(iframe)
+##div[class*="google"]:has(iframe):not([src*="recaptcha"])
 
 
 ! - https://www.bandwidthplace.com/
@@ -4862,9 +4855,11 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[src*="button"]):not(html):not(body)
 
 
+ - https://mypikpak.com/
 ##div[class*="button"]:has(iframe)
 
 
+! - https://mypikpak.com/ 
 ##div[id*="button"]:has(iframe)
 
 
@@ -4879,12 +4874,14 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://ygosu.com/
+! - https://mypikpak.com/
 ##*:has(> iframe[src*="click"]):not(html):not(body)
 
 
 ##div[class*="script"]:has(iframe)
 
 
+! -https://oname.kr/
 ##div[id*="script"]:has(iframe)
 
 
@@ -4917,31 +4914,3 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://pann.nate.com/
 !##iframe[title*="스폰"]
 ##*:has(> iframe[title*="스폰"]):not(html):not(body)
-
-
-
-
-
-
-
-
-
-
-
-
-
-=======================================
-!
-!
-!!!~귀찮은 팝업으로 인해 어쩔수 없이 열린 사이트 무력화!
-!
-!
-!
-land.hotgoddess.icu##html
-
-
-
-
-
-
-=======================================
