@@ -1,5 +1,5 @@
-# Generated: 2026-05-06 15:39:33 UTC
-# Block Domains: 98,277
+# Generated: 2026-05-06 17:18:20 UTC
+# Block Domains: 98,324
 #
 0.0.0.0 0-02.net
 0.0.0.0 0.avmarket.rs
@@ -42,6 +42,7 @@
 0.0.0.0 01anf08rf.com
 0.0.0.0 01ca03c5d7.9a131ab3ce.com
 0.0.0.0 01counter.com
+0.0.0.0 02075cc3d5.com
 0.0.0.0 02085170.xyz
 0.0.0.0 0213499675.com
 0.0.0.0 0214217ebc.com
@@ -66,6 +67,7 @@
 0.0.0.0 04424170.xyz
 0.0.0.0 0458a53a71.com
 0.0.0.0 046dbf6bb6.e344614b05.com
+0.0.0.0 0491166852.com
 0.0.0.0 04b9055b2a.com
 0.0.0.0 05086715f4.com
 0.0.0.0 0517fd5e92.com
@@ -129,10 +131,12 @@
 0.0.0.0 0af2a962b0102942d9a7df351b20be55.com
 0.0.0.0 0aior18v.xyz
 0.0.0.0 0b4qu3nxa.com
+0.0.0.0 0b6f7dc9d8.com
 0.0.0.0 0b6rvr210q.com
 0.0.0.0 0b74655a28.com
 0.0.0.0 0b8c767b16.com
 0.0.0.0 0ba2b70e8c.com
+0.0.0.0 0bb5643104.com
 0.0.0.0 0bb8jytek.com
 0.0.0.0 0bd18cc899.com
 0.0.0.0 0c2bddd1f6.com
@@ -165,6 +169,7 @@
 0.0.0.0 0f85bcb09c.97f477047f.com
 0.0.0.0 0f8eec5673.com
 0.0.0.0 0fa6d5f434.com
+0.0.0.0 0fbee846c6.com
 0.0.0.0 0fc36ae691.0407137f3d.com
 0.0.0.0 0fe5096a4c.com
 0.0.0.0 0fmm.com
@@ -285,6 +290,7 @@
 0.0.0.0 104i5bbzs.com
 0.0.0.0 104processors.net
 0.0.0.0 10614305.xyz
+0.0.0.0 106778d1a7.com
 0.0.0.0 10753990.xyz
 0.0.0.0 107a0d5d90.fb33be3463.com
 0.0.0.0 1080872514.rsc.cdn77.org
@@ -368,6 +374,7 @@
 0.0.0.0 13p76nnir.de
 0.0.0.0 13withfactories.com
 0.0.0.0 142644ec71.a61bc11442.com
+0.0.0.0 1426ab7568.com
 0.0.0.0 1437953666.rsc.cdn77.org
 0.0.0.0 14381834.xyz
 0.0.0.0 1463.info
@@ -489,6 +496,7 @@
 0.0.0.0 1bots.top
 0.0.0.0 1buu1.penyouw.com
 0.0.0.0 1c0ec60324.e7d783f480.com
+0.0.0.0 1c3139f0ca.com
 0.0.0.0 1c46639b8d.aff15e203a.com
 0.0.0.0 1c6fd11ca2.com
 0.0.0.0 1ca6e3e357.a8ca394de0.com
@@ -1054,6 +1062,7 @@
 0.0.0.0 342imaging.com
 0.0.0.0 3434849c2e.com
 0.0.0.0 34475780.xyz
+0.0.0.0 34b1c2d6f9.com
 0.0.0.0 34bogatirya.ru
 0.0.0.0 34c72d94d3.com
 0.0.0.0 34d04ccb2e.com
@@ -1127,6 +1136,7 @@
 0.0.0.0 392f4e9ce8.com
 0.0.0.0 3936321270.d3d30ac9d4.com
 0.0.0.0 3936fb9cdf.com
+0.0.0.0 396d8aaa17.com
 0.0.0.0 3999f86b91.com
 0.0.0.0 39e6p9p7.de
 0.0.0.0 39grbc.jackbarber.co.uk
@@ -1835,6 +1845,7 @@
 0.0.0.0 67rx88i9821xflk3p.cfd
 0.0.0.0 67u36vmzm.com
 0.0.0.0 680642cdf3.com
+0.0.0.0 680e6a23f1.com
 0.0.0.0 6820tp1.com
 0.0.0.0 68287zubo85737.com
 0.0.0.0 682a5845.b-cdn.net
@@ -1858,6 +1869,7 @@
 0.0.0.0 69c3736082.com
 0.0.0.0 69v.club
 0.0.0.0 69vnqyxetpu4b.kbjwopl872ut84241zlxpkejt.cyou
+0.0.0.0 6a1e09565a.com
 0.0.0.0 6a3c31f670.com
 0.0.0.0 6a4d821046.c674151a8e.com
 0.0.0.0 6a70838881.com
@@ -1885,6 +1897,7 @@
 0.0.0.0 6c71340b42.4b0541a1c9.com
 0.0.0.0 6c7cd0e530.a970dc123c.com
 0.0.0.0 6c800efb18.f8f311a27a.com
+0.0.0.0 6c9c74ad54.com
 0.0.0.0 6cf0e7801e8cd.clicknplay.to
 0.0.0.0 6cfc27c30d.com
 0.0.0.0 6cjdya3djn.com
@@ -1902,6 +1915,7 @@
 0.0.0.0 6e61bdf9c0.28c15cf09c.com
 0.0.0.0 6e64d84de7.com
 0.0.0.0 6e67e233a2.com
+0.0.0.0 6e694b79b9.com
 0.0.0.0 6e76b83826.com
 0.0.0.0 6e7c875650.com
 0.0.0.0 6e7e9acff5.com
@@ -2056,6 +2070,7 @@
 0.0.0.0 74x4er4kpl8pxek327.cfd
 0.0.0.0 75114620.xyz
 0.0.0.0 75264920.xyz
+0.0.0.0 753fceba29.com
 0.0.0.0 756048c1ae.com
 0.0.0.0 75690049.xyz
 0.0.0.0 759d3cc22a.com
@@ -2178,6 +2193,7 @@
 0.0.0.0 7d6958cb00.com
 0.0.0.0 7d77f23c90.com
 0.0.0.0 7d93f9d2f5.com
+0.0.0.0 7d9d50ada1.com
 0.0.0.0 7ddqvun8i1.com
 0.0.0.0 7de1da816b.com
 0.0.0.0 7dgk5h1lk.com
@@ -2527,6 +2543,7 @@
 0.0.0.0 918000.xyz
 0.0.0.0 91842100df.com
 0.0.0.0 91cd3khn.de
+0.0.0.0 91d02a6a8c.com
 0.0.0.0 91f3054c84.3c241b2b3e.com
 0.0.0.0 91glqt27.xyz
 0.0.0.0 92331k2n45l2uov70.xyz
@@ -2541,6 +2558,7 @@
 0.0.0.0 92yp.com
 0.0.0.0 930networks.net
 0.0.0.0 93553ec9d6.com
+0.0.0.0 9357f4ba72.com
 0.0.0.0 9365e2dd1f.com
 0.0.0.0 936781cc1a.com
 0.0.0.0 93692zubo66936.com
@@ -2620,6 +2638,7 @@
 0.0.0.0 99f7022009.com
 0.0.0.0 99fkw4w8.com
 0.0.0.0 99stats.com
+0.0.0.0 9a131ab3ce.com
 0.0.0.0 9a4v0clpi.com
 0.0.0.0 9a8f641701.com
 0.0.0.0 9ab8ff816c.com
@@ -3074,6 +3093,7 @@
 0.0.0.0 a4xvv2g18l.com
 0.0.0.0 a51f200d7e.com
 0.0.0.0 a51wzxssu.com
+0.0.0.0 a54a8ff97b.com
 0.0.0.0 a568e472d6.com
 0.0.0.0 a5ddb5cd30.com
 0.0.0.0 a613.redbluffdailynews.com
@@ -3261,6 +3281,7 @@
 0.0.0.0 ab.servogram.io
 0.0.0.0 ab.thepornstar.com
 0.0.0.0 ab045d5856.com
+0.0.0.0 ab0c2e9694.com
 0.0.0.0 ab0fbb66ba.com
 0.0.0.0 ab208fce17.13b1e60d7e.com
 0.0.0.0 ab427mcx.xyz
@@ -12887,6 +12908,7 @@
 0.0.0.0 beniluuxen.com
 0.0.0.0 benjoinshipt.cfd
 0.0.0.0 bennetguarantee.com
+0.0.0.0 benoagger.cfd
 0.0.0.0 benrif-solutions.com
 0.0.0.0 benshepiural.cfd
 0.0.0.0 bensilelb.qpon
@@ -15675,6 +15697,7 @@
 0.0.0.0 c4ru5li2sa.com
 0.0.0.0 c4tracking01.com
 0.0.0.0 c4tw.net
+0.0.0.0 c501fc4637.com
 0.0.0.0 c526b6ac88.com
 0.0.0.0 c55d4b9929.com
 0.0.0.0 c5acd666f8.com
@@ -16866,6 +16889,7 @@
 0.0.0.0 ce.wlaoc.cn
 0.0.0.0 ce.x-opt.io
 0.0.0.0 ce16f0cf56.com
+0.0.0.0 ce391f4444.com
 0.0.0.0 ce4f19e315.com
 0.0.0.0 ce6b6837ab.com
 0.0.0.0 ce71jubc2.com
@@ -21461,6 +21485,7 @@
 0.0.0.0 d204slsrhoah2f.cloudfront.net
 0.0.0.0 d205jrj5h1616x.cloudfront.net
 0.0.0.0 d20903hof2l33q.cloudfront.net
+0.0.0.0 d20d028a29.com
 0.0.0.0 d20je219bs8hnq.cloudfront.net
 0.0.0.0 d20kffh39acpue.cloudfront.net
 0.0.0.0 d20kfqepj430zj.cloudfront.net
@@ -22237,6 +22262,7 @@
 0.0.0.0 d58bdec688.com
 0.0.0.0 d591f0b765.com
 0.0.0.0 d5d3sg85gu7o6.cloudfront.net
+0.0.0.0 d5ed0737cd.com
 0.0.0.0 d5em5plenp2k5.cloudfront.net
 0.0.0.0 d5fb078bf9.com
 0.0.0.0 d5i9o0tpq9sa1.cloudfront.net
@@ -22334,6 +22360,7 @@
 0.0.0.0 da.rabobank.nl
 0.0.0.0 da.rus-atlas.ru
 0.0.0.0 da.zilovaro.ru
+0.0.0.0 da1b05834d.com
 0.0.0.0 da26k71rxh0kb.cloudfront.net
 0.0.0.0 da29e6b8-f018-490f-b25f-39a887fc95e7.xyz
 0.0.0.0 da327va27j0hh.cloudfront.net
@@ -23713,6 +23740,7 @@
 0.0.0.0 dfapvmql-q.global.ssl.fastly.net
 0.0.0.0 dfaqwqlnsrs.com
 0.0.0.0 dfb523f308.25e664eaff.com
+0.0.0.0 dfba7a73ff.com
 0.0.0.0 dfbmfxfovn.com
 0.0.0.0 dfck9uqiatqhh.cloudfront.net
 0.0.0.0 dfcthngzpxiwc.site
@@ -23844,6 +23872,7 @@
 0.0.0.0 dhoonachieve.qpon
 0.0.0.0 dhoorasyirr.cyou
 0.0.0.0 dhootiepawed.com
+0.0.0.0 dhpaipamgf.com
 0.0.0.0 dhpfdaufroers.online
 0.0.0.0 dhpikd1t89arn.cloudfront.net
 0.0.0.0 dhqhmbwnimaph.space
@@ -25809,6 +25838,7 @@
 0.0.0.0 dyp2p-hw.douyucdn.cn
 0.0.0.0 dypeizqkapgoz.site
 0.0.0.0 dypnonedottel.cyou
+0.0.0.0 dypnonezngump.cyou
 0.0.0.0 dypozx.icu
 0.0.0.0 dyptanaza.com
 0.0.0.0 dyqzjfpmlkwsv.website
@@ -28523,6 +28553,7 @@
 0.0.0.0 exmainclck.com
 0.0.0.0 exmainclckback.com
 0.0.0.0 exmainclcknew.com
+0.0.0.0 exmnclk.com
 0.0.0.0 exmwfltxyxwmr.website
 0.0.0.0 exnesstrack.com
 0.0.0.0 exnzg.de
@@ -36739,6 +36770,7 @@
 0.0.0.0 humourspot.com
 0.0.0.0 humpasylum.com
 0.0.0.0 humpdecompose.com
+0.0.0.0 humphspinfold.shop
 0.0.0.0 humro.site
 0.0.0.0 humsoolt.net
 0.0.0.0 humto.xyz
@@ -39653,6 +39685,7 @@
 0.0.0.0 jakedefy.com
 0.0.0.0 jalzarrujo.in
 0.0.0.0 jambautoist.shop
+0.0.0.0 jambesmatres.cyou
 0.0.0.0 jambiyatowy.qpon
 0.0.0.0 jambojar.com
 0.0.0.0 jambosmodesty.com
@@ -42021,6 +42054,7 @@
 0.0.0.0 kok.eroterest.net
 0.0.0.0 kokflrflwarlx.today
 0.0.0.0 koklxkbyxhhzs.website
+0.0.0.0 kokmwwsshmhup.online
 0.0.0.0 kokos.click
 0.0.0.0 kokotrokot.com
 0.0.0.0 kokuminfounderredlegs.qpon
@@ -42355,6 +42389,7 @@
 0.0.0.0 kvaaa.com
 0.0.0.0 kvaedit.site
 0.0.0.0 kvarcureeny.com
+0.0.0.0 kvasestukuler.shop
 0.0.0.0 kvbh.cn
 0.0.0.0 kvbojuxkwvcfk.global
 0.0.0.0 kvbrzbxhqizoq.site
@@ -51050,6 +51085,7 @@
 0.0.0.0 nfrvficeao.com
 0.0.0.0 nfs8nsaf.xyz
 0.0.0.0 nftfdj.icu
+0.0.0.0 nftmznhtrsmhq.online
 0.0.0.0 nftqcoenbehqu.online
 0.0.0.0 nfts-opensea.web.app
 0.0.0.0 nftxfd.top
@@ -51108,6 +51144,7 @@
 0.0.0.0 ngmzhidifnrls.site
 0.0.0.0 ngnypbuphrlcx.online
 0.0.0.0 ngogsmuxltyqm.website
+0.0.0.0 ngqtjoktijeem.site
 0.0.0.0 ngseriegentsf.org
 0.0.0.0 ngtbltwalyl.com
 0.0.0.0 ngtvtaxtgzzfd.website
@@ -54356,6 +54393,7 @@
 0.0.0.0 overdue-sir.pro
 0.0.0.0 overduedistrust.com
 0.0.0.0 overestimatejerseyrefrigerator.com
+0.0.0.0 overfedgiggly.cfd
 0.0.0.0 overfitcharley.cfd
 0.0.0.0 overflow33.com
 0.0.0.0 overfxdyqgwvr.space
@@ -55266,6 +55304,7 @@
 0.0.0.0 parlidevchar.qpon
 0.0.0.0 parlingescrod.shop
 0.0.0.0 parlishbewhig.cyou
+0.0.0.0 parlordenialrummage.com
 0.0.0.0 parlouroutlayfavor.com
 0.0.0.0 parloursixty.com
 0.0.0.0 parlouscomdg.cyou
@@ -60495,6 +60534,7 @@
 0.0.0.0 qbcyr5tfd.com
 0.0.0.0 qbdlijgzxscfa.site
 0.0.0.0 qbechbzborhvf.space
+0.0.0.0 qbesjhbmsbi.com
 0.0.0.0 qbhlynxrlnojz.space
 0.0.0.0 qbhoxxlmcquvw.website
 0.0.0.0 qbiapxkofrlix.online
@@ -61595,6 +61635,7 @@
 0.0.0.0 quenchalaster.qpon
 0.0.0.0 quenchgranite.com
 0.0.0.0 quendamixedly.cfd
+0.0.0.0 quenitecorpsy.shop
 0.0.0.0 quensillo.com
 0.0.0.0 quentjammy.qpon
 0.0.0.0 queriedsorchinnikon.cyou
@@ -64452,6 +64493,7 @@
 0.0.0.0 riverhit.com
 0.0.0.0 riverlead.ru
 0.0.0.0 rivieracalinevarix.cfd
+0.0.0.0 rivierewhimsey.com
 0.0.0.0 rivne.space
 0.0.0.0 rivrumtmzjmqu.site
 0.0.0.0 rivullvwg.com
@@ -76655,6 +76697,7 @@
 0.0.0.0 stertharmine.cfd
 0.0.0.0 stethathehadsto.com
 0.0.0.0 stetic.com
+0.0.0.0 stevbade1.online
 0.0.0.0 stevesmovies.com
 0.0.0.0 stewardcasitas.qpon
 0.0.0.0 stewartconflux.qpon
@@ -77402,6 +77445,7 @@
 0.0.0.0 summythdevious.com
 0.0.0.0 sumo.com
 0.0.0.0 sumome.com
+0.0.0.0 sumossins.shop
 0.0.0.0 sumpooloor.net
 0.0.0.0 sumpopulent.help
 0.0.0.0 sumptuousmonks.com
@@ -79758,6 +79802,7 @@
 0.0.0.0 terrificdark.com
 0.0.0.0 terrinecocco.qpon
 0.0.0.0 terronzesting.qpon
+0.0.0.0 terryreverbanglish.cfd
 0.0.0.0 tersatedtheother.com
 0.0.0.0 terserhowffotalgia.cyou
 0.0.0.0 terveesitkan.cfd
@@ -83165,6 +83210,7 @@
 0.0.0.0 truncusalloygobi.qpon
 0.0.0.0 trundrak.com
 0.0.0.0 trunfezzy.help
+0.0.0.0 trunkedhede.qpon
 0.0.0.0 trunnelsavvy.cfd
 0.0.0.0 trunpannery.cfd
 0.0.0.0 truoctran.com
@@ -89003,6 +89049,7 @@
 0.0.0.0 vovlacjs.cyou
 0.0.0.0 vovlbctpwng.com
 0.0.0.0 vovnjqjpzxqdr.space
+0.0.0.0 vowelfemininecherish.com
 0.0.0.0 vowellm4.com
 0.0.0.0 vowelsubnet.cyou
 0.0.0.0 vowlvgdgbkqmv.online
