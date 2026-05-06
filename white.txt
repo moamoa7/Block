@@ -4,4 +4,5 @@
 ||exlogcollector.sooplive.co.kr^
 ||exlogcollector.sooplive.com^
 #! 옥션/지마켓 배너 안보이는거 방지 !#
+||ad-img.gmarket.com^
 ||dadispapi.gmarket.co.kr^
