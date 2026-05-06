@@ -1,13 +1,13 @@
 ======================================================================
   Filter Extraction Report
-  Generated: 2026-05-06 11:41:29 UTC
+  Generated: 2026-05-06 13:21:57 UTC
 ======================================================================
 
 [ Reference Filter ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
-        Lines   : 167,617   Domains: 165,128
+        Lines   : 167,644   Domains: 165,155
 
 [ External Whitelist Sources ]
 ----------------------------------------------------------------------
@@ -48,10 +48,10 @@
 ----------------------------------------------------------------------
   [OK]  EasyList
         URL       : https://easylist-downloads.adblockplus.org/easylist.txt
-        Lines     : 90,442   Extracted: 57,773   New: 57,773
+        Lines     : 90,458   Extracted: 57,789   New: 57,789
   [OK]  AdGuard Base
         URL       : https://filters.adtidy.org/windows/filters/2.txt
-        Lines     : 158,821   Extracted: 66,549   New: 8,785
+        Lines     : 158,831   Extracted: 66,556   New: 8,786
   [OK]  AdGuard Mobile
         URL       : https://filters.adtidy.org/windows/filters/11.txt
         Lines     : 9,546   Extracted: 908   New: 890
@@ -75,12 +75,12 @@
 ----------------------------------------------------------------------
   [OK]  oisd small
         URL       : https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt
-        Lines     : 56,848   Extracted: 56,835
+        Lines     : 56,847   Extracted: 56,834
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
         Lines     : 1   Extracted: 0
 
-  Total personal block (deduplicated): 56,835
+  Total personal block (deduplicated): 56,834
 
 [ Personal Whitelist (Final Override) ]
 ----------------------------------------------------------------------
@@ -93,8 +93,8 @@
 [ Overlap Analysis (per filter) ]
 ----------------------------------------------------------------------
   Filter                            Extracted        New     Unique
-  EasyList                             57,773     57,773          9
-  AdGuard Base                         66,549      8,785      4,622
+  EasyList                             57,789     57,789         19
+  AdGuard Base                         66,556      8,786      4,623
   AdGuard Mobile                          908        890        229
   AdGuard Japanese                        169        156         19
   AdGuard Chinese                       6,124      6,108        516
@@ -104,16 +104,16 @@
 
 [ Reference Filter Validation ]
 ----------------------------------------------------------------------
-  Before              : 179,464
-  Removed (not in ref): 86,676
-  After               : 92,788
+  Before              : 179,481
+  Removed (not in ref): 86,666
+  After               : 92,815
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Raw domains collected           : 179,464
-  2. Removed by reference filter     : 86,676
+  1. Raw domains collected           : 179,481
+  2. Removed by reference filter     : 86,666
   3. Removed by external whitelist   : 28
-  4. Personal block added            : 56,835  (forced black: 11)
+  4. Personal block added            : 56,834  (forced black: 11)
   5. Personal white applied          : 3  (forced white: 2)
-  6. Final Block Rules               : 98,234
+  6. Final Block Rules               : 98,261
   7. Final Exception Rules           : 6,423
