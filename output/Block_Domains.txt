@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-05 23:36:57 UTC
+# Generated: 2026-05-06 01:20:56 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 183,262
-# 2. Removed by Reference       : 90,638
+# 1. Raw Domains Collected      : 183,281
+# 2. Removed by Reference       : 90,639
 # 3. Removed by Ext.Whitelist   : 49
-# 4. Personal Block Added       : 56,846
+# 4. Personal Block Added       : 56,845
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 98,051
+# 7. Final Block Rules (||)     : 98,068
 # 8. Final Exception Rules (@@) : 7,891
 #
 0-02.net
@@ -1833,6 +1833,7 @@
 666bb777ww.com
 666f69c8bb.com
 666hh999gg.com
+66f4mej92etu96.cfd
 66f5dd9691.com
 66hao.cc
 66l11y82dn.com
@@ -9673,6 +9674,7 @@ apaff.oneplus.com
 apairdeking.qpon
 apajku.icu
 apajzmkpiuahv.space
+apandryloveedumbs.cyou
 apapuacauthong.com
 apargiabipacks.cfd
 apartgamble.com
@@ -12917,6 +12919,7 @@ beriberunwon.qpon
 beringmedia.com
 beringterm.com
 berlipurplin.com
+berneoutask.cyou
 beroll.ru
 berp.com
 berriesstring.com
@@ -17481,6 +17484,7 @@ chunkycactus.com
 chunmiaosh.com
 churchkhela.site
 churchyardlikinglockdown.com
+churnsrajasoddsman.qpon
 chushoushijian.cn
 chutingstuddyapis.cfd
 chvtweykwfbks.website
@@ -18561,6 +18565,7 @@ cognatesyringe.com
 cognizancesteepleelevate.com
 cogocast.net
 cogocs.com
+cograilpiaffe.qpon
 coguan.com
 cogzsatyhofvp.online
 coherentchuckled.com
@@ -27011,6 +27016,7 @@ eminentbubble.com
 eminentcleaveproduces.com
 eminentconsideringdestructive.com
 eminentcopy.pro
+eminentdetail.com
 eminentend.com
 emisja.contentstream.pl
 emissigougers.cfd
@@ -30617,6 +30623,7 @@ foldinsinuate.com
 foldyahoolestorderly.com
 folkswrymyrtle.com
 folliedrestio.cfd
+follilyinvites.cfd
 follow.vnay.vn
 followborder.com
 followerattachment.com
@@ -31560,6 +31567,7 @@ fvkobfbmfdjhp.website
 fvlclrgklbtygm.com
 fvlhshpmjnrck.website
 fvlqjw.top
+fvltlueulmjsc.com
 fvmfdrlitvyuf.online
 fvmknkfwudhehn.com
 fvmnezzu.com
@@ -39625,6 +39633,7 @@ jarvispopsu.com
 jas.indeednps.com
 jasaiklan.com
 jashz.crateandbarrel.com
+jasiespremie.cfd
 jaskhuczzexoh.site
 jasmined544.com
 jassidgrummer.shop
@@ -42597,6 +42606,7 @@ lamp-shade.net
 lampasliegesbogles.cyou
 lampernaortismamamau.cfd
 lampfuldrawerslavish.cyou
+lampionnonda.cfd
 lamplitsorrels.cfd
 lamplow.com
 lamplynx.com
@@ -49189,6 +49199,7 @@ mos05120o9i.com
 moscmzvpxnjjq.website
 moselfaecula.qpon
 mosellefactive.qpon
+mosescoodle.shop
 moseshecticalodial.qpon
 mosqueworking.com
 mosquito.birbs.art
@@ -50332,7 +50343,6 @@ native-ad.net
 native-ads-events-api2.c4s-rd.services
 native-adserver.com
 native-log-collect.gryphline.com
-native-track.com
 native.ai
 native.cli.bz
 native.com
@@ -65170,6 +65180,7 @@ rrxcjogqvssex.space
 rrxcxo371j9j5lbq8t.cfd
 rrxoysq.art
 rrypbcicshtso.online
+rrytseuittsdw.site
 rrzvcmlscqqmc.website
 rs-stripe.com
 rs.sinajs.cn
@@ -66016,6 +66027,7 @@ ruziecoraz.com
 ruzotchaufu.xyz
 ruzsswjcyktpo.website
 rv4m18p97i3yc5o58urbhvh.rest
+rv5799gx1x972j1evi2lx8.rest
 rva.outbrain.com
 rvaedusnx.com
 rvahgdrvko.com
@@ -74171,6 +74183,7 @@ soybeanteskere.cyou
 soycdn.lol
 soyconfer.com
 soydhhbtirqqh.space
+soyjoyous.cyou
 soylielbjnl.com
 sozlsiexijubh.website
 soznlghtktitc.website
@@ -82842,6 +82855,7 @@ trkerupper.com
 trkfomedia.eu
 trkgbm.business.hsbc.uk
 trkhinv.business.hsbc.uk
+trkhnqjyhufjnyf.com
 trkinator.com
 trkings.com
 trkjmp.com
@@ -83245,6 +83259,7 @@ tu4038097360.cc
 tu6767109513.cc
 tuaos.xyz
 tuarthoc.qpon
+tuarxmequworn.space
 tubagenoddi.qpon
 tubbalprodd.cfd
 tubberlo.com
@@ -89950,6 +89965,7 @@ wbfkyjvspddnd.site
 wbgeaojtegeun.website
 wbhqdaqufhhua.space
 wbhrqfimuqtij.site
+wbhwsfkjfzerz.website
 wbidder.online
 wbidder2.com
 wbidder3.com
@@ -90675,6 +90691,7 @@ wgfqayocqadzp.space
 wggmcqucgyggh.site
 wghaqpnupaxmj.space
 wghfuyzbjgslv.website
+wghkllhhoraeb.space
 wghoubdaxpsik.site
 wghvkrik.com
 wghvvdmdqgdzz.space

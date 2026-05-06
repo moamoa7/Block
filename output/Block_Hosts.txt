@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-05 23:36:57 UTC
+# Generated: 2026-05-06 01:20:56 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 183,262
-# 2. Removed by Reference       : 90,638
+# 1. Raw Domains Collected      : 183,281
+# 2. Removed by Reference       : 90,639
 # 3. Removed by Ext.Whitelist   : 49
-# 4. Personal Block Added       : 56,846
+# 4. Personal Block Added       : 56,845
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 98,051
+# 7. Final Block Rules (||)     : 98,068
 # 8. Final Exception Rules (@@) : 7,891
 #
 0.0.0.0 0-02.net
@@ -1833,6 +1833,7 @@
 0.0.0.0 666bb777ww.com
 0.0.0.0 666f69c8bb.com
 0.0.0.0 666hh999gg.com
+0.0.0.0 66f4mej92etu96.cfd
 0.0.0.0 66f5dd9691.com
 0.0.0.0 66hao.cc
 0.0.0.0 66l11y82dn.com
@@ -9673,6 +9674,7 @@
 0.0.0.0 apairdeking.qpon
 0.0.0.0 apajku.icu
 0.0.0.0 apajzmkpiuahv.space
+0.0.0.0 apandryloveedumbs.cyou
 0.0.0.0 apapuacauthong.com
 0.0.0.0 apargiabipacks.cfd
 0.0.0.0 apartgamble.com
@@ -12917,6 +12919,7 @@
 0.0.0.0 beringmedia.com
 0.0.0.0 beringterm.com
 0.0.0.0 berlipurplin.com
+0.0.0.0 berneoutask.cyou
 0.0.0.0 beroll.ru
 0.0.0.0 berp.com
 0.0.0.0 berriesstring.com
@@ -17481,6 +17484,7 @@
 0.0.0.0 chunmiaosh.com
 0.0.0.0 churchkhela.site
 0.0.0.0 churchyardlikinglockdown.com
+0.0.0.0 churnsrajasoddsman.qpon
 0.0.0.0 chushoushijian.cn
 0.0.0.0 chutingstuddyapis.cfd
 0.0.0.0 chvtweykwfbks.website
@@ -18561,6 +18565,7 @@
 0.0.0.0 cognizancesteepleelevate.com
 0.0.0.0 cogocast.net
 0.0.0.0 cogocs.com
+0.0.0.0 cograilpiaffe.qpon
 0.0.0.0 coguan.com
 0.0.0.0 cogzsatyhofvp.online
 0.0.0.0 coherentchuckled.com
@@ -27011,6 +27016,7 @@
 0.0.0.0 eminentcleaveproduces.com
 0.0.0.0 eminentconsideringdestructive.com
 0.0.0.0 eminentcopy.pro
+0.0.0.0 eminentdetail.com
 0.0.0.0 eminentend.com
 0.0.0.0 emisja.contentstream.pl
 0.0.0.0 emissigougers.cfd
@@ -30617,6 +30623,7 @@
 0.0.0.0 foldyahoolestorderly.com
 0.0.0.0 folkswrymyrtle.com
 0.0.0.0 folliedrestio.cfd
+0.0.0.0 follilyinvites.cfd
 0.0.0.0 follow.vnay.vn
 0.0.0.0 followborder.com
 0.0.0.0 followerattachment.com
@@ -31560,6 +31567,7 @@
 0.0.0.0 fvlclrgklbtygm.com
 0.0.0.0 fvlhshpmjnrck.website
 0.0.0.0 fvlqjw.top
+0.0.0.0 fvltlueulmjsc.com
 0.0.0.0 fvmfdrlitvyuf.online
 0.0.0.0 fvmknkfwudhehn.com
 0.0.0.0 fvmnezzu.com
@@ -39625,6 +39633,7 @@
 0.0.0.0 jas.indeednps.com
 0.0.0.0 jasaiklan.com
 0.0.0.0 jashz.crateandbarrel.com
+0.0.0.0 jasiespremie.cfd
 0.0.0.0 jaskhuczzexoh.site
 0.0.0.0 jasmined544.com
 0.0.0.0 jassidgrummer.shop
@@ -42597,6 +42606,7 @@
 0.0.0.0 lampasliegesbogles.cyou
 0.0.0.0 lampernaortismamamau.cfd
 0.0.0.0 lampfuldrawerslavish.cyou
+0.0.0.0 lampionnonda.cfd
 0.0.0.0 lamplitsorrels.cfd
 0.0.0.0 lamplow.com
 0.0.0.0 lamplynx.com
@@ -49189,6 +49199,7 @@
 0.0.0.0 moscmzvpxnjjq.website
 0.0.0.0 moselfaecula.qpon
 0.0.0.0 mosellefactive.qpon
+0.0.0.0 mosescoodle.shop
 0.0.0.0 moseshecticalodial.qpon
 0.0.0.0 mosqueworking.com
 0.0.0.0 mosquito.birbs.art
@@ -50332,7 +50343,6 @@
 0.0.0.0 native-ads-events-api2.c4s-rd.services
 0.0.0.0 native-adserver.com
 0.0.0.0 native-log-collect.gryphline.com
-0.0.0.0 native-track.com
 0.0.0.0 native.ai
 0.0.0.0 native.cli.bz
 0.0.0.0 native.com
@@ -65170,6 +65180,7 @@
 0.0.0.0 rrxcxo371j9j5lbq8t.cfd
 0.0.0.0 rrxoysq.art
 0.0.0.0 rrypbcicshtso.online
+0.0.0.0 rrytseuittsdw.site
 0.0.0.0 rrzvcmlscqqmc.website
 0.0.0.0 rs-stripe.com
 0.0.0.0 rs.sinajs.cn
@@ -66016,6 +66027,7 @@
 0.0.0.0 ruzotchaufu.xyz
 0.0.0.0 ruzsswjcyktpo.website
 0.0.0.0 rv4m18p97i3yc5o58urbhvh.rest
+0.0.0.0 rv5799gx1x972j1evi2lx8.rest
 0.0.0.0 rva.outbrain.com
 0.0.0.0 rvaedusnx.com
 0.0.0.0 rvahgdrvko.com
@@ -74171,6 +74183,7 @@
 0.0.0.0 soycdn.lol
 0.0.0.0 soyconfer.com
 0.0.0.0 soydhhbtirqqh.space
+0.0.0.0 soyjoyous.cyou
 0.0.0.0 soylielbjnl.com
 0.0.0.0 sozlsiexijubh.website
 0.0.0.0 soznlghtktitc.website
@@ -82842,6 +82855,7 @@
 0.0.0.0 trkfomedia.eu
 0.0.0.0 trkgbm.business.hsbc.uk
 0.0.0.0 trkhinv.business.hsbc.uk
+0.0.0.0 trkhnqjyhufjnyf.com
 0.0.0.0 trkinator.com
 0.0.0.0 trkings.com
 0.0.0.0 trkjmp.com
@@ -83245,6 +83259,7 @@
 0.0.0.0 tu6767109513.cc
 0.0.0.0 tuaos.xyz
 0.0.0.0 tuarthoc.qpon
+0.0.0.0 tuarxmequworn.space
 0.0.0.0 tubagenoddi.qpon
 0.0.0.0 tubbalprodd.cfd
 0.0.0.0 tubberlo.com
@@ -89950,6 +89965,7 @@
 0.0.0.0 wbgeaojtegeun.website
 0.0.0.0 wbhqdaqufhhua.space
 0.0.0.0 wbhrqfimuqtij.site
+0.0.0.0 wbhwsfkjfzerz.website
 0.0.0.0 wbidder.online
 0.0.0.0 wbidder2.com
 0.0.0.0 wbidder3.com
@@ -90675,6 +90691,7 @@
 0.0.0.0 wggmcqucgyggh.site
 0.0.0.0 wghaqpnupaxmj.space
 0.0.0.0 wghfuyzbjgslv.website
+0.0.0.0 wghkllhhoraeb.space
 0.0.0.0 wghoubdaxpsik.site
 0.0.0.0 wghvkrik.com
 0.0.0.0 wghvvdmdqgdzz.space
