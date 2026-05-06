@@ -4788,6 +4788,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://www.algumon.com/
 ! - 가생이닷컴 (https://www.gasengi.com/)
 ! - https://noonnu.cc/
+! - https://data.pureugong.com/
 ##iframe[id*="google"]
 
 
@@ -5049,8 +5050,8 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://7tv034.com/
 !##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
-! - - - 옥션 배너 사라짐
 !##[class*="_banner"] iframe
+! - - - ! - https://www.fomos.kr/
 ##[class*="banner"] iframe
 
 
