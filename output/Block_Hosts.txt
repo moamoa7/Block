@@ -1,5 +1,5 @@
-# Generated: 2026-05-06 19:08:06 UTC
-# Block Domains: 98,342
+# Generated: 2026-05-06 19:32:17 UTC
+# Block Domains: 98,333
 #
 0.0.0.0 0-02.net
 0.0.0.0 0.avmarket.rs
@@ -26962,7 +26962,6 @@
 0.0.0.0 elnz02.com
 0.0.0.0 elocuteblinderovertip.cfd
 0.0.0.0 elogiado.info
-0.0.0.0 elogs.vnexpress.net
 0.0.0.0 elogymayda.shop
 0.0.0.0 elonreptiloid.com
 0.0.0.0 elonreptiloid.pw
@@ -27017,9 +27016,6 @@
 0.0.0.0 em.thermofisher.com
 0.0.0.0 em7ky342lo.com
 0.0.0.0 ema.hostvn.net
-0.0.0.0 email-amer.stage-us.jll.com
-0.0.0.0 email-apac.stage-in.jll.com
-0.0.0.0 email-emea.stage-uk.jll.com
 0.0.0.0 email-match.com
 0.0.0.0 emakqnaa.com
 0.0.0.0 emancytal.com
@@ -42611,7 +42607,6 @@
 0.0.0.0 la-la-sf.com
 0.0.0.0 la.vietid.net
 0.0.0.0 la.vnbusiness.vn
-0.0.0.0 la.vnecdn.net
 0.0.0.0 la2.vnecdn.net
 0.0.0.0 la3.vnecdn.net
 0.0.0.0 laarmwcgehodw.website
@@ -44166,7 +44161,6 @@
 0.0.0.0 load.lolsauce.net
 0.0.0.0 load.metrics.mercyships.de
 0.0.0.0 load.nootiz.com
-0.0.0.0 load.sd.easycamp.com
 0.0.0.0 load.sgtm.atlas-der-gesundheit.com
 0.0.0.0 load.sgtm.fiskaly.com
 0.0.0.0 load.sgtm.valotehdas.fi
@@ -44405,7 +44399,6 @@
 0.0.0.0 log.kinolights.com
 0.0.0.0 log.klook.com
 0.0.0.0 log.kroffle.net
-0.0.0.0 log.krs-ix.ru
 0.0.0.0 log.kuwo.cn
 0.0.0.0 log.lichviet.org
 0.0.0.0 log.lnk.events
@@ -58849,7 +58842,6 @@
 0.0.0.0 privacy-analytics-proxy.cookiebot.com
 0.0.0.0 privacy-sandbox.appsflyersdk.com
 0.0.0.0 privacy.outdoorsg.com
-0.0.0.0 privacy.waterjake.de
 0.0.0.0 privacyarmory.com
 0.0.0.0 privacyconsentmgmt.storable.com
 0.0.0.0 privacycounter.com
@@ -96978,7 +96970,6 @@
 0.0.0.0 zbqzsgtqyzmid.website
 0.0.0.0 zbrtnv.icu
 0.0.0.0 zbs.etodomendlyareklamy.ru
-0.0.0.0 zbtlgd.com
 0.0.0.0 zbtqcovdv.com
 0.0.0.0 zbtqtqveyrvhu.site
 0.0.0.0 zbtwzuihkndsv.space

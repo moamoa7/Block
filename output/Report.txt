@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report
-  Generated: 2026-05-06 19:08:06 UTC
+  Generated: 2026-05-06 19:32:17 UTC
 ======================================================================
 
 [ Reference Filter ]
@@ -48,7 +48,7 @@
 ----------------------------------------------------------------------
   [OK]  EasyList
         URL       : https://easylist-downloads.adblockplus.org/easylist.txt
-        Lines     : 90,502   Extracted: 57,835   New: 57,835
+        Lines     : 90,506   Extracted: 57,839   New: 57,839
   [OK]  AdGuard Base
         URL       : https://filters.adtidy.org/windows/filters/2.txt
         Lines     : 158,894   Extracted: 66,608   New: 8,786
@@ -69,7 +69,7 @@
         Lines     : 11,089   Extracted: 50   New: 33
   [OK]  HaGeZi DNS Blocklist
         URL       : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
-        Lines     : 156,362   Extracted: 156,337   New: 105,453
+        Lines     : 161,190   Extracted: 161,163   New: 110,293
 
 [ Personal Blocklist (Overrides External Whitelist, Skips Reference Validation) ]
 ----------------------------------------------------------------------
@@ -93,27 +93,27 @@
 [ Overlap Analysis (per filter) ]
 ----------------------------------------------------------------------
   Filter                            Extracted        New     Unique
-  EasyList                             57,835     57,835         13
-  AdGuard Base                         66,608      8,786      4,623
+  EasyList                             57,839     57,839         17
+  AdGuard Base                         66,608      8,786      4,624
   AdGuard Mobile                          908        890        229
   AdGuard Japanese                        169        156         19
-  AdGuard Chinese                       6,129      6,113        521
+  AdGuard Chinese                       6,129      6,113        516
   List-KR                                 353        266         83
   uBlock Filters                           50         33          5
-  HaGeZi DNS Blocklist                156,337    105,453    105,453
+  HaGeZi DNS Blocklist                161,163    110,293    110,293
 
 [ Reference Filter Validation ]
 ----------------------------------------------------------------------
-  Before              : 179,532
-  Removed (not in ref): 86,665
-  After               : 92,867
+  Before              : 184,376
+  Removed (not in ref): 91,518
+  After               : 92,858
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Raw domains collected           : 179,532
-  2. Removed by reference filter     : 86,665
+  1. Raw domains collected           : 184,376
+  2. Removed by reference filter     : 91,518
   3. Removed by external whitelist   : 28
   4. Personal block added            : 56,896  (forced black: 11)
   5. Personal white applied          : 5  (forced white: 3)
-  6. Final Block Rules               : 98,342
-  7. Final Exception Rules           : 6,424
+  6. Final Block Rules               : 98,333
+  7. Final Exception Rules           : 6,426

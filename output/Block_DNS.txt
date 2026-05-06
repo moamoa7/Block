@@ -1,8 +1,8 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-06 19:08:06 UTC
+! Generated: 2026-05-06 19:32:17 UTC
 ! Homepage: https://github.com/moamoa7/adblock
-! Block Rules: 98,342
-! Exception Rules: 6,424
+! Block Rules: 98,333
+! Exception Rules: 6,426
 !
 ||0-02.net^
 ||0.avmarket.rs^
@@ -26965,7 +26965,6 @@
 ||elnz02.com^
 ||elocuteblinderovertip.cfd^
 ||elogiado.info^
-||elogs.vnexpress.net^
 ||elogymayda.shop^
 ||elonreptiloid.com^
 ||elonreptiloid.pw^
@@ -27020,9 +27019,6 @@
 ||em.thermofisher.com^
 ||em7ky342lo.com^
 ||ema.hostvn.net^
-||email-amer.stage-us.jll.com^
-||email-apac.stage-in.jll.com^
-||email-emea.stage-uk.jll.com^
 ||email-match.com^
 ||emakqnaa.com^
 ||emancytal.com^
@@ -42614,7 +42610,6 @@
 ||la-la-sf.com^
 ||la.vietid.net^
 ||la.vnbusiness.vn^
-||la.vnecdn.net^
 ||la2.vnecdn.net^
 ||la3.vnecdn.net^
 ||laarmwcgehodw.website^
@@ -44169,7 +44164,6 @@
 ||load.lolsauce.net^
 ||load.metrics.mercyships.de^
 ||load.nootiz.com^
-||load.sd.easycamp.com^
 ||load.sgtm.atlas-der-gesundheit.com^
 ||load.sgtm.fiskaly.com^
 ||load.sgtm.valotehdas.fi^
@@ -44408,7 +44402,6 @@
 ||log.kinolights.com^
 ||log.klook.com^
 ||log.kroffle.net^
-||log.krs-ix.ru^
 ||log.kuwo.cn^
 ||log.lichviet.org^
 ||log.lnk.events^
@@ -58852,7 +58845,6 @@
 ||privacy-analytics-proxy.cookiebot.com^
 ||privacy-sandbox.appsflyersdk.com^
 ||privacy.outdoorsg.com^
-||privacy.waterjake.de^
 ||privacyarmory.com^
 ||privacyconsentmgmt.storable.com^
 ||privacycounter.com^
@@ -96981,7 +96973,6 @@
 ||zbqzsgtqyzmid.website^
 ||zbrtnv.icu^
 ||zbs.etodomendlyareklamy.ru^
-||zbtlgd.com^
 ||zbtqcovdv.com^
 ||zbtqtqveyrvhu.site^
 ||zbtwzuihkndsv.space^
@@ -99657,6 +99648,7 @@
 @@||d231vab146qzfb.cloudfront.net^
 @@||da.victoriabank.md^
 @@||dab-bank.de^
+@@||dadispapi.gmarket.co.kr^
 @@||dalena.ru^
 @@||dana.id^
 @@||danamon.co.id^
@@ -99994,6 +99986,7 @@
 @@||eximbank.com.tw^
 @@||eximbank.com.vn^
 @@||exlogcollector.sooplive.co.kr^
+@@||exlogcollector.sooplive.com^
 @@||experian.com^
 @@||expr.ru^
 @@||express-bank.ru^
