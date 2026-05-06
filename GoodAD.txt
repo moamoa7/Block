@@ -183,10 +183,10 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
 ! YousLis 무력화
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
 ||*adsbygoogle.js
-##div[class*="google-ad"]
-##iframe[src*="doubleclick.net"]
-##iframe[src*="googleadservices.com"]
-##div[data-google-av-ad-container]
+!##[class*="google-ad"] - ##[class*="google"] 로 대체
+##[class*="google"]
+##[id*="google"]
+##[data-google-av-ad-container]
 ! 구글 광고 차단 (추가)
 /adsense/*
 ##[class*="adsense"]
@@ -619,7 +619,7 @@ m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 ! - - -  웃대 (https://web.humoruniv.com/) 왼쪽 배너 / 하단 배너
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
 ##.adsbygoogle
-##[id*="google_ads"]
+!##[id*="google_ads"] - ##[id*="google"] 로 대체
 ##[class^="ads"]
 ! - - - 예외
 ! - - - https://sports.daum.net/
@@ -2135,12 +2135,14 @@ coupang.com###srpKeywordTopBanner
 ! -광고
 ! - - - https://cafe.daum.net/
 ! - - - https://brunch.co.kr/
-##[alt$="배너"]
+!##[alt$="배너"]
+!##a:has(> img[alt*="배너"])
 ! - - - G마켓 (https://www.gmarket.co.kr/)
 ! - - - 이토랜드 (https://etoland.co.kr/point)
 ! - - - 네이버 블로그 (https://blog.naver.com/)
 ! - - - 와이고수 (https://ygosu.com/)
-##[alt$="광고"]
+!##[alt$="광고"]
+!##a:has(> img[alt*="광고"])
 ! - 배너
 ##[class*="ad_banner"]
 !- - - 예외
@@ -2246,8 +2248,10 @@ danawa.com#@#iframe[src*="/RealMedia/ads/"]
 ! - 광고 배너
 ! - - - https://pann.nate.com/
 danawa.com/###adSmartProductContainer
-##iframe[title*="배너"]
-##iframe[title*="광고"]
+!##iframe[title*="배너"]
+##div:has(> iframe[title*="배너"])
+!##iframe[title*="광고"]
+##div:has(> iframe[title*="광고"])
 ##[class*="main-event"]
 !
 !
@@ -2473,7 +2477,8 @@ sextb.date##.hidden-md.right.col-3
 ! - - - 블라인드 (https://www.teamblind.com/)
 ! - - - 클리앙 (https://www.clien.net/)
 !##iframe[src^="https://creative."][src*="/widgets/v4/Universal?"]
-##iframe[src*="/widgets/"]
+!##iframe[src*="/widgets/"]
+##div:has(> iframe[src*="/widgets/"])
 !
 !
 ! - https://ko.javfc2.live/
@@ -3020,23 +3025,6 @@ javlemon.com##style\=\"text-align\:center\;\"
 !@@||javpop.com/img/*$image
 !
 !
-!
-! nJAV (https://www.njav.com/)
-! - 영상 옆 배너공간
-! - - - ! Ichiha 4.5(https://komi.la/) 배너 공간
-!njav.com##.mx-auto
-njav.com,komi.la##.mx-auto
-! - - - 예외
-! - - - 야동그라운드 (https://yagro48.com/) - 전체 선택되서 안보임
-![$domain=/^yagro\d+.com/]#@#.mx-auto
-! - - - 레딧 (https://www.reddit.com/) - 전체 선택되어 안보임
-!reddit.com#@#.mx-auto
-! - - - https://fc2ppvdb.com/ - 전체 선택되어 안보임
-!fc2ppvdb.com#@#.mx-auto
-! - - - https://missav.ws/ - 전체 선택되어 안보임
-!missav.*#@#.mx-auto
-!
-!
 ! MISSAV (https://missav.ws/)
 ! MISSAV (https://missav.live/)
 ! MISSAV (https://missav.ai/)
@@ -3050,16 +3038,22 @@ missav.*,njavtv.com##.lg\:block
 ! - 영상 하단 오른쪽 따라다니는 배너
 !##.mb-5.space-y-5 > div > .mx-auto
 !##div.mx-auto > iframe
-##[class^="mx-auto"] iframe
+##[class^="mx-auto"]
 ! - 예외
 ! - - - https://etoland.co.kr/ - 상단 일부 짤림
-!etoland.co.kr#@#[class^="mx-auto"]
+etoland.co.kr#@#[class^="mx-auto"]
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
 ! - 기타
 ##a[rel*="sponsored"]
 ##[src*="//ads.adxadserv.com/"]
+!
+!
+! Jable.TV (https://jable.tv/)
+!
+##a[href*="/smartpop/"]
+
 !
 !
 ! JAVCEP.COM (https://javcep.com/)
@@ -3892,7 +3886,8 @@ hitomi.la###immersive-translate-popup
 ! - 팝업 - 막으면 스크롤 안되서 해제
 !##.max-h-screen
 !##.bg-black\/50
-##.pointer-events-auto
+! - - - https://www.reddit.com/ - 상단 타이틀이 사라지므로 광역 금지
+pandalive.co.kr##.pointer-events-auto
 ! - 팝업 차단으로 막힌 스크롤 차단 해제
 pandalive.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
@@ -4716,12 +4711,11 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! 작업 중
 
-##iframe[src*=""]
-
+##div:has(> iframe[src*=""])
 
 ! - https://pann.nate.com/
 ! - 국세청(https://hometax.go.kr/) - 이용 불가
-!##iframe[src*="about:blank"]
+!##div:has(> iframe[src*="about:blank"])
 
 
 ! - https://randburg.com/ - 영상 안나옴
@@ -4734,14 +4728,14 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://etoland.co.kr/
 ! - https://www.clien.net/
 ! - https://mypikpak.com/
-! - https://ko.javfc2.live/
+! - https://ko.javfc2.live/ - 영상 안나옴
 ! - https://supjav.com/
 ! - https://www.ddanzi.com/
 ! - https://www.82cook.com/
 ! - https://web.humoruniv.com/
 ! - https://www.goodgag.net/
 ! - https://www.clien.net/
-##iframe[src*="iframe"]
+!##div:has(> iframe[src*="iframe"])
 
 
 ! - https://tv.naver.com/ - 목록 안나옴
@@ -4755,7 +4749,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://supjav.com/
 ! - https://missav.ws/
-##iframe[src*="/smartpop/"]
+##div:has(> iframe[src*="/smartpop/"])
 
 
 ! - 티바위키 안나옴 (https://tvwiki19.net/)
@@ -4768,19 +4762,29 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://mypikpak.com/
 ! - https://gall.dcinside.com/
 ! - ! - https://inven.co.kr/
-##iframe[src*="google"]:not([src*="recaptcha"])
+##div:has(> iframe[src*="google"])
 
 
 ! - https://namu.wiki/
 ! - https://www.goodgag.net/
 ! - https://www.sooplive.com/
 ! - https://noonnu.cc/
-##iframe[name="googlefcPresent"]
-##iframe[name*="google"]
+##div:has(> iframe[name*="google"])
 
 
+##div:has(> iframe[src*="doubleclick"])
 
-##iframe[class*="google"]
+
+##[class*="doubleclick"]
+
+
+##[id*="doubleclick"]
+
+
+##div:has(> iframe[src*="googleadservices"])
+
+
+##div[class*="google"]:has(iframe)
 
 
 ! - https://www.bandwidthplace.com/
@@ -4789,21 +4793,22 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - 가생이닷컴 (https://www.gasengi.com/)
 ! - https://noonnu.cc/
 ! - https://data.pureugong.com/
-##iframe[id*="google"]
+##div[iid*="google"]:has(iframe)
 
 
-! - https://imagetwist.com/
-! - https://www.ppomppu.co.kr/
 ! - https://ygosu.com/
-! - https://www.teamblind.com/
-##iframe[src*="banner"]
-
-
-##iframe[class*="banner"]
+##div:has(> iframe[src*="banner"])
 
 
 ! - https://nid.naver.com/ (로그인)
-##iframe[id*="banner"]
+##div[id*="banner"]:has(iframe)
+
+
+! - https://7tv034.com/
+!##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
+!##[class*="_banner"] iframe
+! - - - ! - https://www.fomos.kr/
+##div[class*="banner"]:has(iframe)
 
 
 ! https://hohoj.tv/
@@ -4813,35 +4818,15 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://inven.co.kr/
 ! - https://www.teamblind.com/
 ! - https://www.bandwidthplace.com/
-##iframe[src*="ads"]
+##div:has(> iframe[src*="ads"])
 
 
-##iframe[class*="ads"]
+##div[class*="ads"]:has(iframe)
+
 
 ! - https://www.algumon.com/
 ! - https://noonnu.cc/
-##iframe[id*="ads"]
-
-
-! - https://www.teamblind.com/
-! - https://pann.nate.com/
-! - https://blog.naver.com/ - 로딩 안됨
-!##iframe[src*="tracking"]
-
-
-##iframe[class*="tracking"]
-
-
-##iframe[id*="tracking"]
-
-
-##iframe[src*="tracker"]
-
-
-##iframe[calss*="tracker"]
-
-
-##iframe[id*="tracker"]
+##div[id*="ads"]:has(iframe)
 
 
 !- https://www.sooplive.com
@@ -4853,78 +4838,65 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://imagetwist.com/
 ! - https://javfc2.xyz/
 !##iframe[src*="live"]
+!##div:has(> iframe[src*="live"])
 
 
 ! https://poooo.ml/ - 영상 안보임
-!##iframe[src*="video"]
+!##div:has(> iframe[src*="video"])
 
 
 ! - https://missav.ws/
 ! - https://javgg.net/
 ! - https://javgiga.com/ - 영상 안나옴
-!##iframe[src*="stream"]
+!##div:has(> iframe[src*="stream"])
 
 
-##iframe[src*="livevideo"]
-
-
-##iframe[src*="live-video"]
-
-
-##iframe[src*="iivestream"]
-
-
-##iframe[src*="live-stream"]
-
-
-##iframe[src*="videostream"]
-
-
-##iframe[src*="video-stream"]
-
-
-! - https://jav.sb/ - 영상 안나옴? 정확하지 않음. 여기 영상 안나오는곳인듯
+! - https://jav.sb/ - 영상틀 사라잠 - 여기 영상 안나오는곳인가..
 ! - https://sports.donga.com/
-! - https://www.fmkorea.com/ - 영상 안나옴
-!##iframe[src*="vod"]
+!##div:has(> iframe[src*="vod"])
 
 
-##iframe[src*="promotion"]
+##div:has(> iframe[src*="promotion"])
 
 
-##iframe[class*="promotion"]
+##div[class*="promotion"]:has(iframe)
 
 
-##iframe[id*="promotion"]
+##div[id*="promotion"]:has(iframe)
 
 
 ! - https://sports.donga.com/
-##iframe[src*="popup"]
+##div:has(> iframe[src*="popup"])
 
 
-##iframe[class*="popup"]
+##div[class*="popup"]:has(iframe)
 
 
-! - https://poooo.ml/
-##iframe[id*="popup"]
+##div[id*="popup"]:has(iframe)
 
 
-##iframe[src*="adsense"]
+##div:has(> iframe[src*="adsense"])
 
 
-##iframe[class*="adsense"]
+##div[class*="adsense"]:has(iframe)
 
 
-##iframe[id*="adsense"]
+##div[id*="adsense"]:has(iframe)
 
 
-##iframe[src*="sponsor"]
+##div:has(> iframe[src*="sponsor"])
 
 
-##iframe[class*="sponsor"]
+##div[class*="sponsor"]:has(iframe)
 
-! - https://pann.nate.com/
-##iframe[id*="sponsor"]
+
+##div[id*="sponsor"]:has(iframe)
+
+
+##[class*="sponsor"]
+
+
+##[id*="sponsor"]
 
 
 ! - https://www.genspark.ai/
@@ -4956,48 +4928,37 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[id*="button"]
 
 
-! - https://jable.tv/
-##iframe[src*="event"]
+##div:has(> iframe[src*="event"])
 
 
-##iframe[class*="event"]
+##div[class*="event"]:has(iframe)
 
 
-##iframe[id*="event"]
+##div[id*="event"]:has(iframe)
 
 
 ! - https://ygosu.com/
-! - https://tv.naver.com/ - 영상 목록 안나옴
-!##iframe[src*="click"]
+##div:has(> iframe[src*="click"])
 
 
-##iframe[class*="script"]
+##div[class*="script"]:has(iframe)
 
 
-##iframe[id*="script"]
+##div[id*="script"]:has(iframe)
 
 
 ! - https://meeco.kr/
-##iframe[src*="product"]
+##div:has(> iframe[src*="product"])
 
 
-##iframe[class*="product"]
+##div[class*="product"]:has(iframe)
 
 
-##iframe[id*="product"]
+##div[id*="product"]:has(iframe)
 
 
 ! - https://www.fmkorea.com/
-##iframe[attribution-reporting]
-
-
-##iframe[src*="update"]
-
-
-!##iframe[class*="sooplive"] - 없음
-
-
-!##iframe[id*="sooplive"] - 없음
+##div:has(> iframe[attribution-reporting])
 
 
 ! - https://ygosu.com/
@@ -5009,27 +4970,27 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##[id*="iframe"]
 
 
-##iframe[src*="hidden"]
+##div:has(> iframe[src*="hidden"])
+
+
+! - https://ygosu.com/ - 전체 안보임
+!##div[class*="hidden"]:has(iframe)
 
 
 ! - https://ygosu.com/
-! - https://poooo.ml/zodudghkj - 채팅창 내 배너 안보임
-!##iframe[id*="hidden"]
-
-
-
-! - https://dvdprime.com/
-##iframe[class*="hidden"]
+!##div:has(> iframe[id*="hidden"])
+##div[id*="hidden"]:has(iframe)
 
 
 ! - https://missav.ws/
 ! - https://www.goodgag.net/
 ! - https://coktv1.com/ - 영상 안나옴
-!##iframe[style*="hidden"]
+!##div:has(> iframe[style*="hidden"])
 
 
 ! - https://pann.nate.com/
-##iframe[title*="스폰"]
+!##iframe[title*="스폰"]
+##div:has(> iframe[title*="스폰"])
 
 
 ! - https://speedtest.telstra.com/
@@ -5045,14 +5006,4 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##[class$="iframe"]
 
 
-##[alt$="스폰"]
-
-
-! - https://7tv034.com/
-!##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
-!##[class*="_banner"] iframe
-! - - - ! - https://www.fomos.kr/
-##[class*="banner"] iframe
-
-
-##[id*="banner"] iframe
+!##[alt$="스폰"]
