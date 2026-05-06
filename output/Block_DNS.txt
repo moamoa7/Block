@@ -1,7 +1,7 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-06 21:49:35 UTC
+! Generated: 2026-05-06 22:36:34 UTC
 ! Homepage: https://github.com/moamoa7/adblock
-! Block Rules: 92,846
+! Block Rules: 92,857
 ! Exception Rules: 6,435
 !
 ||0.avmarket.rs^
@@ -18150,6 +18150,7 @@
 ||crow.gim.technology^
 ||crow.themarbleking.com^
 ||crow.voracious.dev^
+||crowbariranianmanati.cyou^
 ||crowbarrinds.com^
 ||crowded-you.pro^
 ||crowdedmass.com^
@@ -49598,6 +49599,7 @@
 ||ominousplant.com^
 ||omission119.fun^
 ||omissiongreatestoriginal.com^
+||omjoqxofsxpo.in^
 ||omjtwaaxtdc.com^
 ||omlahpewing.com^
 ||omlfdbfsdkcrz.online^
@@ -61996,6 +61998,7 @@
 ||rxnvg.com^
 ||rxoi.cn^
 ||rxqbewfdeyyrv.website^
+||rxqiyobihvuw.com^
 ||rxqqxtyrshpkq.store^
 ||rxqtuwahmzb.com^
 ||rxscledbyfgos.site^
@@ -69276,6 +69279,7 @@
 ||sneathecilice.qpon^
 ||sneckerpebbled.qpon^
 ||snecketkitab.cyou^
+||sneerspolders.shop^
 ||sneestspitedkanoon.cyou^
 ||sneezecovers.com^
 ||sneezedeplorebackache.com^
@@ -75586,6 +75590,7 @@
 ||tickets.info.pittsburghpenguins.com^
 ||ticketssponge.com^
 ||ticketswinning.com^
+||tickledyitemanis.cyou^
 ||tickleinclosetried.com^
 ||ticklesign.com^
 ||ticoepaarflt.com^
@@ -82419,6 +82424,7 @@
 ||vddf0.club^
 ||vde1.voyage-prive.de^
 ||vdeiseyswdfco.global^
+||vdepvqqfufsvg.online^
 ||vdeukmyunderthfe.org^
 ||vdeztemladdeb.online^
 ||vdfgjn.icu^
@@ -82514,6 +82520,7 @@
 ||veideasandcome.org^
 ||veiemjhrevzon.space^
 ||veih8bee.xhcdn.com^
+||veiledengages.qpon^
 ||veilsscrog.shop^
 ||veiltrench.com^
 ||veinagedeters.cfd^
@@ -86788,6 +86795,7 @@
 ||wotelnenrdecc.xyz^
 ||wotenvrlbybjm.website^
 ||wottethpestlebackout.cyou^
+||wotzzqhswsggm.website^
 ||woubithavings.shop^
 ||woucizameewha.net^
 ||woudaufe.net^
@@ -87954,6 +87962,7 @@
 ||xfvrkhjmanrnr.online^
 ||xfvslsqqtyeeb.store^
 ||xfwblpomxc.com^
+||xfwhrqkwf.com^
 ||xfxtqjg.com^
 ||xfynpqmwlfyxx.space^
 ||xfyw7nl1x59f49.cfd^
@@ -88242,6 +88251,7 @@
 ||xlgrtjpwshzaw.online^
 ||xlhlemvmdlmvf.space^
 ||xlhxndmbkhllo.site^
+||xlhymovwsfita.site^
 ||xlhzormvzjazz.website^
 ||xlieicglajd.com^
 ||xliirdr.com^
@@ -89452,6 +89462,7 @@
 ||xuwmylm697.com^
 ||xuwpwrvxbfxzw.space^
 ||xuxtzbczsxcrs.website^
+||xuyrlpyxbfucl.website^
 ||xv62yli8iz.com^
 ||xvayntirbqohr.space^
 ||xvboxxzigznnu.site^

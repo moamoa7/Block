@@ -1,13 +1,13 @@
 ======================================================================
   Filter Extraction Report
-  Generated: 2026-05-06 21:49:35 UTC
+  Generated: 2026-05-06 22:36:34 UTC
 ======================================================================
 
 [ Reference Filter ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
-        Lines   : 167,714   Domains: 165,225
+        Lines   : 167,725   Domains: 165,236
 
 [ External Whitelist Sources ]
 ----------------------------------------------------------------------
@@ -48,10 +48,10 @@
 ----------------------------------------------------------------------
   [OK]  EasyList
         URL       : https://easylist-downloads.adblockplus.org/easylist.txt
-        Lines     : 90,526   Extracted: 57,857   New: 57,857
+        Lines     : 90,531   Extracted: 57,862   New: 57,862
   [OK]  AdGuard Base
         URL       : https://filters.adtidy.org/windows/filters/2.txt
-        Lines     : 158,911   Extracted: 66,625   New: 8,786
+        Lines     : 158,916   Extracted: 66,630   New: 8,786
   [OK]  AdGuard Mobile
         URL       : https://filters.adtidy.org/windows/filters/11.txt
         Lines     : 9,546   Extracted: 908   New: 890
@@ -90,8 +90,8 @@
 [ Overlap Analysis (per filter) ]
 ----------------------------------------------------------------------
   Filter                            Extracted        New     Unique
-  EasyList                             57,857     57,857         18
-  AdGuard Base                         66,625      8,786      4,624
+  EasyList                             57,862     57,862         18
+  AdGuard Base                         66,630      8,786      4,624
   AdGuard Mobile                          908        890        229
   AdGuard Japanese                        169        156         19
   AdGuard Chinese                       6,129      6,113        516
@@ -101,16 +101,16 @@
 
 [ Reference Filter Validation ]
 ----------------------------------------------------------------------
-  Before              : 184,394
-  Removed (not in ref): 91,518
-  After               : 92,876
+  Before              : 184,399
+  Removed (not in ref): 91,512
+  After               : 92,887
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Raw domains collected           : 184,394
-  2. Removed by reference filter     : 91,518
+  1. Raw domains collected           : 184,399
+  2. Removed by reference filter     : 91,512
   3. Removed by external whitelist   : 28
   4. Personal block added            : 0  (forced black: 0)
   5. Personal white applied          : 3  (forced white: 2)
-  6. Final Block Rules               : 92,846
+  6. Final Block Rules               : 92,857
   7. Final Exception Rules           : 6,435
