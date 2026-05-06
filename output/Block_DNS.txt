@@ -1,7 +1,7 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-06 13:21:57 UTC
+! Generated: 2026-05-06 15:39:33 UTC
 ! Homepage: https://github.com/moamoa7/adblock
-! Block Rules: 98,261
+! Block Rules: 98,277
 ! Exception Rules: 6,423
 !
 ||0-02.net^
@@ -2456,6 +2456,7 @@
 ||8inhjmd.usefathom.com^
 ||8iwyq46mqienxi81izfmcc51yrpnb.rest^
 ||8j1f0af5.de^
+||8j1zn3bwc6nxoenc85o7p45mm8jj4.rest^
 ||8j7tu8vtxx.com^
 ||8jfbt5va3r.com^
 ||8jkx.com^
@@ -15007,6 +15008,7 @@
 ||bubblemayflowernephew.com^
 ||bubblesmedia.ru^
 ||bubblestat.com^
+||bubbly-sound.com^
 ||bubblyaction.com^
 ||bubblyzucchini.com^
 ||bubqrckrafdzk.space^
@@ -20421,6 +20423,7 @@
 ||csuhgqcwubodd.online^
 ||cswjpyurbaiap.online^
 ||csxbezadpeazu.site^
+||csxnplzlhfimw.online^
 ||csyxnkhvueuh.com^
 ||cszz.ru^
 ||ct-errs.cartrawler.com^
@@ -20900,6 +20903,7 @@
 ||cyq8vqq9s.com^
 ||cyqgk.greatgardenplants.com^
 ||cysclatowtdxq.website^
+||cysichvd.com^
 ||cysodwprdoejs.online^
 ||cytdmhahgvmur.fun^
 ||cytodegoitres.cyou^
@@ -25417,6 +25421,7 @@
 ||dtashjvcjswq.info^
 ||dtauda3232.top^
 ||dtaum.frontgate.com^
+||dtaupyfwjdbqk.online^
 ||dtch.brunel.nl^
 ||dtcollect.newsbang.com^
 ||dtdjhb.icu^
@@ -28484,6 +28489,7 @@
 ||exercisepatronize.com^
 ||exertedbostalgaure.cfd^
 ||exeuntsteak.qpon^
+||exfwqfykdxtig.space^
 ||exgrntvgdmflc.website^
 ||exgzrlwsiscbn.online^
 ||exhausted-highlight.pro^
@@ -36484,6 +36490,7 @@
 ||hqmtmnnreim.com^
 ||hqmwsnmnyxkyo.space^
 ||hqmxgbzzoxsfp.website^
+||hqmxqcmoczlma.site^
 ||hqnmuuwcsudqd.store^
 ||hqnwxwuamcofqp.xyz^
 ||hqpass.com^
@@ -40399,6 +40406,7 @@
 ||jorammeatman.com^
 ||jordan.qunis.ru^
 ||joroofmenfores.cfd^
+||joropobaconkoran.qpon^
 ||joryvztqojsig.space^
 ||josephclassics.com^
 ||josfurouf.com^
@@ -40495,6 +40503,7 @@
 ||jpwwqujvnoskd.site^
 ||jpwzbglshulfq.space^
 ||jpzbjh.icu^
+||jpzdaanhktgiu.online^
 ||jpzswwzdicijf.online^
 ||jpzyeqobploxo.website^
 ||jq8efbj3wcfhqblq3.rest^
@@ -45430,6 +45439,7 @@
 ||lxwp426ao.com^
 ||lxxjtgrjl45e4ue3e.rest^
 ||lxylxwxvhffvm.vip^
+||ly242w6qvjitmkz.cfd^
 ||lyaauumakulfq.site^
 ||lycatelene.cyou^
 ||lychee.sandboxvr.com^
@@ -50330,6 +50340,7 @@
 ||nagrande.com^
 ||nagualdoorway.com^
 ||nagualepitra.cfd^
+||nahaclah.in^
 ||nahaneskirret.cfd^
 ||nahg4lhbr.com^
 ||nahnoji.cz^
@@ -51659,6 +51670,7 @@
 ||nonfictionspatterrind.com^
 ||nonformhiation.cfd^
 ||nongreydolf.cfd^
+||nonjuryaflare.cfd^
 ||nonnatjeep.cyou^
 ||nonseertoux.net^
 ||nonsenseaggravation.com^
@@ -52226,6 +52238,7 @@
 ||nwhentheautumn.com^
 ||nwholf.icu^
 ||nwhoxwpuj6.com^
+||nwincbwqgcoh.com^
 ||nwiqkqmpghaxt.online^
 ||nwjdldsfzszkp.rocks^
 ||nwjunrzhppxvd.space^
@@ -58158,6 +58171,7 @@
 ||posthog.tarnkappe.info^
 ||postinvent.com^
 ||postitial.com^
+||postmedia-ai.wehaacdn.com^
 ||postmedia.app^
 ||postoffrsmatch.com^
 ||postponeclement.com^
@@ -67488,6 +67502,7 @@
 ||sawd.cloud^
 ||sawfish.hxd-lab.de^
 ||sawfish.loqbooq.app^
+||sawingsdemioxcrimp.cfd^
 ||sawivnxxaegne.site^
 ||sawlikewrester.cfd^
 ||sawneboenolic.com^
@@ -97769,6 +97784,7 @@
 ||zphcinfodwkzn.space^
 ||zpi15fhktc6pmt8phieqc21v7h4uhtuq1fw.cfd^
 ||zpifugiaprqwn.store^
+||zpiodlomq.in^
 ||zplayer-trk.zdn.vn^
 ||zplayer.trk.zapps.vn^
 ||zplqcjhxzuzqe.online^

@@ -1,5 +1,5 @@
-# Generated: 2026-05-06 13:21:57 UTC
-# Block Domains: 98,261
+# Generated: 2026-05-06 15:39:33 UTC
+# Block Domains: 98,277
 #
 0.0.0.0 0-02.net
 0.0.0.0 0.avmarket.rs
@@ -2453,6 +2453,7 @@
 0.0.0.0 8inhjmd.usefathom.com
 0.0.0.0 8iwyq46mqienxi81izfmcc51yrpnb.rest
 0.0.0.0 8j1f0af5.de
+0.0.0.0 8j1zn3bwc6nxoenc85o7p45mm8jj4.rest
 0.0.0.0 8j7tu8vtxx.com
 0.0.0.0 8jfbt5va3r.com
 0.0.0.0 8jkx.com
@@ -15004,6 +15005,7 @@
 0.0.0.0 bubblemayflowernephew.com
 0.0.0.0 bubblesmedia.ru
 0.0.0.0 bubblestat.com
+0.0.0.0 bubbly-sound.com
 0.0.0.0 bubblyaction.com
 0.0.0.0 bubblyzucchini.com
 0.0.0.0 bubqrckrafdzk.space
@@ -20418,6 +20420,7 @@
 0.0.0.0 csuhgqcwubodd.online
 0.0.0.0 cswjpyurbaiap.online
 0.0.0.0 csxbezadpeazu.site
+0.0.0.0 csxnplzlhfimw.online
 0.0.0.0 csyxnkhvueuh.com
 0.0.0.0 cszz.ru
 0.0.0.0 ct-errs.cartrawler.com
@@ -20897,6 +20900,7 @@
 0.0.0.0 cyq8vqq9s.com
 0.0.0.0 cyqgk.greatgardenplants.com
 0.0.0.0 cysclatowtdxq.website
+0.0.0.0 cysichvd.com
 0.0.0.0 cysodwprdoejs.online
 0.0.0.0 cytdmhahgvmur.fun
 0.0.0.0 cytodegoitres.cyou
@@ -25414,6 +25418,7 @@
 0.0.0.0 dtashjvcjswq.info
 0.0.0.0 dtauda3232.top
 0.0.0.0 dtaum.frontgate.com
+0.0.0.0 dtaupyfwjdbqk.online
 0.0.0.0 dtch.brunel.nl
 0.0.0.0 dtcollect.newsbang.com
 0.0.0.0 dtdjhb.icu
@@ -28481,6 +28486,7 @@
 0.0.0.0 exercisepatronize.com
 0.0.0.0 exertedbostalgaure.cfd
 0.0.0.0 exeuntsteak.qpon
+0.0.0.0 exfwqfykdxtig.space
 0.0.0.0 exgrntvgdmflc.website
 0.0.0.0 exgzrlwsiscbn.online
 0.0.0.0 exhausted-highlight.pro
@@ -36481,6 +36487,7 @@
 0.0.0.0 hqmtmnnreim.com
 0.0.0.0 hqmwsnmnyxkyo.space
 0.0.0.0 hqmxgbzzoxsfp.website
+0.0.0.0 hqmxqcmoczlma.site
 0.0.0.0 hqnmuuwcsudqd.store
 0.0.0.0 hqnwxwuamcofqp.xyz
 0.0.0.0 hqpass.com
@@ -40396,6 +40403,7 @@
 0.0.0.0 jorammeatman.com
 0.0.0.0 jordan.qunis.ru
 0.0.0.0 joroofmenfores.cfd
+0.0.0.0 joropobaconkoran.qpon
 0.0.0.0 joryvztqojsig.space
 0.0.0.0 josephclassics.com
 0.0.0.0 josfurouf.com
@@ -40492,6 +40500,7 @@
 0.0.0.0 jpwwqujvnoskd.site
 0.0.0.0 jpwzbglshulfq.space
 0.0.0.0 jpzbjh.icu
+0.0.0.0 jpzdaanhktgiu.online
 0.0.0.0 jpzswwzdicijf.online
 0.0.0.0 jpzyeqobploxo.website
 0.0.0.0 jq8efbj3wcfhqblq3.rest
@@ -45427,6 +45436,7 @@
 0.0.0.0 lxwp426ao.com
 0.0.0.0 lxxjtgrjl45e4ue3e.rest
 0.0.0.0 lxylxwxvhffvm.vip
+0.0.0.0 ly242w6qvjitmkz.cfd
 0.0.0.0 lyaauumakulfq.site
 0.0.0.0 lycatelene.cyou
 0.0.0.0 lychee.sandboxvr.com
@@ -50327,6 +50337,7 @@
 0.0.0.0 nagrande.com
 0.0.0.0 nagualdoorway.com
 0.0.0.0 nagualepitra.cfd
+0.0.0.0 nahaclah.in
 0.0.0.0 nahaneskirret.cfd
 0.0.0.0 nahg4lhbr.com
 0.0.0.0 nahnoji.cz
@@ -51656,6 +51667,7 @@
 0.0.0.0 nonfictionspatterrind.com
 0.0.0.0 nonformhiation.cfd
 0.0.0.0 nongreydolf.cfd
+0.0.0.0 nonjuryaflare.cfd
 0.0.0.0 nonnatjeep.cyou
 0.0.0.0 nonseertoux.net
 0.0.0.0 nonsenseaggravation.com
@@ -52223,6 +52235,7 @@
 0.0.0.0 nwhentheautumn.com
 0.0.0.0 nwholf.icu
 0.0.0.0 nwhoxwpuj6.com
+0.0.0.0 nwincbwqgcoh.com
 0.0.0.0 nwiqkqmpghaxt.online
 0.0.0.0 nwjdldsfzszkp.rocks
 0.0.0.0 nwjunrzhppxvd.space
@@ -58155,6 +58168,7 @@
 0.0.0.0 posthog.tarnkappe.info
 0.0.0.0 postinvent.com
 0.0.0.0 postitial.com
+0.0.0.0 postmedia-ai.wehaacdn.com
 0.0.0.0 postmedia.app
 0.0.0.0 postoffrsmatch.com
 0.0.0.0 postponeclement.com
@@ -67485,6 +67499,7 @@
 0.0.0.0 sawd.cloud
 0.0.0.0 sawfish.hxd-lab.de
 0.0.0.0 sawfish.loqbooq.app
+0.0.0.0 sawingsdemioxcrimp.cfd
 0.0.0.0 sawivnxxaegne.site
 0.0.0.0 sawlikewrester.cfd
 0.0.0.0 sawneboenolic.com
@@ -97766,6 +97781,7 @@
 0.0.0.0 zphcinfodwkzn.space
 0.0.0.0 zpi15fhktc6pmt8phieqc21v7h4uhtuq1fw.cfd
 0.0.0.0 zpifugiaprqwn.store
+0.0.0.0 zpiodlomq.in
 0.0.0.0 zplayer-trk.zdn.vn
 0.0.0.0 zplayer.trk.zapps.vn
 0.0.0.0 zplqcjhxzuzqe.online
