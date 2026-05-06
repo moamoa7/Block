@@ -2138,6 +2138,7 @@ coupang.com###srpKeywordTopBanner
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
 ! - 배너 이미지 보이게 하기
 ! - - -출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+||dadispapi.gmarket.co.kr^$badfilter
 @@||ad-img.gmarket.com^$image,from=auction.co.kr|m.gmarket.co.kr|www.gmarket.co.kr
 ! ||*/*/*banner* 예외 (혜택 얼마 받았나 정보 안보임)
 !@@||escrow.auction.co.kr$script,xhr
@@ -4479,10 +4480,6 @@ _ads_
 !
 !
 ###ads
-!
-!
-! - https://hearheart.com/ - 배너 안보임
-!/banners?
 !
 !
 ##[class$="right-ad"]
