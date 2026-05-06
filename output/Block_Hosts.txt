@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-06 04:47:22 UTC
+# Generated: 2026-05-06 07:29:15 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 183,314
-# 2. Removed by Reference       : 90,652
+# 1. Raw Domains Collected      : 183,341
+# 2. Removed by Reference       : 90,638
 # 3. Removed by Ext.Whitelist   : 49
 # 4. Personal Block Added       : 56,889
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 98,098
+# 7. Final Block Rules (||)     : 98,129
 # 8. Final Exception Rules (@@) : 7,891
 #
 0.0.0.0 0-02.net
@@ -361,6 +361,7 @@
 0.0.0.0 12454f109f.69b22afb80.com
 0.0.0.0 124d138eac.com
 0.0.0.0 125700.shop
+0.0.0.0 129esrd5q5.com
 0.0.0.0 12b500858d.com
 0.0.0.0 12ezo5v60.com
 0.0.0.0 12rr.urexlum7jcbluqgbyv6.cyou
@@ -970,6 +971,7 @@
 0.0.0.0 2waky.com
 0.0.0.0 2wq9u06jq.com
 0.0.0.0 2wu0m0ms098w7148.xyz
+0.0.0.0 2x62wp56wxjqpxrqb3zcfvr.rest
 0.0.0.0 2x9ezrw7vuhqco.cfd
 0.0.0.0 2xclick.ru
 0.0.0.0 2xclock.com
@@ -6329,6 +6331,7 @@
 0.0.0.0 adtrafficquality.google
 0.0.0.0 adtraxx.de
 0.0.0.0 adtrcdn.io
+0.0.0.0 adtrhogpvnwkt.space
 0.0.0.0 adtrieval.com
 0.0.0.0 adtriplex.com
 0.0.0.0 adtrix.com
@@ -7057,6 +7060,7 @@
 0.0.0.0 agamagcargoan.com
 0.0.0.0 agamaisatide.shop
 0.0.0.0 agametedaylessgagee.cfd
+0.0.0.0 aganicecrickle.shop
 0.0.0.0 agapikachua.com
 0.0.0.0 agaso.de
 0.0.0.0 agat-tech.com
@@ -11990,6 +11994,7 @@
 0.0.0.0 bance.jp
 0.0.0.0 banchibipack.com
 0.0.0.0 banclip.com
+0.0.0.0 bandages84.com
 0.0.0.0 bandborder.com
 0.0.0.0 banddisordergraceless.com
 0.0.0.0 bandelcot.com
@@ -13239,6 +13244,7 @@
 0.0.0.0 bhlxxdmdpdptk.space
 0.0.0.0 bhogadowxa.in
 0.0.0.0 bhotialine.shop
+0.0.0.0 bhotiaunequal.qpon
 0.0.0.0 bhpwqtiudzqnz.vip
 0.0.0.0 bhrltiziiipad.website
 0.0.0.0 bhs4.com
@@ -15881,6 +15887,7 @@
 0.0.0.0 calmstudent.com
 0.0.0.0 caloyernapaleaseful.cfd
 0.0.0.0 calpulfaun.shop
+0.0.0.0 calrlpvdqocgb.website
 0.0.0.0 caltat.com
 0.0.0.0 calultdtathj.xyz
 0.0.0.0 calvali.com
@@ -17105,6 +17112,7 @@
 0.0.0.0 cgicounter.oneandone.co.uk
 0.0.0.0 cgicounter.onlinehome.de
 0.0.0.0 cgicounter.puretec.de
+0.0.0.0 cgihh.cn
 0.0.0.0 cgjam.crewclothing.co.uk
 0.0.0.0 cgjobsvomesbu.space
 0.0.0.0 cgjowhzaneoli.love
@@ -18344,6 +18352,7 @@
 0.0.0.0 clx.ru
 0.0.0.0 clxuuhlmtvrmt.today
 0.0.0.0 clyblajtkoopx.site
+0.0.0.0 clyerseulytin.com
 0.0.0.0 clyerteaeygoofs.cyou
 0.0.0.0 clyhmrqfyxom.com
 0.0.0.0 clysisaplombs.shop
@@ -23373,6 +23382,7 @@
 0.0.0.0 delivery.momentummedia.com.au
 0.0.0.0 delivery.playallvideos.com
 0.0.0.0 delivery.porn.com
+0.0.0.0 delivery.pryzmads.com
 0.0.0.0 delivery.senvangvn.com
 0.0.0.0 delivery.sexyxxx.biz
 0.0.0.0 delivery.upremium.asia
@@ -30925,6 +30935,7 @@
 0.0.0.0 fpqguhajcermv.website
 0.0.0.0 fpqvfrdcnoxah.online
 0.0.0.0 fprnt.com
+0.0.0.0 fprrpv.icu
 0.0.0.0 fpss.allsmart.gr
 0.0.0.0 fpt.absa.co.za
 0.0.0.0 fpt.commerce.adobe.com
@@ -32779,6 +32790,7 @@
 0.0.0.0 gitam.co.il
 0.0.0.0 gitcrumbs.com
 0.0.0.0 githuhey.com
+0.0.0.0 gitksanscattedvowess.qpon
 0.0.0.0 gitoku.com
 0.0.0.0 gitoxgmnnauiz.space
 0.0.0.0 giulioevasive.shop
@@ -33582,6 +33594,7 @@
 0.0.0.0 goularopinholdspinets.cfd
 0.0.0.0 gourdesveruledredrove.cfd
 0.0.0.0 gourmetads.com
+0.0.0.0 gourmetpensylase.cfd
 0.0.0.0 goutee.top
 0.0.0.0 goutifyaroma.cfd
 0.0.0.0 goutupspear.shop
@@ -34256,6 +34269,7 @@
 0.0.0.0 gtmsrv.caseih.com
 0.0.0.0 gtmss.rothler.de
 0.0.0.0 gtmstape01.importgenius.com
+0.0.0.0 gtnjvdaffxjvj.site
 0.0.0.0 gtnnwxkwcfhpe.online
 0.0.0.0 gtokii.icu
 0.0.0.0 gtop.ro
@@ -36050,6 +36064,7 @@
 0.0.0.0 hoasvvtyavmbn.store
 0.0.0.0 hoazathoaps.com
 0.0.0.0 hobblehorrifiedfox.com
+0.0.0.0 hobcowriediazoma.qpon
 0.0.0.0 hocevqttpeekw.store
 0.0.0.0 hocgeese.com
 0.0.0.0 hochu-deneg.ru
@@ -37144,6 +37159,7 @@
 0.0.0.0 iaxitnxmakuso.store
 0.0.0.0 iaxmmw9fbx.com
 0.0.0.0 iaxqpnkyqysam.space
+0.0.0.0 iaybqknua.com
 0.0.0.0 iazcpoptkwapp.store
 0.0.0.0 ib-ibi.com
 0.0.0.0 iba.feedblitz.com
@@ -38443,6 +38459,7 @@
 0.0.0.0 inqnrqctphuua.com
 0.0.0.0 inquiredmystic.com
 0.0.0.0 inquiredw.com
+0.0.0.0 inquiry64.top
 0.0.0.0 inquirycucumbersemployed.com
 0.0.0.0 inquisition.goguardian.com
 0.0.0.0 inquisitiveinvention.com
@@ -42303,6 +42320,7 @@
 0.0.0.0 kvbojuxkwvcfk.global
 0.0.0.0 kvbrzbxhqizoq.site
 0.0.0.0 kvcd7w375h.ru
+0.0.0.0 kvdfhdyttghce.website
 0.0.0.0 kvdnetmzqvwxw.store
 0.0.0.0 kvdqzsytlcxuf.space
 0.0.0.0 kvdxvqw.xyz
@@ -49966,6 +49984,7 @@
 0.0.0.0 my03.com
 0.0.0.0 my1elitclub.com
 0.0.0.0 mya.bzcorp.site
+0.0.0.0 mya2pg8cdg.com
 0.0.0.0 myad.vn
 0.0.0.0 myadcash.com
 0.0.0.0 myads.ru
@@ -50781,6 +50800,7 @@
 0.0.0.0 neurologist19.com
 0.0.0.0 neurotrack.neurolake.io
 0.0.0.0 neurulaammo.cyou
+0.0.0.0 neuyvumlep.com
 0.0.0.0 neveejoilif.com
 0.0.0.0 never2never.com
 0.0.0.0 nevercoll.com
@@ -51437,6 +51457,7 @@
 0.0.0.0 nmetrics.samsung.com
 0.0.0.0 nmetrics.samsungmobile.com
 0.0.0.0 nmevrsduvwxsy.site
+0.0.0.0 nmfiqbupzxcku.site
 0.0.0.0 nmg02g56z.com
 0.0.0.0 nmgmbkvbqhglx.online
 0.0.0.0 nmgneqqnnbtac.site
@@ -53061,6 +53082,7 @@
 0.0.0.0 okcagrobn.in
 0.0.0.0 okcfdzfqcdemc.website
 0.0.0.0 okdigital.me
+0.0.0.0 okeeblr.com
 0.0.0.0 okeezyxflelvs.website
 0.0.0.0 okehzmhyyflmq.site
 0.0.0.0 okesexopunmyf.website
@@ -55682,6 +55704,7 @@
 0.0.0.0 peacetriunal.cfd
 0.0.0.0 peach-analytics.vercel.app
 0.0.0.0 peachesbrulzie.cyou
+0.0.0.0 peacoatpopular.shop
 0.0.0.0 peacockanapes.cyou
 0.0.0.0 peacockresistpeppermint.com
 0.0.0.0 peacockvowel.com
@@ -60659,6 +60682,7 @@
 0.0.0.0 qfwwhelkdjaeu.buzz
 0.0.0.0 qfxheyyfxnply.site
 0.0.0.0 qfyljssc.net
+0.0.0.0 qfywv223iizxxzijm.cfd
 0.0.0.0 qg7xnwv43b7tm7v.cfd
 0.0.0.0 qg9unohql2223k2gikr8867ijnt6r82h8jihl.cfd
 0.0.0.0 qgafnlucpvcrf.website
@@ -69940,6 +69964,7 @@
 0.0.0.0 sjmdxqvqbyxui.website
 0.0.0.0 sjmjytjohslin.space
 0.0.0.0 sjnsiuqhjmugz.store
+0.0.0.0 sjobmfxcchbad.online
 0.0.0.0 sjosepaqwwcbh.site
 0.0.0.0 sjourney.aarp.org
 0.0.0.0 sjourney.penfed.org
@@ -73678,6 +73703,7 @@
 0.0.0.0 snittleaquilon.cyou
 0.0.0.0 snivelinginsect.com
 0.0.0.0 snjjfdfzvkcdp.online
+0.0.0.0 snlaavecjmpja.online
 0.0.0.0 snljexumhfcyx.online
 0.0.0.0 snlyplsoli.com
 0.0.0.0 snmsyvlntztmx.site
@@ -83173,6 +83199,7 @@
 0.0.0.0 tsrhscoypwewv.site
 0.0.0.0 tss.oogarden.com
 0.0.0.0 tssyakir.xyz
+0.0.0.0 tstismjsznxde.website
 0.0.0.0 tstwomzhxzkhf.site
 0.0.0.0 tsuh.cn
 0.0.0.0 tsumachich.shop
@@ -91148,6 +91175,7 @@
 0.0.0.0 wifkwcrzm.com
 0.0.0.0 wifly.net
 0.0.0.0 wifwexbuzhgbp.space
+0.0.0.0 wifyijykcqknk.site
 0.0.0.0 wifytd4tlq.com
 0.0.0.0 wiganratfink.cyou
 0.0.0.0 wigapvofjar.com
@@ -93058,6 +93086,7 @@
 0.0.0.0 xecdcjxhuefhg.space
 0.0.0.0 xedaifojosm.net
 0.0.0.0 xedbfrradaonw.site
+0.0.0.0 xeddnjetamdml.website
 0.0.0.0 xedmesdxvkt.com
 0.0.0.0 xedvuqcniuwth.website
 0.0.0.0 xeequgaxpdvcq.space
@@ -94671,6 +94700,7 @@
 0.0.0.0 xvhdggbxfjauj.website
 0.0.0.0 xvhttu3c9.com
 0.0.0.0 xvhyfjblktelp.site
+0.0.0.0 xviggvimgldin.website
 0.0.0.0 xviperonec.com
 0.0.0.0 xvjafhbaifpngfu.com
 0.0.0.0 xvjjdmgsnwokw.com
@@ -96403,6 +96433,7 @@
 0.0.0.0 ywusfyjhnpflr.top
 0.0.0.0 ywuwsxpwucyzh.com
 0.0.0.0 ywuzuazsjnzto.online
+0.0.0.0 ywxoouoasnty.com
 0.0.0.0 ywxxyzxktxllq.website
 0.0.0.0 ywzehjepmwcbe.website
 0.0.0.0 ywzyhljazdsrx.space

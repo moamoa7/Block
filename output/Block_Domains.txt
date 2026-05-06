@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-06 04:47:22 UTC
+# Generated: 2026-05-06 07:29:15 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 183,314
-# 2. Removed by Reference       : 90,652
+# 1. Raw Domains Collected      : 183,341
+# 2. Removed by Reference       : 90,638
 # 3. Removed by Ext.Whitelist   : 49
 # 4. Personal Block Added       : 56,889
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 98,098
+# 7. Final Block Rules (||)     : 98,129
 # 8. Final Exception Rules (@@) : 7,891
 #
 0-02.net
@@ -361,6 +361,7 @@
 12454f109f.69b22afb80.com
 124d138eac.com
 125700.shop
+129esrd5q5.com
 12b500858d.com
 12ezo5v60.com
 12rr.urexlum7jcbluqgbyv6.cyou
@@ -970,6 +971,7 @@
 2waky.com
 2wq9u06jq.com
 2wu0m0ms098w7148.xyz
+2x62wp56wxjqpxrqb3zcfvr.rest
 2x9ezrw7vuhqco.cfd
 2xclick.ru
 2xclock.com
@@ -6329,6 +6331,7 @@ adtrading.de
 adtrafficquality.google
 adtraxx.de
 adtrcdn.io
+adtrhogpvnwkt.space
 adtrieval.com
 adtriplex.com
 adtrix.com
@@ -7057,6 +7060,7 @@ agajx.com
 agamagcargoan.com
 agamaisatide.shop
 agametedaylessgagee.cfd
+aganicecrickle.shop
 agapikachua.com
 agaso.de
 agat-tech.com
@@ -11990,6 +11994,7 @@ bancaleafe.xyz
 bance.jp
 banchibipack.com
 banclip.com
+bandages84.com
 bandborder.com
 banddisordergraceless.com
 bandelcot.com
@@ -13239,6 +13244,7 @@ bhlvinokfnwyx.site
 bhlxxdmdpdptk.space
 bhogadowxa.in
 bhotialine.shop
+bhotiaunequal.qpon
 bhpwqtiudzqnz.vip
 bhrltiziiipad.website
 bhs4.com
@@ -15881,6 +15887,7 @@ calmlygelatinecandle.com
 calmstudent.com
 caloyernapaleaseful.cfd
 calpulfaun.shop
+calrlpvdqocgb.website
 caltat.com
 calultdtathj.xyz
 calvali.com
@@ -17105,6 +17112,7 @@ cgicol.amap.com
 cgicounter.oneandone.co.uk
 cgicounter.onlinehome.de
 cgicounter.puretec.de
+cgihh.cn
 cgjam.crewclothing.co.uk
 cgjobsvomesbu.space
 cgjowhzaneoli.love
@@ -18344,6 +18352,7 @@ clwfojcdiqkqx.online
 clx.ru
 clxuuhlmtvrmt.today
 clyblajtkoopx.site
+clyerseulytin.com
 clyerteaeygoofs.cyou
 clyhmrqfyxom.com
 clysisaplombs.shop
@@ -23373,6 +23382,7 @@ delivery.lsvn.vn
 delivery.momentummedia.com.au
 delivery.playallvideos.com
 delivery.porn.com
+delivery.pryzmads.com
 delivery.senvangvn.com
 delivery.sexyxxx.biz
 delivery.upremium.asia
@@ -30925,6 +30935,7 @@ fpplwtittfozz.website
 fpqguhajcermv.website
 fpqvfrdcnoxah.online
 fprnt.com
+fprrpv.icu
 fpss.allsmart.gr
 fpt.absa.co.za
 fpt.commerce.adobe.com
@@ -32779,6 +32790,7 @@ gitam.1host.co.il
 gitam.co.il
 gitcrumbs.com
 githuhey.com
+gitksanscattedvowess.qpon
 gitoku.com
 gitoxgmnnauiz.space
 giulioevasive.shop
@@ -33582,6 +33594,7 @@ gouikrywyxnmo.store
 goularopinholdspinets.cfd
 gourdesveruledredrove.cfd
 gourmetads.com
+gourmetpensylase.cfd
 goutee.top
 goutifyaroma.cfd
 goutupspear.shop
@@ -34256,6 +34269,7 @@ gtmserverside.eluniversal.com.mx
 gtmsrv.caseih.com
 gtmss.rothler.de
 gtmstape01.importgenius.com
+gtnjvdaffxjvj.site
 gtnnwxkwcfhpe.online
 gtokii.icu
 gtop.ro
@@ -36050,6 +36064,7 @@ hoarseshopping.pro
 hoasvvtyavmbn.store
 hoazathoaps.com
 hobblehorrifiedfox.com
+hobcowriediazoma.qpon
 hocevqttpeekw.store
 hocgeese.com
 hochu-deneg.ru
@@ -37144,6 +37159,7 @@ iaw-events.polarbyte.com
 iaxitnxmakuso.store
 iaxmmw9fbx.com
 iaxqpnkyqysam.space
+iaybqknua.com
 iazcpoptkwapp.store
 ib-ibi.com
 iba.feedblitz.com
@@ -38443,6 +38459,7 @@ inqmrfxxutoyp.online
 inqnrqctphuua.com
 inquiredmystic.com
 inquiredw.com
+inquiry64.top
 inquirycucumbersemployed.com
 inquisition.goguardian.com
 inquisitiveinvention.com
@@ -42303,6 +42320,7 @@ kvbh.cn
 kvbojuxkwvcfk.global
 kvbrzbxhqizoq.site
 kvcd7w375h.ru
+kvdfhdyttghce.website
 kvdnetmzqvwxw.store
 kvdqzsytlcxuf.space
 kvdxvqw.xyz
@@ -49966,6 +49984,7 @@ my.toruftuiov.com
 my03.com
 my1elitclub.com
 mya.bzcorp.site
+mya2pg8cdg.com
 myad.vn
 myadcash.com
 myads.ru
@@ -50781,6 +50800,7 @@ neuroepithelium.lol
 neurologist19.com
 neurotrack.neurolake.io
 neurulaammo.cyou
+neuyvumlep.com
 neveejoilif.com
 never2never.com
 nevercoll.com
@@ -51437,6 +51457,7 @@ nmekvwedpfrjm.space
 nmetrics.samsung.com
 nmetrics.samsungmobile.com
 nmevrsduvwxsy.site
+nmfiqbupzxcku.site
 nmg02g56z.com
 nmgmbkvbqhglx.online
 nmgneqqnnbtac.site
@@ -53061,6 +53082,7 @@ okbp.xyz
 okcagrobn.in
 okcfdzfqcdemc.website
 okdigital.me
+okeeblr.com
 okeezyxflelvs.website
 okehzmhyyflmq.site
 okesexopunmyf.website
@@ -55682,6 +55704,7 @@ peacefulshadowway.com
 peacetriunal.cfd
 peach-analytics.vercel.app
 peachesbrulzie.cyou
+peacoatpopular.shop
 peacockanapes.cyou
 peacockresistpeppermint.com
 peacockvowel.com
@@ -60659,6 +60682,7 @@ qfwhko.icu
 qfwwhelkdjaeu.buzz
 qfxheyyfxnply.site
 qfyljssc.net
+qfywv223iizxxzijm.cfd
 qg7xnwv43b7tm7v.cfd
 qg9unohql2223k2gikr8867ijnt6r82h8jihl.cfd
 qgafnlucpvcrf.website
@@ -69940,6 +69964,7 @@ sjljrdunycqej.site
 sjmdxqvqbyxui.website
 sjmjytjohslin.space
 sjnsiuqhjmugz.store
+sjobmfxcchbad.online
 sjosepaqwwcbh.site
 sjourney.aarp.org
 sjourney.penfed.org
@@ -73678,6 +73703,7 @@ snithykurgan.qpon
 snittleaquilon.cyou
 snivelinginsect.com
 snjjfdfzvkcdp.online
+snlaavecjmpja.online
 snljexumhfcyx.online
 snlyplsoli.com
 snmsyvlntztmx.site
@@ -83173,6 +83199,7 @@ tsrgozzoqnwuu.online
 tsrhscoypwewv.site
 tss.oogarden.com
 tssyakir.xyz
+tstismjsznxde.website
 tstwomzhxzkhf.site
 tsuh.cn
 tsumachich.shop
@@ -91148,6 +91175,7 @@ wifeletseck.cyou
 wifkwcrzm.com
 wifly.net
 wifwexbuzhgbp.space
+wifyijykcqknk.site
 wifytd4tlq.com
 wiganratfink.cyou
 wigapvofjar.com
@@ -93058,6 +93086,7 @@ xebfomhenqxin.online
 xecdcjxhuefhg.space
 xedaifojosm.net
 xedbfrradaonw.site
+xeddnjetamdml.website
 xedmesdxvkt.com
 xedvuqcniuwth.website
 xeequgaxpdvcq.space
@@ -94671,6 +94700,7 @@ xvfarnkhampqi.space
 xvhdggbxfjauj.website
 xvhttu3c9.com
 xvhyfjblktelp.site
+xviggvimgldin.website
 xviperonec.com
 xvjafhbaifpngfu.com
 xvjjdmgsnwokw.com
@@ -96403,6 +96433,7 @@ ywtwvfuwgxnpe.space
 ywusfyjhnpflr.top
 ywuwsxpwucyzh.com
 ywuzuazsjnzto.online
+ywxoouoasnty.com
 ywxxyzxktxllq.website
 ywzehjepmwcbe.website
 ywzyhljazdsrx.space
