@@ -43,7 +43,7 @@ EXCLUSION_URLS = [
 
 # Personal blocklist (overrides external whitelist + skips reference validation)
 PERSONAL_BLOCK_URLS = [
-    "https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt",
+#    "https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
 ]
 
@@ -101,7 +101,7 @@ def short_name(url: str) -> str:
         ("list-kr", "List-KR"),
         ("uAssets", "uBlock Filters"),
         ("adblock/multi.txt", "HaGeZi DNS Blocklist"),
-        ("oisd_small.txt", "oisd small"),
+ #      ("oisd_small.txt", "oisd small"),
         ("main/block.txt", "Personal Blocklist"),
         ("main/white.txt", "Personal Whitelist"),
         ("AdGuardSDNSFilter", "AdGuard DNS Exclusions"),
