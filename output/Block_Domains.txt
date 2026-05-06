@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-06 07:29:15 UTC
+# Generated: 2026-05-06 09:01:22 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,14 +8,14 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 183,341
-# 2. Removed by Reference       : 90,638
-# 3. Removed by Ext.Whitelist   : 49
-# 4. Personal Block Added       : 56,889
-# 5. Forced (White → Black)     : 13
+# 1. Raw Domains Collected      : 183,350
+# 2. Removed by Reference       : 90,647
+# 3. Removed by Ext.Whitelist   : 0
+# 4. Personal Block Added       : 56,839
+# 5. Forced (White → Black)     : 4
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 98,129
-# 8. Final Exception Rules (@@) : 7,891
+# 7. Final Block Rules (||)     : 98,174
+# 8. Final Exception Rules (@@) : 449
 #
 0-02.net
 0.avmarket.rs
@@ -3278,6 +3278,7 @@ ab.servogram.io
 ab.thepornstar.com
 ab045d5856.com
 ab0fbb66ba.com
+ab1n.net
 ab208fce17.13b1e60d7e.com
 ab427mcx.xyz
 ab93t2kc.de
@@ -4702,6 +4703,7 @@ adforce.team
 adforgames.com
 adforge.io
 adfork.co.kr
+adform.com
 adform.net
 adfox.yandex.ru
 adfpoint.com
@@ -4950,6 +4952,7 @@ admax.me
 admax.network
 admaxim.com
 admd.housefun.com.tw
+admd.ink
 admd.yam.com
 admdoqipetokp.space
 adme-net.com
@@ -5115,6 +5118,7 @@ adobetag.com
 adobetarget.yellohvillage.es
 adobetarget.yellohvillage.nl
 adocean.cz
+adocean.pl
 adodeer.com
 adoftheyear.com
 adokutcontextual.com
@@ -6124,6 +6128,7 @@ adspdbl.com
 adspectacle.net
 adspector.io
 adspeed.com
+adspeed.net
 adspi.xyz
 adspirit.de
 adspirit.net
@@ -6481,6 +6486,7 @@ advertising-api.amazon.com
 advertising-cdn.com
 advertising-cdn.dpgmedia.cloud
 advertising.apple.com
+advertising.com
 advertising.goldseek.com
 advertising.ntuplay.xyz
 advertising.yahoo.com
@@ -6669,6 +6675,7 @@ adzbazar.com
 adzcivwjgktmz.site
 adzep.com.br
 adzep.io
+adzerk.net
 adzerk.s3.amazonaws.com
 adzestocp.com
 adzgame.com
@@ -6876,6 +6883,7 @@ affiliateedge.com
 affiliateedge.eu
 affiliateer.com
 affiliatefuel.com
+affiliatefuture.com
 affiliategroove.com
 affiliatelounge.com
 affiliatemedia.speedybet.com
@@ -7698,6 +7706,8 @@ alimonylaterdevious.com
 alinersharsh.shop
 alisholoroso.cfd
 alisonlupomanarked.qpon
+alitems.co
+alitems.site
 alitui.weibo.com
 alive-airport.com
 aliveachiever.com
@@ -7936,6 +7946,7 @@ amazinglyperception.com
 amazingmeaning.com
 amazingsite.pro
 amazingtoilalthough.com
+amazon-adsystem.com
 amazon.wii-info.fr
 amazonlogistics.jp
 amazy.ru
@@ -9082,6 +9093,7 @@ analytics.supplyframe.com
 analytics.surfline.com
 analytics.sve.cc
 analytics.svenskdam.se
+analytics.svt.se
 analytics.sydney.edu.au
 analytics.syf.com
 analytics.synchrony.com
@@ -9423,6 +9435,7 @@ animositytalenttonight.com
 aninter.net
 aniseshided.shop
 aniuqjldrjcoq.website
+aniview.com
 anjanstarved.com
 anjgdcgsuew.com
 anjgxqnbefvpe.site
@@ -9968,6 +9981,7 @@ app-tracking-gfa-collector.naver.com
 app-tracking.hlogo.de
 app.189tutors.com
 app.aaas-science.org
+app.adjust.world
 app.airtrack.jp
 app.ardalio.com
 app.bugsnag.com
@@ -10018,6 +10032,7 @@ apparatusvoyage.com
 apparelerupt.com
 apparelimposter.com
 appbaqend.com
+appboy-images.com
 appboycdn.com
 appclick.net
 appcpi.net
@@ -12116,6 +12131,7 @@ banners.instaforex.com
 banners.iq.pl
 banners.jldigital.se
 banners.leightonbroadcasting.com
+banners.livepartners.com
 banners.mobile.yandex.net
 banners.myads.ge
 banners.news1.co.il
@@ -13066,6 +13082,7 @@ betoga.com
 betotodilea.com
 betpartners.it
 betr-for-tod.com
+betrad.com
 betrapnabalus.qpon
 betrayalbadger.com
 betrendceiler.shop
@@ -13139,6 +13156,7 @@ bf80c2fe1a.com
 bfa.bauerfeind.at
 bfa7591905.0cdf9706af.com
 bfaejluzj.com
+bfast.com
 bfaubcoezrihe.site
 bfblyaqvcnaat.space
 bfcisabfx.com
@@ -16428,6 +16446,7 @@ cbxxfascjrdjm.space
 cbyskhyvvdvosxr.com
 cbzxy.com
 cc-api-data.adobe.io
+cc-dt.com
 cc.8181zx.com
 cc.calltracking.ru
 cc.histoires-de-sexe.club
@@ -17770,6 +17789,7 @@ clarifyverse.com
 claring-loccelkin.com
 clarinmeanest.com
 clarity.abacast.com
+clarity.ms
 clarityid.top
 claritytag.com
 clarium.global.ssl.fastly.net
@@ -18046,6 +18066,7 @@ clicki.cn
 clickinc.com
 clickintext.com
 clickintext.net
+clickiocdn.com
 clicklink.jp
 clickmanage.com
 clickmap.ch
@@ -18871,6 +18892,7 @@ commercial.equifax.com
 commercialregretful.com
 commercialvalue.org
 commindo-media-ressourcen.de
+commission-junction.com
 commissioncommerce.com
 commissionepochknuckle.com
 commissionfactory.com.au
@@ -24938,6 +24960,7 @@ doubleclick.ctfile.com
 doubleclick.de
 doubleclick.host
 doubleclick.ne.jp
+doubleclick.net
 doubleclick.uk.net
 doubledefend.com
 doublemax.net
@@ -25401,6 +25424,7 @@ dt00.net
 dt07.net
 dt3y1f1i1disy.cloudfront.net
 dt4ever.com
+dt51.net
 dt71.net
 dtadnetwork.com
 dtakdb1z5gq7e.cloudfront.net
@@ -26030,6 +26054,7 @@ ea6c0ac4.xyz
 eaagzbrscgtzw.space
 eaaratte.net
 eabids.com
+eacdn.com
 each-task.com
 eacrp.brecks.com
 eadexchange.com
@@ -26173,6 +26198,7 @@ ebayadservices.com
 ebayadvertising.com
 ebayclassifiedsgroup.com
 ebayobjects.com.au
+ebayrtm.com
 ebbbarked.cyou
 ebbbhtkridivs.love
 ebbedguaxima.cfd
@@ -27883,6 +27909,7 @@ etjoeybjppksy.site
 etjrkgaqrkfad.space
 etkybhmigxoyt.site
 etl.springbot.com
+etl.tindersparks.com
 etl.xlmc.sandai.net
 etlz1mt67.com
 etneanlaos.cfd
@@ -33292,6 +33319,7 @@ go2affise.com
 go2app.org
 go2bdmbet.com
 go2crystalroll.com
+go2jump.org
 go2media.org
 go2of.com
 go2offer-1.com
@@ -33475,12 +33503,14 @@ google-ads.hara.vn
 google-analyticals.com
 google-analytics-cn.com
 google-analytics.bi.owox.com
+google-analytics.com
 google-pagerank.net
 google-shopping-v2.sapoapps.vn
 google-shopping.sapoapps.vn
 googleads-cn.com
 googleads.github.io
 googleadservices-cn.com
+googleadservices.com
 googleadsserving.cn
 googleailesi.com
 googleapi.club
@@ -33583,6 +33613,7 @@ goto.www.iciba.com
 gotoda.co
 gotopshawed.cyou
 gotoyahoo.com
+gotrackier.com
 gotrackier.io
 gotraff.ru
 gottennomes.cfd
@@ -37770,6 +37801,7 @@ im36o2keohmwq3c.cfd
 im6zx8tzb23k31x3xj4m28yptb.rest
 image-ad.sm.cn
 image-rentracks.com
+image.ard.de
 image.cauly.co.kr
 image.hpplay.cn
 image.mdr.de
@@ -38777,6 +38809,7 @@ investhash.com
 investigateisolateddepressed.com
 investigateproxyoily.com
 investigationsuperbprone.com
+investingchannel.com
 invincibleacid.com
 invitationownsnappy.com
 invite.leanlab.co
@@ -39815,6 +39848,7 @@ jdmodr.com
 jdmzkxry.com
 jdnwwjlagornb.online
 jdookslktoafb.website
+jdoqocy.com
 jdpbpd.icu
 jdrabeygqy.com
 jdraskbpyqgpi.site
@@ -48746,6 +48780,7 @@ mms.oregonlive.com
 mms.pennlive.com
 mms.silive.com
 mms.syracuse.com
+mmstat.com
 mmsvnwwhayokq.space
 mmsyghqvcxsda.site
 mmtgythuozksx.online
@@ -48798,6 +48833,7 @@ mntft.com
 mntliyrfkixsg.site
 mnttmnonaroop.online
 mntzr11.net
+mntzrlt.net
 mnverylittlec.org
 mnwgdkdarquqt.site
 mnwor.xuanlishi.com
@@ -49544,6 +49580,7 @@ mseeru.faz.net
 msehuipsxmudk.store
 msg-intl.qy.net
 msg-na.hismarttv.com
+msg.ettoday.net
 msg.qy.net
 msg.simeji.baidu.jp
 msg.simeji.me
@@ -58918,6 +58955,7 @@ profitabletrustednetwork.com
 profitrumour.com
 profitsence.com
 profitsfly.com
+profitshare.ro
 profitssulfowiner.cyou
 profoundshaken.com
 profuse-housing.pro
@@ -60940,6 +60978,7 @@ qkr4uac6tx.com
 qkrxetsjnfkms.website
 qksromwmntslx.website
 qksrv.cc
+qksrv.net
 qksyzbngksiwtj.com
 qksz.net
 qktctwihtr.com
@@ -62397,6 +62436,7 @@ ravenyautias.cfd
 raverabeggehalm.cyou
 ravin-hbs.com
 ravizo.online
+ravm.tv
 raw-co.com
 raw-solid.com
 raw.vidyard.com
@@ -77037,6 +77077,7 @@ stussbagiegloea.cfd
 stutfaros.qpon
 stuttercarrydoorbell.com
 stvbiopr.net
+stvkr.com
 stvufegajgpzy.online
 stvzuyoseftdw.site
 stwdqkalzbqfg.online
@@ -78478,6 +78519,7 @@ tagdelivery.com
 tagdelivery.mayoclinic.org
 tagdelivery.mayoclinic.org.pc-mc.greylabeldelivery.com
 tagger.ope.scmp.com
+tagger.opecloud.com
 tagging-qadkfoj6ha-as.a.run.app
 tagging-service.fotbollskanalen.se
 tagging-service.tv4.se
@@ -81441,6 +81483,7 @@ tpbid.com
 tpc.googlesyndication-cn.com
 tpc.googlesyndication.com
 tpcserve.com
+tpdads.com
 tpdhwgmoelkzh.space
 tpdpoituqwhqb.space
 tpdwm.com
@@ -82657,6 +82700,7 @@ trck.digiteka.com
 trck.house
 trck.linkster.co
 trck.spoteffects.net
+trck.wargaming.net
 trck.www4.zellepay.com
 trckkkk.com
 trckng.dainese.com
@@ -90271,6 +90315,7 @@ webads.eu
 webads.media
 webads.nl
 webadserver.net
+webair.com
 webanalytics.helen.fi
 webanalytics.logitech.com
 webanalytics.logitechg.com
