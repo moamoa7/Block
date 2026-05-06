@@ -2481,7 +2481,7 @@ sextb.date##.hidden-md.right.col-3
 ! - - - 클리앙 (https://www.clien.net/)
 !##iframe[src^="https://creative."][src*="/widgets/v4/Universal?"]
 !##iframe[src*="/widgets/"]
-##div:has(> iframe[src*="/widgets/"])
+##div:has(> iframe[src*="/widgets/"]):not(html):not(body)
 !
 !
 ! - https://ko.javfc2.live/
