@@ -2538,7 +2538,7 @@ javgg.net##.home_iframead
 ! - 영상 하단 배너
 ##.dark-banner-group
 !  - 팝업 방지
-91.asia^$popup
+!91.asia^$popup
 !
 !
 ! 7MMTV (https://7tv033.com/)
@@ -2562,7 +2562,7 @@ javgg.net##.home_iframead
 ! https://javgiga.com/
 ! - 팝업(새창) 방지 (uBlock filters – Ads)
 /^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-.\/A-Z_a-z][DHWXm][-.\/A-Z_a-z][59FVZ][-.\/A-Z_a-z][6swyz][-.\/A-Z_a-z][-\/0-9A-Z_a-z][-.\/A-Z_a-z][-\/0-9A-Z_a-z]{22,162}(?:$|\?)/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
-javgiga.com^$popup
+!javgiga.com^$popup
 !
 !
 ! https://netflav.com/
