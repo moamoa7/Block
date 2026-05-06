@@ -37,11 +37,11 @@ EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/firefox.txt",
     "https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/windows.txt",
     "https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/mac.txt",
-    "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/whitelist-referral.txt",
+    "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/whitelist-referral-native.txt",
     "https://raw.githubusercontent.com/Dogino/Discord-Phishing-URLs/main/official-domains.txt",
 ]
 
-# Personal blocklist (overrides external whitelist)
+# Personal blocklist (overrides external whitelist + skips reference validation)
 PERSONAL_BLOCK_URLS = [
     "https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
@@ -54,15 +54,6 @@ PERSONAL_WHITE_URLS = [
 
 # Reference filter for validation (only domains in this set are kept from general filters)
 REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
-
-# Safety: drop whitelist entries containing these keywords (known ad/tracker strings)
-WHITELIST_DENY_KEYWORDS = [
-    "doubleclick", "googlesyndication", "googleadservices", "google-analytics",
-    "googletagmanager", "googletagservices", "facebook.com", "facebook.net",
-    "fbcdn", "fbevents", "adnxs", "scorecardresearch", "criteo", "taboola",
-    "outbrain", "moatads", "quantserve", "smartadserver", "rubiconproject",
-    "openx", "pubmatic", "adsrvr", "adcolony", "adservice", "adsystem",
-]
 
 # Output paths
 OUTPUT_DIR = Path("output")
@@ -99,11 +90,6 @@ def is_valid_domain(d: str) -> bool:
     return bool(_DOMAIN_RE.match(d))
 
 
-def is_safe_for_whitelist(domain: str) -> bool:
-    """Reject whitelist entries that contain known ad/tracker substrings."""
-    return not any(kw in domain for kw in WHITELIST_DENY_KEYWORDS)
-
-
 def short_name(url: str) -> str:
     mapping = [
         ("easylist.txt", "EasyList"),
@@ -126,7 +112,8 @@ def short_name(url: str) -> str:
         ("HttpsExclusions/master/exclusions/firefox.txt", "AdGuard HTTPS - Firefox"),
         ("HttpsExclusions/master/exclusions/windows.txt", "AdGuard HTTPS - Windows"),
         ("HttpsExclusions/master/exclusions/mac.txt", "AdGuard HTTPS - Mac"),
-        ("whitelist-referral.txt", "HaGeZi Referral Whitelist"),
+        ("whitelist-referral-native", "HaGeZi Referral Whitelist (Native)"),
+        ("whitelist-referral", "HaGeZi Referral Whitelist"),
         ("Discord-Phishing-URLs", "Discord Official Domains"),
     ]
     for key, name in mapping:
@@ -156,7 +143,6 @@ def extract_whitelist_domains(text: str) -> set:
       - AdGuard exception:      @@||domain^
       - Plain domains:          example.com
       - Hosts-style lines:      0.0.0.0 example.com  /  127.0.0.1 example.com
-    Skips comments and obviously-unsafe entries (ad/tracker keywords).
     """
     out = set()
     for line in text.splitlines():
@@ -179,7 +165,7 @@ def extract_whitelist_domains(text: str) -> set:
                 if is_valid_domain(cand):
                     domain = cand
 
-        if domain and is_valid_domain(domain) and is_safe_for_whitelist(domain):
+        if domain and is_valid_domain(domain):
             out.add(domain)
     return out
 
@@ -216,7 +202,6 @@ def main():
 
     # --- 1. External Whitelist ---
     white_set = set()
-    skipped_unsafe = set()
     report.append("\n[ External Whitelist Sources ]")
     report.append("-" * 70)
     for url in EXCLUSION_URLS:
@@ -261,7 +246,7 @@ def main():
 
     # --- 3. Personal Blocklist ---
     personal_block_set = set()
-    report.append("\n[ Personal Blocklist (Overrides External Whitelist) ]")
+    report.append("\n[ Personal Blocklist (Overrides External Whitelist, Skips Reference Validation) ]")
     report.append("-" * 70)
     for url in PERSONAL_BLOCK_URLS:
         name = short_name(url)
@@ -336,7 +321,7 @@ def main():
     raw_block_set -= white_set
     white_removed = before_white - len(raw_block_set)
 
-    # 6c. Force-add personal blocklist (overrides external whitelist)
+    # 6c. Force-add personal blocklist (overrides external whitelist, skips reference validation)
     forced_black = personal_block_set & white_set  # domains forced from white -> black
     raw_block_set |= personal_block_set
 
@@ -357,8 +342,6 @@ def main():
                   f"(forced white: {len(forced_white):,})")
     report.append(f"  6. Final Block Rules               : {len(final_block_set):,}")
     report.append(f"  7. Final Exception Rules           : {len(final_white_set):,}")
-    if skipped_unsafe:
-        report.append(f"  8. Whitelist entries dropped (unsafe keywords): {len(skipped_unsafe):,}")
 
     # --- 8. Write Output Files ---
     OUTPUT_DIR.mkdir(exist_ok=True)
