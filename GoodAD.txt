@@ -815,7 +815,7 @@ inven.co.kr###invenAppSuggestion
 !
 ! 엠팍 (https://mlbpark.donga.com/)
 ! - 오른쪽 배너
-!##.big_banner - ##[class*="_banner"] 로 대체
+##.big_banner
 ! - 게시물 하단 배너 / 맨 하단 배너
 ##.left_cont > div[style]
 ! - 댓글 바로 위 텍스트 배너?
@@ -827,6 +827,8 @@ mlbpark.donga.com##.bt_menu_wrap
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ! - 본문 한줄 광고?(투표?)
 mlbpark.donga.com##.inner_article
+! - 본문하단 광고
+##.naver_power
 ! - 댓글 하단 광고
 mlbpark.donga.com##.naver_place
 ! - 차단 사이트
@@ -1262,7 +1264,7 @@ poooo.ml#@#.ad
 ! - 상단 배너
 ! - - - 티비위키 / 티비몬 / 티비핫
 !##[target="_blank"]:has([src*="/data/banner/"])
-##[target="_blank"]:has([src*="/banner/"])
+!##[target="_blank"]:has([src*="/banner/"])
 !##[class="banner2"]
 !##.banner2
 ##[id="bannerList"]
@@ -4459,6 +4461,9 @@ zod.kr###icl28teUVav8
 !
 !
 /ads/*
+! - 예외
+! - 옥션/지마켓 배너 안보임
+@@ad-img.gmarket.com/ADS/*
 !
 !
 _ads_
@@ -4526,15 +4531,28 @@ _ads_
 !!! 광역
 
 ! - https://06.avsee.ru/
-##a[target='_blank'] > img[src*=".gif"]
+##a[target*="blank"] > img[src*=".gif"]
 
 
 ! - https://06.avsee.ru/
-##a[target='_blank'] > img[src*="/imgs/"]
+##a[target*="blank"] > img[src*="/imgs/"]
 
 
 ! - 티비위키 (https://tvwiki19.net/)
-##[target="_blank"]:has([src*="/banner/"])
+! - 와이고수 (https://ygosu.com/)
+!##a[target="_blank"]:has(img[src*="/banner/"])
+!##a[target*="blank"] img[src*="banner"]
+##a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
+
+
+! - https://nunting.kr/
+!##div:has(> a[target="_blank"] > img[src*="/banner/"])
+! - 아래 규칙으로 하면 아무것도 안보임
+!##div:has(a[target="_blank"] img[src*="banner"])
+!##a[target*="blank"] img[src*="banner"]
+##div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
+
+
 
 
 
