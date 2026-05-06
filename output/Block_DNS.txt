@@ -1,5 +1,5 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-06 19:03:51 UTC
+! Generated: 2026-05-06 19:08:06 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Block Rules: 98,342
 ! Exception Rules: 6,424

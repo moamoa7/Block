@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report
-  Generated: 2026-05-06 19:03:51 UTC
+  Generated: 2026-05-06 19:08:06 UTC
 ======================================================================
 
 [ Reference Filter ]
@@ -75,12 +75,12 @@
 ----------------------------------------------------------------------
   [OK]  oisd small
         URL       : https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt
-        Lines     : 56,931   Extracted: 56,918
+        Lines     : 56,909   Extracted: 56,896
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
         Lines     : 1   Extracted: 0
 
-  Total personal block (deduplicated): 56,918
+  Total personal block (deduplicated): 56,896
 
 [ Personal Whitelist (Final Override) ]
 ----------------------------------------------------------------------
@@ -113,7 +113,7 @@
   1. Raw domains collected           : 179,532
   2. Removed by reference filter     : 86,665
   3. Removed by external whitelist   : 28
-  4. Personal block added            : 56,918  (forced black: 11)
+  4. Personal block added            : 56,896  (forced black: 11)
   5. Personal white applied          : 5  (forced white: 3)
   6. Final Block Rules               : 98,342
   7. Final Exception Rules           : 6,424
