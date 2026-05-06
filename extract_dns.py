@@ -325,10 +325,11 @@ def main():
     forced_black = personal_block_set & white_set  # domains forced from white -> black
     raw_block_set |= personal_block_set
 
-    # 6d. Apply personal whitelist (final override)
+    # 6d. Apply personal whitelist (TRUE final override - beats personal block too)
     forced_white = personal_white_set & raw_block_set  # domains forced from black -> white
     final_block_set = raw_block_set - personal_white_set
-    final_white_set = (white_set | personal_white_set) - personal_block_set
+    final_white_set = (white_set - personal_block_set) | personal_white_set
+
 
     # --- 7. Final Summary ---
     report.append("\n[ Final Summary ]")
