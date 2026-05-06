@@ -2491,6 +2491,7 @@ sextb.date##.hidden-md.right.col-3
 ! - https://myavlive.com/
 ! - https://ko.sextb.live/
 ! - https://ko.19sex.live/
+! - https://ko.porndudecams.com/
 ! - 배너
 ##.cookies-banner
 ! - 영상 가운데  플러그인 버튼
@@ -4411,6 +4412,15 @@ zod.kr##.zod-widgets--deal_partner
 zod.kr###icl28teUVav8
 !
 !
+! https://theporndude.com/
+! - 오른쪽 상단 (사람모양 - 프리미엄 액세스)
+theporndude.com##.extension-widget
+! - 오른쪽 배너 (사람모양 - 채팅사이트 이동)
+theporndude.com##.chat-widget
+! - 하딘 배너 (for you - 채팅사이트 목록)
+theporndude.com##.drawer-opener
+!
+!
 !
 !
 !
@@ -4908,10 +4918,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://ygosu.com/
 !##div:has(> iframe[id*="hidden"])
 ##div[id*="hidden"]:has(iframe)
-
-
-! - https://www.ddanzi.com/
-##div:has(> iframe[src*="media"]):not(html):not(body)
 
 
 ! - https://pann.nate.com/
