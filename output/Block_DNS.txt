@@ -1,7 +1,7 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-06 22:36:34 UTC
+! Generated: 2026-05-06 23:38:13 UTC
 ! Homepage: https://github.com/moamoa7/adblock
-! Block Rules: 92,857
+! Block Rules: 92,875
 ! Exception Rules: 6,435
 !
 ||0.avmarket.rs^
@@ -6450,6 +6450,7 @@
 ||akuleestampmondial.qpon^
 ||akupmhxbzdhau.space^
 ||akutapro.com^
+||akvosbllbxzkx.online^
 ||akxiojpifqhsrn.com^
 ||al-adtech.com^
 ||al-smetrics.vizio.com^
@@ -14602,6 +14603,7 @@
 ||cbxvkwdyfd.com^
 ||cbxxfascjrdjm.space^
 ||cbyskhyvvdvosxr.com^
+||cbzjerbxjdiph.online^
 ||cbzxy.com^
 ||cc-api-data.adobe.io^
 ||cc.8181zx.com^
@@ -18144,6 +18146,7 @@
 ||crosspromotion-us.avosapps.us^
 ||crosspromotion.weplayer.cc^
 ||crosswalkmail.com^
+||crostyogee.cfd^
 ||crouchedmonarch.com^
 ||crouteintendersinbringer.monster^
 ||crow.claudiakeil.de^
@@ -26653,6 +26656,7 @@
 ||fc2-ppv.xyz^
 ||fc28ca04e2.a89da11668.com^
 ||fc2plus.site^
+||fcajvqmwhkclw.com^
 ||fcb6adad17.com^
 ||fcbdpock.icu^
 ||fcbgtveetbl.com^
@@ -27990,6 +27994,7 @@
 ||foetalvigilforaged.cyou^
 ||foetorikan.shop^
 ||fofauctddfpfo.website^
+||fofjptsojq.com^
 ||foflf.com^
 ||foflib.org^
 ||fofonijcvvccn.space^
@@ -32192,6 +32197,7 @@
 ||hateful-pride.pro^
 ||hatefulrequest.com^
 ||hatficlvvqbwl.space^
+||hathirenic.cyou^
 ||hathomeynapoleon.com^
 ||hatmiso.net^
 ||hatoltd.com^
@@ -38363,6 +38369,7 @@
 ||kgzfmbpkbydoj.online^
 ||kh.suno.vn^
 ||kh8l8e54bmim67m.cfd^
+||khahoonzonulesplan.cfd^
 ||khakiedfuroate.cyou^
 ||khanjeeyapness.website^
 ||khanumshorer.cfd^
@@ -45124,6 +45131,7 @@
 ||mizrachvirbius.com^
 ||mizytadpwfswa.world^
 ||mizzledkl.cyou^
+||mizzyghetto.cfd^
 ||mj-snowplow-static-js.s3.amazonaws.com^
 ||mj23.eulerian.com^
 ||mjaksfykaaqrt.space^
@@ -47571,6 +47579,7 @@
 ||nickeysreplait.cfd^
 ||nickhel.com^
 ||nicksana.shop^
+||nicobarwhedder.cfd^
 ||nicolasrhumbaenfile.cyou^
 ||nicyosyoxyvvw.space^
 ||nid.the-sun.com^
@@ -65984,6 +65993,7 @@
 ||slopesoap.com^
 ||sloto.live^
 ||slotsmiling.com^
+||sloungescruff.cyou^
 ||slovenscrankly.com^
 ||slovvcaojwrhv.space^
 ||slow-attitude.com^
@@ -69585,6 +69595,7 @@
 ||som.ringcentral.com^
 ||somainpdeirit.online^
 ||somber-fold.pro^
+||somberlock.com^
 ||sombermistake.pro^
 ||sombernewspaper.com^
 ||somberscarecrow.com^
@@ -72742,6 +72753,7 @@
 ||sulkvulnerableexpecting.com^
 ||sulkweapon.com^
 ||sulkycook.com^
+||sullensbondman.cfd^
 ||sullowspatio.com^
 ||sulphault.qpon^
 ||sultamscopet.cyou^
@@ -73289,6 +73301,7 @@
 ||swordtail.hnh.digital^
 ||swordtail.rockface.io^
 ||sworlowedonhisdh.org^
+||sworncrangsalma.qpon^
 ||swornlaughruined.com^
 ||swottedplaidie.com^
 ||swovmufrvjwgu.space^
@@ -74372,6 +74385,7 @@
 ||tauliparrock.cyou^
 ||taunphoik.com^
 ||tauntscovers.cyou^
+||taupoorlops.cyou^
 ||tauridimprime.help^
 ||taurmanba.qpon^
 ||taurukausou.net^
@@ -76160,6 +76174,7 @@
 ||tnanqkvvrqond.online^
 ||tnative.ru^
 ||tnaygpxwlubq.com^
+||tnb8yc2gi52epb5.cfd^
 ||tnbigewpbffra.website^
 ||tnbmdavwrgygn.online^
 ||tnc-boot.capcutapi.com^
@@ -85884,6 +85899,7 @@
 ||whoppercreaky.com^
 ||whopping-click.com^
 ||whoppngzrzsyz.online^
+||whopsprits.cyou^
 ||whoredpledgeegres.cfd^
 ||whoringnusfiah.help^
 ||whorishholaclayed.cfd^
@@ -87635,6 +87651,7 @@
 ||x7i0.com^
 ||x7r3mk6ldr.com^
 ||x822.mrt.com^
+||x82nz1cx4zu621f1ztj5cxbt8v.rest^
 ||x8wyxfxul.com^
 ||x8y6frhg939z2qlgvf.rest^
 ||x9.shinobi.jp^
@@ -91177,6 +91194,7 @@
 ||ywsxuzmhbfdip.site^
 ||ywtennjipgrwd.website^
 ||ywtwvfuwgxnpe.space^
+||ywugyssrmkvat.website^
 ||ywusfyjhnpflr.top^
 ||ywuwsxpwucyzh.com^
 ||ywuzuazsjnzto.online^

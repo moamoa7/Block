@@ -1,5 +1,5 @@
-# Generated: 2026-05-06 22:36:34 UTC
-# Block Domains: 92,857
+# Generated: 2026-05-06 23:38:13 UTC
+# Block Domains: 92,875
 #
 0.0.0.0 0.avmarket.rs
 0.0.0.0 0.myikas.com
@@ -6447,6 +6447,7 @@
 0.0.0.0 akuleestampmondial.qpon
 0.0.0.0 akupmhxbzdhau.space
 0.0.0.0 akutapro.com
+0.0.0.0 akvosbllbxzkx.online
 0.0.0.0 akxiojpifqhsrn.com
 0.0.0.0 al-adtech.com
 0.0.0.0 al-smetrics.vizio.com
@@ -14599,6 +14600,7 @@
 0.0.0.0 cbxvkwdyfd.com
 0.0.0.0 cbxxfascjrdjm.space
 0.0.0.0 cbyskhyvvdvosxr.com
+0.0.0.0 cbzjerbxjdiph.online
 0.0.0.0 cbzxy.com
 0.0.0.0 cc-api-data.adobe.io
 0.0.0.0 cc.8181zx.com
@@ -18141,6 +18143,7 @@
 0.0.0.0 crosspromotion-us.avosapps.us
 0.0.0.0 crosspromotion.weplayer.cc
 0.0.0.0 crosswalkmail.com
+0.0.0.0 crostyogee.cfd
 0.0.0.0 crouchedmonarch.com
 0.0.0.0 crouteintendersinbringer.monster
 0.0.0.0 crow.claudiakeil.de
@@ -26650,6 +26653,7 @@
 0.0.0.0 fc2-ppv.xyz
 0.0.0.0 fc28ca04e2.a89da11668.com
 0.0.0.0 fc2plus.site
+0.0.0.0 fcajvqmwhkclw.com
 0.0.0.0 fcb6adad17.com
 0.0.0.0 fcbdpock.icu
 0.0.0.0 fcbgtveetbl.com
@@ -27987,6 +27991,7 @@
 0.0.0.0 foetalvigilforaged.cyou
 0.0.0.0 foetorikan.shop
 0.0.0.0 fofauctddfpfo.website
+0.0.0.0 fofjptsojq.com
 0.0.0.0 foflf.com
 0.0.0.0 foflib.org
 0.0.0.0 fofonijcvvccn.space
@@ -32189,6 +32194,7 @@
 0.0.0.0 hateful-pride.pro
 0.0.0.0 hatefulrequest.com
 0.0.0.0 hatficlvvqbwl.space
+0.0.0.0 hathirenic.cyou
 0.0.0.0 hathomeynapoleon.com
 0.0.0.0 hatmiso.net
 0.0.0.0 hatoltd.com
@@ -38360,6 +38366,7 @@
 0.0.0.0 kgzfmbpkbydoj.online
 0.0.0.0 kh.suno.vn
 0.0.0.0 kh8l8e54bmim67m.cfd
+0.0.0.0 khahoonzonulesplan.cfd
 0.0.0.0 khakiedfuroate.cyou
 0.0.0.0 khanjeeyapness.website
 0.0.0.0 khanumshorer.cfd
@@ -45121,6 +45128,7 @@
 0.0.0.0 mizrachvirbius.com
 0.0.0.0 mizytadpwfswa.world
 0.0.0.0 mizzledkl.cyou
+0.0.0.0 mizzyghetto.cfd
 0.0.0.0 mj-snowplow-static-js.s3.amazonaws.com
 0.0.0.0 mj23.eulerian.com
 0.0.0.0 mjaksfykaaqrt.space
@@ -47568,6 +47576,7 @@
 0.0.0.0 nickeysreplait.cfd
 0.0.0.0 nickhel.com
 0.0.0.0 nicksana.shop
+0.0.0.0 nicobarwhedder.cfd
 0.0.0.0 nicolasrhumbaenfile.cyou
 0.0.0.0 nicyosyoxyvvw.space
 0.0.0.0 nid.the-sun.com
@@ -65981,6 +65990,7 @@
 0.0.0.0 slopesoap.com
 0.0.0.0 sloto.live
 0.0.0.0 slotsmiling.com
+0.0.0.0 sloungescruff.cyou
 0.0.0.0 slovenscrankly.com
 0.0.0.0 slovvcaojwrhv.space
 0.0.0.0 slow-attitude.com
@@ -69582,6 +69592,7 @@
 0.0.0.0 som.ringcentral.com
 0.0.0.0 somainpdeirit.online
 0.0.0.0 somber-fold.pro
+0.0.0.0 somberlock.com
 0.0.0.0 sombermistake.pro
 0.0.0.0 sombernewspaper.com
 0.0.0.0 somberscarecrow.com
@@ -72739,6 +72750,7 @@
 0.0.0.0 sulkvulnerableexpecting.com
 0.0.0.0 sulkweapon.com
 0.0.0.0 sulkycook.com
+0.0.0.0 sullensbondman.cfd
 0.0.0.0 sullowspatio.com
 0.0.0.0 sulphault.qpon
 0.0.0.0 sultamscopet.cyou
@@ -73286,6 +73298,7 @@
 0.0.0.0 swordtail.hnh.digital
 0.0.0.0 swordtail.rockface.io
 0.0.0.0 sworlowedonhisdh.org
+0.0.0.0 sworncrangsalma.qpon
 0.0.0.0 swornlaughruined.com
 0.0.0.0 swottedplaidie.com
 0.0.0.0 swovmufrvjwgu.space
@@ -74369,6 +74382,7 @@
 0.0.0.0 tauliparrock.cyou
 0.0.0.0 taunphoik.com
 0.0.0.0 tauntscovers.cyou
+0.0.0.0 taupoorlops.cyou
 0.0.0.0 tauridimprime.help
 0.0.0.0 taurmanba.qpon
 0.0.0.0 taurukausou.net
@@ -76157,6 +76171,7 @@
 0.0.0.0 tnanqkvvrqond.online
 0.0.0.0 tnative.ru
 0.0.0.0 tnaygpxwlubq.com
+0.0.0.0 tnb8yc2gi52epb5.cfd
 0.0.0.0 tnbigewpbffra.website
 0.0.0.0 tnbmdavwrgygn.online
 0.0.0.0 tnc-boot.capcutapi.com
@@ -85881,6 +85896,7 @@
 0.0.0.0 whoppercreaky.com
 0.0.0.0 whopping-click.com
 0.0.0.0 whoppngzrzsyz.online
+0.0.0.0 whopsprits.cyou
 0.0.0.0 whoredpledgeegres.cfd
 0.0.0.0 whoringnusfiah.help
 0.0.0.0 whorishholaclayed.cfd
@@ -87632,6 +87648,7 @@
 0.0.0.0 x7i0.com
 0.0.0.0 x7r3mk6ldr.com
 0.0.0.0 x822.mrt.com
+0.0.0.0 x82nz1cx4zu621f1ztj5cxbt8v.rest
 0.0.0.0 x8wyxfxul.com
 0.0.0.0 x8y6frhg939z2qlgvf.rest
 0.0.0.0 x9.shinobi.jp
@@ -91174,6 +91191,7 @@
 0.0.0.0 ywsxuzmhbfdip.site
 0.0.0.0 ywtennjipgrwd.website
 0.0.0.0 ywtwvfuwgxnpe.space
+0.0.0.0 ywugyssrmkvat.website
 0.0.0.0 ywusfyjhnpflr.top
 0.0.0.0 ywuwsxpwucyzh.com
 0.0.0.0 ywuzuazsjnzto.online
