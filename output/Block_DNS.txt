@@ -1,8 +1,8 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-06 18:44:49 UTC
+! Generated: 2026-05-06 19:03:51 UTC
 ! Homepage: https://github.com/moamoa7/adblock
-! Block Rules: 98,329
-! Exception Rules: 6,423
+! Block Rules: 98,342
+! Exception Rules: 6,424
 !
 ||0-02.net^
 ||0.avmarket.rs^
@@ -1036,6 +1036,7 @@
 ||31vcgicj50zg.top^
 ||32.huanqiu.com^
 ||321.jintang114.org^
+||322xgowenfbuk4gq452j8qyrwnreg.rest^
 ||3245duu17z.com^
 ||32472254.xyz^
 ||3258994ce4.com^
@@ -7144,6 +7145,7 @@
 ||agilone.com^
 ||agingcrawledarose.com^
 ||agingravenous.com^
+||agistertumidmapper.cyou^
 ||agitatechampionship.com^
 ||agitatecough.com^
 ||agitated-sort.com^
@@ -9416,6 +9418,7 @@
 ||anguluskantiananguloa.qpon^
 ||anhj4arn4.com^
 ||anhwasdohccp.com^
+||anientechetahs.cfd^
 ||anilaoseverer.qpon^
 ||anilibriaz.ru^
 ||anilicwinklotenactor.cyou^
@@ -13479,6 +13482,7 @@
 ||biolw.cloud^
 ||bional-dested.icu^
 ||bionicclick.com^
+||biopsypainless.com^
 ||biotahanburygaen.cfd^
 ||biotasjumby.cfd^
 ||biotechcive.cyou^
@@ -13975,6 +13979,7 @@
 ||bmgmnxaloh.com^
 ||bmgzspzuahkgq.online^
 ||bmhftxazibaxo.site^
+||bminnfgtuyrbv.com^
 ||bmjs.xzw.com^
 ||bmkhxvvneovqi.space^
 ||bmknmzsaiscwk.online^
@@ -14510,6 +14515,7 @@
 ||bqszugpxadzlg.store^
 ||bqtboylklunvj.space^
 ||bquvm.performancebyie.com^
+||bqvbgoaqjtcha.space^
 ||bqvgggxqavsp.com^
 ||bqvzsxadeajio.global^
 ||bqwjmvbjodclc.space^
@@ -16931,6 +16937,7 @@
 ||ceerrvzdgucqs.online^
 ||cefazaaycjdqi.store^
 ||ceget.xyz^
+||ceguluqevjhrq.website^
 ||cehb1d1lsm.com^
 ||cehbmaknzpyic.store^
 ||ceighovhnzuri.space^
@@ -18342,6 +18349,7 @@
 ||cltdabpjiaqlw.space^
 ||cltgtstor001.blob.core.windows.net^
 ||cltnopjcmaxkj.website^
+||clubacquiregivens.qpon^
 ||clubcollector.com^
 ||clubhouseimpunitysights.com^
 ||cluckedzion.com^
@@ -30834,6 +30842,7 @@
 ||formationcrucialwildest.com^
 ||formatsquareabominable.com^
 ||formayday.com^
+||formelamulae.com^
 ||formerdrearybiopsy.com^
 ||formerlyconsidering.com^
 ||formerseparation.com^
@@ -37770,6 +37779,7 @@
 ||ilhtossuwjwcg.online^
 ||iliqdfncivkkp.online^
 ||iljcnkfiowzqw.site^
+||iljszcvonewca.online^
 ||ilk10.az^
 ||ilkjcufgzpjwd.online^
 ||illamonclouted.qpon^
@@ -48669,6 +48679,7 @@
 ||mjs.mudjeans.com^
 ||mjtpwtxclfnkt.site^
 ||mjtrkygeqmghm.store^
+||mjtvcbcsrpejg.site^
 ||mjtzbkdmpbayx.online^
 ||mjufus.icu^
 ||mjursnb.com^
@@ -48753,6 +48764,7 @@
 ||mlm.de^
 ||mlnadvertising.com^
 ||mlnbsdowzejzz.website^
+||mlnkndrxf.com^
 ||mlog.bigda.com^
 ||mlougq.icu^
 ||mlqcixbbgdwij.online^
@@ -51169,6 +51181,7 @@
 ||nh8hrngj2e2wln.cfd^
 ||nhatsadwafljs.site^
 ||nhcgucgrsnupg.online^
+||nhelzh785g5o8j.cfd^
 ||nheopaobzlrqc.site^
 ||nhgbdjs.com^
 ||nhgmymxth.com^
@@ -98466,6 +98479,7 @@
 @@||acs2.rosbank.modirum.com^
 @@||action.metaffiliation.com^
 @@||ad-creative.pstatic.net^
+@@||ad-img.gmarket.com^
 @@||ad-shield.io^
 @@||ad.admitad.com^
 @@||ad.adverticum.net^
