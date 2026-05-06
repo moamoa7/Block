@@ -1,6 +1,6 @@
 ! Title: Personal Block/Allow List (DNS)
 ! Description: Extracted DNS-level blocking domains from multiple filter sources
-! Generated: 2026-05-06 01:20:56 UTC
+! Generated: 2026-05-06 04:47:22 UTC
 ! Expires: 12 hours (update frequency)
 ! Homepage: https://github.com/moamoa7/Block
 !
@@ -8,13 +8,13 @@
 ! Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 !
 ! [Statistics]
-! 1. Raw Domains Collected      : 183,281
-! 2. Removed by Reference       : 90,639
+! 1. Raw Domains Collected      : 183,314
+! 2. Removed by Reference       : 90,652
 ! 3. Removed by Ext.Whitelist   : 49
-! 4. Personal Block Added       : 56,845
+! 4. Personal Block Added       : 56,889
 ! 5. Forced (White → Black)     : 13
 ! 6. Forced (Black → White)     : 2
-! 7. Final Block Rules (||)     : 98,068
+! 7. Final Block Rules (||)     : 98,098
 ! 8. Final Exception Rules (@@) : 7,891
 !
 ! === BLOCK RULES ===
@@ -1110,6 +1110,7 @@
 ||36a657286a.2e001e2b2b.com^
 ||36a7b00c00.com^
 ||36bd0d2ae3.caf44f3d39.com^
+||36ilrz9efkib6equz.rest^
 ||37066957.xyz^
 ||3709c398e2.7878ba0587.com^
 ||37243211.xyz^
@@ -1290,6 +1291,7 @@
 ||432adaf6b3.7ee9924215.com^
 ||434fc6fff7.com^
 ||436df5b953.com^
+||4373ab4d71.com^
 ||43982bf480.com^
 ||439f4b8c75.com^
 ||43a0e1ae69.com^
@@ -2552,6 +2554,7 @@
 ||92p3c8lgqt.com^
 ||92yp.com^
 ||930networks.net^
+||93553ec9d6.com^
 ||9365e2dd1f.com^
 ||936781cc1a.com^
 ||93692zubo66936.com^
@@ -7265,6 +7268,7 @@
 ||ahsyxlyqjzkcz.website^
 ||ahtas.guess.com^
 ||ahtcwbfctgvnk.site^
+||ahtjhe1bka.com^
 ||ahtohdywahxhb.online^
 ||ahtycexk.com^
 ||ahukfcpfknenp.website^
@@ -7635,6 +7639,7 @@
 ||alersemenders.com^
 ||alertpay.com^
 ||alespeonor.com^
+||aleutrepkiehamuli.qpon^
 ||alevinmicrohm.com^
 ||alexa-hybrid-interaction-log-config-prod-na.s3.amazonaws.com^
 ||alexa-mobile-analytics-configuration-prod.s3.amazonaws.com^
@@ -9681,6 +9686,7 @@
 ||apartgamble.com^
 ||apartmentsellerprotest.com^
 ||apatheticformingalbeit.com^
+||apathyfarsakhcarven.cyou^
 ||apauzauxauls.net^
 ||apbdefsgvncbw.site^
 ||apbjukta.com^
@@ -10186,6 +10192,7 @@
 ||apyoth.com^
 ||apyqmsclrrslv.site^
 ||apytrc.com^
+||aq0vs4ftni.com^
 ||aq2e.com^
 ||aq7ua5ma85rddeinve.com^
 ||aqatudxyzqtij.site^
@@ -10214,6 +10221,7 @@
 ||aqkvvkwriwqzm.space^
 ||aqle3.com^
 ||aqluiuckcnxkg.website^
+||aqngziguqo.in^
 ||aqnqaohb.com^
 ||aqoifpujbbptd.space^
 ||aqpmljbvacbpi.space^
@@ -10485,6 +10493,7 @@
 ||artilyleveche.qpon^
 ||artistictastesn.org^
 ||artlvpfgfrgru.site^
+||artlybeam.shop^
 ||artoomanyrelati.com^
 ||artsai.com^
 ||artsyharicot.com^
@@ -27433,6 +27442,8 @@
 ||epartoukfarepu.com^
 ||epartoukfarepu.org^
 ||epbssmpdthcsl.site^
+||epcgkycgbmbny.com^
+||epdrvnjhgbbqvh.com^
 ||epeex.io^
 ||epfpjvxydyxux.website^
 ||epgeybaijtmwo.space^
@@ -27865,6 +27876,7 @@
 ||etl.springbot.com^
 ||etl.xlmc.sandai.net^
 ||etlz1mt67.com^
+||etneanlaos.cfd^
 ||etnomedia-static.reviveservers.com^
 ||etoads.net^
 ||etobeasasile.org^
@@ -28797,6 +28809,7 @@
 ||f7wi953nek9cyyhfm2k.rest^
 ||f83cu.tzj1kcm1z8vg3bn.cyou^
 ||f84b63c140.dfba7a73ff.com^
+||f85fd721ad.com^
 ||f864fdc049.com^
 ||f866.troyrecord.com^
 ||f8be4bf567.40ee7f0644.com^
@@ -33576,6 +33589,7 @@
 ||govfhrimbmzvt.store^
 ||govisibl.io^
 ||govtax.com^
+||gowferbumped.shop^
 ||gowhougru.net^
 ||gowofhdmdtdhi.online^
 ||gowoman.ru^
@@ -34289,6 +34303,7 @@
 ||guarshouser.com^
 ||guazaafretsensus.cfd^
 ||guberlasps.cyou^
+||gubwwsegai.com^
 ||gucbowlgklcgb.website^
 ||guchihyfa.pro^
 ||guckisant.cyou^
@@ -37469,6 +37484,7 @@
 ||igloohq.com^
 ||ignateignatepredominanteatable.com^
 ||ignateignatetame.com^
+||ignita.xyz^
 ||igniterads.com^
 ||ignobleinternational.com^
 ||ignoblerectifymargaret.com^
@@ -39190,6 +39206,7 @@
 ||itinerarymonarchy.com^
 ||itisfaryvysjp.space^
 ||itjjqntjvrscd.website^
+||itjrzbptdjpmg.space^
 ||itkldppgctfkx.site^
 ||itkqsyscyjmp.com^
 ||itktymvfvnjps.website^
@@ -41425,6 +41442,7 @@
 ||kgqxzw.blue-tomato.com^
 ||kgricuptghssu.website^
 ||kgslcxtpctxru.online^
+||kgssexsydvfae.online^
 ||kgsxcozeuccrs.website^
 ||kgtwbxiuepiyv.website^
 ||kgvhlxcevwbsb.space^
@@ -42912,6 +42930,7 @@
 ||ldbwxo.cn^
 ||ldcumoqpdhule.store^
 ||lddt.de^
+||ldhdlynsgehkd.site^
 ||ldjkgoeognmgj.space^
 ||ldnkepcuqetum.online^
 ||ldnorrya.com^
@@ -43237,6 +43256,7 @@
 ||lfelnkxiazxkx.store^
 ||lfeqrcbqjfnoc.site^
 ||lfew.cn^
+||lffadygsfshiy.website^
 ||lfgknhbirotrt.space^
 ||lfgoielaksccl.site^
 ||lfhrijmrvsv.com^
@@ -44778,6 +44798,7 @@
 ||lotusesrisalarebore.qpon^
 ||loubyvwvqyzdt.site^
 ||louchevips.cyou^
+||louckajmzhldu.space^
 ||louctlwyghkui.online^
 ||louderappletcoma.com^
 ||louderpregnantshabby.com^
@@ -48224,6 +48245,7 @@
 ||mijqnkabhtbpj.website^
 ||mikaniasoogan.cfd^
 ||mikellli.com^
+||mikeyfanging.shop^
 ||mikka.app^
 ||mikkvmklsfzwv.store^
 ||mikqukcumhivv.online^
@@ -48682,6 +48704,7 @@
 ||mmondi.com^
 ||mmopzfxoouggx.site^
 ||mmotraffic.com^
+||mmoxruzbtcrax.website^
 ||mmp-api.itpub.cloud^
 ||mmp001.scalemonk.com^
 ||mmpecnkesjkuq.site^
@@ -53791,6 +53814,7 @@
 ||orfa1st5.de^
 ||orfdiuyukgbsfqc.com^
 ||orfgpyjret.in^
+||orfpacditoh.in^
 ||orgamyimogen.cyou^
 ||organic-ground.pro^
 ||organic-series.pro^
@@ -60282,6 +60306,7 @@
 ||q1bq3hh8yi5zw98p73ejqr.cfd^
 ||q1trl8rnnt8uixf.rest^
 ||q1txsah8s.com^
+||q1yv4669q6.com^
 ||q20jqurls0y7gk8.info^
 ||q29k22vpu.com^
 ||q2fwgl4q8.com^
@@ -65840,6 +65865,7 @@
 ||rufdbymsjiwsg.website^
 ||ruffercymous.shop^
 ||ruffkittiebargee.cyou^
+||ruffsdeturbstats.cfd^
 ||ruffsgrumpybrew.cfd^
 ||rufhdndiebfal.website^
 ||rufiwccmsvvlc.website^
@@ -79292,6 +79318,7 @@
 ||tecturepcmorchard.cfd^
 ||teczoonbdxxug.site^
 ||ted.dailymail.co.uk^
+||tedavaguio.shop^
 ||teddygroups.com^
 ||tedhoweverbu.org^
 ||tedious-effort.pro^
@@ -84925,6 +84952,7 @@
 ||unboybandeng.top^
 ||unbraveunvague.shop^
 ||unbredtraclia.shop^
+||unbrokeophryon.shop^
 ||unbrownunflat.com^
 ||unbuildtweezesswobbed.cyou^
 ||unburlycosaque.cfd^
@@ -85821,6 +85849,7 @@
 ||uraliangavials.cyou^
 ||uralicchatot.com^
 ||uraliwarpagealmner.cyou^
+||uramilovines.cyou^
 ||uraninditehandgun.cyou^
 ||uraninesau.cyou^
 ||uranus.jd.com^
@@ -97790,6 +97819,7 @@
 ||ztoch.cozyearth.com^
 ||ztohi7zqet9ri4pzbxv2uj9zeyjv8p.rest^
 ||ztohteoqf.in^
+||ztohvl3x61r5nfc36qj5wb.cfd^
 ||ztosxitodpymn.website^
 ||ztpeilerodqaf.website^
 ||ztqnls.lojasrenner.com.br^

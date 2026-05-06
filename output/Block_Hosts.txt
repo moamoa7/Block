@@ -1,6 +1,6 @@
 # Title: Personal Block/Allow List (DNS)
 # Description: Extracted DNS-level blocking domains from multiple filter sources
-# Generated: 2026-05-06 01:20:56 UTC
+# Generated: 2026-05-06 04:47:22 UTC
 # Expires: 12 hours (update frequency)
 # Homepage: https://github.com/moamoa7/Block
 #
@@ -8,13 +8,13 @@
 # Filter < External Whitelist < Personal Blocklist < Personal Whitelist (final)
 #
 # [Statistics]
-# 1. Raw Domains Collected      : 183,281
-# 2. Removed by Reference       : 90,639
+# 1. Raw Domains Collected      : 183,314
+# 2. Removed by Reference       : 90,652
 # 3. Removed by Ext.Whitelist   : 49
-# 4. Personal Block Added       : 56,845
+# 4. Personal Block Added       : 56,889
 # 5. Forced (White → Black)     : 13
 # 6. Forced (Black → White)     : 2
-# 7. Final Block Rules (||)     : 98,068
+# 7. Final Block Rules (||)     : 98,098
 # 8. Final Exception Rules (@@) : 7,891
 #
 0.0.0.0 0-02.net
@@ -1109,6 +1109,7 @@
 0.0.0.0 36a657286a.2e001e2b2b.com
 0.0.0.0 36a7b00c00.com
 0.0.0.0 36bd0d2ae3.caf44f3d39.com
+0.0.0.0 36ilrz9efkib6equz.rest
 0.0.0.0 37066957.xyz
 0.0.0.0 3709c398e2.7878ba0587.com
 0.0.0.0 37243211.xyz
@@ -1289,6 +1290,7 @@
 0.0.0.0 432adaf6b3.7ee9924215.com
 0.0.0.0 434fc6fff7.com
 0.0.0.0 436df5b953.com
+0.0.0.0 4373ab4d71.com
 0.0.0.0 43982bf480.com
 0.0.0.0 439f4b8c75.com
 0.0.0.0 43a0e1ae69.com
@@ -2551,6 +2553,7 @@
 0.0.0.0 92p3c8lgqt.com
 0.0.0.0 92yp.com
 0.0.0.0 930networks.net
+0.0.0.0 93553ec9d6.com
 0.0.0.0 9365e2dd1f.com
 0.0.0.0 936781cc1a.com
 0.0.0.0 93692zubo66936.com
@@ -7264,6 +7267,7 @@
 0.0.0.0 ahsyxlyqjzkcz.website
 0.0.0.0 ahtas.guess.com
 0.0.0.0 ahtcwbfctgvnk.site
+0.0.0.0 ahtjhe1bka.com
 0.0.0.0 ahtohdywahxhb.online
 0.0.0.0 ahtycexk.com
 0.0.0.0 ahukfcpfknenp.website
@@ -7634,6 +7638,7 @@
 0.0.0.0 alersemenders.com
 0.0.0.0 alertpay.com
 0.0.0.0 alespeonor.com
+0.0.0.0 aleutrepkiehamuli.qpon
 0.0.0.0 alevinmicrohm.com
 0.0.0.0 alexa-hybrid-interaction-log-config-prod-na.s3.amazonaws.com
 0.0.0.0 alexa-mobile-analytics-configuration-prod.s3.amazonaws.com
@@ -9680,6 +9685,7 @@
 0.0.0.0 apartgamble.com
 0.0.0.0 apartmentsellerprotest.com
 0.0.0.0 apatheticformingalbeit.com
+0.0.0.0 apathyfarsakhcarven.cyou
 0.0.0.0 apauzauxauls.net
 0.0.0.0 apbdefsgvncbw.site
 0.0.0.0 apbjukta.com
@@ -10185,6 +10191,7 @@
 0.0.0.0 apyoth.com
 0.0.0.0 apyqmsclrrslv.site
 0.0.0.0 apytrc.com
+0.0.0.0 aq0vs4ftni.com
 0.0.0.0 aq2e.com
 0.0.0.0 aq7ua5ma85rddeinve.com
 0.0.0.0 aqatudxyzqtij.site
@@ -10213,6 +10220,7 @@
 0.0.0.0 aqkvvkwriwqzm.space
 0.0.0.0 aqle3.com
 0.0.0.0 aqluiuckcnxkg.website
+0.0.0.0 aqngziguqo.in
 0.0.0.0 aqnqaohb.com
 0.0.0.0 aqoifpujbbptd.space
 0.0.0.0 aqpmljbvacbpi.space
@@ -10484,6 +10492,7 @@
 0.0.0.0 artilyleveche.qpon
 0.0.0.0 artistictastesn.org
 0.0.0.0 artlvpfgfrgru.site
+0.0.0.0 artlybeam.shop
 0.0.0.0 artoomanyrelati.com
 0.0.0.0 artsai.com
 0.0.0.0 artsyharicot.com
@@ -27432,6 +27441,8 @@
 0.0.0.0 epartoukfarepu.com
 0.0.0.0 epartoukfarepu.org
 0.0.0.0 epbssmpdthcsl.site
+0.0.0.0 epcgkycgbmbny.com
+0.0.0.0 epdrvnjhgbbqvh.com
 0.0.0.0 epeex.io
 0.0.0.0 epfpjvxydyxux.website
 0.0.0.0 epgeybaijtmwo.space
@@ -27864,6 +27875,7 @@
 0.0.0.0 etl.springbot.com
 0.0.0.0 etl.xlmc.sandai.net
 0.0.0.0 etlz1mt67.com
+0.0.0.0 etneanlaos.cfd
 0.0.0.0 etnomedia-static.reviveservers.com
 0.0.0.0 etoads.net
 0.0.0.0 etobeasasile.org
@@ -28796,6 +28808,7 @@
 0.0.0.0 f7wi953nek9cyyhfm2k.rest
 0.0.0.0 f83cu.tzj1kcm1z8vg3bn.cyou
 0.0.0.0 f84b63c140.dfba7a73ff.com
+0.0.0.0 f85fd721ad.com
 0.0.0.0 f864fdc049.com
 0.0.0.0 f866.troyrecord.com
 0.0.0.0 f8be4bf567.40ee7f0644.com
@@ -33575,6 +33588,7 @@
 0.0.0.0 govfhrimbmzvt.store
 0.0.0.0 govisibl.io
 0.0.0.0 govtax.com
+0.0.0.0 gowferbumped.shop
 0.0.0.0 gowhougru.net
 0.0.0.0 gowofhdmdtdhi.online
 0.0.0.0 gowoman.ru
@@ -34288,6 +34302,7 @@
 0.0.0.0 guarshouser.com
 0.0.0.0 guazaafretsensus.cfd
 0.0.0.0 guberlasps.cyou
+0.0.0.0 gubwwsegai.com
 0.0.0.0 gucbowlgklcgb.website
 0.0.0.0 guchihyfa.pro
 0.0.0.0 guckisant.cyou
@@ -37468,6 +37483,7 @@
 0.0.0.0 igloohq.com
 0.0.0.0 ignateignatepredominanteatable.com
 0.0.0.0 ignateignatetame.com
+0.0.0.0 ignita.xyz
 0.0.0.0 igniterads.com
 0.0.0.0 ignobleinternational.com
 0.0.0.0 ignoblerectifymargaret.com
@@ -39189,6 +39205,7 @@
 0.0.0.0 itinerarymonarchy.com
 0.0.0.0 itisfaryvysjp.space
 0.0.0.0 itjjqntjvrscd.website
+0.0.0.0 itjrzbptdjpmg.space
 0.0.0.0 itkldppgctfkx.site
 0.0.0.0 itkqsyscyjmp.com
 0.0.0.0 itktymvfvnjps.website
@@ -41424,6 +41441,7 @@
 0.0.0.0 kgqxzw.blue-tomato.com
 0.0.0.0 kgricuptghssu.website
 0.0.0.0 kgslcxtpctxru.online
+0.0.0.0 kgssexsydvfae.online
 0.0.0.0 kgsxcozeuccrs.website
 0.0.0.0 kgtwbxiuepiyv.website
 0.0.0.0 kgvhlxcevwbsb.space
@@ -42911,6 +42929,7 @@
 0.0.0.0 ldbwxo.cn
 0.0.0.0 ldcumoqpdhule.store
 0.0.0.0 lddt.de
+0.0.0.0 ldhdlynsgehkd.site
 0.0.0.0 ldjkgoeognmgj.space
 0.0.0.0 ldnkepcuqetum.online
 0.0.0.0 ldnorrya.com
@@ -43236,6 +43255,7 @@
 0.0.0.0 lfelnkxiazxkx.store
 0.0.0.0 lfeqrcbqjfnoc.site
 0.0.0.0 lfew.cn
+0.0.0.0 lffadygsfshiy.website
 0.0.0.0 lfgknhbirotrt.space
 0.0.0.0 lfgoielaksccl.site
 0.0.0.0 lfhrijmrvsv.com
@@ -44777,6 +44797,7 @@
 0.0.0.0 lotusesrisalarebore.qpon
 0.0.0.0 loubyvwvqyzdt.site
 0.0.0.0 louchevips.cyou
+0.0.0.0 louckajmzhldu.space
 0.0.0.0 louctlwyghkui.online
 0.0.0.0 louderappletcoma.com
 0.0.0.0 louderpregnantshabby.com
@@ -48223,6 +48244,7 @@
 0.0.0.0 mijqnkabhtbpj.website
 0.0.0.0 mikaniasoogan.cfd
 0.0.0.0 mikellli.com
+0.0.0.0 mikeyfanging.shop
 0.0.0.0 mikka.app
 0.0.0.0 mikkvmklsfzwv.store
 0.0.0.0 mikqukcumhivv.online
@@ -48681,6 +48703,7 @@
 0.0.0.0 mmondi.com
 0.0.0.0 mmopzfxoouggx.site
 0.0.0.0 mmotraffic.com
+0.0.0.0 mmoxruzbtcrax.website
 0.0.0.0 mmp-api.itpub.cloud
 0.0.0.0 mmp001.scalemonk.com
 0.0.0.0 mmpecnkesjkuq.site
@@ -53790,6 +53813,7 @@
 0.0.0.0 orfa1st5.de
 0.0.0.0 orfdiuyukgbsfqc.com
 0.0.0.0 orfgpyjret.in
+0.0.0.0 orfpacditoh.in
 0.0.0.0 orgamyimogen.cyou
 0.0.0.0 organic-ground.pro
 0.0.0.0 organic-series.pro
@@ -60281,6 +60305,7 @@
 0.0.0.0 q1bq3hh8yi5zw98p73ejqr.cfd
 0.0.0.0 q1trl8rnnt8uixf.rest
 0.0.0.0 q1txsah8s.com
+0.0.0.0 q1yv4669q6.com
 0.0.0.0 q20jqurls0y7gk8.info
 0.0.0.0 q29k22vpu.com
 0.0.0.0 q2fwgl4q8.com
@@ -65839,6 +65864,7 @@
 0.0.0.0 rufdbymsjiwsg.website
 0.0.0.0 ruffercymous.shop
 0.0.0.0 ruffkittiebargee.cyou
+0.0.0.0 ruffsdeturbstats.cfd
 0.0.0.0 ruffsgrumpybrew.cfd
 0.0.0.0 rufhdndiebfal.website
 0.0.0.0 rufiwccmsvvlc.website
@@ -79291,6 +79317,7 @@
 0.0.0.0 tecturepcmorchard.cfd
 0.0.0.0 teczoonbdxxug.site
 0.0.0.0 ted.dailymail.co.uk
+0.0.0.0 tedavaguio.shop
 0.0.0.0 teddygroups.com
 0.0.0.0 tedhoweverbu.org
 0.0.0.0 tedious-effort.pro
@@ -84924,6 +84951,7 @@
 0.0.0.0 unboybandeng.top
 0.0.0.0 unbraveunvague.shop
 0.0.0.0 unbredtraclia.shop
+0.0.0.0 unbrokeophryon.shop
 0.0.0.0 unbrownunflat.com
 0.0.0.0 unbuildtweezesswobbed.cyou
 0.0.0.0 unburlycosaque.cfd
@@ -85820,6 +85848,7 @@
 0.0.0.0 uraliangavials.cyou
 0.0.0.0 uralicchatot.com
 0.0.0.0 uraliwarpagealmner.cyou
+0.0.0.0 uramilovines.cyou
 0.0.0.0 uraninditehandgun.cyou
 0.0.0.0 uraninesau.cyou
 0.0.0.0 uranus.jd.com
@@ -97789,6 +97818,7 @@
 0.0.0.0 ztoch.cozyearth.com
 0.0.0.0 ztohi7zqet9ri4pzbxv2uj9zeyjv8p.rest
 0.0.0.0 ztohteoqf.in
+0.0.0.0 ztohvl3x61r5nfc36qj5wb.cfd
 0.0.0.0 ztosxitodpymn.website
 0.0.0.0 ztpeilerodqaf.website
 0.0.0.0 ztqnls.lojasrenner.com.br
