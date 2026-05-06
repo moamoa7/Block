@@ -2382,7 +2382,7 @@ pedia.watcha.com##.adFixed
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !##div[style]:has(> [target='_blank'])
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
-! - - - 오늘의 중계 (https://today-sports7.com/)
+! - - - 오늘의 중계 (https://today-sports8.com/)
 ! - - - 야동망고 (https://www.mango54.net/)
 ! - - -  밍키넷 (https://mingky.net/)
 !##[target='_blank']:has([src*='.gif'])
@@ -2419,7 +2419,7 @@ avsee.ru#@#.tabs
 ! - 하단 따라다니는 배너
 ##[class*="slideAnimation"]
 ! - 일부 영상 재생 차단 방지
-@@||tiktokcdn.com/obj/$xhr
+@@tiktokcdn.com/obj/$xhr
 ! - 기타
 ! - - - https://javgg.net/
 ! - - - https://javplayer.org/ (여러 재생 스크림 중에서)
@@ -2553,6 +2553,13 @@ javgg.net##.home_iframead
 ! - 팝업(새창) 방지 (uBlock filters – Ads)
 /^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-.\/A-Z_a-z][DHWXm][-.\/A-Z_a-z][59FVZ][-.\/A-Z_a-z][6swyz][-.\/A-Z_a-z][-\/0-9A-Z_a-z][-.\/A-Z_a-z][-\/0-9A-Z_a-z]{22,162}(?:$|\?)/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
 !javgiga.com^$popup
+!
+!
+! https://netflav.com/
+! - 필터 오류 해제 ( AdGuard Chinese (中文) - 규칙 안먹히는거 해결
+@@||netflav.com^$generichide,badfilter
+! - 영상 위 팝업
+##[class*="ads_video"]
 !
 !
 ! https://javbraze.com/
@@ -3032,11 +3039,14 @@ njav.com,komi.la##.mx-auto
 !
 ! MISSAV (https://missav.ws/)
 ! MISSAV (https://missav.live/)
+! MISSAV (https://missav.ai/)
+! MISSAV  (https://missav.fans/)
+! nJAVTV (https://njavtv.com/)
 ! - 하단 떠다니는 배너 Easylist) (List-KR)
 !||tsyndicate.com^
-! - 영상 옆 배너공간 
+! - 리스트별 하단 배너 및 영상 옆 배너공간 
 ! - - - missav.ws##.lg\:block (EasyList 규칙에 missav.ws 규칙만 있고 missav.lives는 없음)
-missav.ws,missav.live##.lg\:block
+missav.*,njavtv.com##.lg\:block
 ! - 영상 하단 오른쪽 따라다니는 배너
 !##.mb-5.space-y-5 > div > .mx-auto
 !##div.mx-auto > iframe
@@ -3292,7 +3302,7 @@ wavve.com#@##main-banner
 !
 ! 야동그라운드 (https://yagro48.com/)
 ! 빨간비디오 (https://redvi77.com/)
-! 야동도시 (https://yacity47.com/)
+! 야동도시 (https://yadongred6.org/)
 ! 야동공장 (https://yagong89.com/)
 ! - 배너 이미지
 ||*/storage/upload/banners/*$image
@@ -3301,10 +3311,10 @@ wavve.com#@##main-banner
 ! - - - 블루티비 (https://bluelive77.com/)
 ! - - - PC
 !##[class*='main_popup']
-!##[class*="popup-pc"]:not(html):not(body):not(article)
+##[class*="popup-pc"]:not(html):not(body):not(article)
 ! - - - mobile
 !##.w-80.relative
-##.w-80.centered
+##.relative.w-80
 ! - 메인 상단 배너
 ##.cursor-pointer.shadow-sm.rounded-sm.w-full.object-fill
 ! 메인 하단 배너
@@ -3315,14 +3325,28 @@ wavve.com#@##main-banner
 !##.rounded-md.border.p-1.w-full
 !
 !
-! 오늘의 중계 (https://today-sports7.com/)
+! 오늘의 중계 (today-sports8.com)
+! - - - 코난티비(https://conan-tv.com/) - 팝업
+###hd_pop
+! - 상단 배너 공간
+![$domain=/^today-sports\d+.com/]##.draggable.slick-list
+! - 모바일 상단 배너
+![$domain=/^today-sports\d+.com/]##.live-stream
+##.live-stream
+! - - - https://play.sooplive.co.kr/
+!##[class*="-stream"]
+! - - - 예외
+!youtube.com#@#[class*="-stream"]
 ! - 왼쪽 배너 공간
 ##.info-banner
 ! - 오른쪽 배너 공간
 !##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner > .draggable.slick-list
 ##[class^="live-stream-banner"]
-! - 게시물 내 배너
+! - 게시물내 한칸짜리 배너
 ##[src*="_event_banner"]
+!##[src*="event_banner"]
+! - 모바일 왼쪽 사람 아이콘 없애기
+##.sidebar-user-trigger
 !
 !
 ! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/)
@@ -4042,30 +4066,6 @@ recu.me##.header-sub
 !stripchatgirls.com##.Modal__scrollableOverlay\#SW.Modal__overlay_clickable\#ho.Modal__overlay\#s0
 !
 !
-! 오늘의 중계 (today-sports7.com)
-! - - - 코난티비(https://conan-tv.com/) - 팝업
-###hd_pop
-! - 상단 배너 공간
-![$domain=/^today-sports\d+.com/]##.draggable.slick-list
-! - 모바일 상단 배너
-![$domain=/^today-sports\d+.com/]##.live-stream
-##.live-stream
-! - - - https://play.sooplive.co.kr/
-!##[class*="-stream"]
-! - - - 예외
-!youtube.com#@#[class*="-stream"]
-! - 왼쪽 배너
-!##.info-banner
-! - 게시물내 한칸짜리 배너
-!##[src*="event_banner"]
-! - - - 아래로 변경하면..
-! - - - - -야동그라운드 (https://yagro48.com/)
-! - - - - -빨간비디오 (https://redvi77.com/)
-! - - - - -야동도시 (https://yacity47.com/)
-! - 모바일 왼쪽 사람 아이콘 없애기
-##.sidebar-user-trigger
-!
-!
 ! FC2 18세 이상 박스
 ! - https://adult.contents.fc2.com/
 !##.z9KsZnYS.c-modal-101
@@ -4640,6 +4640,60 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 
+!!! - 광역 3
+! - - - style="background-image: url('https://comein15.com/data/apms/background/%ED%94%BC%ED%84%B0%ED%8C%AC%EC%88%98%EC%A0%951.gif');"> 이런 형식임
+! - - - 즉, 이미지 주소에 background가 들어가 있지만 style형식에 넣은것
+! - - - - - 광역으로 사용시 아래 규칙에 따라 다른 텍스트 링크 지워져서 안됨 ([target] 넣으면 상관없어지므로 패스)
+! - - - - -  ##[style] 을 지정하지 않고 하면  텍스트 링크까지 사라져서 안됨
+! - - - - - background-image 사용으로 img를 사용할 수 없음
+! - - - - - [style*="background"] 해도 되나 아래 규칙과 혼돈되어 규칙 더 추가
+! - - - - -  ##[style] a[href][target] img 하면 규칙 안먹힘 (순서 바꾸면 안됨)
+! - - - - - ##[style*="background"] 로 하면 덕덕고 등에서 이미지 안나옴
+!##[style*="background"] a[href][target]
+!##[style*="background"] a[href][target*='_blank']
+! - - -  target='blank' 로 하는 경우도 있어서 재변경
+!##[style^="/background-image"] a[href][target*='blank']
+! - - -  실수로 target='blank' 을 빼먹는 경우 (예 : https://cheon-01.com/)도 있어서 재변경
+! - - - 만화방 (https://manhwabang.org/)
+! - - - 또보자TV (https://boztv119.com/)
+! - - - 잠자티비 (https://zamzatv13.com/)
+! - - - 버스까 (https://buska20.com/)
+! - - - 뽕가리 (https://bbong03.com/)
+! - - - 방앗간 (https://gristmill31.com/)
+! - - - 삼시색기 (https://sssk03.com/)
+! - - - 들어와 (https://comein16.com/)
+! - - - 돌려치기 (https://drck03.com/)
+! - - - 체온 (https://cheon-01.com/)
+! - - - 에비앙 (https://evian32.com/)
+! - - - 야동하우스 (https://yd-house81.com/)
+! - - - 삼다수 (https://samdasoo61.com/)
+! - - - 잠자리 (https://dragonfly64.com/)
+! - - - 야동타임 (https://yd-time66.com/)
+! - - - 섹포츠 (https://sexports43.com/)
+! - - - AV달기 (https://avdalgi-70.com/)
+! - - - AV하나 (https://avhana-60.com/)
+! - - - 해피밤 (https://happy-n62.com/)
+! - - - 여의봉 (https://yeouibong63.com/)
+! - - - AV스팟 (https://avspot47.com/)
+! - - - AV소다 (https://soda59.com/)
+! - - - 야프로 (https://yapro35.com/)
+! - - - 동굴의 숲 (https://dg-soop21.com/)
+! - - - 레드코코넛 (https://redcoconut23.com/)
+! - - - 꽁허브 (https://ggonghub32.com/)
+! - - - 몰디브 (https://mdv13.com/)
+! - - - 야동홀릭 (https://yhl-59.com/)
+! - - - 딸통령 (https://uf204.com/)
+! - - - 리얼티비 (https://retv29.com/)
+! - - - 핫스팟 (https://hotg33.com/)
+! - - - 주소핑 (https://jusoping2.net/)
+! - - - 토렌트족 ( https://torrentjok71.com/) - 오른쪽 배너
+! - - - 주소콕 (https://xn--9l4b19kltf.com/) (https://jusokok10.com/)
+!##[style^="background-image"] a[href]
+##[style*="/background/"] a[href]
+
+
+
+
 
 
 
@@ -4705,6 +4759,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[src*="google"]:not([src*="recaptcha"])
 
 
+! - https://namu.wiki/
 ! - https://www.goodgag.net/
 ! - https://www.sooplive.com/
 ! - https://noonnu.cc/
@@ -4714,6 +4769,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ##iframe[class*="google"]
+
 
 ! - https://www.bandwidthplace.com/
 ! - 티스토리 (https://www.tistory.com/)
@@ -4887,6 +4943,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##iframe[id*="button"]
 
 
+! - https://jable.tv/
 ##iframe[src*="event"]
 
 
@@ -4973,10 +5030,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://sports.donga.com/ - 기사 내 이미지 안보임
 !##[class$="iframe"]
-
-
-! - https://missav.ws/
-##iframe[src*="javascript"]
 
 
 ##[alt$="스폰"]
