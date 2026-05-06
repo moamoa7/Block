@@ -1948,7 +1948,7 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! 기상청 날씨누리 (https://www.weather.go.kr/)
 ! - 팝업 배너
 !##[class="popup-banner"]
-!##.popup-banner
+##.popup-banner
 ! - 왼쪽 배너
 !##[class*="list-banner"] - ##[class*="banner"]:has(img) 로 대체
 !##.list-banner
@@ -3311,12 +3311,15 @@ wavve.com#@##main-banner
 ! - - - 블루티비 (https://bluelive77.com/)
 ! - - - PC
 !##[class*='main_popup']
-##[class*="popup-pc"]:not(html):not(body):not(article)
+!##[class*="popup-pc"]:not(html):not(body):not(article):not(main):not(section)
+##[class*="popup-pc"]
 ! - - - mobile
 !##.w-80.relative
 ##.relative.w-80
-! - 메인 상단 배너
+! - 메인 상단 배너 (PC)
 ##.cursor-pointer.shadow-sm.rounded-sm.w-full.object-fill
+! - 메인 상단 배너 (모바일)
+##.w-full.mt-1 > .items-center.justify-start.flex-wrap.flex
 ! 메인 하단 배너
 ##.mt-1.justify-start.items-center.flex-wrap.flex
 ! - 영상내 하단 배너
@@ -4479,7 +4482,13 @@ _ads_
 !
 !
 ##[class$="left-ad"]
-
+!
+!
+!##[class*="popup-mobile"]
+##[class*="popup-mo"]
+!
+!
+##[class*="popup-event"]
 !
 !
 !
