@@ -4452,12 +4452,6 @@ zod.kr###icl28teUVav8
 /adbanner
 !
 !
-||ad-
-! - 예외
-! - 옥션 / 지마켓 이미지 차단
-@@||ad-$domain=auction.co.kr|m.gmarket.co.kr|www.gmarket.co.kr
-!
-!
 ##[id$="-ad"]
 !
 !
