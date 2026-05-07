@@ -113,6 +113,22 @@ $removeparam=gtm
 ||accounts.google.com^$document,removeparam=dsh
 ! - Google의 로깅/추적 요청을 빈 텍스트로 리다이렉트해서 사용자 행동 추적을 차단하는 규칙
 ||google.com/log?$redirect-rule=nooptext
+! - 사용자의 활동 로그나 상태 정보를 아주 가볍게 수집할 때 사용하는 통로를 차단하는 규칙
+! - - - 프라이버시 강화 / 유튜브 트래킹 방지 / 백그라운드 통신 차단
+||google.com/gen_204?
+! - 유튜브(웹 및 앱) 내에서의 행동을 정밀하게 추적하는 '전용 빨대' 차단 (시청 기록 및 알고리즘 방해 / 광고 통계 무력화 / 백그라운드 통신 차단)
+||youtube.com/youtubei/v1/log_event?
+! - 사용자의 행동 정보(어떤 버튼을 눌렀는지, 얼마나 머물렀는지 등)가 구글로 넘어가는 것을 막아 프라이버시를 보호
+/collect?v=
+! - 광고를 보고 실제로 물건을 샀는지(전환)"를 확인하려는 행위를 차단 (광고 성과 추적 차단 / 리타겟팅 방지 / 프라이버시 보호)
+||google.com/pagead/1p-conversion/
+! - 구글 플레이 스토어뿐만 아니라, 유튜브, 구글 검색, 안드로이드 시스템 서비스 등 수많은 구글 관련 앱들이 사용자 행동/기기 정보/이벤트 로그등의 원격 측정(Telemetry) 차단 / 배터리 및 데이터 절약 (백그라운드 차단) / 프라이버시 강화
+||play.google.com/log?
+! - 구글 광고 스크립트 차단 / 광고 이미지/영상 차단 / 추적 차단 - 광고 차단의 근본 / 페이지 로딩 속도 최적화 / 데이터 절약 (유튜브 전용 버젼 병행 표기)
+||google.*/pagead/
+||youtube.com/pagead/
+! - 유튜브의 '조회수 및 시청 지속 시간 추적(Pingback)' 시스템을 차단 (시청 데이터 보고 차단 / 알고리즘 차단 / 트래킹 서버 부하 감소)
+||www.youtube.com/ptracking?
 !
 !
 ! - 내 행동을 추적하기 위해 URL에 몰래 붙여놓은 꼬리표를 떼어버리는 규칙
@@ -130,6 +146,11 @@ $removeparam=__hs
 !
 !Netflix가 내가 뭘 보고 뭘 클릭하는지 상세하게 기록해서 서버로 보내는 것을 막는 규칙 (시청내역을 막는건 아닌듯)
 ||netflix.com/log/
+!
+!
+! 자바스크립트 에러가 발생하면 서버로 보내려고 시도하는것을 차단
+!- - - 불필요한 트래픽 감소 / 개인정보 및 추적 방지 / 브라우저 자원 낭비 차단
+/log_js_error$ping
 !
 !
 ! - 쿠키 동의 팝업 귀찮은 거 안 뜨게 하는 규칙
@@ -201,6 +222,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 ! 유튜브 (https://www.youtube.com/)
 ! 차단목록 (Adblock-Rule-Collection-Lite)
+! - 유튜브의 통계 및 시청 기록 시스템의 핵심 관문을 차단하는 규칙
 ! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
 @@||youtube.com/api/stats^
 ! - 메인에서 5줄로 나오는거 해제 (Cosmetic Combined Filterlist )
@@ -1970,6 +1992,8 @@ livegirl.biz##.my-3.px-sm-0.px-3
 ! 연합뉴스 (https://www.yna.co.kr/)
 ! - 메인 상단 배너
 yna.co.kr##.header01
+!  - 배너
+##.ads-box
 !- 메인 필요없는 부분
 !yna.co.kr##.main-ynalounge01.content03
 ! - 메인 오른쪽 필요없는 부분
@@ -4387,12 +4411,16 @@ noonnu.cc##body:style(pointer-events: auto !important; overflow: auto !important
 !
 ! 오르비 (https://orbi.kr/)
 ! - 배너 및 상단 빈 공간
-##div[id*="ads"]
-##div[id^="ads-"]
-##div[x-data="advertisement"]
+!##div[id*="ads"]
+##[id*="ads"]
+!##div[id^="ads-"]
+##[id^="ads-"]
+!##div[x-data="advertisement"]
+##[x-data="advertisement"]
 ! - https://gemini.google.com/ - 안나옴
 !##[style*="banner"]
-##div[style*="/new-banners/"]
+!#div[style*="/new-banners/"]
+##[style*="/new-banners/"]
 ! - 오른쪽 빈 배너?
 ##.label-banner
 !
@@ -4548,8 +4576,12 @@ _ads_
 ##[class*="popup-banner"]
 !
 !
+! - https://www.yna.co.kr/
 !##[class*="popup-mobile"]
 ##[class*="popup-mo"]
+! - 제외
+! - 연합뉴스 (https://www.yna.co.kr/) - 기사 댓글보기 클릭시 오른쪽 사이드 안열림
+yna.co.kr#@#[class*="popup-mo"]
 !
 !
 ##[class*="popup-event"]
@@ -4579,6 +4611,12 @@ _ads_
 /fingerprint2.min.js^
 /fingerprint3.js^
 /fingerprint3.min.js^
+!
+!
+!
+! - 출처 : Adblock-Rule-Collection-Lite
+! - - - Funding Choices 서비스 삽입 (광고 차단 감지(Anti-AdBlock) / GDPR/쿠키 동의 배너 / 광고 수익 보호)
+##iframe[name="googlefcPresent"]
 
 
 
@@ -4851,6 +4889,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[src*="googleadservices"]):not(html):not(body)
 
 
+! - https://mypikpak.com/
 ##[class*="google"]:has(iframe):not([src*="recaptcha"])
 
 
@@ -4865,21 +4904,31 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 ! - https://ygosu.com/
 ##*:has(> iframe[src*="banner"])
+##iframe[src*="banner"]
+
+! - https://www.yna.co.kr/
+##*:has(> iframe[src*="Banner"])
+##iframe[src*="Banner"]
 
 
 ! - https://nid.naver.com/ (로그인)
 ##[id*="banner"]:has(iframe)
 
 
-! - https://7tv034.com/
+! - 7mmtv (https://7tv034.com/)
 !##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
 !##[class*="_banner"] iframe
 ! - - - ! - https://www.fomos.kr/
 !  한국경제 (https://www.hankyung.com/) 모바일 - ##[class*="banner"]:has(iframe) / ##div[class*="banner"]:has(iframe) - 사용시 본문 안보임
+! - 연합뉴스 (https://www.yna.co.kr/) - PC/모바일 - 본문 안보임
 ##[class*="banner"]:has(iframe)
 ! - 예외
 ! - - - 한국경제 (https://www.hankyung.com/)
 hankyung.com#@#[class*="banner"]:has(iframe)
+! - - - 연합뉴스 (https://www.yna.co.kr/)
+yna.co.kr#@#[class*="banner"]:has(iframe)
+##[class*="banner"]:has(iframe)
+
 
 
 ! - https://www.algumon.com/
@@ -4951,6 +5000,7 @@ hankyung.com#@#[class*="banner"]:has(iframe)
 
 ! - https://avple.tv/
 ! - https://chzzk.naver.com/
+! - https://sextb.net/ (US영상)
 ##*:has(> iframe[src*="event"]):not(html):not(body)
 
 
