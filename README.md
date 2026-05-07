@@ -22,8 +22,9 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Hosts.txt
 - 개인적으로 추가한 Filter List (한국사이트 위주)
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 <br/><br/>
+
 ※ adguard_gallery.txt
-- 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
+- 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포힌 필터
 - 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter
 - 2026년 2월 21일 이전 주소 폐쇄
 - 필터 계승
