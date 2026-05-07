@@ -1,7 +1,7 @@
 # DNS
 <br>
 - 개인적으로 맞춤 설게한 개인 DNS
-<br><br>
+<br/><br/>
 
 ※ Block_DNS
 ```
@@ -53,12 +53,12 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/ma
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt
 ```
-<br>
-<br>
+<br/>
+<br/>
 
 # 스크립트
 
-<br>
+<br/>
 
 ※ Video_Control.js
 - 영상 화질 선명 등 설정 / 영상 배속 / 사운드 증폭 등
@@ -67,7 +67,7 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/ma
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 ```
-<br>
+<br/>
 
 ※ Video_Tools.js
 - Video_Control.js의 보조 성격의 스크립트
@@ -77,7 +77,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 ```
-<br>
+<br/>
 
 ※ Mobile Gesture
 - 모바일에서만 사용가능한 영상내 제스처
@@ -95,7 +95,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Mobile_Gesture.js
 ```
-<br>
+<br/>
 
 ※ Delay-meter.js
 - 유튜브 / 트위치 / 숲 / 치지직 등 안정적인 딜레이를 위한 장치
@@ -103,7 +103,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Mobile_Gesture.js
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 ```
-<br>
+<br/>
 
 ※ bookmarj.js
 - 인터넷 북마크 (저장 및 백업 가능)
