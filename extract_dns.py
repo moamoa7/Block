@@ -17,7 +17,7 @@ from urllib.request import urlopen, Request
 
 # General block filter sources
 FILTER_URLS = [
-    "https://easylist-downloads.adblockplus.org/easylist.txt",
+#   "https://easylist-downloads.adblockplus.org/easylist.txt",
     "https://filters.adtidy.org/windows/filters/2.txt",     # AdGuard Base
     "https://filters.adtidy.org/windows/filters/11.txt",    # AdGuard Mobile
     "https://filters.adtidy.org/windows/filters/7.txt",     # AdGuard Japanese
@@ -43,7 +43,7 @@ EXCLUSION_URLS = [
 
 # Personal blocklist (overrides external whitelist + skips reference validation)
 PERSONAL_BLOCK_URLS = [
-#    "https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt",
+#   "https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
 ]
 
@@ -92,7 +92,7 @@ def is_valid_domain(d: str) -> bool:
 
 def short_name(url: str) -> str:
     mapping = [
-        ("easylist.txt", "EasyList"),
+#       ("easylist.txt", "EasyList"),
         ("filters/2.txt", "AdGuard Base"),
         ("filters/11.txt", "AdGuard Mobile"),
         ("filters/7.txt", "AdGuard Japanese"),
