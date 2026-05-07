@@ -1,8 +1,8 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-07 04:49:24 UTC
+! Generated: 2026-05-07 07:35:37 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method: 15.txt ∩ HaGeZi multi.txt + custom whitelist/blocklist
-! Block Rules: 88,130
+! Block Rules: 88,131
 ! Exception Rules: 6,435
 !
 ||0-800-email.com^
@@ -52867,6 +52867,7 @@
 ||mlijiucfr.com^
 ||mlkfloltdjhfh.site^
 ||mllog.jd.com^
+||mlm-tracking.meinestadt.de^
 ||mlnadvertising.com^
 ||mlnbsdowzejzz.website^
 ||mlougq.icu^
