@@ -4,24 +4,26 @@
 <br><br>
 
 ※ Block_DNS
-<br/>
+```
 https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_DNS.txt
-<br/>
+```
 ※ Block_Domains
-<br/>
+```
 https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Domains.txt
-<br/>
+```
 ※ Block_Hosts
-<br/>
+```
 https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Hosts.txt
+```
 <br/><br/>
 
 # 필터규칙
 <br/>
 ※ GoodAD.txt
 - 개인적으로 추가한 Filter List (한국사이트 위주)
-<br/>
+```
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
+```
 <br/><br/>
 
 ※ adguard_gallery.txt
@@ -31,29 +33,25 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 - 필터 계승
 - - - 홈페이지 : https://github.com/hooray804/adguard-gallery-filter
 - - - 필터
+```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+```
 <br/>
 - 유저스크립트
 <br/>
 . 에펨코리아 익스텐션 (Gallery Extension)
 <br/>
+```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js
-<br/>
+```
 . 디시인사이드 엑스퍼트 익스텐션
-<br/>
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js
-<br/>
-- DNS 필터<br/>
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt
-
 ```
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js
+```
+- DNS 필터
+```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt
 ```
-
-
 <br>
 <br>
 
