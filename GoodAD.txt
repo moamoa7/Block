@@ -2117,6 +2117,15 @@ mtn.co.kr##.w_308px
 mk.co.kr###floating_banner_button
 !
 !
+! 문화일보 (https://www.munhwa.com/)
+! - 메인 최하단 배너공간
+munhwa.com##.bottom-banner-area
+! - 기사 상단 배너 공간
+munhwa.com##.top-banner-area
+! - 모바일 하단 따라다니는 배너? (광고 삭제 )
+munhwa.com###close-bottom-sticky
+!
+!
 ! JTBC뉴스 (https://news.jtbc.co.kr/)
 ! 광고 영역
 !jtbc.co.kr##.set_contents_video_ad
@@ -5004,6 +5013,7 @@ hankyung.com#@#div:has(> iframe[src*=".iframe"])
 
 ! - 중앙일보 (https://www.joongang.co.kr/)
 ! - 오마이뉴스 (https://ohmynews.com/)
+! - 문화일보 (https://www.munhwa.com/)
 ##*:has(> iframe[src*="/ad."])
 
 
