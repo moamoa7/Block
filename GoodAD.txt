@@ -772,8 +772,14 @@ inven.co.kr#@#.ad
 !##[src*=".ads/"]
 ! -오른쪽 배너
 ##[class*="ad-right"]
+! - 예외
+! - - -  조선일보 (https://www.chosun.com/)
+chosun.com#@#[class*="ad-right"]
 ! -오른쪽 배너
 ##[class*="ad-left"]
+! - 예외
+! - - -  조선일보 (https://www.chosun.com/)
+chosun.com#@#[class*="ad-left"]
 ! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
 !##[class*="Ad"]
 ! - - - 예외 (https://play.google.com/) - 제목 날라감
@@ -1985,6 +1991,11 @@ yna.co.kr##[class^="aside"]
 ! - 기사 하단 필요없는 부분
 !yna.co.kr##.aside-box400
 yna.co.kr##.ynalounge-content01.wide.content03
+!
+!
+! 조선일보 (https://www.chosun.com/)
+! - 배너
+chosun.com##.box--overflow-hidden
 !
 !
 ! 동아일보 (https://www.donga.com/)
@@ -4514,6 +4525,9 @@ _ads_
 !
 !
 !
+!
+!
+!
 ! 기타
 ! - - -  https://glimmory.io/%ED%88%B0%EC%BD%94-%EC%B5%9C%EC%8B%A0%EC%A3%BC%EC%86%8C/
 ! - - - 배너
@@ -4884,6 +4898,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://mypikpak.com/
+! - 조선일보 (https://www.chosun.com/)
 ##*:has(> iframe[src*="button"]):not(html):not(body)
 
 
@@ -4943,6 +4958,10 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - https://pann.nate.com/
 !##iframe[title*="스폰"]
 ##*:has(> iframe[title*="스폰"]):not(html):not(body)
+
+
+! - 조선일보 (https://www.chosun.com/)
+##div:has(> iframe[src*=".iframe"])
 
 
 
