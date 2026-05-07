@@ -32,7 +32,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ※ adguard_gallery.txt (추천 필터)
 <br/>
 
-애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포힌 필터
+애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포
 <br/>
 
 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter
