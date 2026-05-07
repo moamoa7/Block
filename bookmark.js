@@ -9,6 +9,8 @@
 // @grant        GM_xmlhttpRequest
 // @require      https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js
 // @noframes
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/bookmark.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/bookmark.js
 // ==/UserScript==
 
 (function () {
