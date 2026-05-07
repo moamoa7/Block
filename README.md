@@ -107,7 +107,8 @@ https://greasyfork.org/zh-CN/scripts/570331-html5%E8%A7%86%E9%A2%91%E6%89%8B%E5%
 <br/>
 ..... 두 손가락 핀치 (줌 모드)  : 화면 확대 (최대 8배)
 <br/>
-..... 기타 버튼들
+..... 그 외 기능 다수
+<br/>
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Mobile_Gesture.js
 ```
