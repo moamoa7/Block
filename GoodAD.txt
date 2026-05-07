@@ -2289,10 +2289,13 @@ danawa.com#@#iframe[src*="/RealMedia/ads/"]
 ! - 광고 배너
 ! - - - https://pann.nate.com/
 danawa.com/###adSmartProductContainer
-!##iframe[title*="배너"]
+##iframe[title*="배너"]
 ##div:has(> iframe[title*="배너"])
-!##iframe[title*="광고"]
+##iframe[title*="광고"]
 ##div:has(> iframe[title*="광고"])
+! -  예외
+! - 한국경제 (https://www.hankyung.com/) 모바일
+hankyung.com#@#div:has(> iframe[title*="광고"])
 ##[class*="main-event"]
 !
 !
@@ -4863,7 +4866,11 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 !##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
 !##[class*="_banner"] iframe
 ! - - - ! - https://www.fomos.kr/
+!  한국경제 (https://www.hankyung.com/) 모바일 - ##[class*="banner"]:has(iframe) / ##div[class*="banner"]:has(iframe) - 사용시 본문 안보임
 ##[class*="banner"]:has(iframe)
+! - 예외
+! - - - 한국경제 (https://www.hankyung.com/)
+hankyung.com#@#[class*="banner"]:has(iframe)
 
 
 ! - https://www.algumon.com/
@@ -4979,21 +4986,25 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://pann.nate.com/
-!##iframe[title*="스폰"]
+##iframe[title*="스폰"]
 ##*:has(> iframe[title*="스폰"]):not(html):not(body)
 
 
 ! - 조선일보 (https://www.chosun.com/)
 ! - 오마이뉴스 (https://ohmynews.com/)
+! - 한국경제 (https://www.hankyung.com/) - 본문 이미지 안보임
 !##*:has(> iframe[src*=".iframe"]) 로 사용시 본문이 안보이므로 주의
 ##div:has(> iframe[src*=".iframe"])
+! -  예외
+! - 한국경제 (https://www.hankyung.com/) 모바일
+hankyung.com#@#div:has(> iframe[src*=".iframe"])
+##iframe[src*=".iframe"]
+
 
 
 ! - 중앙일보 (https://www.joongang.co.kr/)
 ! - 오마이뉴스 (https://ohmynews.com/)
 ##*:has(> iframe[src*="/ad."])
-
-
 
 
 
