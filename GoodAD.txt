@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260507
+! Version: 20260508
 !
 !
 !
@@ -2029,12 +2029,35 @@ hankookilbo.com##.rounded-t-lg
 !
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
+! - 상단 배너
+joongang.co.kr##.topbanner_plus
+! - 상단 배너 (프리미엄)
+joongang.co.kr##.md_hidden.sm_hidden.service
+! - 중간 배너
+joongang.co.kr##.house_banner
+! - 기사 오른쪽 플러스 아이콘
+joongang.co.kr##.ico_shortcut_plus
+! - 기사 스크롤시 하단에서 나오는 안내문구
+joongang.co.kr##.snackbar
 ! - 영상 플레이어
 !joongang.co.kr##.player_area
 ! - 많이 본 기사
 !joongang.co.kr##.widget--v.ad_sm_hidden.chain_wrap
 ! - 추천 기사
 !joongang.co.kr##.contents_issue_sticky.contents > .row > .col_lg3
+!
+!
+! 오마이뉴스 (https://www.ohmynews.com/)
+! - 기사 오른쪽 빈 공간
+ohmynews.com##.V0511
+! - 기사 중간 배너 공간
+ohmynews.com###dvCenterAd
+! - 기사 아래 빈 공간
+ohmynews.com##.newswrap > center
+! - 모바일 상단 빈공간
+ohmynews.com##body > div
+! - 모바일 기타
+##[class="ad_box"]
 !
 !
 ! 경향신문 (https://www.khan.co.kr/)
@@ -4816,7 +4839,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[src*="googleadservices"]):not(html):not(body)
 
 
-##div[class*="google"]:has(iframe):not([src*="recaptcha"])
+##[class*="google"]:has(iframe):not([src*="recaptcha"])
 
 
 ! - https://www.bandwidthplace.com/
@@ -4825,61 +4848,61 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - 가생이닷컴 (https://www.gasengi.com/)
 ! - https://noonnu.cc/
 ! - https://data.pureugong.com/
-##div[iid*="google"]:has(iframe)
+##[iid*="google"]:has(iframe)
 
 
 ! - https://ygosu.com/
-##div:has(> iframe[src*="banner"])
+##*:has(> iframe[src*="banner"])
 
 
 ! - https://nid.naver.com/ (로그인)
-##div[id*="banner"]:has(iframe)
+##[id*="banner"]:has(iframe)
 
 
 ! - https://7tv034.com/
 !##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"]
 !##[class*="_banner"] iframe
 ! - - - ! - https://www.fomos.kr/
-##div[class*="banner"]:has(iframe)
+##[class*="banner"]:has(iframe)
 
 
 ! - https://www.algumon.com/
 ! - https://noonnu.cc/
-##div[id*="ads"]:has(iframe)
+##[id*="ads"]:has(iframe)
 
 
 ##*:has(> iframe[src*="promotion"]):not(html):not(body)
 
 
-##div[class*="promotion"]:has(iframe)
+##[class*="promotion"]:has(iframe)
 
 
-##div[id*="promotion"]:has(iframe)
+##[id*="promotion"]:has(iframe)
 
 
 ! - https://sports.donga.com/
 ##*:has(> iframe[src*="popup"]):not(html):not(body)
 
 
-##div[id*="popup"]:has(iframe)
+##[id*="popup"]:has(iframe)
 
 
 ##*:has(> iframe[src*="adsense"]):not(html):not(body)
 
 
-##div[class*="adsense"]:has(iframe)
+##[class*="adsense"]:has(iframe)
 
 
-##div[id*="adsense"]:has(iframe)
+##[id*="adsense"]:has(iframe)
 
 
 ##*:has(> iframe[src*="sponsor"]):not(html):not(body)
 
 
-##div[class*="sponsor"]:has(iframe)
+##[class*="sponsor"]:has(iframe)
 
 
-##div[id*="sponsor"]:has(iframe)
+##[id*="sponsor"]:has(iframe)
 
 
 ##[class*="sponsor"]
@@ -4891,10 +4914,10 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[src*="advertisement"]):not(html):not(body)
 
 
-##div[class*="advertisement"]:has(iframe)
+##[class*="advertisement"]:has(iframe)
 
 
-##div[id*="advertisement"]:has(iframe)
+##[id*="advertisement"]:has(iframe)
 
 
 ! - https://mypikpak.com/
@@ -4903,11 +4926,11 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
  - https://mypikpak.com/
-##div[class*="button"]:has(iframe)
+##[class*="button"]:has(iframe)
 
 
 ! - https://mypikpak.com/ 
-##div[id*="button"]:has(iframe)
+##[id*="button"]:has(iframe)
 
 
 ! - https://avple.tv/
@@ -4915,10 +4938,10 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[src*="event"]):not(html):not(body)
 
 
-##div[class*="event"]:has(iframe)
+##[class*="event"]:has(iframe)
 
 
-##div[id*="event"]:has(iframe)
+##[id*="event"]:has(iframe)
 
 
 ! - https://ygosu.com/
@@ -4926,33 +4949,33 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ##*:has(> iframe[src*="click"]):not(html):not(body)
 
 
-##div[class*="script"]:has(iframe)
+##[class*="script"]:has(iframe)
 
 
 ! -https://oname.kr/
-##div[id*="script"]:has(iframe)
+##[id*="script"]:has(iframe)
 
 
 ! - https://meeco.kr/
 ##*:has(> iframe[src*="product"]):not(html):not(body)
 
 
-##div[class*="product"]:has(iframe)
+##[class*="product"]:has(iframe)
 
 
-##div[id*="product"]:has(iframe)
+##[id*="product"]:has(iframe)
 
 
 ! - https://www.fmkorea.com/
 ##*:has(> iframe[attribution-reporting]):not(html):not(body)
 
 
-##div:has(> iframe[src*="hidden"]):not(html):not(body)
+##*:has(> iframe[src*="hidden"]):not(html):not(body)
 
 
 ! - https://ygosu.com/
 !##div:has(> iframe[id*="hidden"])
-##div[id*="hidden"]:has(iframe)
+##[id*="hidden"]:has(iframe)
 
 
 ! - https://pann.nate.com/
@@ -4961,7 +4984,15 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - 조선일보 (https://www.chosun.com/)
+! - 오마이뉴스 (https://ohmynews.com/)
+!##*:has(> iframe[src*=".iframe"]) 로 사용시 본문이 안보이므로 주의
 ##div:has(> iframe[src*=".iframe"])
+
+
+! - 중앙일보 (https://www.joongang.co.kr/)
+! - 오마이뉴스 (https://ohmynews.com/)
+##*:has(> iframe[src*="/ad."])
+
 
 
 
