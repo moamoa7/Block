@@ -10,6 +10,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @run-at       document-start
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Mobile_Gesture.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Mobile_Gesture.js
 // ==/UserScript==
 
 (function() {
