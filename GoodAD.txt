@@ -1368,7 +1368,7 @@ tvhot.store##.object-cover
 !
 !
 ! 무비킹 (https://mvking4.org/)
- - 영상 위 배너
+ ! - 영상 위 배너
 ![$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
 !
 !
@@ -2127,7 +2127,10 @@ sports.donga.com##.view_center
 !coupang.com##li.search-product__ad-badge:remove()
 !coupang.com##.search-product__ad-badge
 ! - 배너
-coupang.com###srpKeywordTopBanner
+!coupang.com###srpKeywordTopBanner
+! - 광고라고 써잇는 배너 (이 상품 놓치지 마세요)
+!coupang.com##.personalized_ads.carousel-widget-container
+##[class*="_ads"]
 ! - 하단 안내 문구 (앱으로 보기)
 ! - 검색시 나오는 광고 배너
 !###BottomAppBanner
@@ -2644,6 +2647,7 @@ clien.net#@#.ad_banner
 !##[class="happy-under-player-mobile"]
 ##.happy-under-player-mobile
 ! - 영상내 배너 및 닫기 버튼
+! - - -https://sexkbj.com/
 ! - - - Svideos JAV (https://avsshub.net/)
 !##[class="happy-inside-player"]
 ##.happy-inside-player
@@ -2808,9 +2812,7 @@ topjav.tv##.koukoku_11
 jav.guru#@#.textwidget
 dramaday.me#@#.textwidget
 ! - - - https://kissjav.com/ 영상 차단하는거 해제 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
-kissjav.com#@##guard-overlay:remove()
-
-
+!kissjav.com#@##guard-overlay:remove()
 ! - 팝업 방지
 !||pemsrv.com^$popup
 !||62ad.com^$popup
@@ -4541,6 +4543,8 @@ _ads_
 !!! 광역
 
 ! - https://06.avsee.ru/
+! - 자브걸 (https://kr27.javgirl.co/)
+! - 티비핫 (https://tvhot.store/)
 ##a[target*="blank"] > img[src*=".gif"]
 
 
@@ -4549,18 +4553,33 @@ _ads_
 
 
 ! - 티비위키 (https://tvwiki19.net/)
+! - 티비몬 (https://tvmon.site/)
+! - 티비핫 (https://tvhot.store/)
 ! - 와이고수 (https://ygosu.com/)
+! - 자브걸 (https://kr27.javgirl.co/)
 !##a[target="_blank"]:has(img[src*="/banner/"])
 !##a[target*="blank"] img[src*="banner"]
 ##a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
+! - 예외
+auction.co.kr#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
+coupang.com#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
+gmarket.co.kr#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
 
 
+
+
+! - 티비몬 (https://tvmon.site/)
+! - 티비핫 (https://tvhot.store/)
 ! - https://nunting.kr/
+! - 자브걸 (https://kr27.javgirl.co/)
 !##div:has(> a[target="_blank"] > img[src*="/banner/"])
 ! - 아래 규칙으로 하면 아무것도 안보임
 !##div:has(a[target="_blank"] img[src*="banner"])
 !##a[target*="blank"] img[src*="banner"]
 ##div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
+! - 예외
+coupang.com#@#div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
+gmarket.co.kr#@#div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
 
 
 
@@ -4877,6 +4896,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ! - https://avple.tv/
+! - https://chzzk.naver.com/
 ##*:has(> iframe[src*="event"]):not(html):not(body)
 
 
