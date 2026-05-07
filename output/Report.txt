@@ -1,13 +1,19 @@
 ======================================================================
   Filter Extraction Report
-  Generated: 2026-05-07 01:26:22 UTC
+  Generated: 2026-05-07 01:34:43 UTC
 ======================================================================
 
-[ Reference Filter ]
+[ Primary Reference Filter (1st pass: not-in-set => REMOVE) ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
-        Lines   : 167,743   Domains: 165,254
+        Lines   : 167,743   Domains: 165,250
+
+[ Secondary Reference Filter (2nd pass: not-in-set => MOVE TO WHITELIST) ]
+----------------------------------------------------------------------
+  [OK]  HaGeZi DNS Blocklist
+        URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
+        Lines   : 161,190   Domains: 161,163
 
 [ External Whitelist Sources ]
 ----------------------------------------------------------------------
@@ -64,11 +70,8 @@
   [OK]  uBlock Filters
         URL       : https://ublockorigin.github.io/uAssets/filters/filters.txt
         Lines     : 11,089   Extracted: 50   New: 33
-  [OK]  HaGeZi DNS Blocklist
-        URL       : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
-        Lines     : 161,190   Extracted: 161,163   New: 110,293
 
-[ Personal Blocklist (Overrides External Whitelist, Skips Reference Validation) ]
+[ Personal Blocklist (Overrides External Whitelist, Skips ALL Validation) ]
 ----------------------------------------------------------------------
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
@@ -87,26 +90,53 @@
 [ Overlap Analysis (per filter) ]
 ----------------------------------------------------------------------
   Filter                            Extracted        New     Unique
-  AdGuard Base                         66,651     66,651     22,362
-  AdGuard Mobile                          908        890        229
-  AdGuard Japanese                        169        156         19
-  AdGuard Chinese                       6,134      6,118        521
-  List-KR                                 353        266         83
-  uBlock Filters                           50         33          5
-  HaGeZi DNS Blocklist                161,163    110,293    110,293
+  AdGuard Base                         66,651     66,651     66,553
+  AdGuard Mobile                          908        890        843
+  AdGuard Japanese                        169        156        156
+  AdGuard Chinese                       6,134      6,118      6,118
+  List-KR                                 353        266        266
+  uBlock Filters                           50         33         33
 
-[ Reference Filter Validation ]
+[ Step 1: Primary Reference Validation (15.txt) ]
 ----------------------------------------------------------------------
-  Before              : 184,407
-  Removed (not in ref): 91,502
-  After               : 92,905
+  Action              : REMOVE domains not in reference
+  Before              : 74,114
+  Removed             : 4,984
+  After               : 69,130
+
+[ Step 2: Secondary Reference Validation (HaGeZi multi.txt) ]
+----------------------------------------------------------------------
+  Action              : MOVE domains not in reference to WHITELIST
+  Before              : 69,130
+  Moved to whitelist  : 19,091
+  After (block kept)  : 50,039
+
+[ Step 3: Apply External Whitelist ]
+----------------------------------------------------------------------
+  Before              : 50,039
+  Removed by whitelist: 1
+  After               : 50,038
+
+[ Step 4: Apply Personal Blocklist (force-add) ]
+----------------------------------------------------------------------
+  Personal block size : 0
+  Forced black        : 0  (overrode whitelist)
+  Block set after     : 50,038
+
+[ Step 5: Apply Personal Whitelist (final override) ]
+----------------------------------------------------------------------
+  Personal white size : 3
+  Forced white        : 1  (overrode block)
+  Final block         : 50,037
+  Final exception     : 25,500
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Raw domains collected           : 184,407
-  2. Removed by reference filter     : 91,502
-  3. Removed by external whitelist   : 28
-  4. Personal block added            : 0  (forced black: 0)
-  5. Personal white applied          : 3  (forced white: 2)
-  6. Final Block Rules               : 92,875
-  7. Final Exception Rules           : 6,435
+  1. Raw domains collected           : 74,114
+  2. Removed by primary ref (15.txt) : 4,984
+  3. Moved to whitelist by HaGeZi    : 19,091
+  4. Removed by external whitelist   : 1
+  5. Personal block added            : 0  (forced black: 0)
+  6. Personal white applied          : 3  (forced white: 1)
+  7. Final Block Rules               : 50,037
+  8. Final Exception Rules           : 25,500
