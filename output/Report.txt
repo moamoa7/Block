@@ -1,30 +1,30 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-07 15:08:14 UTC
+  Generated: 2026-05-07 17:12:23 UTC
 ======================================================================
 
 [ Reference Filters ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
-        Lines   : 164,942   Domains: 162,447
+        Lines   : 164,991   Domains: 162,488
   [OK]  HaGeZi DNS Blocklist
         URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
         Lines   : 157,127   Domains: 157,102
 
 [ Step 1: Build Base Block List (Intersection) ]
 ----------------------------------------------------------------------
-  AdGuard DNS Filter (15.txt) : 162,447
+  AdGuard DNS Filter (15.txt) : 162,488
   HaGeZi multi.txt            : 157,102
   Intersection (base block)   : 73,561
-  15.txt only (excluded)      : 88,886
+  15.txt only (excluded)      : 88,927
   HaGeZi only (excluded)      : 83,541
 
 [ External Whitelist Sources ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Exclusions
         URL       : https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt
-        Lines     : 1,091   Extracted: 540   New: 540
+        Lines     : 1,094   Extracted: 541   New: 541
   [OK]  AdGuard HTTPS - Banks
         URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/banks.txt
         Lines     : 3,988   Extracted: 3,978   New: 3,977
@@ -53,7 +53,7 @@
         URL       : https://raw.githubusercontent.com/Dogino/Discord-Phishing-URLs/main/official-domains.txt
         Lines     : 48   Extracted: 43   New: 42
 
-  Total whitelist domains: 6,434
+  Total whitelist domains: 6,435
 
 [ Personal Blocklist (Force-add) ]
 ----------------------------------------------------------------------
@@ -92,7 +92,7 @@
   Personal white size : 3
   Forced white        : 2  (overrode block)
   Final block         : 87,878
-  Final exception     : 6,437
+  Final exception     : 6,438
 
 [ Final Summary ]
 ----------------------------------------------------------------------
@@ -101,4 +101,4 @@
   3. Personal block added          : 14,379  (forced black: 0)
   4. Personal white applied        : 3  (forced white: 2)
   5. Final Block Rules             : 87,878
-  6. Final Exception Rules         : 6,437
+  6. Final Exception Rules         : 6,438

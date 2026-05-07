@@ -1,4 +1,4 @@
-# Generated: 2026-05-07 15:08:14 UTC
+# Generated: 2026-05-07 17:12:23 UTC
 # Block Domains: 87,878
 #
 0.0.0.0 0-800-email.com
@@ -7274,7 +7274,6 @@
 0.0.0.0 ad.juksy.com
 0.0.0.0 ad.kakaobank.com
 0.0.0.0 ad.kapos.hu
-0.0.0.0 ad.kddi-fs.com
 0.0.0.0 ad.khan.co.kr
 0.0.0.0 ad.kimcartoon.si
 0.0.0.0 ad.kirara-support.jp
@@ -53137,6 +53136,7 @@
 0.0.0.0 mocluvrxsluqj.space
 0.0.0.0 mocqmhwjcouzb.space
 0.0.0.0 mocuvmnjp1p83l2g9lgvu1qcghg3ibrg.cfd
+0.0.0.0 mod.leftnewsex.com
 0.0.0.0 modastro.ee
 0.0.0.0 modecleaning.com
 0.0.0.0 modelatos.com

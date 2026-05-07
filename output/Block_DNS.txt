@@ -1,9 +1,9 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-07 15:08:14 UTC
+! Generated: 2026-05-07 17:12:23 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method: 15.txt ∩ HaGeZi multi.txt + custom whitelist/blocklist
 ! Block Rules: 87,878
-! Exception Rules: 6,437
+! Exception Rules: 6,438
 !
 ||0-800-email.com^
 ||0-vip.com^
@@ -7278,7 +7278,6 @@
 ||ad.juksy.com^
 ||ad.kakaobank.com^
 ||ad.kapos.hu^
-||ad.kddi-fs.com^
 ||ad.khan.co.kr^
 ||ad.kimcartoon.si^
 ||ad.kirara-support.jp^
@@ -53141,6 +53140,7 @@
 ||mocluvrxsluqj.space^
 ||mocqmhwjcouzb.space^
 ||mocuvmnjp1p83l2g9lgvu1qcghg3ibrg.cfd^
+||mod.leftnewsex.com^
 ||modastro.ee^
 ||modecleaning.com^
 ||modelatos.com^
@@ -88022,6 +88022,7 @@
 @@||ad.adverticum.net^
 @@||ad.doubleclick.net^
 @@||ad.dyntracker.de^
+@@||ad.kddi-fs.com^
 @@||ad.lifesight.io^
 @@||ad.nwi.jp^
 @@||adaxxcloud.com^
