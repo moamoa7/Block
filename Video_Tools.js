@@ -7,6 +7,8 @@
 // @exclude      *://challenges.cloudflare.com/*
 // @grant        none
 // @run-at       document-start
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 // ==/UserScript==
 
 (() => {
