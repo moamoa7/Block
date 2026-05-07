@@ -31,17 +31,17 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 
 ※ adguard_gallery.txt
 <br/>
-- 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포힌 필터
+애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포힌 필터
 <br/>
-- 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter
+홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter
 <br/>
-- 2026년 2월 21일 이전 주소 폐쇄
+2026년 2월 21일 이전 주소 폐쇄
 <br/>
-- 필터 계승
+필터 계승
 <br/>
-- - - 홈페이지 : https://github.com/hooray804/adguard-gallery-filter
+- 홈페이지 : https://github.com/hooray804/adguard-gallery-filter
 <br/>
-- - - 필터
+- 필터
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 ```
