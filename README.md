@@ -92,7 +92,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 https://greasyfork.org/zh-CN/scripts/570331-html5%E8%A7%86%E9%A2%91%E6%89%8B%E5%8A%BF
 ```
 - 더블탭 (가운데 40%) 제스처 제외 모두 전체화면에서만 작동하도록 제한
-
+<br/>
 - 기능 설명
 <br/>
 ..... 더블탭 (가운데 40%) : 전체화면
