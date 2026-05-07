@@ -27,7 +27,7 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Hosts.txt
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
-<br/><br/>
+<br/>
 
 ※ adguard_gallery.txt
 <br/>
