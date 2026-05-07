@@ -109,5 +109,5 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 - 인터넷 북마크 (저장 및 백업 가능)
 
 ```
-https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
+https://raw.githubusercontent.com/moamoa7/adblock/main/bookmark.js
 ```
