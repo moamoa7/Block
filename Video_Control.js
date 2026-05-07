@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v32.0.5)
+// @name         Video_Control (v32.0.6)
 // @namespace    https://github.com/moamoa7
-// @version      32.0.5
-// @description  v32.0.5: 샤프 강도 조정 (단계별 증가폭 조정)
+// @version      32.0.6
+// @description  v32.0.6: 크롬계열 브라우저 일부 사용 범위 확대
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -23,7 +23,7 @@
 (function () {
   'use strict';
 
-  if (!window.chrome && !navigator.userAgentData) return;
+  if (typeof MutationObserver !== 'function' || typeof requestAnimationFrame !== 'function') return;
   if (location.href.includes('/cdn-cgi/') || location.protocol === 'about:' || location.href === 'about:blank') return;
   if (window.__vsc_booted) return;
   window.__vsc_booted = true;
@@ -31,7 +31,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '32.0.5';
+  const VSC_VERSION = '32.0.6';
   const DEBUG = false;
 
   const log = {
