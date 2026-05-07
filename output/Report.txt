@@ -1,19 +1,24 @@
 ======================================================================
-  Filter Extraction Report
-  Generated: 2026-05-07 01:34:43 UTC
+  Filter Extraction Report (Intersection-based)
+  Generated: 2026-05-07 02:00:41 UTC
 ======================================================================
 
-[ Primary Reference Filter (1st pass: not-in-set => REMOVE) ]
+[ Reference Filters ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
         Lines   : 167,743   Domains: 165,250
-
-[ Secondary Reference Filter (2nd pass: not-in-set => MOVE TO WHITELIST) ]
-----------------------------------------------------------------------
   [OK]  HaGeZi DNS Blocklist
         URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
         Lines   : 161,190   Domains: 161,163
+
+[ Step 1: Build Base Block List (Intersection) ]
+----------------------------------------------------------------------
+  AdGuard DNS Filter (15.txt) : 165,250
+  HaGeZi multi.txt            : 161,163
+  Intersection (base block)   : 73,813
+  15.txt only (excluded)      : 91,437
+  HaGeZi only (excluded)      : 87,350
 
 [ External Whitelist Sources ]
 ----------------------------------------------------------------------
@@ -48,36 +53,15 @@
         URL       : https://raw.githubusercontent.com/Dogino/Discord-Phishing-URLs/main/official-domains.txt
         Lines     : 48   Extracted: 43   New: 42
 
-  Total whitelist domains (deduplicated): 6,432
+  Total whitelist domains: 6,432
 
-[ Block Filter Sources ]
-----------------------------------------------------------------------
-  [OK]  AdGuard Base
-        URL       : https://filters.adtidy.org/windows/filters/2.txt
-        Lines     : 158,939   Extracted: 66,651   New: 66,651
-  [OK]  AdGuard Mobile
-        URL       : https://filters.adtidy.org/windows/filters/11.txt
-        Lines     : 9,546   Extracted: 908   New: 890
-  [OK]  AdGuard Japanese
-        URL       : https://filters.adtidy.org/windows/filters/7.txt
-        Lines     : 12,548   Extracted: 169   New: 156
-  [OK]  AdGuard Chinese
-        URL       : https://filters.adtidy.org/windows/filters/224.txt
-        Lines     : 23,188   Extracted: 6,134   New: 6,118
-  [OK]  List-KR
-        URL       : https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt
-        Lines     : 4,600   Extracted: 353   New: 266
-  [OK]  uBlock Filters
-        URL       : https://ublockorigin.github.io/uAssets/filters/filters.txt
-        Lines     : 11,089   Extracted: 50   New: 33
-
-[ Personal Blocklist (Overrides External Whitelist, Skips ALL Validation) ]
+[ Personal Blocklist (Force-add) ]
 ----------------------------------------------------------------------
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
         Lines     : 1   Extracted: 0
 
-  Total personal block (deduplicated): 0
+  Total personal block: 0
 
 [ Personal Whitelist (Final Override) ]
 ----------------------------------------------------------------------
@@ -85,58 +69,33 @@
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt
         Lines     : 6   Extracted: 3
 
-  Total personal white (deduplicated): 3
+  Total personal white: 3
 
-[ Overlap Analysis (per filter) ]
+[ Step 2: Apply External Whitelist ]
 ----------------------------------------------------------------------
-  Filter                            Extracted        New     Unique
-  AdGuard Base                         66,651     66,651     66,553
-  AdGuard Mobile                          908        890        843
-  AdGuard Japanese                        169        156        156
-  AdGuard Chinese                       6,134      6,118      6,118
-  List-KR                                 353        266        266
-  uBlock Filters                           50         33         33
+  Before              : 73,813
+  Removed by whitelist: 2
+  After               : 73,811
 
-[ Step 1: Primary Reference Validation (15.txt) ]
-----------------------------------------------------------------------
-  Action              : REMOVE domains not in reference
-  Before              : 74,114
-  Removed             : 4,984
-  After               : 69,130
-
-[ Step 2: Secondary Reference Validation (HaGeZi multi.txt) ]
-----------------------------------------------------------------------
-  Action              : MOVE domains not in reference to WHITELIST
-  Before              : 69,130
-  Moved to whitelist  : 19,091
-  After (block kept)  : 50,039
-
-[ Step 3: Apply External Whitelist ]
-----------------------------------------------------------------------
-  Before              : 50,039
-  Removed by whitelist: 1
-  After               : 50,038
-
-[ Step 4: Apply Personal Blocklist (force-add) ]
+[ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
   Personal block size : 0
+  New (not in base)   : 0
   Forced black        : 0  (overrode whitelist)
-  Block set after     : 50,038
+  Block set after     : 73,811
 
-[ Step 5: Apply Personal Whitelist (final override) ]
+[ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
-  Forced white        : 1  (overrode block)
-  Final block         : 50,037
-  Final exception     : 25,500
+  Forced white        : 2  (overrode block)
+  Final block         : 73,809
+  Final exception     : 6,435
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Raw domains collected           : 74,114
-  2. Removed by primary ref (15.txt) : 4,984
-  3. Moved to whitelist by HaGeZi    : 19,091
-  4. Removed by external whitelist   : 1
-  5. Personal block added            : 0  (forced black: 0)
-  6. Personal white applied          : 3  (forced white: 1)
-  7. Final Block Rules               : 50,037
-  8. Final Exception Rules           : 25,500
+  1. Base block (15.txt ∩ HaGeZi)  : 73,813
+  2. Removed by external whitelist : 2
+  3. Personal block added          : 0  (forced black: 0)
+  4. Personal white applied        : 3  (forced white: 2)
+  5. Final Block Rules             : 73,809
+  6. Final Exception Rules         : 6,435
