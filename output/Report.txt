@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-07 19:09:39 UTC
+  Generated: 2026-05-07 20:44:43 UTC
 ======================================================================
 
 [ Reference Filters ]
@@ -10,15 +10,15 @@
         Lines   : 164,997   Domains: 162,494
   [OK]  HaGeZi DNS Blocklist
         URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
-        Lines   : 157,127   Domains: 157,102
+        Lines   : 157,036   Domains: 157,011
 
 [ Step 1: Build Base Block List (Intersection) ]
 ----------------------------------------------------------------------
   AdGuard DNS Filter (15.txt) : 162,494
-  HaGeZi multi.txt            : 157,102
-  Intersection (base block)   : 73,561
-  15.txt only (excluded)      : 88,933
-  HaGeZi only (excluded)      : 83,541
+  HaGeZi multi.txt            : 157,011
+  Intersection (base block)   : 73,636
+  15.txt only (excluded)      : 88,858
+  HaGeZi only (excluded)      : 83,375
 
 [ External Whitelist Sources ]
 ----------------------------------------------------------------------
@@ -76,29 +76,29 @@
 
 [ Step 2: Apply External Whitelist ]
 ----------------------------------------------------------------------
-  Before              : 73,561
+  Before              : 73,636
   Removed by whitelist: 2
-  After               : 73,559
+  After               : 73,634
 
 [ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
   Personal block size : 14,379
   New (not in base)   : 14,321
   Forced black        : 0  (overrode whitelist)
-  Block set after     : 87,880
+  Block set after     : 87,955
 
 [ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
   Forced white        : 2  (overrode block)
-  Final block         : 87,878
+  Final block         : 87,953
   Final exception     : 6,438
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Base block (15.txt ∩ HaGeZi)  : 73,561
+  1. Base block (15.txt ∩ HaGeZi)  : 73,636
   2. Removed by external whitelist : 2
   3. Personal block added          : 14,379  (forced black: 0)
   4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 87,878
+  5. Final Block Rules             : 87,953
   6. Final Exception Rules         : 6,438
