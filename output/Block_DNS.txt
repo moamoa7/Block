@@ -1,8 +1,8 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-07 20:44:43 UTC
+! Generated: 2026-05-07 21:42:57 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method: 15.txt ∩ HaGeZi multi.txt + custom whitelist/blocklist
-! Block Rules: 87,953
+! Block Rules: 87,962
 ! Exception Rules: 6,438
 !
 ||0-800-email.com^
@@ -7732,6 +7732,7 @@
 ||adexchangeguru.com^
 ||adexchangemachine.com^
 ||adexchangeprediction.com^
+||adexchangerapid.com^
 ||adexchangetracker.com^
 ||adexcite.com^
 ||adexmedias.com^
@@ -8100,6 +8101,7 @@
 ||admonishdecisiveyetnow.com^
 ||admonishfistgipsy.com^
 ||admonishmentfastest.com^
+||admonishmenttub.com^
 ||admonseller.com^
 ||admost-banner.b-cdn.net^
 ||admost.com^
@@ -10760,6 +10762,7 @@
 ||alfred-design.com^
 ||alfredtrimfaith.com^
 ||algarve-cruises.com^
+||algiersreests.com^
 ||algo-crypto.com^
 ||algo-viz.com^
 ||algoavonexfin-app.com^
@@ -38354,6 +38357,7 @@
 ||fortnitechat.site^
 ||fortpush.com^
 ||fortt-rade.com^
+||fortunateambiguous.com^
 ||fortunateharrietrefresh.com^
 ||fortunatelychastise.com^
 ||fortunatelysymptom.com^
@@ -40294,6 +40298,7 @@
 ||gno-protect.pro^
 ||gnogpydailnh.com^
 ||gnojiqwj.com^
+||gnomesyeuked.com^
 ||gnomistwheezycanful.cfd^
 ||gnomonsgashly.com^
 ||gnorgi.click^
@@ -49533,6 +49538,7 @@
 ||logshandgripquarterback.com^
 ||logsink.zedge.net^
 ||logsk.glomancloud.gr^
+||logsoutfittick.com^
 ||logssug.ucweb.com^
 ||logtake.weidian.com^
 ||logua.com^
@@ -66306,6 +66312,7 @@
 ||securityannex.net^
 ||securitycheckonline.com^
 ||securityinvaluableanne.com^
+||sedatesturine.cfd^
 ||sedatingnews.com^
 ||sedativequickie.com^
 ||sedge.aarp.org^
@@ -77837,6 +77844,7 @@
 ||triplumpolymny.com^
 ||tripod.lycos.com^
 ||tripscheckblissful.com^
+||tripsisvellums.com^
 ||tripsthorpelemonade.com^
 ||trissinted.com^
 ||tristaspd.com^
@@ -81150,6 +81158,7 @@
 ||vetchesthiever.com^
 ||veterancommentary.com^
 ||vetofellowshipfly.com^
+||vetooograph.com^
 ||vetoplain.com^
 ||vetxpx.icu^
 ||veuf2obzc8.com^
