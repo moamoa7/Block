@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 """
-DNS Block/Allow List Generator
-- Fetches multiple filter sources and merges them
-- Validation chain:
-    1) AdGuard DNS Filter (15.txt) - domains not in this set are removed
-    2) HaGeZi multi.txt              - domains not in this set are moved to whitelist
-- Priority: General < External Whitelist < Personal Blocklist < Personal Whitelist
+DNS Block/Allow List Generator (Intersection-based)
+- Block list = AdGuard DNS Filter (15.txt) ∩ HaGeZi multi.txt
+- Then apply: External Whitelist -> Personal Blocklist -> Personal Whitelist
 - Outputs: Block_DNS.txt, Block_Domains.txt, Block_Hosts.txt, Report.txt
 """
 
@@ -17,18 +14,11 @@ from urllib.request import urlopen, Request
 
 # ==================== Configuration ====================
 
-# General block filter sources (HaGeZi removed - now used as secondary reference)
-FILTER_URLS = [
-#   "https://easylist-downloads.adblockplus.org/easylist.txt",
-    "https://filters.adtidy.org/windows/filters/2.txt",     # AdGuard Base
-    "https://filters.adtidy.org/windows/filters/11.txt",    # AdGuard Mobile
-    "https://filters.adtidy.org/windows/filters/7.txt",     # AdGuard Japanese
-    "https://filters.adtidy.org/windows/filters/224.txt",   # AdGuard Chinese
-    "https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt",
-    "https://ublockorigin.github.io/uAssets/filters/filters.txt",
-]
+# Two reference filters - intersection becomes the base block list
+PRIMARY_FILTER_URL = "https://filters.adtidy.org/windows/filters/15.txt"
+SECONDARY_FILTER_URL = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt"
 
-# External whitelist sources (curated - trusted only)
+# External whitelist sources
 EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
     "https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/banks.txt",
@@ -42,9 +32,8 @@ EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/Dogino/Discord-Phishing-URLs/main/official-domains.txt",
 ]
 
-# Personal blocklist (overrides external whitelist + skips ALL validation)
+# Personal blocklist (force-add - overrides external whitelist)
 PERSONAL_BLOCK_URLS = [
-#   "https://raw.githubusercontent.com/sjhgvr/oisd/refs/heads/main/oisd_small.txt",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
 ]
 
@@ -52,12 +41,6 @@ PERSONAL_BLOCK_URLS = [
 PERSONAL_WHITE_URLS = [
     "https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt",
 ]
-
-# Primary reference filter (1st pass): domains not in this set are REMOVED
-REFERENCE_URL = "https://filters.adtidy.org/windows/filters/15.txt"
-
-# Secondary reference filter (2nd pass): domains not in this set are MOVED TO WHITELIST
-SECONDARY_REFERENCE_URL = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt"
 
 # Output paths
 OUTPUT_DIR = Path("output")
@@ -80,7 +63,7 @@ def fetch(url: str, retries: int = 3, timeout: int = 30) -> str:
         except Exception as e:
             last_err = e
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)  # 1s, 2s, 4s
+                time.sleep(2 ** attempt)
     raise last_err
 
 
@@ -96,16 +79,8 @@ def is_valid_domain(d: str) -> bool:
 
 def short_name(url: str) -> str:
     mapping = [
-#       ("easylist.txt", "EasyList"),
-        ("filters/2.txt", "AdGuard Base"),
-        ("filters/11.txt", "AdGuard Mobile"),
-        ("filters/7.txt", "AdGuard Japanese"),
-        ("filters/224.txt", "AdGuard Chinese"),
         ("filters/15.txt", "AdGuard DNS Filter"),
-        ("list-kr", "List-KR"),
-        ("uAssets", "uBlock Filters"),
         ("adblock/multi.txt", "HaGeZi DNS Blocklist"),
- #      ("oisd_small.txt", "oisd small"),
         ("main/block.txt", "Personal Blocklist"),
         ("main/white.txt", "Personal Whitelist"),
         ("AdGuardSDNSFilter", "AdGuard DNS Exclusions"),
@@ -127,7 +102,7 @@ def short_name(url: str) -> str:
 
 
 def extract_block_domains(text: str) -> set:
-    """Extract domains from AdGuard-style block rules: ||domain^ (with optional $popup/$document)."""
+    """Extract domains from AdGuard-style block rules: ||domain^"""
     out = set()
     pat = re.compile(r"^\|\|([a-z0-9\-\.]+)\^(\$(popup|document)(,(popup|document))?)?\s*$")
     for line in text.splitlines():
@@ -146,7 +121,7 @@ def extract_whitelist_domains(text: str) -> set:
       - AdGuard block rules:    ||domain^
       - AdGuard exception:      @@||domain^
       - Plain domains:          example.com
-      - Hosts-style lines:      0.0.0.0 example.com  /  127.0.0.1 example.com
+      - Hosts-style lines:      0.0.0.0 example.com
     """
     out = set()
     for line in text.splitlines():
@@ -163,7 +138,6 @@ def extract_whitelist_domains(text: str) -> set:
             if m:
                 domain = m.group(1)
             else:
-                # hosts-style or plain domain
                 parts = s.split()
                 cand = parts[-1] if parts else ""
                 if is_valid_domain(cand):
@@ -174,22 +148,20 @@ def extract_whitelist_domains(text: str) -> set:
     return out
 
 
-def fetch_reference_set(url: str, label: str, report: list) -> set:
-    """Fetch a reference filter and extract its block domains."""
-    ref_set = set()
-    report.append(f"\n[ {label} ]")
-    report.append("-" * 70)
+def fetch_filter_set(url: str, label: str, report: list) -> set:
+    """Fetch a filter and extract its block domains."""
+    result = set()
     try:
         txt = fetch(url)
         total_lines = len(txt.splitlines())
-        ref_set = extract_block_domains(txt)
+        result = extract_block_domains(txt)
         report.append(f"  [OK]  {short_name(url)}")
         report.append(f"        URL     : {url}")
-        report.append(f"        Lines   : {total_lines:,}   Domains: {len(ref_set):,}")
+        report.append(f"        Lines   : {total_lines:,}   Domains: {len(result):,}")
     except Exception as e:
         report.append(f"  [FAIL] {label}: {e}")
         print(f"[WARN] {label} failed: {e}")
-    return ref_set
+    return result
 
 
 # ==================== Main ====================
@@ -200,25 +172,37 @@ def main():
     bar = "=" * 70
 
     report.append(bar)
-    report.append("  Filter Extraction Report")
+    report.append("  Filter Extraction Report (Intersection-based)")
     report.append(f"  Generated: {ts}")
     report.append(bar)
 
-    # --- 0a. Primary Reference Filter (15.txt) ---
-    reference_set = fetch_reference_set(
-        REFERENCE_URL,
-        "Primary Reference Filter (1st pass: not-in-set => REMOVE)",
-        report
-    )
+    # --- 1. Fetch Two Reference Filters ---
+    report.append("\n[ Reference Filters ]")
+    report.append("-" * 70)
+    primary_set = fetch_filter_set(PRIMARY_FILTER_URL, "Primary (15.txt)", report)
+    secondary_set = fetch_filter_set(SECONDARY_FILTER_URL, "Secondary (HaGeZi)", report)
 
-    # --- 0b. Secondary Reference Filter (HaGeZi multi.txt) ---
-    secondary_ref_set = fetch_reference_set(
-        SECONDARY_REFERENCE_URL,
-        "Secondary Reference Filter (2nd pass: not-in-set => MOVE TO WHITELIST)",
-        report
-    )
+    # --- 2. Build Base Block List = Intersection ---
+    report.append("\n[ Step 1: Build Base Block List (Intersection) ]")
+    report.append("-" * 70)
+    if primary_set and secondary_set:
+        base_block_set = primary_set & secondary_set
+        report.append(f"  AdGuard DNS Filter (15.txt) : {len(primary_set):,}")
+        report.append(f"  HaGeZi multi.txt            : {len(secondary_set):,}")
+        report.append(f"  Intersection (base block)   : {len(base_block_set):,}")
+        report.append(f"  15.txt only (excluded)      : {len(primary_set - secondary_set):,}")
+        report.append(f"  HaGeZi only (excluded)      : {len(secondary_set - primary_set):,}")
+    elif primary_set:
+        base_block_set = primary_set
+        report.append(f"  [WARN] HaGeZi unavailable - using 15.txt only: {len(base_block_set):,}")
+    elif secondary_set:
+        base_block_set = secondary_set
+        report.append(f"  [WARN] 15.txt unavailable - using HaGeZi only: {len(base_block_set):,}")
+    else:
+        base_block_set = set()
+        report.append("  [ERROR] Both filters unavailable - empty block list")
 
-    # --- 1. External Whitelist ---
+    # --- 3. External Whitelist ---
     white_set = set()
     report.append("\n[ External Whitelist Sources ]")
     report.append("-" * 70)
@@ -236,35 +220,11 @@ def main():
             report.append(f"        Lines     : {total:,}   Extracted: {len(domains):,}   New: {added:,}")
         except Exception as e:
             report.append(f"  [FAIL] {name} - {e}")
+    report.append(f"\n  Total whitelist domains: {len(white_set):,}")
 
-    report.append(f"\n  Total whitelist domains (deduplicated): {len(white_set):,}")
-
-    # --- 2. General Block Filters ---
-    raw_block_set = set()
-    filter_domains = {}
-    names = []
-    report.append("\n[ Block Filter Sources ]")
-    report.append("-" * 70)
-    for url in FILTER_URLS:
-        name = short_name(url)
-        try:
-            txt = fetch(url)
-            total = len(txt.splitlines())
-            domains = extract_block_domains(txt)
-            before = len(raw_block_set)
-            raw_block_set.update(domains)
-            new_count = len(raw_block_set) - before
-            filter_domains[name] = domains
-            names.append(name)
-            report.append(f"  [OK]  {name}")
-            report.append(f"        URL       : {url}")
-            report.append(f"        Lines     : {total:,}   Extracted: {len(domains):,}   New: {new_count:,}")
-        except Exception as e:
-            report.append(f"  [FAIL] {name} - {e}")
-
-    # --- 3. Personal Blocklist ---
+    # --- 4. Personal Blocklist ---
     personal_block_set = set()
-    report.append("\n[ Personal Blocklist (Overrides External Whitelist, Skips ALL Validation) ]")
+    report.append("\n[ Personal Blocklist (Force-add) ]")
     report.append("-" * 70)
     for url in PERSONAL_BLOCK_URLS:
         name = short_name(url)
@@ -278,9 +238,9 @@ def main():
             report.append(f"        Lines     : {total:,}   Extracted: {len(ds):,}")
         except Exception as e:
             report.append(f"  [FAIL] {name} - {e}")
-    report.append(f"\n  Total personal block (deduplicated): {len(personal_block_set):,}")
+    report.append(f"\n  Total personal block: {len(personal_block_set):,}")
 
-    # --- 4. Personal Whitelist ---
+    # --- 5. Personal Whitelist ---
     personal_white_set = set()
     report.append("\n[ Personal Whitelist (Final Override) ]")
     report.append("-" * 70)
@@ -296,86 +256,38 @@ def main():
             report.append(f"        Lines     : {total:,}   Extracted: {len(ds):,}")
         except Exception as e:
             report.append(f"  [FAIL] {name} - {e}")
-    report.append(f"\n  Total personal white (deduplicated): {len(personal_white_set):,}")
-
-    # --- 5. Overlap Analysis ---
-    report.append("\n[ Overlap Analysis (per filter) ]")
-    report.append("-" * 70)
-    report.append(f"  {'Filter':<32} {'Extracted':>10} {'New':>10} {'Unique':>10}")
-    seen_cum = set()
-    for name in names:
-        ds = filter_domains.get(name, set())
-        new_in_order = ds - seen_cum
-        others = set()
-        for n2, d2 in filter_domains.items():
-            if n2 != name:
-                others.update(d2)
-        unique = ds - others
-        report.append(f"  {name:<32} {len(ds):>10,} {len(new_in_order):>10,} {len(unique):>10,}")
-        seen_cum.update(ds)
+    report.append(f"\n  Total personal white: {len(personal_white_set):,}")
 
     # --- 6. Apply Priority Rules ---
-    raw_collected = len(raw_block_set)
+    base_count = len(base_block_set)
+    working_set = set(base_block_set)  # 작업용 복사본
 
-    # 6a. Primary reference validation (15.txt) - REMOVE non-matching
-    report.append("\n[ Step 1: Primary Reference Validation (15.txt) ]")
+    # Step 2: Apply external whitelist
+    report.append("\n[ Step 2: Apply External Whitelist ]")
     report.append("-" * 70)
-    before_ref = len(raw_block_set)
-    if reference_set:
-        raw_block_set &= reference_set
-        ref_removed = before_ref - len(raw_block_set)
-        report.append(f"  Action              : REMOVE domains not in reference")
-        report.append(f"  Before              : {before_ref:,}")
-        report.append(f"  Removed             : {ref_removed:,}")
-        report.append(f"  After               : {len(raw_block_set):,}")
-    else:
-        ref_removed = 0
-        report.append("  [SKIPPED] Primary reference unavailable - validation bypassed")
-        report.append(f"  Domains kept as-is  : {before_ref:,}")
-
-    # 6b. Secondary reference validation (HaGeZi) - MOVE non-matching to whitelist
-    report.append("\n[ Step 2: Secondary Reference Validation (HaGeZi multi.txt) ]")
-    report.append("-" * 70)
-    before_secondary = len(raw_block_set)
-    secondary_moved_to_white = set()
-    if secondary_ref_set:
-        # Domains in current block set but NOT in HaGeZi -> move to whitelist
-        secondary_moved_to_white = raw_block_set - secondary_ref_set
-        raw_block_set &= secondary_ref_set
-        # Add the moved domains to the external whitelist
-        white_set |= secondary_moved_to_white
-        report.append(f"  Action              : MOVE domains not in reference to WHITELIST")
-        report.append(f"  Before              : {before_secondary:,}")
-        report.append(f"  Moved to whitelist  : {len(secondary_moved_to_white):,}")
-        report.append(f"  After (block kept)  : {len(raw_block_set):,}")
-    else:
-        report.append("  [SKIPPED] Secondary reference unavailable - validation bypassed")
-        report.append(f"  Domains kept as-is  : {before_secondary:,}")
-
-    # 6c. Remove external whitelist (now includes secondary-moved domains)
-    report.append("\n[ Step 3: Apply External Whitelist ]")
-    report.append("-" * 70)
-    before_white = len(raw_block_set)
-    raw_block_set -= white_set
-    white_removed = before_white - len(raw_block_set)
-    report.append(f"  Before              : {before_white:,}")
+    before = len(working_set)
+    working_set -= white_set
+    white_removed = before - len(working_set)
+    report.append(f"  Before              : {before:,}")
     report.append(f"  Removed by whitelist: {white_removed:,}")
-    report.append(f"  After               : {len(raw_block_set):,}")
+    report.append(f"  After               : {len(working_set):,}")
 
-    # 6d. Force-add personal blocklist (overrides everything except personal whitelist)
-    report.append("\n[ Step 4: Apply Personal Blocklist (force-add) ]")
+    # Step 3: Force-add personal blocklist
+    report.append("\n[ Step 3: Apply Personal Blocklist (force-add) ]")
     report.append("-" * 70)
-    forced_black = personal_block_set & white_set  # forced from white -> black
-    raw_block_set |= personal_block_set
+    forced_black = personal_block_set & white_set
+    new_from_personal = personal_block_set - working_set
+    working_set |= personal_block_set
     report.append(f"  Personal block size : {len(personal_block_set):,}")
+    report.append(f"  New (not in base)   : {len(new_from_personal):,}")
     report.append(f"  Forced black        : {len(forced_black):,}  (overrode whitelist)")
-    report.append(f"  Block set after     : {len(raw_block_set):,}")
+    report.append(f"  Block set after     : {len(working_set):,}")
 
-    # 6e. Apply personal whitelist (TRUE final override - beats personal block too)
-    report.append("\n[ Step 5: Apply Personal Whitelist (final override) ]")
+    # Step 4: Apply personal whitelist (true final override)
+    report.append("\n[ Step 4: Apply Personal Whitelist (final override) ]")
     report.append("-" * 70)
-    forced_white = personal_white_set & raw_block_set
-    final_block_set = raw_block_set - personal_white_set
+    forced_white = personal_white_set & working_set
+    final_block_set = working_set - personal_white_set
     final_white_set = (white_set - personal_block_set) | personal_white_set
     report.append(f"  Personal white size : {len(personal_white_set):,}")
     report.append(f"  Forced white        : {len(forced_white):,}  (overrode block)")
@@ -385,16 +297,14 @@ def main():
     # --- 7. Final Summary ---
     report.append("\n[ Final Summary ]")
     report.append("-" * 70)
-    report.append(f"  1. Raw domains collected           : {raw_collected:,}")
-    report.append(f"  2. Removed by primary ref (15.txt) : {ref_removed:,}")
-    report.append(f"  3. Moved to whitelist by HaGeZi    : {len(secondary_moved_to_white):,}")
-    report.append(f"  4. Removed by external whitelist   : {white_removed:,}")
-    report.append(f"  5. Personal block added            : {len(personal_block_set):,}  "
+    report.append(f"  1. Base block (15.txt ∩ HaGeZi)  : {base_count:,}")
+    report.append(f"  2. Removed by external whitelist : {white_removed:,}")
+    report.append(f"  3. Personal block added          : {len(personal_block_set):,}  "
                   f"(forced black: {len(forced_black):,})")
-    report.append(f"  6. Personal white applied          : {len(personal_white_set):,}  "
+    report.append(f"  4. Personal white applied        : {len(personal_white_set):,}  "
                   f"(forced white: {len(forced_white):,})")
-    report.append(f"  7. Final Block Rules               : {len(final_block_set):,}")
-    report.append(f"  8. Final Exception Rules           : {len(final_white_set):,}")
+    report.append(f"  5. Final Block Rules             : {len(final_block_set):,}")
+    report.append(f"  6. Final Exception Rules         : {len(final_white_set):,}")
 
     # --- 8. Write Output Files ---
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -403,12 +313,12 @@ def main():
         f"! Title: Personal Block/Allow List (DNS)\n"
         f"! Generated: {ts}\n"
         f"! Homepage: https://github.com/moamoa7/adblock\n"
+        f"! Method: 15.txt ∩ HaGeZi multi.txt + custom whitelist/blocklist\n"
         f"! Block Rules: {len(final_block_set):,}\n"
         f"! Exception Rules: {len(final_white_set):,}\n"
         f"!\n"
     )
 
-    # Block_DNS.txt — AdGuard format with exceptions
     with open(OUT_COMBINED, "w", encoding="utf-8") as f:
         f.write(header)
         for d in sorted(final_block_set):
@@ -417,26 +327,22 @@ def main():
         for d in sorted(final_white_set):
             f.write(f"@@||{d}^\n")
 
-    # Block_Domains.txt — plain domain list
     with open(OUT_DOMAINS, "w", encoding="utf-8") as f:
         f.write(f"# Generated: {ts}\n")
         f.write(f"# Block Domains: {len(final_block_set):,}\n#\n")
         for d in sorted(final_block_set):
             f.write(f"{d}\n")
 
-    # Block_Hosts.txt — hosts file format
     with open(OUT_HOSTS, "w", encoding="utf-8") as f:
         f.write(f"# Generated: {ts}\n")
         f.write(f"# Block Domains: {len(final_block_set):,}\n#\n")
         for d in sorted(final_block_set):
             f.write(f"0.0.0.0 {d}\n")
 
-    # Report.txt
     with open(OUT_REPORT, "w", encoding="utf-8") as f:
         f.write("\n".join(report))
         f.write("\n")
 
-    # Console output
     print("\n".join(report))
     print(f"\n[DONE] Output files written to: {OUTPUT_DIR.resolve()}")
     print(f"  - {OUT_COMBINED.name}    ({len(final_block_set):,} block + {len(final_white_set):,} except)")
