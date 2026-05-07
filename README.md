@@ -36,7 +36,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 <br/>
 
 계승 홈페이지 : https://github.com/hooray804/adguard-gallery-filter
-<br/>
+<br/><br/>
 
 - 필터
 ```
