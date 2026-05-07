@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report
-  Generated: 2026-05-06 23:38:13 UTC
+  Generated: 2026-05-07 01:17:41 UTC
 ======================================================================
 
 [ Reference Filter ]
@@ -46,12 +46,9 @@
 
 [ Block Filter Sources ]
 ----------------------------------------------------------------------
-  [OK]  EasyList
-        URL       : https://easylist-downloads.adblockplus.org/easylist.txt
-        Lines     : 90,536   Extracted: 57,867   New: 57,867
   [OK]  AdGuard Base
         URL       : https://filters.adtidy.org/windows/filters/2.txt
-        Lines     : 158,936   Extracted: 66,648   New: 8,786
+        Lines     : 158,939   Extracted: 66,651   New: 66,651
   [OK]  AdGuard Mobile
         URL       : https://filters.adtidy.org/windows/filters/11.txt
         Lines     : 9,546   Extracted: 908   New: 890
@@ -60,7 +57,7 @@
         Lines     : 12,548   Extracted: 169   New: 156
   [OK]  AdGuard Chinese
         URL       : https://filters.adtidy.org/windows/filters/224.txt
-        Lines     : 23,183   Extracted: 6,129   New: 6,113
+        Lines     : 23,188   Extracted: 6,134   New: 6,118
   [OK]  List-KR
         URL       : https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-AdGuard-classic.txt
         Lines     : 4,600   Extracted: 353   New: 266
@@ -90,25 +87,24 @@
 [ Overlap Analysis (per filter) ]
 ----------------------------------------------------------------------
   Filter                            Extracted        New     Unique
-  EasyList                             57,867     57,867          5
-  AdGuard Base                         66,648      8,786      4,624
+  AdGuard Base                         66,651     66,651     22,362
   AdGuard Mobile                          908        890        229
   AdGuard Japanese                        169        156         19
-  AdGuard Chinese                       6,129      6,113        516
+  AdGuard Chinese                       6,134      6,118        521
   List-KR                                 353        266         83
   uBlock Filters                           50         33          5
   HaGeZi DNS Blocklist                161,163    110,293    110,293
 
 [ Reference Filter Validation ]
 ----------------------------------------------------------------------
-  Before              : 184,404
-  Removed (not in ref): 91,499
+  Before              : 184,407
+  Removed (not in ref): 91,502
   After               : 92,905
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Raw domains collected           : 184,404
-  2. Removed by reference filter     : 91,499
+  1. Raw domains collected           : 184,407
+  2. Removed by reference filter     : 91,502
   3. Removed by external whitelist   : 28
   4. Personal block added            : 0  (forced black: 0)
   5. Personal white applied          : 3  (forced white: 2)
