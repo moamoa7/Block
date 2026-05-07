@@ -18,6 +18,8 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @allFrames    true
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 // ==/UserScript==
 
 (function () {
