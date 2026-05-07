@@ -1,23 +1,23 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-07 02:00:41 UTC
+  Generated: 2026-05-07 03:17:05 UTC
 ======================================================================
 
 [ Reference Filters ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
-        Lines   : 167,743   Domains: 165,250
+        Lines   : 167,768   Domains: 165,275
   [OK]  HaGeZi DNS Blocklist
         URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
         Lines   : 161,190   Domains: 161,163
 
 [ Step 1: Build Base Block List (Intersection) ]
 ----------------------------------------------------------------------
-  AdGuard DNS Filter (15.txt) : 165,250
+  AdGuard DNS Filter (15.txt) : 165,275
   HaGeZi multi.txt            : 161,163
   Intersection (base block)   : 73,813
-  15.txt only (excluded)      : 91,437
+  15.txt only (excluded)      : 91,462
   HaGeZi only (excluded)      : 87,350
 
 [ External Whitelist Sources ]
@@ -57,11 +57,14 @@
 
 [ Personal Blocklist (Force-add) ]
 ----------------------------------------------------------------------
+  [OK]  HaGeZi TIF (Top-N)
+        URL       : https://raw.githubusercontent.com/cbuijs/hagezi/main/lists/tif/domains.top-n.adblock
+        Lines     : 14,385   Extracted: 14,379
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
         Lines     : 1   Extracted: 0
 
-  Total personal block: 0
+  Total personal block: 14,379
 
 [ Personal Whitelist (Final Override) ]
 ----------------------------------------------------------------------
@@ -79,23 +82,23 @@
 
 [ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
-  Personal block size : 0
-  New (not in base)   : 0
+  Personal block size : 14,379
+  New (not in base)   : 14,321
   Forced black        : 0  (overrode whitelist)
-  Block set after     : 73,811
+  Block set after     : 88,132
 
 [ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
   Forced white        : 2  (overrode block)
-  Final block         : 73,809
+  Final block         : 88,130
   Final exception     : 6,435
 
 [ Final Summary ]
 ----------------------------------------------------------------------
   1. Base block (15.txt ∩ HaGeZi)  : 73,813
   2. Removed by external whitelist : 2
-  3. Personal block added          : 0  (forced black: 0)
+  3. Personal block added          : 14,379  (forced black: 0)
   4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 73,809
+  5. Final Block Rules             : 88,130
   6. Final Exception Rules         : 6,435
