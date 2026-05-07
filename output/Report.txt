@@ -1,23 +1,23 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-07 17:12:23 UTC
+  Generated: 2026-05-07 19:09:39 UTC
 ======================================================================
 
 [ Reference Filters ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
-        Lines   : 164,991   Domains: 162,488
+        Lines   : 164,997   Domains: 162,494
   [OK]  HaGeZi DNS Blocklist
         URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
         Lines   : 157,127   Domains: 157,102
 
 [ Step 1: Build Base Block List (Intersection) ]
 ----------------------------------------------------------------------
-  AdGuard DNS Filter (15.txt) : 162,488
+  AdGuard DNS Filter (15.txt) : 162,494
   HaGeZi multi.txt            : 157,102
   Intersection (base block)   : 73,561
-  15.txt only (excluded)      : 88,927
+  15.txt only (excluded)      : 88,933
   HaGeZi only (excluded)      : 83,541
 
 [ External Whitelist Sources ]

@@ -1,5 +1,5 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-07 17:12:23 UTC
+! Generated: 2026-05-07 19:09:39 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method: 15.txt ∩ HaGeZi multi.txt + custom whitelist/blocklist
 ! Block Rules: 87,878
