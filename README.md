@@ -88,8 +88,6 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 ※ Mobile Gesture
 - 모바일에서만 사용가능한 영상내 제스처
 - HTML5视频手势 스크립트에서 필요없는거 제거하고 만든 스크립트
-<br/>
-- 원 스크립트 주소
 ```
 https://greasyfork.org/zh-CN/scripts/570331-html5%E8%A7%86%E9%A2%91%E6%89%8B%E5%8A%BF
 ```
