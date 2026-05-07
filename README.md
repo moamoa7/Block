@@ -46,19 +46,21 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 
 - 홈페이지 : https://github.com/hooray804/adguard-gallery-filter
 <br/>
+
 - 필터
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 ```
 <br/>
+
 - 유저스크립트
 <br/>
-. 에펨코리아 익스텐션 (Gallery Extension)
-<br/>
+
+.. 에펨코리아 익스텐션 (Gallery Extension)
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js
 ```
-. 디시인사이드 엑스퍼트 익스텐션
+.. 디시인사이드 엑스퍼트 익스텐션
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js
 ```
