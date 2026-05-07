@@ -34,8 +34,8 @@ EXCLUSION_URLS = [
 
 # Personal blocklist (force-add - overrides external whitelist)
 PERSONAL_BLOCK_URLS = [
-    "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
     "https://raw.githubusercontent.com/cbuijs/hagezi/main/lists/tif/domains.top-n.adblock",
+    "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
 ]
 
 # Personal whitelist (final override - beats everything)
@@ -82,7 +82,7 @@ def short_name(url: str) -> str:
     mapping = [
         ("filters/15.txt", "AdGuard DNS Filter"),
         ("adblock/multi.txt", "HaGeZi DNS Blocklist"),
-        ("tif/domains.top-n.adblock", "Hagezi "TIF" Top-N Version"),
+        ("tif/domains.top-n.adblock", 'HaGeZi TIF (Top-N)'),
         ("main/block.txt", "Personal Blocklist"),
         ("main/white.txt", "Personal Whitelist"),
         ("AdGuardSDNSFilter", "AdGuard DNS Exclusions"),
