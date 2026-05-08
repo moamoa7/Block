@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-08 11:52:45 UTC
+! Generated: 2026-05-08 12:05:45 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,603
+! Exception Rules: 6,571
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -152,7 +152,6 @@
 @@||adelaidebank.com.au^
 @@||adelfibanking.com^
 @@||adfoc.us^
-@@||adfox.ru^
 @@||adimg.nate.com^
 @@||adj.st^
 @@||adlucent.com^
@@ -173,7 +172,6 @@
 @@||adsv.svc.litv.tv^
 @@||adtidy.org^
 @@||advcash.com^
-@@||adverigo.com^
 @@||advise.gallup.com^
 @@||adx.io^
 @@||adyen.com^
@@ -232,7 +230,6 @@
 @@||alinma.com^
 @@||aliorbank.pl^
 @@||alipay.com^
-@@||alipromo.com^
 @@||alitems.co^
 @@||alitems.com^
 @@||alitems.site^
@@ -593,7 +590,6 @@
 @@||barclays.de^
 @@||barokart.com.tr^
 @@||basvuru.denizbank.com^
-@@||bat.bing.com^
 @@||bb.com.br^
 @@||bbacbank.com^
 @@||bbancobmg.com.br^
@@ -723,7 +719,6 @@
 @@||bn.aliorbank.pl^
 @@||bnb.gov.br^
 @@||bnc.ca^
-@@||bnc.lt^
 @@||bnc.nc^
 @@||bndes.gov.br^
 @@||bni.co.id^
@@ -924,7 +919,6 @@
 @@||cdnjs.cloudflare.com^
 @@||cdp.cloud.unity3d.com^
 @@||ceconline.ro^
-@@||cedexis.net^
 @@||celsius.network^
 @@||centrifuge.io^
 @@||centrinvest.ru^
@@ -1249,7 +1243,6 @@
 @@||csd.dotomi.com^
 @@||cse.google.com^
 @@||cse3.chausport.com^
-@@||csi.gstatic.com^
 @@||csm.cxpublic.com^
 @@||csob.sk^
 @@||css-load.com^
@@ -1379,7 +1372,6 @@
 @@||diebank.de^
 @@||difi.no^
 @@||digid.nl^
-@@||digidip.net^
 @@||digio.com.br^
 @@||digisign.ro^
 @@||digital.bankaust.com.au^
@@ -1492,7 +1484,6 @@
 @@||eastwestbanker.com^
 @@||easy.box^
 @@||easycredit.de^
-@@||easylist.club^
 @@||easypay.axisbank.co.in^
 @@||easypay.ua^
 @@||easysol.net^
@@ -1539,7 +1530,6 @@
 @@||ecommpay.com^
 @@||edekabank.de^
 @@||edge.api.brightcove.com^
-@@||edigitalsurvey.com^
 @@||eds.xboxlive.com^
 @@||efactoring.ru^
 @@||efbank.ru^
@@ -1596,7 +1586,6 @@
 @@||ephemeralcounters.api.roblox.com^
 @@||episerver.net^
 @@||epl.paypal-communication.com^
-@@||epn.bz^
 @@||eqbank.ca^
 @@||equifax.com^
 @@||erfurter-bank.de^
@@ -1617,7 +1606,6 @@
 @@||esube1.ziraatyatirim.com.tr^
 @@||esunbank.com.tw^
 @@||ethikbank-onlinebanking.de^
-@@||ethn.io^
 @@||etnedalsparebank.no^
 @@||etracker.com^
 @@||etracker.de^
@@ -1760,7 +1748,6 @@
 @@||frankfurter-sparkasse.de^
 @@||frankfurter-volksbank.de^
 @@||freeadultcomix.com^
-@@||freegeoip.net^
 @@||freelancer.ca^
 @@||freelancer.cl^
 @@||freelancer.cn^
@@ -1788,7 +1775,6 @@
 @@||fwmrm.net^
 @@||g.live.com^
 @@||g.msn.com^
-@@||g17media.com^
 @@||gabler-saliter-bank.de^
 @@||gaftrad.com^
 @@||gametlk1.com^
@@ -1829,7 +1815,6 @@
 @@||geojs.io^
 @@||george.bcr.ro^
 @@||george.erstebank.hr^
-@@||georiot.com^
 @@||geotrust.com^
 @@||get.skype.com^
 @@||getdrip.com^
@@ -2037,7 +2022,6 @@
 @@||huntington.com^
 @@||husumer-volksbank.de^
 @@||hwataibank.com.tw^
-@@||hxtrack.com^
 @@||hyperdx.io^
 @@||hypestat.com^
 @@||hypo.fi^
@@ -2372,7 +2356,6 @@
 @@||idnotify.com^
 @@||ids.alterna.ca^
 @@||idwatchdog.com^
-@@||iesnare.com^
 @@||ifobs.bankcenter.com.ua^
 @@||ifobs.dvbank.ua^
 @@||ifobs.kredobank.com.ua^
@@ -2399,7 +2382,6 @@
 @@||imoneybank.ru^
 @@||impact-ad.jp^
 @@||impulseonline.shop^
-@@||imrworldwide.com^
 @@||in-bank.ru^
 @@||in.agri-bank.com^
 @@||inbiz.intesasanpaolo.com^
@@ -2483,7 +2465,6 @@
 @@||ioffice.kz^
 @@||iovation.com^
 @@||ip-adress.com^
-@@||ip-api.com^
 @@||ip2location.com^
 @@||ipapi.co^
 @@||ipay.ua^
@@ -2885,7 +2866,6 @@
 @@||mapi.flypgs.com^
 @@||marcard.de^
 @@||marcus.com^
-@@||marfeel.com^
 @@||marfinbank.ua^
 @@||marinecu.com^
 @@||maritimebank.com^
@@ -2991,7 +2971,6 @@
 @@||mirconnect.ru^
 @@||mitfcu.org^
 @@||mitnykredit.dk^
-@@||mixpanel.com^
 @@||mizrahi-tefahot.co.il^
 @@||mizuhobank.co.jp^
 @@||mkb.hu^
@@ -3690,7 +3669,6 @@
 @@||oskolbank.ru^
 @@||oslofjordsparebank.no^
 @@||ospa.de^
-@@||ospserver.net^
 @@||ostfriesische-volksbank.de^
 @@||ostsaechsische-sparkasse-dresden.de^
 @@||otf.msn.com^
@@ -3875,7 +3853,6 @@
 @@||pntrac.com^
 @@||pntrack.com^
 @@||pocketsmith.com^
-@@||podtrac.com^
 @@||poidem.ru^
 @@||polgaribank.hu^
 @@||pommerschevb.de^
@@ -3996,7 +3973,6 @@
 @@||qnb.com^
 @@||qnbfinansbank.com^
 @@||qnbfinansbank.enpara.com^
-@@||qualtrics.com^
 @@||quantaprevidencia.com.br^
 @@||questionpro.com^
 @@||questrade.com^
@@ -4618,7 +4594,6 @@
 @@||santanderbank.com^
 @@||santanderconsumer.se^
 @@||sas.com^
-@@||sascdn.com^
 @@||sbab.se^
 @@||sber-bank.by^
 @@||sberbank-ast.ru^
@@ -4852,9 +4827,7 @@
 @@||smartbank.ru^
 @@||smartclkdms.com^
 @@||smartmailboost.com^
-@@||smartmediarep.com^
 @@||smartmonday.com.au^
-@@||smartredirect.de^
 @@||smbc-card.com^
 @@||smbc.co.jp^
 @@||smponbank.ru^
@@ -5860,7 +5833,6 @@
 @@||v-vb.de^
 @@||v.shopify.com^
 @@||v.short.gy^
-@@||v3cdn.net^
 @@||vakif-bank.de^
 @@||vakifbank.at^
 @@||vakifbankusa.com^
@@ -6013,7 +5985,6 @@
 @@||vbwolgast.de^
 @@||vchecks.me^
 @@||vd.l.qq.com^
-@@||vectorstock.com^
 @@||vekselbanken.no^
 @@||venmo.com^
 @@||vereinigte-sparkassen.de^
@@ -6037,7 +6008,6 @@
 @@||virtualbanking.mcb.com.lk^
 @@||viseca.ch^
 @@||visecaone.ch^
-@@||visualwebsiteoptimizer.com^
 @@||vivocha.com^
 @@||vivuso.ru^
 @@||vlvb.de^
@@ -6553,7 +6523,6 @@
 @@||xcitybank.com.ua^
 @@||xero.com^
 @@||xflight.xboxlive.com^
-@@||xg4ken.com^
 @@||xiti.com^
 @@||xkms.xboxlive.com^
 @@||xn--httenberger-bank-jzb.de^
@@ -6587,7 +6556,6 @@
 @@||zapsibkombank.ru^
 @@||zarech.ru^
 @@||zaymer.ru^
-@@||zdbb.net^
 @@||zee.cws.conviva.com^
 @@||zenaps.com^
 @@||zenstudios.com^

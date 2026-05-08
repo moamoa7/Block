@@ -1,5 +1,5 @@
 DNS Blocklist Build Report
-Generated: 2026-05-08 11:52:45 UTC
+Generated: 2026-05-08 12:05:45 UTC
 ============================================================
 
 [1] Reference Filters
@@ -22,8 +22,8 @@ Generated: 2026-05-08 11:52:45 UTC
   - DandelionSprout AGH Whitelist: 285 extracted
 [External Whitelist Total] 6,727 domains
 
-[Tracker Auto-Filter] Removed 138 trackers from external whitelist
-  [Blacklist hits] 8 domains:
+[Tracker Auto-Filter] Removed 170 trackers from external whitelist
+  [Blacklist hits] 8 base domains:
     - amazonaws.com
     - apple.com
     - googleapis.com
@@ -32,7 +32,41 @@ Generated: 2026-05-08 11:52:45 UTC
     - pinterest.com
     - scorecardresearch.com
     - twitter.com
-  [Pattern hits] 130 domains (sample first 30):
+  [Tracker domain hits] 33 exact matches:
+    - adfox.ru
+    - adverigo.com
+    - alipromo.com
+    - atdmt.com
+    - bat.bing.com
+    - bnc.lt
+    - cedexis.net
+    - csi.gstatic.com
+    - digidip.net
+    - easylist.club
+    - edigitalsurvey.com
+    - epn.bz
+    - ethn.io
+    - freegeoip.net
+    - g17media.com
+    - georiot.com
+    - hxtrack.com
+    - iesnare.com
+    - imrworldwide.com
+    - ip-api.com
+    - marfeel.com
+    - mixpanel.com
+    - ospserver.net
+    - podtrac.com
+    - qualtrics.com
+    - sascdn.com
+    - smartmediarep.com
+    - smartredirect.de
+    - v3cdn.net
+    - vectorstock.com
+    - visualwebsiteoptimizer.com
+    - xg4ken.com
+    - zdbb.net
+  [Pattern hits] 129 domains (sample first 30):
     - 2mdn.net
     - a1.adform.net
     - ad.admitad.com
@@ -63,7 +97,7 @@ Generated: 2026-05-08 11:52:45 UTC
     - adservice.google.com.np
     - adservice.google.com.om
     - adservice.google.com.pe
-    ... and 100 more
+    ... and 99 more
 
 [3] Personal Blocklist
   - Personal Blocklist: 28 domains
@@ -78,4 +112,4 @@ Generated: 2026-05-08 11:52:45 UTC
   Step 2 (+ personal block): 84,215  (forced added: 22)
   Step 3 (- personal white): 84,213  (whitelist override: 2)
 
-[6] Final Whitelist: 6,603 domains
+[6] Final Whitelist: 6,571 domains
