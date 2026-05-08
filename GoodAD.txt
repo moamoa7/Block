@@ -118,6 +118,12 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 ! - - - 이 필터를 사용하면 브라우저가 위 주소를 인식할 때 뒤의 ?utm_... 부분을 자동으로 깎아내어 깔끔한 주소로 접속하게 만들어 줍니다.
 *$removeparam=utm_medium
 *$removeparam=utm_source
+!- 구글이 이 파라미터를 통해 사용자가 어떤 검색 경로로 들어왔는지, 어떤 최적화 환경에서 페이지를 보고 있는지 분석하는 것을 차단  (URL 클린업)
+*$removeparam=usqp
+! - 사이트에 내장된 구글 서비스가 사용자의 상호작용 데이터를 구글 클라우드로 보내는 것을 막습니다.
+||google.com/ccm/
+! - 나를 따라다니는 스토커 같은 '맞춤형 광고'의 연결 고리를 끊어버립니다.
+/rmkt/collect/*
 ! - Google 로그인 페이지에서 세션 식별 및 추적 용도로 사용되는 것을 막는 규칙
 ||accounts.google.com^$document,removeparam=dsh
 ! - Google의 로깅/추적 요청을 빈 텍스트로 리다이렉트해서 사용자 행동 추적을 차단하는 규칙
@@ -133,11 +139,21 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 ||google.com/pagead/1p-conversion/
 ! - 구글 플레이 스토어뿐만 아니라, 유튜브, 구글 검색, 안드로이드 시스템 서비스 등 수많은 구글 관련 앱들이 사용자 행동/기기 정보/이벤트 로그등의 원격 측정(Telemetry) 차단 / 배터리 및 데이터 절약 (백그라운드 차단) / 프라이버시 강화
 ||play.google.com/log?
-! - 구글 광고 스크립트 차단 / 광고 이미지/영상 차단 / 추적 차단 - 광고 차단의 근본 / 페이지 로딩 속도 최적화 / 데이터 절약 (유튜브 전용 버젼 병행 표기)
+! - 구글 광고 시스템의 핵심 통로인 'PageAd' 서비스를 차단하는 규칙하는 규칙
+! - - - 웹사이트 내 구글 광고: 티스토리, 뉴스 기사, 커뮤니티 게시판 등에 붙어 있는 사각형 형태의 구글 광고들이 로딩되지 않게 막습니다
+! - - - 광고 스크립트 실행: 광고를 불러오고 사용자 데이터를 수집하는 자바스크립트 파일(adsbygoogle.js 등)의 실행을 시작 단계에서 차단합니다
+! - -  추적용 요청: 광고를 실제로 보여주지 않더라도, 사용자가 어떤 페이지를 보고 있는지 구글 광고 서버에 알리는 신호(Ping)들을 차단합니다
 ||google.*/pagead/
+||google.com*/pagead
+||google.*/pagead/lvz?
 ||youtube.com/pagead/
 ! - 유튜브의 '조회수 및 시청 지속 시간 추적(Pingback)' 시스템을 차단 (시청 데이터 보고 차단 / 알고리즘 차단 / 트래킹 서버 부하 감소)
 ||www.youtube.com/ptracking?
+! - 구글(Google)을 포함한 많은 웹 서비스들이 사용자의 '연결 상태'를 확인하거나, 아주 작은 데이터를 몰래 보낼 때 사용하는 트릭을 차단하는 규칙
+! - - - 웹사이트들은 사용자를 추적하고 싶지만, 대놓고 데이터를 보내면 브라우저 보안 정책에 걸릴 수 있습니다. 이때 사용하는 고전적이고 영리한 방법
+! - - - 화면에 보이지 않는 투명 픽셀을 이용한 '비콘(Beacon)' 형태의 데이터 수집을 원천 봉쇄
+! - - - 구글 웹사이트나 크롬 관련 기능들이 백그라운드에서 수시로 "연결 확인용"으로 쏘는 불필요한 신호를 차단 (트래픽 및 리소스 절약)
+/generate_204?$image
 !
 !
 ! - HubSpot 서버가 내 유입 경로를 구체적으로 파악하지 못하게 방해하여 개인정보 보호 및 URL 클린업
@@ -160,6 +176,15 @@ $removeparam=__hs
 ||instagram.com/ajax/bz
 ! - __s라는 특정 패턴의 추적 파라미터를 삭제하라는 매우 정교한 규칙 (이메일 마케팅 솔루션인 Drip에서 사용자의 유입을 식별할때 사용)
 *$removeparam=/^__s=[A-Za-z0-9]{6\,}/,domain=~univis.uni-erlangen.de|~univis.uni-bamberg.de|~univis.uni-luebeck.de|~univis.uni-kiel.de|~univis.th-koeln.de
+!
+!
+! - 페이스북 사이트 내부뿐만 아니라, 페이스북 픽셀이 심어진 전 세계 수만 개의 외부 사이트에서 발생하는 다음과 같은 추적을 막습니다.
+! - - - 내가 어떤 쇼핑몰에서 어떤 옷을 봤는지, 뉴스 사이트에서 어떤 기사를 읽었는지 페이스북이 실시간으로 수집하는 것을 차단
+! - - - "장바구니 담기", "결제 완료" 같은 구체적인 액션이 페이스북 광고 시스템에 보고되는 것을 방지
+! - - - 외부 사이트에서의 활동을 바탕으로 페이스북이나 인스타그램 앱 내에서 "방금 본 그 상품" 광고가 뜨게 만드는 연결 고리를 끊습니다.
+||facebook.com/tr?
+! - 페이스북 외부의 수많은 쇼핑몰이나 뉴스 사이트에 심어져서 사용자가 "구매"를 했는지, "장바구니"에 담았는지 등의 이벤트(Events)를 추적을 차단하는 규칙
+/fbevents.js
 !
 !
 ! - 틱톡(TikTok) 웹 버전이 사용자의 활동 내역이나 오류 발생 상황을 틱톡 서버로 보낼 때 사용하는 '리포트(보고)' 경로를 차단하는 규칙
@@ -208,6 +233,44 @@ $removeparam=__hs
 ||x.com^*/log.json
 ! - 타임라인 사이사이에 끼어드는 스폰서 동영상 광고, 혹은 영상 시청 전후에 나오는 광고 데이터를 처리
 x.com/*/videoads/
+!
+!
+! - 마이크로소프트(MS)의 검색 광고 서비스인 Bing Ads에서 사용하는 클릭 식별자
+*$removeparam=msclkid
+! - 웹사이트 운영자가 내 브라우저에서 발생하는 에러 로그나 이용 패턴을 수집하여 MS 서버로 보내는 것을 막습니다.
+||applicationinsights.azure.com^$domain=~azure.net
+!
+!
+! - ChatGPT 내부에서 사용되는 클라이언트 등록(Register) 및 상태 보고 엔드포인트
+/v1/rgstr?k=client-
+! - 사용자의 브라우저 세션 정보나 기기 식별값이 OpenAI 서버로 등록되는 것을 방지
+/v1/rgstr?k=client-$xhr,redirect-rule=noopjson
+! - 사용자가 질문을 입력할 때의 속도, 마우스 움직임, UI 상호작용 등 미세한 활동 데이터를 수집
+||chatgpt.com/ces/v1/t
+! - 실시간 행동 분석 로그 전송을 차단
+||chatgpt.com/ces/v1/t$xhr,redirect-rule=noopjson
+! - 페이지 로딩 성능, API 응답 시간 등 기술적인 지표를 보고
+||chatgpt.com/ces/v1/p|
+! - 성능 측정이라는 명목으로 수집되는 브라우저 환경 정보를 차단
+||chatgpt.com/ces/v1/p|$xhr,redirect-rule=noopjson
+!
+!
+! - 웹사이트 운영자가 외부 서비스를 빌려 내 브라우저 활동을 상세히 들여다보는 것을 방지
+! - -- 많은 웹사이트(Claude 포함)가 자사 사이트의 성능을 측정하고 오류를 추적하기 위해 Datadog을 사용합니다. 사용자의 브라우저에서 발생하는 에러, 페이지 로딩 속도, 클릭 이벤트 등을 Datadog 서버로 보냅니다.
+||browser-intake-*-datadoghq.com^
+! -분석용 스크립트가 브라우저에 로드되는 것 자체를 막아, 추적 기능이 시작조차 되지 않게 만듭니다.
+! - - - Claude.ai 사이트에 접속했을 때 실행되는 분석 엔진입니다. 사용자가 어떤 메뉴를 누르는지, 얼마나 머무는지 등을 측정하는 핵심 '스파이 스크립트' 역할을 합니다.
+||a-cdn.anthropic.com/analytics.js/*/analytics.min.js
+! - Claude를 사용하면서 발생하는 세세한 행동 데이터가 서버로 전송되는 것을 차단
+! - - - Claude 서비스 내에서 발생하는 각종 이벤트(활동) 로그 전송 API
+||claude.ai/api/event_logging/
+!
+!
+! - PerimeterX는 "봇 탐지"라는 명목하에 사용자를 식별할 수 있는 아주 미세한 정보(Fingerprinting)를 수집
+! - - - 메인 데이터 수집기(Collector) - 사용자가 웹사이트에 접속하면 브라우저의 환경 정보(화면 해상도, 폰트 목록, 배터리 상태, 마우스 움직임 패턴 등)를 싹 긁어모음
+||px-cloud.net/api/v2/collector
+! - - -  사용자가 페이지에 머무는 동안 주기적으로 "여전히 활성 상태인가?"를 확인하거나, 아주 작은 단위의 행동 변화를 서버에 알릴 때 사용
+||px-cloud.net/b/s
 !
 !
 ! tracker라는 이름이 붙은 서버가 WebSocket으로 몰래 나를 실시간 감시하는 것을 막는 규칙
@@ -5087,7 +5150,15 @@ yna.co.kr#@#[class*="banner"]:has(iframe)
 ##*:has(> iframe[src*="event"]):not(html):not(body)
 
 
+! - https://platinmods.com/
 ##[class*="event"]:has(iframe)
+! - 제외
+! - --  https://platinmods.com/  - 본문 안보임
+platinmods.com#@#[class*="event"]:has(iframe)
+##[class*="event"]
+! - 제외
+! - --  https://platinmods.com/  - 본문 안보임
+platinmods.com#@#[class*="event"]
 
 
 ##[id*="event"]:has(iframe)
