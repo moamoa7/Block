@@ -127,7 +127,7 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 ! - Google 로그인 페이지에서 세션 식별 및 추적 용도로 사용되는 것을 막는 규칙
 ||accounts.google.com^$document,removeparam=dsh
 ! - Google의 로깅/추적 요청을 빈 텍스트로 리다이렉트해서 사용자 행동 추적을 차단하는 규칙
-||google.com/log?$redirect-rule=nooptext
+!||google.com/log?$redirect-rule=nooptext
 ! - 사용자의 활동 로그나 상태 정보를 아주 가볍게 수집할 때 사용하는 통로를 차단하는 규칙
 ! - - - 프라이버시 강화 / 유튜브 트래킹 방지 / 백그라운드 통신 차단
 ||google.com/gen_204?
@@ -242,17 +242,17 @@ x.com/*/videoads/
 !
 !
 ! - ChatGPT 내부에서 사용되는 클라이언트 등록(Register) 및 상태 보고 엔드포인트
-/v1/rgstr?k=client-
+!/v1/rgstr?k=client-
 ! - 사용자의 브라우저 세션 정보나 기기 식별값이 OpenAI 서버로 등록되는 것을 방지
-/v1/rgstr?k=client-$xhr,redirect-rule=noopjson
+!/v1/rgstr?k=client-$xhr,redirect-rule=noopjson
 ! - 사용자가 질문을 입력할 때의 속도, 마우스 움직임, UI 상호작용 등 미세한 활동 데이터를 수집
-||chatgpt.com/ces/v1/t
+!||chatgpt.com/ces/v1/t
 ! - 실시간 행동 분석 로그 전송을 차단
-||chatgpt.com/ces/v1/t$xhr,redirect-rule=noopjson
+!||chatgpt.com/ces/v1/t$xhr,redirect-rule=noopjson
 ! - 페이지 로딩 성능, API 응답 시간 등 기술적인 지표를 보고
-||chatgpt.com/ces/v1/p|
+!||chatgpt.com/ces/v1/p|
 ! - 성능 측정이라는 명목으로 수집되는 브라우저 환경 정보를 차단
-||chatgpt.com/ces/v1/p|$xhr,redirect-rule=noopjson
+!||chatgpt.com/ces/v1/p|$xhr,redirect-rule=noopjson
 !
 !
 ! - 웹사이트 운영자가 외부 서비스를 빌려 내 브라우저 활동을 상세히 들여다보는 것을 방지
@@ -282,11 +282,11 @@ x.com/*/videoads/
 !
 !
 !Netflix가 내가 뭘 보고 뭘 클릭하는지 상세하게 기록해서 서버로 보내는 것을 막는 규칙 (시청내역을 막는건 아닌듯)
-||netflix.com/log/
+!||netflix.com/log/
 !
 !
 ! - GitHub(깃허브)이 사용자의 브라우저 성능 및 활동 통계를 수집하는 비공개 경로를 차단하는 규칙
-||api.github.com/_private/browser/stats$important
+!||api.github.com/_private/browser/stats$important
 !
 !
 ! 자바스크립트 에러가 발생하면 서버로 보내려고 시도하는것을 차단
@@ -1406,7 +1406,7 @@ music.bugs.co.kr##.topBanner
 ! 넷플릭스 (https://www.netflix.com/)
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
-||logs.netflix.com^
+!||logs.netflix.com^
 ! - - - 출처 : https://github.com/ajstrick81/Netflix-Ads
 ! - - - - - 광고 콘텐츠를 전송하는 서브도메인 차단 (Ublock) 및 우회(ADGUARD)
 ! - - - - - 푸쉬 광고는 차단되는거 확인
@@ -1418,6 +1418,13 @@ music.bugs.co.kr##.topBanner
 ||ads.akamaized.net^
 ||ad.akamaized.net^$dnsrewrite=0.0.0.0
 ||ads.akamaized.net^$dnsrewrite=0.0.0.0
+||android12.logs.netflix.com^$empty
+||logs.netflix.com^$empty
+||ichnaea.netflix.com^$empty
+||ichnaea-web.netflix.com^$empty
+||darnuid.netflix.com^$empty
+||ingest.sentry.io^$empty
+||mobile-collector.newrelic.com^$empty
 ! - - - 출처 : uBlock filters – Ads
 netflix.com##+js(json-prune, result.adverts)
 ! - 푸쉬 광고 (일시정지시 나타나는 광고)
