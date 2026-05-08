@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-08 11:44:49 UTC
+! Generated: 2026-05-08 11:52:45 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,591
+! Exception Rules: 6,603
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -361,6 +361,7 @@
 @@||appboot.netflix.com^
 @@||apple-dns.net^
 @@||appleid.apple.com^
+@@||appleiphonecell.com^
 @@||apps.cybonline.co.uk^
 @@||apps.skype.com^
 @@||appsbackup-pa.clients6.google.com^
@@ -848,6 +849,7 @@
 @@||capitalone.com^
 @@||capitecbank.co.za^
 @@||captcha-display.com^
+@@||captive.apple.com^
 @@||card-form.diehard.yandex.net^
 @@||card-transfer.tele2.ru^
 @@||card.cyberplat.ru^
@@ -1199,6 +1201,7 @@
 @@||count.shopping.t-online.de^
 @@||counter.dev^
 @@||county2.riverbank.co.ke^
+@@||courier.push.apple.com^
 @@||coventrybuildingsociety.co.uk^
 @@||cp.bluesnap.com^
 @@||cpdsrv.de^
@@ -1799,6 +1802,7 @@
 @@||gate.hockeyapp.net^
 @@||gate.io^
 @@||gate.vseplatezhi.ru^
+@@||gateway.icloud.com^
 @@||gazprombank.ru^
 @@||gbank.rsk.kg^
 @@||gbp.ma^
@@ -1912,6 +1916,7 @@
 @@||grp08.ias.rakuten.co.jp^
 @@||gruesparebank.no^
 @@||grupobancolombia.com^
+@@||gsa.apple.com^
 @@||gsb.or.th^
 @@||gsght.com^
 @@||gstatic.com^
@@ -2359,6 +2364,7 @@
 @@||ideabank24.by^
 @@||ideaonline.ua^
 @@||ident.nets.eu^
+@@||identity.apple.com^
 @@||identity.banknorwegian.no^
 @@||identity.idocs.kz^
 @@||identity.virginmedia.com^
@@ -2892,6 +2898,10 @@
 @@||marsflag.com^
 @@||martech.condenastdigital.com^
 @@||martinbank.de^
+@@||mask-api.icloud.com^
+@@||mask-h2.icloud.com^
+@@||mask.apple-dns.net^
+@@||mask.icloud.com^
 @@||master-capital.org^
 @@||masterpass.ch^
 @@||masterpass.com^
@@ -3966,6 +3976,7 @@
 @@||pulsar.ebay.com^
 @@||pulse.clickguard.com^
 @@||purchasenow.us^
+@@||push.apple.com^
 @@||pushbullet.com^
 @@||pushowl.com^
 @@||pushpushgo.com^
@@ -4583,6 +4594,7 @@
 @@||saba.bankmelli-iran.com^
 @@||sabb.com^
 @@||safeads.com.br^
+@@||safebrowsing.apple^
 @@||saferpay.com^
 @@||safra.com.br^
 @@||saib.com.sa^
