@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 DNS Block/Allow List Generator (Intersection-based)
-- Block list = AdGuard DNS Filter (15.txt) ∩ HaGeZi multi.txt
+- Block list = AdGuard DNS Filter (15.txt) ∩ HaGeZi's Pro.txt
 - Then apply: External Whitelist -> Personal Blocklist -> Personal Whitelist
 - Outputs: Block_DNS.txt, Block_Domains.txt, Block_Hosts.txt, Report.txt
 """
@@ -16,7 +16,7 @@ from urllib.request import urlopen, Request
 
 # Two reference filters - intersection becomes the base block list
 PRIMARY_FILTER_URL = "https://filters.adtidy.org/windows/filters/15.txt"
-SECONDARY_FILTER_URL = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt"
+SECONDARY_FILTER_URL = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/pro.txt"
 
 # External whitelist sources
 EXCLUSION_URLS = [
@@ -81,7 +81,7 @@ def is_valid_domain(d: str) -> bool:
 def short_name(url: str) -> str:
     mapping = [
         ("filters/15.txt", "AdGuard DNS Filter"),
-        ("adblock/multi.txt", "HaGeZi DNS Blocklist"),
+        ("adblock/pro.txt", "HaGeZi's Pro DNS Blocklist"),
         ("tif/domains.top-n.adblock", 'HaGeZi TIF (Top-N)'),
         ("main/block.txt", "Personal Blocklist"),
         ("main/white.txt", "Personal Whitelist"),
@@ -190,7 +190,7 @@ def main():
     if primary_set and secondary_set:
         base_block_set = primary_set & secondary_set
         report.append(f"  AdGuard DNS Filter (15.txt) : {len(primary_set):,}")
-        report.append(f"  HaGeZi multi.txt            : {len(secondary_set):,}")
+        report.append(f"  HaGeZi Pro.txt            : {len(secondary_set):,}")
         report.append(f"  Intersection (base block)   : {len(base_block_set):,}")
         report.append(f"  15.txt only (excluded)      : {len(primary_set - secondary_set):,}")
         report.append(f"  HaGeZi only (excluded)      : {len(secondary_set - primary_set):,}")
@@ -299,7 +299,7 @@ def main():
     # --- 7. Final Summary ---
     report.append("\n[ Final Summary ]")
     report.append("-" * 70)
-    report.append(f"  1. Base block ( AdGuard DNS / HaGeZi's Normal DNS 공통 규칙)  : {base_count:,}")
+    report.append(f"  1. Base block ( AdGuard DNS / HaGeZi's Pro DNS 공통 규칙)  : {base_count:,}")
     report.append(f"  2. Removed by external whitelist : {white_removed:,}")
     report.append(f"  3. Personal block added          : {len(personal_block_set):,}  "
                   f"(forced black: {len(forced_black):,})")
@@ -315,7 +315,7 @@ def main():
         f"! Title: Personal Block/Allow List (DNS)\n"
         f"! Generated: {ts}\n"
         f"! Homepage: https://github.com/moamoa7/adblock\n"
-        f"! Method:  (AdGuard DNS / HaGeZi's Normal DNS 공통 규칙) + 기타 DNS 규칙\n"
+        f"! Method:  (AdGuard DNS / HaGeZi's Pro DNS 공통 규칙) + 기타 DNS 규칙\n"
         f"! Block Rules: {len(final_block_set):,}\n"
         f"! Exception Rules: {len(final_white_set):,}\n"
         f"!\n"
