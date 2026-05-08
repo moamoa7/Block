@@ -36,7 +36,6 @@ EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt",
     "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/referral-sites.txt",
     "https://raw.githubusercontent.com/DandelionSprout/AdGuard-Home-Whitelist/master/whitelist.txt",
-    "https://raw.githubusercontent.com/TogoFire-Home/AD-Settings/main/Filters/whitelist.txt",
 ]
 
 # Personal blocklist (force-add - overrides external whitelist)
@@ -103,7 +102,6 @@ def short_name(url: str) -> str:
         ("anudeepND/whitelist/master/domains/whitelist.txt", "anudeepND Whitelist"),
         ("anudeepND/whitelist/master/domains/referral-sites.txt", "anudeepND Referral Sites"),
         ("DandelionSprout/AdGuard-Home-Whitelist", "DandelionSprout AGH Whitelist"),
-        ("TogoFire-Home/AD-Settings", "TogoFire AGH Whitelist"),
     ]
     for key, name in mapping:
         if key in url:
