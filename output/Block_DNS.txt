@@ -1,8 +1,8 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-08 04:41:35 UTC
+! Generated: 2026-05-08 06:24:58 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  (AdGuard DNS / HaGeZi's Normal DNS 공통 규칙) + 기타 DNS 규칙
-! Block Rules: 88,432
+! Block Rules: 88,434
 ! Exception Rules: 6,438
 !
 ||0-800-email.com^
@@ -34117,6 +34117,7 @@
 ||dotmetrics.net^
 ||dotofverse.com^
 ||dotserver.douyucdn.cn^
+||dotshellmain.com^
 ||dotsrv.com^
 ||dottypeguidance.com^
 ||dotyruntchan.com^
@@ -43533,6 +43534,7 @@
 ||htneakzcupxkt.space^
 ||htnejxlhoskug.love^
 ||htnykujbhbmeu.site^
+||htplayground.com^
 ||htrace.wetvinfo.com^
 ||httooafldx.com^
 ||http-intake.logs.datadoghq.com^

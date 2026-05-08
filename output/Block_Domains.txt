@@ -1,5 +1,5 @@
-# Generated: 2026-05-08 04:41:35 UTC
-# Block Domains: 88,432
+# Generated: 2026-05-08 06:24:58 UTC
+# Block Domains: 88,434
 #
 0-800-email.com
 0-vip.com
@@ -34113,6 +34113,7 @@ dotingrevenue.pro
 dotmetrics.net
 dotofverse.com
 dotserver.douyucdn.cn
+dotshellmain.com
 dotsrv.com
 dottypeguidance.com
 dotyruntchan.com
@@ -43529,6 +43530,7 @@ htmonster.com
 htneakzcupxkt.space
 htnejxlhoskug.love
 htnykujbhbmeu.site
+htplayground.com
 htrace.wetvinfo.com
 httooafldx.com
 http-intake.logs.datadoghq.com
