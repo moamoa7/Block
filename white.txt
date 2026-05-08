@@ -4,3 +4,18 @@
 ||exlogcollector.sooplive.com^
 #! 옥션/지마켓 배너 안보이는거 방지 !#
 ||ad-img.gmarket.com^
+
+! ===== Apple 보안/프라이버시 인프라 =====
+@@||safebrowsing.apple^                 # Safari 안전 브라우징 프록시
+@@||mask.icloud.com^                    # iCloud Private Relay (1단계)
+@@||mask-h2.icloud.com^                 # iCloud Private Relay (HTTP/2)
+@@||mask-api.icloud.com^                # Private Relay API
+@@||mask.apple-dns.net^                 # Private Relay DNS
+@@||push.apple.com^                     # APNS (앱 푸시 알림)
+@@||courier.push.apple.com^             # APNS Courier
+@@||init-p01st.push.apple.com^          # APNS 초기화
+@@||gateway.icloud.com^                 # iCloud Gateway
+@@||identity.apple.com^                 # Apple ID 인증
+@@||gsa.apple.com^                      # Game Center / SSO
+@@||appleiphonecell.com^                # 셀룰러 연결 확인 (이미 EXCEPTION_KEYWORDS에 있음)
+@@||captive.apple.com^                  # WiFi 캡티브 포털 감지
