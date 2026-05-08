@@ -1,1 +1,17 @@
+! === 광고 차단 핵심 (안전망) ===
+||doubleclick.net^
+||googlesyndication.com^
+||googleadservices.com^
+||googletagmanager.com^
+||googletagservices.com^
+||google-analytics.com^
+||analytics.google.com^
 
+! === SNS 트래커 ===
+||facebook.com^
+||graph.facebook.com^
+||connect.facebook.com^
+||connect.facebook.net^
+||fbcdn.net^
+||twitter.com^
+||analytics.twitter.com^
