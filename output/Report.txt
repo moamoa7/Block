@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-08 10:12:31 UTC
+  Generated: 2026-05-08 10:21:10 UTC
 ======================================================================
 
 [ Reference Filters ]
@@ -61,11 +61,8 @@
   [OK]  DandelionSprout AGH Whitelist
         URL       : https://raw.githubusercontent.com/DandelionSprout/AdGuard-Home-Whitelist/master/whitelist.txt
         Lines     : 354   Extracted: 285   New: 101
-  [OK]  TogoFire AGH Whitelist
-        URL       : https://raw.githubusercontent.com/TogoFire-Home/AD-Settings/main/Filters/whitelist.txt
-        Lines     : 2,644   Extracted: 1,688   New: 1,114
 
-  Total whitelist domains: 7,875
+  Total whitelist domains: 6,761
 
 [ Personal Blocklist (Force-add) ]
 ----------------------------------------------------------------------
@@ -86,28 +83,28 @@
 [ Step 2: Apply External Whitelist ]
 ----------------------------------------------------------------------
   Before              : 84,206
-  Removed by whitelist: 33
-  After               : 84,173
+  Removed by whitelist: 19
+  After               : 84,187
 
 [ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
   Personal block size : 0
   New (not in base)   : 0
   Forced black        : 0  (overrode whitelist)
-  Block set after     : 84,173
+  Block set after     : 84,187
 
 [ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
   Forced white        : 2  (overrode block)
-  Final block         : 84,171
-  Final exception     : 7,878
+  Final block         : 84,185
+  Final exception     : 6,764
 
 [ Final Summary ]
 ----------------------------------------------------------------------
   1. Base block ( AdGuard DNS / HaGeZi's Pro DNS 공통 규칙)  : 84,206
-  2. Removed by external whitelist : 33
+  2. Removed by external whitelist : 19
   3. Personal block added          : 0  (forced black: 0)
   4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 84,171
-  6. Final Exception Rules         : 7,878
+  5. Final Block Rules             : 84,185
+  6. Final Exception Rules         : 6,764

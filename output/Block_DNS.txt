@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
-! Generated: 2026-05-08 10:12:31 UTC
+! Generated: 2026-05-08 10:21:10 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  (AdGuard DNS / HaGeZi's Pro DNS 공통 규칙) + 기타 DNS 규칙
-! Block Rules: 84,171
+! Block Rules: 84,185
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -2361,6 +2361,7 @@
 ||aamt.nbcnews.com^
 ||aamt.newsapp.telemundo.com^
 ||aamt.today.com^
+||aan.amazon.com^
 ||aan8bq.ru^
 ||aanalytics.adelaide.edu.au^
 ||aanalytics.panduit.com^
@@ -7254,6 +7255,7 @@
 ||android-tv-beacons.xumo.com^
 ||androidduvetscribble.com^
 ||androidtvchannels-pa.googleapis.com^
+||androidtvwatsonfe-pa.googleapis.com^
 ||andsedrit.com^
 ||andyhoppe.com^
 ||anedukerationpeci.com^
@@ -14996,6 +14998,7 @@
 ||convictiontrialpromptly.com^
 ||convictyferrejnd.cyou^
 ||convincedfashionablehandwriting.com^
+||conviva.com^
 ||convrse.media^
 ||convsweeps.com^
 ||conyz.cn^
@@ -18487,6 +18490,7 @@
 ||demandrefreshment.com^
 ||demandzoo.com^
 ||demanier.com^
+||demdex.net^
 ||dementedjudged.com^
 ||demeter-tr-core-collect.trendyol.com^
 ||demimanexseclingers.cfd^
@@ -22454,6 +22458,7 @@
 ||events.lojasmel.com^
 ||events.madamemoneypenny.de^
 ||events.mambo.com.br^
+||events.mapbox.com^
 ||events.matterport.com^
 ||events.mbrl.ae^
 ||events.mcgladrey.com^
@@ -30780,6 +30785,7 @@
 ||gvrugeri.com^
 ||gvsbtyngvsmoe.online^
 ||gvsevgkqvgixo.site^
+||gvt2.com^
 ||gvwjiasjlk.com^
 ||gvwzokdttbsnj.online^
 ||gvxyyvdveimgk.space^
@@ -30904,6 +30910,7 @@
 ||gzzkjdam.cn^
 ||h-adashx.ut.alibaba.com^
 ||h-adashx.ut.taobao.com^
+||h-adashx4ae.ut.taobao.com^
 ||h-adashx4id.ut.taobao.com^
 ||h-bid.com^
 ||h-cast.jp^
@@ -38262,6 +38269,7 @@
 ||literallyflickercomplaints.com^
 ||lithateknobmelosa.cfd^
 ||lithiumsorghum.shop^
+||litix.io^
 ||litowlzmav.in^
 ||litterarenadisembroildisembroil.com^
 ||litterworerabbit.com^
@@ -43320,6 +43328,7 @@
 ||mms.pennlive.com^
 ||mms.silive.com^
 ||mms.syracuse.com^
+||mmstat.com^
 ||mmsvnwwhayokq.space^
 ||mmsxihgbptihj.online^
 ||mmtgythuozksx.online^
@@ -52959,6 +52968,7 @@
 ||raven.konquadrat.de^
 ||raven.omamao.ch^
 ||ravenouspetition.com^
+||ravm.tv^
 ||raw-co.com^
 ||raw-solid.com^
 ||raw.vidyard.com^
@@ -56864,6 +56874,7 @@
 ||securehostdns.com^
 ||secureleadsforever.com^
 ||secureleadsrn.com^
+||securemetrics.apple.com^
 ||securemetrics.bananarepublic.eu^
 ||securemetrics.blackrock.com^
 ||securemetrics.brhome.com^
@@ -56957,6 +56968,7 @@
 ||seghg.hottopic.com^
 ||segment-api.goodrx.com^
 ||segment-cdn.producthunt.com^
+||segment.com^
 ||segment.lalr.co^
 ||segmenthub.com^
 ||segmentor.snowfox-ai.com^
@@ -68654,6 +68666,7 @@
 ||t1d26dvout.com^
 ||t1thmtn5.xyz^
 ||t1w.pfqg753un1ekhnf.cyou^
+||t2.hulu.com^
 ||t2.huluim.com^
 ||t2.profityi.com^
 ||t2.t2b.click^
@@ -72510,6 +72523,7 @@
 ||tracking.ensonhaber.com^
 ||tracking.ent.oviahealth.com^
 ||tracking.eolienne-heragos.com^
+||tracking.epicgames.com^
 ||tracking.epredia.com^
 ||tracking.epsilon.com^
 ||tracking.esfihaplanet.com.br^
