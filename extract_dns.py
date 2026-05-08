@@ -34,7 +34,6 @@ EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/whitelist-referral-native.txt",
     "https://raw.githubusercontent.com/Dogino/Discord-Phishing-URLs/main/official-domains.txt",
     "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt",
-    "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/referral-sites.txt",
     "https://raw.githubusercontent.com/DandelionSprout/AdGuard-Home-Whitelist/master/whitelist.txt",
 ]
 
@@ -100,7 +99,6 @@ def short_name(url: str) -> str:
         ("whitelist-referral", "HaGeZi Referral Whitelist"),
         ("Discord-Phishing-URLs", "Discord Official Domains"),
         ("anudeepND/whitelist/master/domains/whitelist.txt", "anudeepND Whitelist"),
-        ("anudeepND/whitelist/master/domains/referral-sites.txt", "anudeepND Referral Sites"),
         ("DandelionSprout/AdGuard-Home-Whitelist", "DandelionSprout AGH Whitelist"),
     ]
     for key, name in mapping:
