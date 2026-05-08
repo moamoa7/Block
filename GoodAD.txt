@@ -490,6 +490,11 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 @@||connect.facebook.net/*/fbevents.js$from=smartstore.naver.com
 !
 !
+! 네이버 쇼핑 라이브 (https://shoppinglive.naver.com/)
+! - 팝업
+!##[class*="popupBanner"]
+!
+!
 ! 네이버 카페 (https://cafe.naver.com/)
 ! - 카페 사진 첨부 오류 해결
 @@*$stealth=dpi,app=com.nhn.android.navercafe
@@ -2356,14 +2361,11 @@ sports.donga.com##.view_center
 !
 !
 ! 쿠팡 (https://www.coupang.com/)
-! - 검색시 광고 게시물 (List-KR 규칙 추가로 아래 규칙 해제) 
-!coupang.com##li.search-product__ad-badge:remove()
-!coupang.com##.search-product__ad-badge
-! - 배너
+! - 쿠팡 검색 결과 및 메인 광고 상품 제거
+!coupang.com##li:has(.ad-badge)
+!coupang.com##li:has(.baby-product-ads-badge)
+coupang.com##li:has-text(광고)
 !coupang.com###srpKeywordTopBanner
-! - 광고라고 써잇는 배너 (이 상품 놓치지 마세요)
-!coupang.com##.personalized_ads.carousel-widget-container
-##[class*="_ads"]
 ! - 하단 안내 문구 (앱으로 보기)
 ! - 검색시 나오는 광고 배너
 !###BottomAppBanner
@@ -2489,12 +2491,16 @@ danawa.com#@#iframe[src*="/RealMedia/ads/"]
 ! - - - https://pann.nate.com/
 danawa.com/###adSmartProductContainer
 ##iframe[title*="배너"]
-##div:has(> iframe[title*="배너"])
+!##div:has(> iframe[title*="배너"])
+##*:has(> iframe[title*="배너"]):not(html):not(body)
 ##iframe[title*="광고"]
-##div:has(> iframe[title*="광고"])
+!##div:has(> iframe[title*="광고"])
+##*:has(> iframe[title*="광고"]):not(html):not(body)
 ! -  예외
 ! - 한국경제 (https://www.hankyung.com/) 모바일
-hankyung.com#@#div:has(> iframe[title*="광고"])
+hankyung.com#@#*:has(> iframe[title*="광고"]):not(html):not(body)
+!danawa.com#@#*:has(> iframe[title*="광고"]):not(html):not(body)
+
 ##[class*="main-event"]
 !
 !
@@ -3288,7 +3294,7 @@ missav.*,njavtv.com##.lg\:block
 ! - 영상 하단 오른쪽 따라다니는 배너
 !##.mb-5.space-y-5 > div > .mx-auto
 !##div.mx-auto > iframe
-missav.*,njavtv.com##[class^="mx-auto"]
+!##[class^="mx-auto"]
 ! - 예외
 ! - - - https://etoland.co.kr/ - 상단 일부 짤림
 !etoland.co.kr#@#[class^="mx-auto"]
@@ -4775,6 +4781,12 @@ yna.co.kr#@#[class*="popup-mo"]
 ##[id^="top-banner"]
 !
 !
+##li:has-text(배너)
+!
+!
+##li:has-text(스폰)
+!
+!
 !
 !
 !
@@ -4836,13 +4848,11 @@ yna.co.kr#@#[class*="popup-mo"]
 ! - 자브걸 (https://kr27.javgirl.co/)
 !##a[target="_blank"]:has(img[src*="/banner/"])
 !##a[target*="blank"] img[src*="banner"]
-##a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
+!##a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
 ! - 예외
-auction.co.kr#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
-coupang.com#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
-gmarket.co.kr#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
-
-
+!auction.co.kr#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
+!coupang.com#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
+!gmarket.co.kr#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"])
 
 
 
@@ -4854,20 +4864,44 @@ gmarket.co.kr#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"]
 ! - 아래 규칙으로 하면 아무것도 안보임
 !##div:has(a[target="_blank"] img[src*="banner"])
 !##a[target*="blank"] img[src*="banner"]
-##div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
+!##div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
+!##*:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
 ! - 예외
-coupang.com#@#div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
-gmarket.co.kr#@#div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
+!coupang.com#@#*:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
+!gmarket.co.kr#@#*:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
+!auction.co.kr#@#*:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*="banner"]
 
-
-
+##*:has(> img[src*="banner"]), iframe[src*="banner"]
+! - 예외
+coupang.com#@#*:has(> img[src*="banner"]), iframe[src*="banner"]
+gmarket.co.kr#@#*:has(> img[src*="banner"]), iframe[src*="banner"]
+auction.co.kr#@#*:has(> img[src*="banner"]), iframe[src*="banner"]
+11st.co.kr#@#*:has(> img[src*="banner"]), iframe[src*="banner"]
+shopping.naver.com#@#*:has(> img[src*="banner"]), iframe[src*="banner"]
+store.kakao.com#@#*:has(> img[src*="banner"]), iframe[src*="banner"]
 
 
 ! - 티비룸 (https://tvroom.vip/)
-##[class*="banner"][target*="blank"]:has(img)
+!##[class*="banner"][target*="blank"]:has(img)
+##[class*="banner"]:has(img)
+! - 예외
+coupang.com#@#[class*="banner"]:has(img)
+gmarket.co.kr#@#[class*="banner"]:has(img)
+auction.co.kr#@#[class*="banner"]:has(img)
+11st.co.kr#@#[class*="banner"]:has(img)
+shopping.naver.com#@#[class*="banner"]:has(img)
+shoppinglive.naver.com#@#[class*="banner"]:has(img)
+nid.naver.com#@#[class*="banner"]:has(img)
+danawa.com#@#[class*="banner"]:has(img)
 
 
 
+
+##[src^="/banner/"]
+##[src^="/banners/"]
+
+##[data^="/banner/"]
+##[data^="/banners/"]
 
 
 
@@ -5125,6 +5159,8 @@ hankyung.com#@#[class*="banner"]:has(iframe)
 ! - - - 연합뉴스 (https://www.yna.co.kr/)
 yna.co.kr#@#[class*="banner"]:has(iframe)
 ##[class*="banner"]:has(iframe)
+! - 다나와 (https://danawa.com/) - 배너 안보임
+danawa.com#@#[class*="banner"]:has(iframe)
 
 
 
@@ -5245,6 +5281,8 @@ yna.co.kr#@#[class*="banner"]:has(iframe)
 ##*:has(> iframe[title*="스폰"]):not(html):not(body)
 
 
+
+
 ! - 조선일보 (https://www.chosun.com/)
 ! - 오마이뉴스 (https://ohmynews.com/)
 ! - 한국경제 (https://www.hankyung.com/) - 본문 이미지 안보임
@@ -5260,9 +5298,14 @@ hankyung.com#@#div:has(> iframe[src*=".iframe"])
 ! - 중앙일보 (https://www.joongang.co.kr/)
 ! - 오마이뉴스 (https://ohmynews.com/)
 ! - 문화일보 (https://www.munhwa.com/)
-##*:has(> iframe[src*="/ad."])
+##*:has(> iframe[src*="/ad."]):not(html):not(body)
+##iframe[src*="/ad."]
 
 
+
+! - https://issuefeed.dcinside.com/content/2248872
+##*:has(> iframe[src*="/ads."]):not(html):not(body)
+##iframe[src*="/ads."]
 
 
 
