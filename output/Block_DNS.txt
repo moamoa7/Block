@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
-! Generated: 2026-05-08 11:10:47 UTC
+! Generated: 2026-05-08 11:22:26 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  (AdGuard DNS / HaGeZi's Pro DNS 공통 규칙) + 기타 DNS 규칙
-! Block Rules: 84,210
+! Block Rules: 84,208
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -26780,7 +26780,6 @@
 ||googleshopping.sapoapps.vn^
 ||googlesyndication.com^
 ||googletagmanager-cn.com^
-||googletagmanager.com^
 ||googletagservices.com^
 ||googlevads-cn.com^
 ||gooierworrit.com^
@@ -26983,7 +26982,6 @@
 ||granularconsideration.pro^
 ||granulargame.com^
 ||grapeshot.co.uk^
-||graph.facebook.com^
 ||grapheffect.com^
 ||graphicspikedisaster.com^
 ||graphsmeth.qpon^

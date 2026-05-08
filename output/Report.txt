@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-08 11:10:47 UTC
+  Generated: 2026-05-08 11:22:26 UTC
 ======================================================================
 
 [ Reference Filters ]
@@ -65,9 +65,9 @@
 ----------------------------------------------------------------------
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
-        Lines     : 37   Extracted: 30
+        Lines     : 35   Extracted: 28
 
-  Total personal block: 30
+  Total personal block: 28
 
 [ Personal Whitelist (Final Override) ]
 ----------------------------------------------------------------------
@@ -85,23 +85,23 @@
 
 [ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
-  Personal block size : 30
-  New (not in base)   : 25
-  Forced black        : 19  (overrode whitelist)
-  Block set after     : 84,212
+  Personal block size : 28
+  New (not in base)   : 23
+  Forced black        : 18  (overrode whitelist)
+  Block set after     : 84,210
 
 [ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
   Forced white        : 2  (overrode block)
-  Final block         : 84,210
-  Final exception     : 6,711
+  Final block         : 84,208
+  Final exception     : 6,712
 
 [ Final Summary ]
 ----------------------------------------------------------------------
   1. Base block ( AdGuard DNS / HaGeZi's Pro DNS 공통 규칙)  : 84,206
   2. Removed by external whitelist : 19
-  3. Personal block added          : 30  (forced black: 19)
+  3. Personal block added          : 28  (forced black: 18)
   4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 84,210
-  6. Final Exception Rules         : 6,711
+  5. Final Block Rules             : 84,208
+  6. Final Exception Rules         : 6,712
