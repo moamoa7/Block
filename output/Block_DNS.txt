@@ -1,8 +1,8 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-08 02:58:26 UTC
+! Generated: 2026-05-08 03:53:29 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  (AdGuard DNS / HaGeZi's Normal DNS 공통 규칙) + 기타 DNS 규칙
-! Block Rules: 88,433
+! Block Rules: 88,435
 ! Exception Rules: 6,438
 !
 ||0-800-email.com^
@@ -27562,7 +27562,6 @@
 ||collector-cdn.github.com^
 ||collector-dev.cdp-dev.cnn.com^
 ||collector-ovp.streamcloud.it^
-||collector-pxebumdlwe.pxchk.net^
 ||collector-sbanking.shb-pelib.com^
 ||collector-statistics.nhn-commerce.com^
 ||collector-videoplayer.5centscdn.net^
@@ -38569,8 +38568,11 @@
 ||fluxyt.xyz^
 ||flw.camcaps.ac^
 ||flx2.pnl.agency^
+||flxext.com^
 ||flxpxl.com^
 ||flxr.myplan-c.com^
+||flxso.net^
+||flxvideo.net^
 ||flyads1.com^
 ||flyersquare.com^
 ||flygame.io^

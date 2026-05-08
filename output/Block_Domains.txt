@@ -1,5 +1,5 @@
-# Generated: 2026-05-08 02:58:26 UTC
-# Block Domains: 88,433
+# Generated: 2026-05-08 03:53:29 UTC
+# Block Domains: 88,435
 #
 0-800-email.com
 0-vip.com
@@ -27558,7 +27558,6 @@ collector-api.frspecifics.com
 collector-cdn.github.com
 collector-dev.cdp-dev.cnn.com
 collector-ovp.streamcloud.it
-collector-pxebumdlwe.pxchk.net
 collector-sbanking.shb-pelib.com
 collector-statistics.nhn-commerce.com
 collector-videoplayer.5centscdn.net
@@ -38565,8 +38564,11 @@ fluxthirty.qpon
 fluxyt.xyz
 flw.camcaps.ac
 flx2.pnl.agency
+flxext.com
 flxpxl.com
 flxr.myplan-c.com
+flxso.net
+flxvideo.net
 flyads1.com
 flyersquare.com
 flygame.io
