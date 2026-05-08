@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-08 17:05:04 UTC
+! Generated: 2026-05-08 18:48:52 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 84,213
+! Block Rules: 84,215
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -24171,6 +24171,7 @@
 ||fleraprt.com^
 ||fleshcash.com^
 ||fleshlightgirls.com^
+||fletherpetos.com^
 ||flewjuiskkk.com^
 ||flexedattrib.com^
 ||flexibilitukydtea.com^
@@ -37525,6 +37526,7 @@
 ||lastanonymous.com^
 ||lasting-middle.pro^
 ||lasting-poetry.pro^
+||lastingdiketo.com^
 ||lastingillipe.com^
 ||lastingquiver.com^
 ||lastlyseaweedgoose.com^
