@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
-! Generated: 2026-05-08 10:21:10 UTC
+! Generated: 2026-05-08 10:30:16 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  External Whitelist + Personal Whitelist (minus Personal Block)
-! Exception Rules: 6,764
+! Exception Rules: 6,730
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -45,7 +45,6 @@
 @@||4strokemedia.com^
 @@||4user.yeskey.or.kr^
 @@||5-aclk.net^
-@@||5231.xg4ken.com^
 @@||53.com^
 @@||6-aclk.net^
 @@||6ms.biz^
@@ -144,7 +143,6 @@
 @@||ad-shield.io^
 @@||ad.admitad.com^
 @@||ad.adverticum.net^
-@@||ad.atdmt.com^
 @@||ad.doubleclick.net^
 @@||ad.dyntracker.de^
 @@||ad.kddi-fs.com^
@@ -1189,7 +1187,6 @@
 @@||clicks.trx-hub.com^
 @@||clicksbuster.com^
 @@||clickserv.sitescout.com^
-@@||clickserve.cc-dt.com^
 @@||clickserve.dartsearch.net^
 @@||clicktale.net^
 @@||clicktracker.getblue.io^
@@ -1217,7 +1214,6 @@
 @@||clk.mfilter.net^
 @@||clk.omgt3.com^
 @@||clk.simulation-technology.com^
-@@||clk.tradedoubler.com^
 @@||clk.wargaming.net^
 @@||clkdms.com^
 @@||clog-aggregator.kakao.com^
@@ -1547,7 +1543,6 @@
 @@||dominos.sng.link^
 @@||donau-iller-bank.de^
 @@||donner-reuschel.de^
-@@||doubleclick.net^
 @@||dovoba.de^
 @@||download.skype.com^
 @@||download.sonarr.tv^
@@ -1906,7 +1901,6 @@
 @@||gametlk1.com^
 @@||gametlk2.com^
 @@||gametlk3.com^
-@@||gan.doubleclick.net^
 @@||garanti.com.tr^
 @@||garantibank.de^
 @@||garantibank.nl^
@@ -2004,7 +1998,6 @@
 @@||gorod23.ru^
 @@||gorzdrav.spb.ru^
 @@||gosuslugi.ru^
-@@||goto-target-com.customtraffic.impactradius.com^
 @@||goto.jet.com^
 @@||goto.target.com^
 @@||gotrackier.com^
@@ -5644,7 +5637,6 @@
 @@||tbb.com.tw^
 @@||tbb.ee^
 @@||tbconline.ge^
-@@||tc.tradetracker.com^
 @@||tc.tradetracker.net^
 @@||tcb-bank.com.tw^
 @@||tcbbank.com.tw^
@@ -5823,7 +5815,6 @@
 @@||tradedoubler.com^
 @@||traderepublic.com^
 @@||tradetracker.com^
-@@||tradetracker.net^
 @@||traffic.libsyn.com^
 @@||trafficmanager.net^
 @@||train.ideabank.ua^
@@ -6554,16 +6545,12 @@
 @@||wunderlist.com^
 @@||wvb.de^
 @@||ww-ag.de^
-@@||www.7eer.net^
 @@||www.abbl.com^
-@@||www.affiliatefuture.com^
 @@||www.agranibank.org^
 @@||www.al-arafahbank.com^
 @@||www.anrdoezrs.net^
 @@||www.antonioli.eu^
-@@||www.apmebf.com^
 @@||www.asa.org.bd^
-@@||www.avantlink.com^
 @@||www.avivabd.com^
 @@||www.awin1.com^
 @@||www.bankalfalah.com^
@@ -6571,7 +6558,6 @@
 @@||www.basicbanklimited.com^
 @@||www.bd.finance^
 @@||www.bdbl.com.bd^
-@@||www.bfast.com^
 @@||www.bifcol.com^
 @@||www.biffl.org.bd^
 @@||www.bkash.com^
@@ -6579,10 +6565,8 @@
 @@||www.brac.net^
 @@||www.bracbank.com^
 @@||www.burobd.org^
-@@||www.cc-dt.com^
 @@||www.citi.com^
 @@||www.citizensbankbd.com^
-@@||www.cj.com^
 @@||www.combank.net^
 @@||www.communitybankbd.com^
 @@||www.cvcflbd.com^
@@ -6590,13 +6574,9 @@
 @@||www.dbs.com^
 @@||www.deltabrac.com^
 @@||www.digital.peoplesbank.lk^
-@@||www.doubleclick.net^
-@@||www.dpbolvw.net^
 @@||www.dutchbanglabank.com^
 @@||www.ebank.peoplesbank.lk^
 @@||www.ebl.com.bd^
-@@||www.emjcd.com^
-@@||www.evyy.net^
 @@||www.eximbankbd.com^
 @@||www.fasbd.com^
 @@||www.ffilbd.com^
@@ -6605,7 +6585,6 @@
 @@||www.globalislamibankbd.com^
 @@||www.googleadservices.com^
 @@||www.googleapis.com^
-@@||www.gopjn.com^
 @@||www.grameen-info.org^
 @@||www.gspfinance.com^
 @@||www.hajjfinance.net^
@@ -6627,13 +6606,10 @@
 @@||www.jamunabankbd.com^
 @@||www.janatabank-bd.com^
 @@||www.jcfbd.org^
-@@||www.jdoqocy.com^
 @@||www.kdukvh.com^
-@@||www.kqzyfj.com^
 @@||www.krishibank.org.bd^
 @@||www.lankabangla.com^
 @@||www.lankanalliance.com^
-@@||www.linksynergy.com^
 @@||www.mblbd.com^
 @@||www.mcb.mu^
 @@||www.meghnabank.com.bd^
@@ -6654,27 +6630,19 @@
 @@||www.npttech.com^
 @@||www.nrbbankbd.com^
 @@||www.nrbcommercialbank.com^
-@@||www.ojrq.net^
 @@||www.onebankbd.com^
-@@||www.onenetworkdirect.net^
 @@||www.onlinesbiglobal.com^
 @@||www.padmabankbd.com^
 @@||www.partner-ads.com^
 @@||www.payeasy.lk^
-@@||www.pjatr.com^
-@@||www.pjtra.com^
 @@||www.pkb.gov.bd^
 @@||www.plfsbd.com^
-@@||www.pntra.com^
-@@||www.pntrac.com^
-@@||www.pntrack.com^
 @@||www.posb.com.sg^
 @@||www.premierbankltd.com^
 @@||www.premierleasing.com.bd^
 @@||www.primebank.com.bd^
 @@||www.primefinancebd.com^
 @@||www.pubalibangla.com^
-@@||www.qksrv.net^
 @@||www.rakub.org.bd^
 @@||www.re-store.ru^
 @@||www.sabinco.com.bd^
@@ -6691,8 +6659,6 @@
 @@||www.standardchartered.com^
 @@||www.svyaznoy.ru^
 @@||www.thecitybank.com^
-@@||www.tkqlhce.com^
-@@||www.tradetracker.net^
 @@||www.trustbank.com.bd^
 @@||www.ucb.com.bd^
 @@||www.ulc.com.bd^

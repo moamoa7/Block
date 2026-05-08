@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-08 10:21:10 UTC
+  Generated: 2026-05-08 10:30:16 UTC
 ======================================================================
 
 [ Reference Filters ]
@@ -55,14 +55,11 @@
   [OK]  anudeepND Whitelist
         URL       : https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt
         Lines     : 191   Extracted: 191   New: 183
-  [OK]  anudeepND Referral Sites
-        URL       : https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/referral-sites.txt
-        Lines     : 77   Extracted: 76   New: 34
   [OK]  DandelionSprout AGH Whitelist
         URL       : https://raw.githubusercontent.com/DandelionSprout/AdGuard-Home-Whitelist/master/whitelist.txt
         Lines     : 354   Extracted: 285   New: 101
 
-  Total whitelist domains: 6,761
+  Total whitelist domains: 6,727
 
 [ Personal Blocklist (Force-add) ]
 ----------------------------------------------------------------------
@@ -98,7 +95,7 @@
   Personal white size : 3
   Forced white        : 2  (overrode block)
   Final block         : 84,185
-  Final exception     : 6,764
+  Final exception     : 6,730
 
 [ Final Summary ]
 ----------------------------------------------------------------------
@@ -107,4 +104,4 @@
   3. Personal block added          : 0  (forced black: 0)
   4. Personal white applied        : 3  (forced white: 2)
   5. Final Block Rules             : 84,185
-  6. Final Exception Rules         : 6,764
+  6. Final Exception Rules         : 6,730
