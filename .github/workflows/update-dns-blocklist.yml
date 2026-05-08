@@ -33,7 +33,7 @@ jobs:
       - name: Check output exists
         run: |
           ERROR=0
-          for FILE in output/Block_DNS.txt output/Block_Domains.txt output/Block_Hosts.txt; do
+          for FILE in output/Block_DNS.txt output/White_DNS.txt output/Report.txt; do
             if [ ! -f "$FILE" ]; then
               echo "::error::${FILE} not generated!"
               ERROR=1
@@ -42,10 +42,12 @@ jobs:
           if [ "$ERROR" -eq 1 ]; then
             exit 1
           fi
-          DOMAIN_COUNT=$(grep -c -v '^#' output/Block_Domains.txt || true)
-          echo "Extracted ${DOMAIN_COUNT} domains"
-          if [ "$DOMAIN_COUNT" -lt 100 ]; then
-            echo "::error::Too few domains (${DOMAIN_COUNT}), something may be wrong"
+          BLOCK_COUNT=$(grep -c '^||' output/Block_DNS.txt || true)
+          WHITE_COUNT=$(grep -c '^@@||' output/White_DNS.txt || true)
+          echo "Block rules : ${BLOCK_COUNT}"
+          echo "Allow rules : ${WHITE_COUNT}"
+          if [ "$BLOCK_COUNT" -lt 100 ]; then
+            echo "::error::Too few block rules (${BLOCK_COUNT}), something may be wrong"
             exit 1
           fi
 
@@ -57,7 +59,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            DOMAIN_COUNT=$(grep -c -v '^#' output/Block_Domains.txt || true)
-            git commit -m "chore: update DNS blocklist $(date -u +%Y-%m-%d) [${DOMAIN_COUNT} domains]"
+            BLOCK_COUNT=$(grep -c '^||' output/Block_DNS.txt || true)
+            git commit -m "chore: update DNS blocklist $(date -u +%Y-%m-%d) [${BLOCK_COUNT} block rules]"
             git push
           fi
