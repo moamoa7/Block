@@ -1,2 +1,6 @@
-#! '보안/봇 탐지용' 추적기 차단 !#
-||collector-pxebumdlwe.pxchk.net^
+#! 넷플릭스 광고 차단' !#
+||flxvideo.net^
+||flxso.net^
+||flxext.com^
+||ad.akamaized.net^
+||ads.akamaized.net^
