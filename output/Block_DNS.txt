@@ -1,8 +1,8 @@
 ! Title: Personal Block/Allow List (DNS)
-! Generated: 2026-05-08 02:44:22 UTC
+! Generated: 2026-05-08 02:58:26 UTC
 ! Homepage: https://github.com/moamoa7/adblock
-! Method: 15.txt ∩ HaGeZi multi.txt + custom whitelist/blocklist
-! Block Rules: 88,432
+! Method:  (AdGuard DNS / HaGeZi's Normal DNS 공통 규칙) + 기타 DNS 규칙
+! Block Rules: 88,433
 ! Exception Rules: 6,438
 !
 ||0-800-email.com^
@@ -24802,6 +24802,7 @@
 ||chaldailg.com^
 ||chalecroo.com.de^
 ||chaliceguzzlerlandlord.com^
+||chalkdream.com^
 ||chalkedretrieval.com^
 ||chalkleash.com^
 ||chalkoil.com^
