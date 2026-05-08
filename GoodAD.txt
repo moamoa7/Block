@@ -127,22 +127,22 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 !- 구글이 이 파라미터를 통해 사용자가 어떤 검색 경로로 들어왔는지, 어떤 최적화 환경에서 페이지를 보고 있는지 분석하는 것을 차단  (URL 클린업)
 !*$removeparam=usqp
 ! - 사이트에 내장된 구글 서비스가 사용자의 상호작용 데이터를 구글 클라우드로 보내는 것을 막습니다.
-||google.com/ccm/
+!||google.com/ccm/
 ! - 나를 따라다니는 스토커 같은 '맞춤형 광고'의 연결 고리를 끊어버립니다.
-/rmkt/collect/*
+!/rmkt/collect/*
 ! - Google 로그인 페이지에서 세션 식별 및 추적 용도로 사용되는 것을 막는 규칙
 ||accounts.google.com^$document,removeparam=dsh
 ! - Google의 로깅/추적 요청을 빈 텍스트로 리다이렉트해서 사용자 행동 추적을 차단하는 규칙
 !||google.com/log?$redirect-rule=nooptext
 ! - 사용자의 활동 로그나 상태 정보를 아주 가볍게 수집할 때 사용하는 통로를 차단하는 규칙
 ! - - - 프라이버시 강화 / 유튜브 트래킹 방지 / 백그라운드 통신 차단
-||google.com/gen_204?
+!||google.com/gen_204?
 ! - 유튜브(웹 및 앱) 내에서의 행동을 정밀하게 추적하는 '전용 빨대' 차단 (시청 기록 및 알고리즘 방해 / 광고 통계 무력화 / 백그라운드 통신 차단)
-||youtube.com/youtubei/v1/log_event?
+!||youtube.com/youtubei/v1/log_event?
 ! - 사용자의 행동 정보(어떤 버튼을 눌렀는지, 얼마나 머물렀는지 등)가 구글로 넘어가는 것을 막아 프라이버시를 보호
-/collect?v=
+!/collect?v=
 ! - 광고를 보고 실제로 물건을 샀는지(전환)"를 확인하려는 행위를 차단 (광고 성과 추적 차단 / 리타겟팅 방지 / 프라이버시 보호)
-||google.com/pagead/1p-conversion/
+!||google.com/pagead/1p-conversion/
 ! - 구글 플레이 스토어뿐만 아니라, 유튜브, 구글 검색, 안드로이드 시스템 서비스 등 수많은 구글 관련 앱들이 사용자 행동/기기 정보/이벤트 로그등의 원격 측정(Telemetry) 차단 / 배터리 및 데이터 절약 (백그라운드 차단) / 프라이버시 강화
 ||play.google.com/log?
 ! - 구글 광고 시스템의 핵심 통로인 'PageAd' 서비스를 차단하는 규칙하는 규칙
@@ -159,27 +159,27 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 ! - - - 웹사이트들은 사용자를 추적하고 싶지만, 대놓고 데이터를 보내면 브라우저 보안 정책에 걸릴 수 있습니다. 이때 사용하는 고전적이고 영리한 방법
 ! - - - 화면에 보이지 않는 투명 픽셀을 이용한 '비콘(Beacon)' 형태의 데이터 수집을 원천 봉쇄
 ! - - - 구글 웹사이트나 크롬 관련 기능들이 백그라운드에서 수시로 "연결 확인용"으로 쏘는 불필요한 신호를 차단 (트래픽 및 리소스 절약)
-/generate_204?$image
+!/generate_204?$image
 !
 !
 ! - HubSpot 서버가 내 유입 경로를 구체적으로 파악하지 못하게 방해하여 개인정보 보호 및 URL 클린업
 ! -- -  인스타
-$removeparam=__hs
+*$removeparam=__hs
 ! - 인스타그램(Instagram)의 이미지나 영상 서버(CDN) 주소에 붙는 복잡한 내부 추적 및 제어 파라미터를 제거하는 규칙 (URL 클린업)
 ||cdninstagram.com^$removeparam=efg
 ||cdninstagram.com^$removeparam=ccb
 ||cdninstagram.com^$removeparam=_nc_sid
 ! - 인스타그램의 "특정 백그라운드 요청(AJAX)"을 차단하는 규칙 (사용자 행동 분석 / 성능/품질 측정 / 불필요한 기능 호출 차단)
-||instagram.com/ajax/qm/?
+!||instagram.com/ajax/qm/?
 ! - 인스타그램과 페이스북은 모두 메타(Meta) 소유이기 때문에 동일한 시스템을 공유하는데, 이 규칙 역시 페이스북 내에서 발생하는 특정 백그라운드 요청(AJAX)을 차단하는 규칙
-||facebook.com/ajax/qm/
+!||facebook.com/ajax/qm/
 ! - 스타그램이 사용자의 세세한 행동 데이터를 실시간으로 수집하여 서버로 전송하는 '이벤트 로그 송신' 경로를 차단하는 설정
 ! - - - 사용자가 피드를 어디까지 내렸는지.특정 사진이나 릴스를 몇 초 동안 보고 있었는지.어떤 메뉴를 눌렀고, 어떤 프로필을 방문했는지.기기 정보.특정 광고나 게시물이 사용자의 화면에 실제로 표시되었는지 확인
 ||graph.instagram.com/logging_client_events
 ! - 인스타그램이 사용자의 브라우저에서 발생하는 방대한 양의 분석 데이터와 메트릭을 일괄적으로 묶어서 보낼 때 사용하는 경로를 차단하는규칙
 ! - - -  특정 광고가 화면에 몇 초 동안 머물렀는지, 사용자가 그 광고를 보고 어떤 반응을 보였는지 등
 ! - - - 웹사이트가 현재 얼마나 많은 메모리를 쓰고 있는지, 자바스크립트가 지연되고 있지는 않은지 등의 기술적 상태
-||instagram.com/ajax/bz
+!||instagram.com/ajax/bz
 ! - __s라는 특정 패턴의 추적 파라미터를 삭제하라는 매우 정교한 규칙 (이메일 마케팅 솔루션인 Drip에서 사용자의 유입을 식별할때 사용)
 !*$removeparam=/^__s=[A-Za-z0-9]{6\,}/,domain=~univis.uni-erlangen.de|~univis.uni-bamberg.de|~univis.uni-luebeck.de|~univis.uni-kiel.de|~univis.th-koeln.de
 !
@@ -188,9 +188,9 @@ $removeparam=__hs
 ! - - - 내가 어떤 쇼핑몰에서 어떤 옷을 봤는지, 뉴스 사이트에서 어떤 기사를 읽었는지 페이스북이 실시간으로 수집하는 것을 차단
 ! - - - "장바구니 담기", "결제 완료" 같은 구체적인 액션이 페이스북 광고 시스템에 보고되는 것을 방지
 ! - - - 외부 사이트에서의 활동을 바탕으로 페이스북이나 인스타그램 앱 내에서 "방금 본 그 상품" 광고가 뜨게 만드는 연결 고리를 끊습니다.
-||facebook.com/tr?
+!||facebook.com/tr?
 ! - 페이스북 외부의 수많은 쇼핑몰이나 뉴스 사이트에 심어져서 사용자가 "구매"를 했는지, "장바구니"에 담았는지 등의 이벤트(Events)를 추적을 차단하는 규칙
-/fbevents.js
+!/fbevents.js
 !
 !
 ! - 틱톡(TikTok) 웹 버전이 사용자의 활동 내역이나 오류 발생 상황을 틱톡 서버로 보낼 때 사용하는 '리포트(보고)' 경로를 차단하는 규칙
@@ -221,7 +221,7 @@ $removeparam=__hs
 ! - - - 틱톡 서버가 내 브라우저를 '특정 개인'으로 인식하고 분류하려는 시도를 막습니다.
 ! - - - 로그인하지 않은 상태에서 시청한 기록을 나중에 로그인했을 때 해당 계정과 연결(Bridge)하려는 행위를 방해
 ! - - - 틱톡 외부(광고나 임베디드 영상 등)에서 수집된 데이터와 현재 브라우저의 활동을 ttwid를 통해 하나로 묶는 과정을 차단
-||tiktok.com/ttwid/check/
+!||tiktok.com/ttwid/check/
 !
 !
 ! - X에서 발생하는 모든 종류의 사용자 행동 로그 전송을 차단하는 규칙
@@ -234,9 +234,9 @@ $removeparam=__hs
 /referrer.js
 ! - X(구 트위터)가 웹사이트 보안 정책을 점검할 때 사용하는 '보안 정책 위반 보고(CSP Report)' 경로를 차단하는 규칙
 ! - --  "사용자가 어떤 요소를 차단하고 있는지", "어떤 광고 차단 확장 프로그램을 쓰는지"를 역으로 알아낼 수 있습니다
-||x.com/i/csp_report
+!||x.com/i/csp_report
 ! - X 웹사이트가 사용자의 활동 정보(페이지에서 수행한 활동(스크롤, 클릭, 체류 시간 등))를 정리하여 서버로 보내는 데이터 파일 자체를 차단
-||x.com^*/log.json
+!||x.com^*/log.json
 ! - 타임라인 사이사이에 끼어드는 스폰서 동영상 광고, 혹은 영상 시청 전후에 나오는 광고 데이터를 처리
 x.com/*/videoads/
 !
@@ -276,7 +276,7 @@ x.com/*/videoads/
 ! - - - 메인 데이터 수집기(Collector) - 사용자가 웹사이트에 접속하면 브라우저의 환경 정보(화면 해상도, 폰트 목록, 배터리 상태, 마우스 움직임 패턴 등)를 싹 긁어모음
 ||px-cloud.net/api/v2/collector
 ! - - -  사용자가 페이지에 머무는 동안 주기적으로 "여전히 활성 상태인가?"를 확인하거나, 아주 작은 단위의 행동 변화를 서버에 알릴 때 사용
-||px-cloud.net/b/s
+!||px-cloud.net/b/s
 !
 !
 ! tracker라는 이름이 붙은 서버가 WebSocket으로 몰래 나를 실시간 감시하는 것을 막는 규칙
@@ -297,7 +297,7 @@ x.com/*/videoads/
 !
 ! 자바스크립트 에러가 발생하면 서버로 보내려고 시도하는것을 차단
 !- - - 불필요한 트래픽 감소 / 개인정보 및 추적 방지 / 브라우저 자원 낭비 차단
-/log_js_error$ping
+!/log_js_error$ping
 !
 !
 ! - OneTrust라는 유명한 쿠키 관리 솔루션이 사용자의 위치를 파악하고 그에 맞는 쿠키 동의 배너(Consent Banner)를 띄우려는 시도를 원천 봉쇄하는 규칙
@@ -5259,3 +5259,16 @@ hankyung.com#@#div:has(> iframe[src*=".iframe"])
 ! - 오마이뉴스 (https://ohmynews.com/)
 ! - 문화일보 (https://www.munhwa.com/)
 ##*:has(> iframe[src*="/ad."])
+
+
+
+
+
+
+
+
+
+
+
+
+=======================================
