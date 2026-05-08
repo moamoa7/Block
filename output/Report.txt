@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-08 06:24:58 UTC
+  Generated: 2026-05-08 06:37:53 UTC
 ======================================================================
 
 [ Reference Filters ]
@@ -8,17 +8,17 @@
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
         Lines   : 165,151   Domains: 162,648
-  [OK]  HaGeZi DNS Blocklist
-        URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/multi.txt
-        Lines   : 157,036   Domains: 157,011
+  [OK]  HaGeZi's Pro DNS Blocklist
+        URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/pro.txt
+        Lines   : 194,795   Domains: 194,757
 
 [ Step 1: Build Base Block List (Intersection) ]
 ----------------------------------------------------------------------
   AdGuard DNS Filter (15.txt) : 162,648
-  HaGeZi multi.txt            : 157,011
-  Intersection (base block)   : 73,648
-  15.txt only (excluded)      : 89,000
-  HaGeZi only (excluded)      : 83,363
+  HaGeZi Pro.txt            : 194,757
+  Intersection (base block)   : 84,043
+  15.txt only (excluded)      : 78,605
+  HaGeZi only (excluded)      : 110,714
 
 [ External Whitelist Sources ]
 ----------------------------------------------------------------------
@@ -76,29 +76,29 @@
 
 [ Step 2: Apply External Whitelist ]
 ----------------------------------------------------------------------
-  Before              : 73,648
-  Removed by whitelist: 2
-  After               : 73,646
+  Before              : 84,043
+  Removed by whitelist: 15
+  After               : 84,028
 
 [ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
   Personal block size : 14,837
   New (not in base)   : 14,790
   Forced black        : 0  (overrode whitelist)
-  Block set after     : 88,436
+  Block set after     : 98,818
 
 [ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
   Forced white        : 2  (overrode block)
-  Final block         : 88,434
+  Final block         : 98,816
   Final exception     : 6,438
 
 [ Final Summary ]
 ----------------------------------------------------------------------
-  1. Base block ( AdGuard DNS / HaGeZi's Normal DNS 공통 규칙)  : 73,648
-  2. Removed by external whitelist : 2
+  1. Base block ( AdGuard DNS / HaGeZi's Pro DNS 공통 규칙)  : 84,043
+  2. Removed by external whitelist : 15
   3. Personal block added          : 14,837  (forced black: 0)
   4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 88,434
+  5. Final Block Rules             : 98,816
   6. Final Exception Rules         : 6,438
