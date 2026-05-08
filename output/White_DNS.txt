@@ -1,14 +1,13 @@
 ! Title: Personal Allow List (DNS)
-! Generated: 2026-05-08 10:02:15 UTC
+! Generated: 2026-05-08 10:12:31 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  External Whitelist + Personal Whitelist (minus Personal Block)
-! Exception Rules: 7,982
+! Exception Rules: 7,878
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
 @@||1-aclk.net^
 @@||1.elecsnet.ru^
-@@||106c06cd218b007d-b1e8a1331f68446599e96a4b46a050f5.ams.plex.services^
 @@||112.2o7.net^
 @@||1177.se^
 @@||1822direkt-banking.de^
@@ -167,7 +166,6 @@
 @@||acs2.rosbank.modirum.com^
 @@||action.metaffiliation.com^
 @@||activation.gfe.nvidia.com^
-@@||activity.windows.com^
 @@||actuabd.com^
 @@||ad-creative.pstatic.net^
 @@||ad-img.gmarket.com^
@@ -207,8 +205,6 @@
 @@||adocean.pl^
 @@||adorama.rfvk.net^
 @@||adosiz.io^
-@@||ads-a-darwin.hulustream.com^
-@@||ads-fa-darwin.hulustream.com^
 @@||ads.google.com^
 @@||ads.revjet.com^
 @@||ads.t17service.com^
@@ -406,7 +402,6 @@
 @@||analytics.adjust.world^
 @@||analytics.edgekey.net^
 @@||analytics.pinterest.com^
-@@||analytics.svt.se^
 @@||analytics.trustyou.com^
 @@||analytics.twitter.com^
 @@||andebu-sparebank.no^
@@ -449,7 +444,6 @@
 @@||api-na3.hubapi.com^
 @@||api-notify.dropbox.com^
 @@||api-stage.cleverpush.com^
-@@||api-tv.spotify.com^
 @@||api-verify.recaptcha.net^
 @@||api.accuweather.com^
 @@||api.adguard.com^
@@ -465,11 +459,9 @@
 @@||api.cognitive.microsoft.com^
 @@||api.crunchyroll.com^
 @@||api.cryptonator.com^
-@@||api.directory.signal.org^
 @@||api.ebay-kleinanzeigen.de^
 @@||api.elasticemail.com^
 @@||api.euro.hismarttv.com^
-@@||api.facebook.com^
 @@||api.fast.com^
 @@||api.freeletics.com^
 @@||api.gameanalytics.com^
@@ -500,7 +492,6 @@
 @@||api.traq.li^
 @@||api.truckersmp.com^
 @@||api.tumblr.com^
-@@||api.twitter.com^
 @@||api.us.hismarttv.com^
 @@||api.viafoura.co^
 @@||api.viber.com^
@@ -661,8 +652,6 @@
 @@||aylink.co^
 @@||az416426.vo.msecnd.net^
 @@||azerturkbank.az^
-@@||b-api.facebook.com^
-@@||b-graph.facebook.com^
 @@||b.stats.paypal.com^
 @@||b2.ndb24.ru^
 @@||ba.org.tw^
@@ -918,7 +907,6 @@
 @@||bigcattracks.com^
 @@||bigmir.net^
 @@||bigpulpit.com^
-@@||bigzipfiles.facebook.com^
 @@||bil.com^
 @@||billdesk.com^
 @@||binance.com^
@@ -1188,7 +1176,6 @@
 @@||cdn.embedly.com^
 @@||cdn.eu1.exponea.com^
 @@||cdn.exponea.com^
-@@||cdn.fbsbx.com^
 @@||cdn.ftspecialist.exponea.com^
 @@||cdn.gigya.com^
 @@||cdn.gotraffic.net^
@@ -1205,7 +1192,6 @@
 @@||cdn.registerdisney.go.com^
 @@||cdn.rollbar.com^
 @@||cdn.samsungcloudsolution.com^
-@@||cdn.signal.org^
 @@||cdn.syndication.twimg.com^
 @@||cdn.syndication.twitter.com^
 @@||cdn.tinypass.com^
@@ -1225,7 +1211,6 @@
 @@||cdns.gigya.com^
 @@||cdp.cloud.unity3d.com^
 @@||cds.connatix.com^
-@@||cds.s5x3j6q5.hwcdn.net^
 @@||cec.ro^
 @@||ceconline.ro^
 @@||cedexis.net^
@@ -1257,7 +1242,6 @@
 @@||chase.co.uk^
 @@||chase.com^
 @@||chasecanada.ca^
-@@||chat.signal.org^
 @@||chb.com.tw^
 @@||chbrr.crimea.com^
 @@||check.ddos-guard.net^
@@ -1270,7 +1254,6 @@
 @@||checkout.wirecard.com^
 @@||chelindbank.ru^
 @@||chelpus.com^
-@@||chevrolet.com^
 @@||chiark.greenend.org.uk^
 @@||chickenkiller.com^
 @@||chime.com^
@@ -1453,7 +1436,6 @@
 @@||cloudmail19.netcore.co.in^
 @@||cloudmail20.netcore.co.in^
 @@||cloudns.cl^
-@@||cloudsync-prod.s3.amazonaws.com^
 @@||cltr.wargaming.net^
 @@||clustrmaps.com^
 @@||cm.naukri.com^
@@ -1462,7 +1444,6 @@
 @@||cmbchina.com^
 @@||cmodul.solutenetwork.com^
 @@||cmr.cl^
-@@||cms.souqcdn.com^
 @@||cms.tu.bk.mufg.jp^
 @@||cname.landingi.com^
 @@||cnb.com^
@@ -1473,7 +1454,6 @@
 @@||coastalbank.com^
 @@||coastcapitalsavings.com^
 @@||cobinhood.com^
-@@||code.bildstatic.de^
 @@||code.piano.io^
 @@||codemasters.helpshift.com^
 @@||cognito-identity.us-east-1.amazonaws.com^
@@ -1507,7 +1487,6 @@
 @@||connatix.com^
 @@||conncheck.opensuse.org^
 @@||connect.auone.jp^
-@@||connect.facebook.com^
 @@||connect.facebook.net^
 @@||connect.intel.com^
 @@||connect.rtb.ru^
@@ -1525,7 +1504,6 @@
 @@||content.ibanking-services.com^
 @@||content.r9cdn.net^
 @@||content.yikyakapi.net^
-@@||contentproxy.signal.org^
 @@||contextweb.com^
 @@||continuum.dds.microsoft.com^
 @@||control.kochava.com^
@@ -1574,7 +1552,6 @@
 @@||crealytics.com^
 @@||createsend.com^
 @@||createsend1.com^
-@@||creative.ak.fbcdn.net^
 @@||creators.gumroad.com^
 @@||credicard.com.br^
 @@||credit-agricole.fr^
@@ -1656,7 +1633,6 @@
 @@||d2c8v52ll5s99u.cloudfront.net^
 @@||d2gatte9o95jao.cloudfront.net^
 @@||d3tracking.rbc.com^
-@@||d83eunklitikj.cloudfront.net^
 @@||da-de1.cloudns.io^
 @@||da.victoriabank.md^
 @@||dab-bank.de^
@@ -1795,8 +1771,6 @@
 @@||dilbert.ns.cloudflare.com^
 @@||dino.tzero.com^
 @@||directnet.com^
-@@||directvapplications.hb.omtrdc.net^
-@@||directvnow.com^
 @@||dis.gd^
 @@||discord-activities.com^
 @@||discord.co^
@@ -1845,7 +1819,6 @@
 @@||dl.dropboxusercontent.com^
 @@||dl.flathub.org^
 @@||dl.gl-inet.com^
-@@||dl.google.com^
 @@||dlink.com.br^
 @@||dls-udc.dqa.samsung.com^
 @@||dmca.gripe^
@@ -1985,10 +1958,7 @@
 @@||ecommerce.iap.unity3d.com^
 @@||ecommpay.com^
 @@||edekabank.de^
-@@||edge-chat.facebook.com^
-@@||edge-chat.messenger.com^
 @@||edge-irl1.demdex.net^
-@@||edge-mqtt.facebook.com^
 @@||edge.api.brightcove.com^
 @@||edgecast-vod.yahoo.net^
 @@||edgekey.net^
@@ -2058,7 +2028,6 @@
 @@||enter-system.com^
 @@||enter.unicredit.ru^
 @@||entiebank.com.tw^
-@@||entitlement.auth.adobe.com^
 @@||eonlnm.com^
 @@||eonlnq.com^
 @@||eonlnv.com^
@@ -2155,18 +2124,6 @@
 @@||express-credit.in.ua^
 @@||ext-sq.squarespace.com^
 @@||ext-twitch.tv^
-@@||external-lhr0-1.xx.fbcdn.net^
-@@||external-lhr1-1.xx.fbcdn.net^
-@@||external-lhr10-1.xx.fbcdn.net^
-@@||external-lhr2-1.xx.fbcdn.net^
-@@||external-lhr3-1.xx.fbcdn.net^
-@@||external-lhr4-1.xx.fbcdn.net^
-@@||external-lhr5-1.xx.fbcdn.net^
-@@||external-lhr6-1.xx.fbcdn.net^
-@@||external-lhr7-1.xx.fbcdn.net^
-@@||external-lhr8-1.xx.fbcdn.net^
-@@||external-lhr9-1.xx.fbcdn.net^
-@@||external-ort2-1.xx.fbcdn.net^
 @@||extra.unicreditbank.hu^
 @@||extreme-ip-lookup.com^
 @@||extremereach.com^
@@ -2204,8 +2161,6 @@
 @@||fastly-analytics.com^
 @@||fastmail.com^
 @@||faygoluvers.net^
-@@||fb.me^
-@@||fbcdn-creative-a.akamaihd.net^
 @@||fbid.ru^
 @@||fbngp.ca^
 @@||fbtonline.com^
@@ -2305,7 +2260,6 @@
 @@||forums.sonarr.tv^
 @@||fosterswiss.com^
 @@||foxbit.com.br^
-@@||fpdownload.adobe.com^
 @@||fpdownload.macromedia.com^
 @@||fpn.firefox.com^
 @@||fr.banquepopulaire.cyberplus^
@@ -2423,7 +2377,6 @@
 @@||gigatribe.com^
 @@||gigya.com^
 @@||gildeskaal-sparebank.no^
-@@||giphy-proxy-production.whispersystems.org^
 @@||giphy.com^
 @@||github.com^
 @@||github.io^
@@ -2479,7 +2432,6 @@
 @@||goldenpay.az^
 @@||gomobupps.com^
 @@||goods.bbm.blackberry.com^
-@@||google-analytics.com^
 @@||googleadapis.l.google.com^
 @@||googleadservices.com^
 @@||googleapis.com^
@@ -2537,11 +2489,8 @@
 @@||gscounters.us1.gigya.com^
 @@||gsght.com^
 @@||gslb-2.demdex.net^
-@@||gsp-ssl.ls-apple.com.akadns.net^
-@@||gsp-ssl.ls.apple.com^
 @@||gsp1.apple.com^
 @@||gstatic.com^
-@@||gstaticadssl.l.google.com^
 @@||gswaarm.com^
 @@||gtbank.com^
 @@||gtrcking.com^
@@ -3059,7 +3008,6 @@
 @@||ilbank.gov.tr^
 @@||iljmp.com^
 @@||image-ard-de-cddc.at-o.net^
-@@||image.angebote.spiegel.de^
 @@||image.ard.de^
 @@||image.ibb.co^
 @@||images-amazon.com^
@@ -3194,7 +3142,6 @@
 @@||ipla.hit.stat24.com^
 @@||ippen.space^
 @@||ipstack.com^
-@@||ipv6.msftncsi.com^
 @@||iqoption.com^
 @@||irena.ns.cloudflare.com^
 @@||isbank.com.tr^
@@ -3246,12 +3193,10 @@
 @@||js.hs-scripts.com^
 @@||js.intercomcdn.com^
 @@||js.iugu.com^
-@@||js.maxmind.com^
 @@||js.media-lab.ai^
 @@||js.stripe.com^
 @@||jsafrasarasin.de^
 @@||jsdelivr.net^
-@@||json.bild.de^
 @@||jsv3.recruitics.com^
 @@||jtvnw.net^
 @@||judge.me^
@@ -3426,7 +3371,6 @@
 @@||l.facebook.com^
 @@||l.klarna.com^
 @@||l.lefigaro.fr^
-@@||l.messenger.com^
 @@||l.neqty.net^
 @@||labanquepostale.fr^
 @@||ladbible.com^
@@ -3516,7 +3460,6 @@
 @@||listrakbi.com^
 @@||lithium.com^
 @@||litix.io^
-@@||live-manifests-aka.warnermediacdn.com^
 @@||live-video.net^
 @@||live.adyen.com^
 @@||live.com^
@@ -3584,7 +3527,6 @@
 @@||logrocket.com^
 @@||logs.datadoghq.com^
 @@||logs.datadoghq.eu^
-@@||logs.juspay.in^
 @@||logz.io^
 @@||lovizaim.ru^
 @@||lowes.com^
@@ -3616,10 +3558,8 @@
 @@||m.dq.com^
 @@||m.exactag.com^
 @@||m.facebook.com^
-@@||m.hotmail.com^
 @@||m.icares.app^
 @@||m.taxi.yandex.ru^
-@@||m.weeklyad.target.com^
 @@||m1.daumcdn.net^
 @@||m1.nsimg.net^
 @@||m1finance.com^
@@ -3763,7 +3703,6 @@
 @@||metric.gstatic.com^
 @@||metric.picodi.com^
 @@||metricool.com^
-@@||metrics.plex.tv^
 @@||metrics.torproject.org^
 @@||metrobankonline.co.uk^
 @@||metzler.com^
@@ -4067,10 +4006,8 @@
 @@||mobile.events.data.microsoft.com^
 @@||mobile.events.data.trafficmanager.net^
 @@||mobile.pipe.aria.microsoft.com^
-@@||mobile.twitter.com^
 @@||mobile.yandex.net^
 @@||mobileanalytics.us-east-1.amazonaws.com^
-@@||mobileandroidapi.punchh.com^
 @@||mobileapi.nutaku.com^
 @@||mobiothd.com^
 @@||mobiotsd.com^
@@ -4116,11 +4053,8 @@
 @@||mpsnare.iesnare.com^
 @@||mql5.com^
 @@||mqtt-mini.facebook.com^
-@@||mqtt.c10r.facebook.com^
 @@||mradx.net^
 @@||msa.enel.it^
-@@||msedge.api.cdp.microsoft.com^
-@@||msftconnecttest.com^
 @@||msftncsi.com^
 @@||msg.ettoday.net^
 @@||msgfocus.com^
@@ -4129,7 +4063,6 @@
 @@||mspbank.ru^
 @@||mssg.me^
 @@||mt-k.madmetrics.com^
-@@||mtalk.google.com^
 @@||mteb.ru^
 @@||mtibank.ru^
 @@||mtochka.com^
@@ -4356,7 +4289,6 @@
 @@||oasis.opstatics.com^
 @@||oasjs.kataweb.it^
 @@||oasparebank.no^
-@@||oauthaccountmanager.googleapis.com^
 @@||obconline.co.in^
 @@||oberlandbank.de^
 @@||obviousidea.com^
@@ -4637,7 +4569,6 @@
 @@||p.shure.com^
 @@||p.typekit.net^
 @@||p04e.t.en25.com^
-@@||p11.techlab-cdn.com^
 @@||p2p.alfabank.ua^
 @@||p2p.mdm.ru^
 @@||p2y.com.ua^
@@ -4844,7 +4775,6 @@
 @@||portal.aareal.com^
 @@||portal.citidirect.com^
 @@||portal.comnect.com.br^
-@@||portal.fb.com^
 @@||portal.lacaixa.es^
 @@||portal.nefteprom.com^
 @@||portalbank.no^
@@ -5368,10 +5298,7 @@
 @@||recruitics.com^
 @@||red.wargaming.net^
 @@||redd.it^
-@@||reddit-uploaded-media.s3-accelerate.amazonaws.com^
 @@||reddit.com^
-@@||reddit.map.fastly.net^
-@@||redditmedia.com^
 @@||redditstatic.com^
 @@||redefine.hit.stat24.com^
 @@||redefine2.hit.stat24.com^
@@ -5400,7 +5327,6 @@
 @@||rekgn6nab.cc.rs6.net^
 @@||relays.syncthing.net^
 @@||remind.me^
-@@||reminders-pa.googleapis.com^
 @@||renault-bank-direkt.at^
 @@||renault-bank-direkt.de^
 @@||repackmepoymi.cf^
@@ -5414,7 +5340,6 @@
 @@||reservationnow.us^
 @@||resonabank.co.jp^
 @@||responsys.net^
-@@||rest.iad-03.braze.com^
 @@||restaurant-information.com^
 @@||resursbank.se^
 @@||retail.axisbank.co.in^
@@ -5521,7 +5446,6 @@
 @@||run.admost.com^
 @@||runetki.com^
 @@||rupalibank.com.bd^
-@@||rupload.facebook.com^
 @@||rur4yyhab.cc.rs6.net^
 @@||ruru.ru^
 @@||rusmedserv.com^
@@ -5682,17 +5606,11 @@
 @@||schwab.com^
 @@||schwaebisch-hall.de^
 @@||schwaebische-bank.de^
-@@||scontent-atl3-1.xx.fbcdn.net^
-@@||scontent-lhr3-1.xx.fbcdn.net^
-@@||scontent-mia3-1.xx.fbcdn.net^
-@@||scontent-ort2-1.xx.fbcdn.net^
-@@||scontent.fgdl5-1.fna.fbcdn.net^
 @@||scontent.xx.fbcdn.net^
 @@||scorecardresearch.com^
 @@||scotiabank.cl^
 @@||scotiabank.com^
 @@||scotiabankchile.cl^
-@@||script.ioam.de^
 @@||scsb.com.tw^
 @@||sctrack.sendcloud.net^
 @@||scu.mb.ca^
@@ -5867,7 +5785,6 @@
 @@||sicredi.com.br^
 @@||sift.com^
 @@||signal-iduna.de^
-@@||signal.org^
 @@||signalfx.com^
 @@||signicat.com^
 @@||signin.ebay.ca^
@@ -5985,7 +5902,6 @@
 @@||sophos.com^
 @@||sophosxl.net^
 @@||sorexpay.com^
-@@||souqcdn.com^
 @@||southindianbank.com^
 @@||sovcombank.ru^
 @@||sozialbank.de^
@@ -6325,7 +6241,6 @@
 @@||sskpw.de^
 @@||ssl.biglion.ru^
 @@||ssl.easypay.by^
-@@||ssl.google-analytics.com^
 @@||ssl.hurra.com^
 @@||ssl.o.auspost.com.au^
 @@||ssl.p.jwpcdn.com^
@@ -6383,7 +6298,6 @@
 @@||static.siteheart.com^
 @@||static.snapchat.com^
 @@||static.tumblr.com^
-@@||static.xx.fbcdn.net^
 @@||static2.manualslib.com^
 @@||staticxx.facebook.com^
 @@||stats.appsflyer.com^
@@ -6411,7 +6325,6 @@
 @@||stone.com.br^
 @@||storage.googleapis.com^
 @@||storage.pardot.com^
-@@||storage.signal.org^
 @@||store-images.s-microsoft.com^
 @@||store.glasswire.com^
 @@||store.steampowered.com^
@@ -6429,7 +6342,6 @@
 @@||stroeerdigitalpublishing.de^
 @@||strommensparebank.no^
 @@||stvkr.com^
-@@||styles.redditmedia.com^
 @@||subarumysubaruappproduction.112.2o7.net^
 @@||sube.garantibbva.com.tr^
 @@||sube.halkbank.com.tr^
@@ -6649,7 +6561,6 @@
 @@||tag.aticdn.net^
 @@||tag.getdrip.com^
 @@||tag.shopping-feed.com^
-@@||tagger.opecloud.com^
 @@||tagilbank.ru^
 @@||tagm.eduscho.at^
 @@||tagm.tchibo.de^
@@ -6728,7 +6639,6 @@
 @@||tescobank.com^
 @@||teslathemes.com^
 @@||test.cmp.quantcast.com^
-@@||textsecure-service-whispersystems.org^
 @@||tgc.cloud^
 @@||th.bibplus.uobgroup.com^
 @@||thanachartbank.co.th^
@@ -6770,7 +6680,6 @@
 @@||tlkm.id^
 @@||tls.comnectmonitor.com.br^
 @@||tls.comnectnet.com.br^
-@@||tlu.dl.delivery.mp.microsoft.com^
 @@||tm.attrxs.de^
 @@||tm.jsuol.com.br^
 @@||tm.simptrack.com^
@@ -6874,12 +6783,10 @@
 @@||tracker.yoncamarket.com^
 @@||trackercc.com^
 @@||tracking-bcr.conectoo.com^
-@@||tracking-protection.cdn.mozilla.net^
 @@||tracking.alhilal.abudhabi^
 @@||tracking.bol.com^
 @@||tracking.cashkaro.com^
 @@||tracking.delupe.net^
-@@||tracking.dpd.de^
 @@||tracking.epicgames.com^
 @@||tracking.ftmo.com^
 @@||tracking.inflection.io^
@@ -6979,13 +6886,11 @@
 @@||ttvnw.net^
 @@||turanbank.az^
 @@||turkiye.gov.tr^
-@@||turn1.whispersystems.org^
 @@||tutanota.com^
 @@||tutotoons.com^
 @@||tv.deezer.com^
 @@||tvdb2.plex.tv^
 @@||tvthemes.plexapp.com^
-@@||tvthemes.plexapp.com.cdn.cloudflare.net^
 @@||tw.cx^
 @@||tw.netcore.co.in^
 @@||twfhcsec.com.tw^
@@ -7009,7 +6914,6 @@
 @@||ucoz.ru^
 @@||ucpb.biz^
 @@||ucweb.com^
-@@||ud-chat.signal.org^
 @@||udc.yahoo.com^
 @@||udec.cl^
 @@||udengi.ru^
@@ -7072,12 +6976,9 @@
 @@||updates-http.cdn-apple.com^
 @@||updates.cdn-apple.com^
 @@||updates.extremereach.com^
-@@||updates2.signal.org^
 @@||upgrade.scdn.co^
 @@||upgrade.scdn.com^
 @@||uphold.com^
-@@||upload.facebook.com^
-@@||upload.twitter.com^
 @@||upma.org^
 @@||upoint.id^
 @@||ups.com^
@@ -7121,7 +7022,6 @@
 @@||v-vb.de^
 @@||v.shopify.com^
 @@||v.short.gy^
-@@||v.w-x.co^
 @@||v.wpimg.pl^
 @@||v10.events.data.microsoft.com^
 @@||v10.vortex-win.data.microsoft.com^
@@ -7303,7 +7203,6 @@
 @@||vicsuper.com.au^
 @@||vid.connatix.com^
 @@||video-stats.l.google.com^
-@@||video.xx.fbcdn.net^
 @@||video.xxxjmp.com^
 @@||videoplaza.tv^
 @@||videoproc.com^
@@ -7630,7 +7529,6 @@
 @@||vxcash.net^
 @@||vystarcu.org^
 @@||w-saarplus.de^
-@@||wa.me^
 @@||waldecker-bank.de^
 @@||wallet.advcash.com^
 @@||wallet.best^
@@ -7649,7 +7547,6 @@
 @@||wealthsimple.com^
 @@||web.archive.org^
 @@||web.bancadigitalbod.com^
-@@||web.facebook.com^
 @@||web.hellenicbank.com^
 @@||web.whatsapp.com^
 @@||webadvisorc.rest.gti.mcafee.com^
@@ -7689,7 +7586,6 @@
 @@||whatfinger.com^
 @@||whatsapp.net^
 @@||whisper.sh^
-@@||whispersystems-textsecure-attachments.s3-accelerate.amazonaws.com^
 @@||wideup.net^
 @@||widget-cdn.rpxnow.com^
 @@||widiba.it^
