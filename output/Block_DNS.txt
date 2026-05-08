@@ -1,5 +1,5 @@
 ! Title: Personal Block List (DNS)
-! Generated: 2026-05-08 10:48:24 UTC
+! Generated: 2026-05-08 11:10:18 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  (AdGuard DNS / HaGeZi's Pro DNS 공통 규칙) + 기타 DNS 규칙
 ! Block Rules: 84,199
