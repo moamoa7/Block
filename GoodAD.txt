@@ -285,6 +285,10 @@ x.com/*/videoads/
 ||netflix.com/log/
 !
 !
+! - GitHub(깃허브)이 사용자의 브라우저 성능 및 활동 통계를 수집하는 비공개 경로를 차단하는 규칙
+||api.github.com/_private/browser/stats$important
+!
+!
 ! 자바스크립트 에러가 발생하면 서버로 보내려고 시도하는것을 차단
 !- - - 불필요한 트래픽 감소 / 개인정보 및 추적 방지 / 브라우저 자원 낭비 차단
 /log_js_error$ping
