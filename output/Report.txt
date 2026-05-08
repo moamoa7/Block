@@ -1,5 +1,5 @@
 DNS Blocklist Build Report
-Generated: 2026-05-08 11:36:31 UTC
+Generated: 2026-05-08 11:44:49 UTC
 ============================================================
 
 [1] Reference Filters
@@ -11,19 +11,28 @@ Generated: 2026-05-08 11:36:31 UTC
   - AdGuard SDNS Exclusions: 541 extracted
   - AdGuard HTTPS Banks: 3,978 extracted
   - AdGuard HTTPS Sensitive: 180 extracted
-  - AdGuard HTTPS Issues: 69 extracted
-  - AdGuard HTTPS Android: 142 extracted
+  - AdGuard HTTPS Issues: 68 extracted
+  - AdGuard HTTPS Android: 97 extracted
   - AdGuard HTTPS Firefox: 18 extracted
   - AdGuard HTTPS Windows: 7 extracted
-  - AdGuard HTTPS Mac: 19 extracted
+  - AdGuard HTTPS Mac: 11 extracted
   - HaGeZi DNS Pro: 1,541 extracted
   - Discord Official Domains: 43 extracted
   - anudeepND Whitelist: 191 extracted
   - DandelionSprout AGH Whitelist: 285 extracted
-[External Whitelist Total] 6,776 domains
+[External Whitelist Total] 6,727 domains
 
-[Tracker Auto-Filter] Removed 133 trackers from external whitelist
-  Sample removed (first 30):
+[Tracker Auto-Filter] Removed 138 trackers from external whitelist
+  [Blacklist hits] 8 domains:
+    - amazonaws.com
+    - apple.com
+    - googleapis.com
+    - googletagservices.com
+    - omtrdc.net
+    - pinterest.com
+    - scorecardresearch.com
+    - twitter.com
+  [Pattern hits] 130 domains (sample first 30):
     - 2mdn.net
     - a1.adform.net
     - ad.admitad.com
@@ -54,7 +63,7 @@ Generated: 2026-05-08 11:36:31 UTC
     - adservice.google.com.np
     - adservice.google.com.om
     - adservice.google.com.pe
-    ... and 103 more
+    ... and 100 more
 
 [3] Personal Blocklist
   - Personal Blocklist: 28 domains
@@ -65,8 +74,8 @@ Generated: 2026-05-08 11:36:31 UTC
 [Personal Whitelist Total] 3 domains
 
 [5] Apply Priority Rules
-  Step 1 (base - external whitelist): 84,192
-  Step 2 (+ personal block): 84,214  (forced added: 22)
-  Step 3 (- personal white): 84,212  (whitelist override: 2)
+  Step 1 (base - external whitelist): 84,193
+  Step 2 (+ personal block): 84,215  (forced added: 22)
+  Step 3 (- personal white): 84,213  (whitelist override: 2)
 
-[6] Final Whitelist: 6,645 domains
+[6] Final Whitelist: 6,591 domains

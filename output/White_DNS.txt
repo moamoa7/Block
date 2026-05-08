@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-08 11:36:31 UTC
+! Generated: 2026-05-08 11:44:49 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,645
+! Exception Rules: 6,591
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -252,8 +252,6 @@
 @@||altinn.no^
 @@||alxinger-bank.de^
 @@||amazon-value-service.com^
-@@||amazon.com^
-@@||amazonaws.com^
 @@||ambank.amonline.com.my^
 @@||ambank.com.my^
 @@||amedigital.com^
@@ -310,13 +308,11 @@
 @@||api.apple-cloudkit.com^
 @@||api.bam-x.com^
 @@||api.box.com^
-@@||api.browser.yandex.ru^
 @@||api.cleverpush.com^
 @@||api.cognitive.microsoft.com^
 @@||api.crunchyroll.com^
 @@||api.elasticemail.com^
 @@||api.freeletics.com^
-@@||api.github.com^
 @@||api.gm.com^
 @@||api.here.com^
 @@||api.heylink.com^
@@ -324,7 +320,6 @@
 @@||api.ipify.org^
 @@||api.kakao.com^
 @@||api.meetme.com^
-@@||api.mobile-api.ru^
 @@||api.myteamspeak.com^
 @@||api.narrativ.com^
 @@||api.oplata.com^
@@ -340,7 +335,6 @@
 @@||api.tumblr.com^
 @@||api.viber.com^
 @@||api.webengage.com^
-@@||api.zomato.com^
 @@||apigw.tosspayments.com^
 @@||apis.live.net^
 @@||apiservices.krxd.net^
@@ -366,7 +360,6 @@
 @@||app3.takasbank.web.tr^
 @@||appboot.netflix.com^
 @@||apple-dns.net^
-@@||apple.com^
 @@||appleid.apple.com^
 @@||apps.cybonline.co.uk^
 @@||apps.skype.com^
@@ -407,7 +400,6 @@
 @@||attorneyandlegal.com^
 @@||attribution.uk.customer360.co^
 @@||audibank.de^
-@@||audible.de^
 @@||audience-api.wts-okube.com^
 @@||audio-ake.spotify.com.edgesuite.net^
 @@||audio4-ak.spotify.com.edgesuite.net^
@@ -417,7 +409,6 @@
 @@||aus5.mozilla.org^
 @@||auth-analytics.com^
 @@||auth-analytix.com^
-@@||auth.openai.com^
 @@||auth.simperium.com^
 @@||auto-swiat.pl^
 @@||autolinkmaker.itunes.apple.com^
@@ -446,7 +437,6 @@
 @@||axisbank.com^
 @@||aylink.co^
 @@||azerturkbank.az^
-@@||azureedge.net^
 @@||b2.ndb24.ru^
 @@||ba.org.tw^
 @@||baaderbank.de^
@@ -780,7 +770,6 @@
 @@||brightcove.net^
 @@||brokers.tcsbank.ru^
 @@||brom.ro^
-@@||browser-intake-datadoghq.com^
 @@||browser.events.data.microsoft.com^
 @@||bruehlerbank.de^
 @@||bsb.by^
@@ -959,8 +948,6 @@
 @@||chase.co.uk^
 @@||chase.com^
 @@||chasecanada.ca^
-@@||chat.openai.com^
-@@||chatgpt.com^
 @@||chb.com.tw^
 @@||chbrr.crimea.com^
 @@||check.ddos-guard.net^
@@ -1124,7 +1111,6 @@
 @@||clk.wargaming.net^
 @@||clkdms.com^
 @@||clog-aggregator.kakao.com^
-@@||cloud-api.yandex.net^
 @@||cloud.fsiblbd.com^
 @@||cloudfront.net^
 @@||cloudmail16.netcore.co.in^
@@ -1376,7 +1362,6 @@
 @@||deutschebank.pl^
 @@||dev.virtualearth.net^
 @@||devbnkphl.com^
-@@||developers.google.com^
 @@||device-metrics-us-2.amazon.com^
 @@||device-metrics-us.amazon.com^
 @@||device.auth.xboxlive.com^
@@ -1394,7 +1379,6 @@
 @@||digidip.net^
 @@||digio.com.br^
 @@||digisign.ro^
-@@||digital-railcard.co.uk^
 @@||digital.bankaust.com.au^
 @@||digital.noorbank.com^
 @@||digits.com^
@@ -1441,8 +1425,6 @@
 @@||dl.delivery.mp.microsoft.com^
 @@||dl.dropbox.com^
 @@||dl.dropboxusercontent.com^
-@@||dl.google.com^
-@@||dls-udc.dqa.samsung.com^
 @@||dmd.mobi^
 @@||dms.metlife.ru^
 @@||dnb.no^
@@ -1456,7 +1438,6 @@
 @@||dovoba.de^
 @@||download.skype.com^
 @@||download.sonarr.tv^
-@@||downloader.disk.yandex.ru^
 @@||dpbolvw.net^
 @@||drift.com^
 @@||driftt.com^
@@ -1686,7 +1667,6 @@
 @@||f1tv-cdn-cent-west.formula1.com.c.footprint.net^
 @@||f1tv-livedata.formula1.com^
 @@||f97ae142.online^
-@@||facebook.com^
 @@||factoring.mb.seb.se^
 @@||factoring.seb.de^
 @@||fairfx.com^
@@ -1708,7 +1688,6 @@
 @@||fcd.autoads.asia^
 @@||fd.cleantalk.org^
 @@||fe-lb.tranquilli.org^
-@@||featureassets.org^
 @@||federalbank.co.in^
 @@||federseebank.de^
 @@||fednetbank.com^
@@ -1754,7 +1733,6 @@
 @@||fls-eu.amazon.com^
 @@||fls-na.amazon.com^
 @@||fmhy.net^
-@@||fna.fbcdn.net^
 @@||fnb.co.za^
 @@||fnb.com.lb^
 @@||fnbba.com^
@@ -1857,7 +1835,6 @@
 @@||getresponse.com^
 @@||gfl85trk.com^
 @@||gfwsl.geforce.com^
-@@||ggpht.com^
 @@||gibank.ru^
 @@||gift.kakao.com^
 @@||gildeskaal-sparebank.no^
@@ -1901,11 +1878,8 @@
 @@||goldenpay.az^
 @@||gomobupps.com^
 @@||goods.bbm.blackberry.com^
-@@||google.com^
 @@||googleadapis.l.google.com^
-@@||googleapis.com^
 @@||googletagmanager.com^
-@@||googleusercontent.com^
 @@||goonline.bnpparibas.pl^
 @@||gopjn.com^
 @@||gorod23.ru^
@@ -1926,7 +1900,6 @@
 @@||grabtaxi.com^
 @@||grafschafter-volksbank.de^
 @@||granitbank.hu^
-@@||graph.fbpigeon.com^
 @@||gravatar.com^
 @@||greenmoney.ru^
 @@||greensill-bank.com^
@@ -2877,7 +2850,6 @@
 @@||m-zwhsc.custobar.com^
 @@||m.dq.com^
 @@||m.exactag.com^
-@@||m.facebook.com^
 @@||m.icares.app^
 @@||m.taxi.yandex.ru^
 @@||m1finance.com^
@@ -2991,7 +2963,6 @@
 @@||mib.devoncredit.ru^
 @@||micb.md^
 @@||micpn.com^
-@@||microsoft.com^
 @@||microsoftonline.com^
 @@||mid.ru^
 @@||middleware.p7s1.io^
@@ -3296,7 +3267,6 @@
 @@||mpay.samsung.com^
 @@||mpaycard.ru^
 @@||mql5.com^
-@@||mqtt-mini.facebook.com^
 @@||mradx.net^
 @@||msa.enel.it^
 @@||msftncsi.com^
@@ -3336,7 +3306,6 @@
 @@||my.smartbank.kz^
 @@||my.softbank.jp^
 @@||my.tochka.com^
-@@||myaccount.google.com^
 @@||myaccount.payoneer.com^
 @@||myaltyn.kz^
 @@||mybank.com.tw^
@@ -3453,7 +3422,6 @@
 @@||nordthueringer-volksbank.de^
 @@||norisbank.de^
 @@||norstatsurveys.com^
-@@||norton.com^
 @@||nospa.de^
 @@||notify.xboxlive.com^
 @@||notify.yikyakapi.net^
@@ -3479,7 +3447,6 @@
 @@||o-s.io^
 @@||o1.email.plex.tv^
 @@||o2.sg0.plex.tv^
-@@||oaistatic.com^
 @@||oaookb.ru^
 @@||oasparebank.no^
 @@||obconline.co.in^
@@ -3865,7 +3832,6 @@
 @@||pingdom.net^
 @@||pings.conviva.com^
 @@||pinpoll.com^
-@@||pinterest.com^
 @@||piraeusbank.com^
 @@||pixamz.com^
 @@||pixel.everesttech.net^
@@ -3889,9 +3855,7 @@
 @@||players.brightcove.net^
 @@||playfamily.ru^
 @@||playhydrax.com^
-@@||playstation.com^
 @@||plerdy.com^
-@@||plex.tv^
 @@||plimus.com^
 @@||plusbank24.pl^
 @@||pnb.com.ph^
@@ -3954,7 +3918,6 @@
 @@||procreditbank.com.ua^
 @@||procreditbank.de^
 @@||prod-ripcut-delivery.disney-plus.net^
-@@||prodregistryv2.org^
 @@||products.office.com^
 @@||productserver.sygic.com^
 @@||productsup.com^
@@ -4190,7 +4153,6 @@
 @@||raiffeisenbankersingen.de^
 @@||raiffeisenonline.ro^
 @@||raika-erbes-buedesheim.de^
-@@||railcard.co.uk^
 @@||raindrop.io^
 @@||raisin-cdn.exponea.com^
 @@||rakbankonline.ae^
@@ -4623,7 +4585,6 @@
 @@||safeads.com.br^
 @@||saferpay.com^
 @@||safra.com.br^
-@@||sahibinden-vod2.mncdn.com^
 @@||saib.com.sa^
 @@||sailthru.com^
 @@||saisoncard.co.jp^
@@ -4765,7 +4726,6 @@
 @@||sendpulse.com^
 @@||sendwyre.com^
 @@||seninbankan.com.tr^
-@@||sentinel.openai.com^
 @@||sentry.io^
 @@||seosprint.net^
 @@||serve.nrich.ai^
@@ -4910,7 +4870,6 @@
 @@||solution.weborama.fr^
 @@||sonar.viously.com^
 @@||sophos.com^
-@@||sophosxl.net^
 @@||sorexpay.com^
 @@||southindianbank.com^
 @@||sovcombank.ru^
@@ -5300,7 +5259,6 @@
 @@||stgeorge.com.au^
 @@||stickypassword.com^
 @@||stone.com.br^
-@@||store.hispace.hicloud.com^
 @@||streamplay.to^
 @@||stripe.com^
 @@||stripe.network^
@@ -5564,7 +5522,6 @@
 @@||techtarget.com^
 @@||tedcdn.com^
 @@||teksweb.icbc.com.tr^
-@@||tele2.ru^
 @@||telebank.eatpbank.ru^
 @@||telebank.forshtadt.ru^
 @@||telebank.tatsotsbank.ru^
@@ -5790,7 +5747,6 @@
 @@||tsbank.no^
 @@||tsp.gov^
 @@||ttvnw.net^
-@@||tunnelbear.com^
 @@||turanbank.az^
 @@||turkiye.gov.tr^
 @@||tutanota.com^
@@ -5806,7 +5762,6 @@
 @@||twitch.tv^
 @@||twitchcdn.net^
 @@||twitchsvc.net^
-@@||twitter.com^
 @@||twmp.com.tw^
 @@||twnch.org.tw^
 @@||tysnes-sparebank.no^
@@ -6073,9 +6028,6 @@
 @@||visualwebsiteoptimizer.com^
 @@||vivocha.com^
 @@||vivuso.ru^
-@@||vk-cdn.net^
-@@||vk.com^
-@@||vkuservideo.net^
 @@||vlvb.de^
 @@||vnn-res.vgcloud.vn^
 @@||voba-aschaffenburg.de^
@@ -6389,7 +6341,6 @@
 @@||wealthbar.com^
 @@||wealthfront.com^
 @@||wealthsimple.com^
-@@||weatherapi.market.xiaomi.com^
 @@||web.bancadigitalbod.com^
 @@||web.hellenicbank.com^
 @@||web.whatsapp.com^
@@ -6494,7 +6445,6 @@
 @@||www.first-finance.com.bd^
 @@||www.fsiblbd.com^
 @@||www.globalislamibankbd.com^
-@@||www.google.com^
 @@||www.googleapis.com^
 @@||www.grameen-info.org^
 @@||www.gspfinance.com^
@@ -6599,7 +6549,6 @@
 @@||xprrtupdate.com^
 @@||xsts.auth.xboxlive.com^
 @@||xtb.com^
-@@||xx.fbcdn.net^
 @@||yads.c.yimg.jp^
 @@||yanettbank.ya.no^
 @@||yapikredi.com.az^
@@ -6615,11 +6564,8 @@
 @@||youneedabudget.com^
 @@||youtu.be^
 @@||youtube-nocookie.com^
-@@||youtube.com^
-@@||youtubei.googleapis.com^
 @@||yr.no^
 @@||yt3.ggpht.com^
-@@||ytimg.com^
 @@||yuantabank.com.tw^
 @@||z.tochka.com^
 @@||za.zdn.vn^
