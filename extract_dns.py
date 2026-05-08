@@ -299,7 +299,7 @@ def main():
     # --- 7. Final Summary ---
     report.append("\n[ Final Summary ]")
     report.append("-" * 70)
-    report.append(f"  1. Base block (15.txt ∩ HaGeZi)  : {base_count:,}")
+    report.append(f"  1. Base block ( AdGuard DNS / HaGeZi's Normal DNS 공통 규칙)  : {base_count:,}")
     report.append(f"  2. Removed by external whitelist : {white_removed:,}")
     report.append(f"  3. Personal block added          : {len(personal_block_set):,}  "
                   f"(forced black: {len(forced_black):,})")
@@ -315,7 +315,7 @@ def main():
         f"! Title: Personal Block/Allow List (DNS)\n"
         f"! Generated: {ts}\n"
         f"! Homepage: https://github.com/moamoa7/adblock\n"
-        f"! Method: 15.txt ∩ HaGeZi multi.txt + custom whitelist/blocklist\n"
+        f"! Method:  AdGuard DNS / HaGeZi's Normal DNS 공통 규칙 + custom whitelist/blocklist\n"
         f"! Block Rules: {len(final_block_set):,}\n"
         f"! Exception Rules: {len(final_white_set):,}\n"
         f"!\n"
