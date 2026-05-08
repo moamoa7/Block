@@ -25,7 +25,6 @@
 ||analytics.twitter.com^
 ||appsflyer.com^
 ||google-analytics.com^
-||googletagmanager.com^
 ||googletagservices.com^
 ||omtrdc.net^
 ||scorecardresearch.com^
@@ -33,5 +32,4 @@
 ! ===== Facebook 트래커 (본 도메인 제외) =====
 ||an.facebook.com^
 ||connect.facebook.net^
-||graph.facebook.com^
 ||pixel.facebook.com^
