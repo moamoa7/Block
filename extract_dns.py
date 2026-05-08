@@ -315,7 +315,7 @@ def main():
         f"! Title: Personal Block/Allow List (DNS)\n"
         f"! Generated: {ts}\n"
         f"! Homepage: https://github.com/moamoa7/adblock\n"
-        f"! Method:  AdGuard DNS / HaGeZi's Normal DNS 공통 규칙 + custom whitelist/blocklist\n"
+        f"! Method:  (AdGuard DNS / HaGeZi's Normal DNS 공통 규칙) + 기타 DNS 규칙\n"
         f"! Block Rules: {len(final_block_set):,}\n"
         f"! Exception Rules: {len(final_white_set):,}\n"
         f"!\n"
