@@ -1,4 +1,1 @@
-#! 넷플릭스 광고 차단 !#
-||flxvideo.net^
-||flxso.net^
-||flxext.com^
+
