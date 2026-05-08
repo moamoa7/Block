@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
-! Generated: 2026-05-08 11:22:26 UTC
 ! Homepage: https://github.com/moamoa7/adblock
-! Method:  (AdGuard DNS / HaGeZi's Pro DNS 공통 규칙) + 기타 DNS 규칙
-! Block Rules: 84,208
+! Generated: 2026-05-08 11:36:31 UTC
+! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
+! Block Rules: 84,212
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -6137,6 +6137,10 @@
 ||analytics.a-f.io^
 ||analytics.adam.page^
 ||analytics.adfreetime.com^
+||analytics.adjust.com^
+||analytics.adjust.io^
+||analytics.adjust.net.in^
+||analytics.adjust.world^
 ||analytics.admon.com.vn^
 ||analytics.adobe.io^
 ||analytics.adultempire.com^
@@ -11399,7 +11403,6 @@
 ||browsekeeper.com^
 ||browser-http-intake.logs.datadoghq.com^
 ||browser-http-intake.logs.datadoghq.eu^
-||browser-intake-datadoghq.com^
 ||browser-statistik.de^
 ||browser-updater.yandex.net^
 ||browsercfg-drcn.cloud.dbankcloud.cn^
@@ -24797,7 +24800,6 @@
 ||freckledoutsiderundaunted.com^
 ||frecklessfrecklesssuction.com^
 ||fredmoresco.com^
-||free-4paid.com^
 ||free-cdn.oss-cn-shanghai.aliyuncs.com^
 ||free-counter.co.uk^
 ||free-counter.com^
@@ -44032,6 +44034,7 @@
 ||msjyzcuvitsht.site^
 ||mskuqwmfjteb.com^
 ||mslhvnakjrwgl.store^
+||msmetrics.ws.sonos.com^
 ||msmt.cegeka.com^
 ||msn5vg8em.com^
 ||msnenkmvzkacs.site^
@@ -49565,6 +49568,7 @@
 ||pixel.web.roku.com^
 ||pixel.wetracked.io^
 ||pixel.wp.com^
+||pixel.wp.pl^
 ||pixel.yola.com^
 ||pixel6.wp.pl^
 ||pixelcounter.marca.com^

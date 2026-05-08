@@ -1,107 +1,72 @@
-======================================================================
-  Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-08 11:22:26 UTC
-======================================================================
+DNS Blocklist Build Report
+Generated: 2026-05-08 11:36:31 UTC
+============================================================
 
-[ Reference Filters ]
-----------------------------------------------------------------------
-  [OK]  AdGuard DNS Filter
-        URL     : https://filters.adtidy.org/windows/filters/15.txt
-        Lines   : 165,181   Domains: 162,678
-  [OK]  HaGeZi's Pro DNS Blocklist
-        URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/pro.txt
-        Lines   : 195,161   Domains: 195,123
+[1] Reference Filters
+[Primary (AdGuard 15.txt)] 162,678 domains
+[Secondary (HaGeZi Pro)] 195,123 domains
+[Intersection] 84,206 domains
 
-[ Step 1: Build Base Block List (Intersection) ]
-----------------------------------------------------------------------
-  AdGuard DNS Filter (15.txt) : 162,678
-  HaGeZi Pro.txt              : 195,123
-  Intersection (base block)   : 84,206
-  15.txt only (excluded)      : 78,472
-  HaGeZi only (excluded)      : 110,917
+[2] External Whitelist Sources
+  - AdGuard SDNS Exclusions: 541 extracted
+  - AdGuard HTTPS Banks: 3,978 extracted
+  - AdGuard HTTPS Sensitive: 180 extracted
+  - AdGuard HTTPS Issues: 69 extracted
+  - AdGuard HTTPS Android: 142 extracted
+  - AdGuard HTTPS Firefox: 18 extracted
+  - AdGuard HTTPS Windows: 7 extracted
+  - AdGuard HTTPS Mac: 19 extracted
+  - HaGeZi DNS Pro: 1,541 extracted
+  - Discord Official Domains: 43 extracted
+  - anudeepND Whitelist: 191 extracted
+  - DandelionSprout AGH Whitelist: 285 extracted
+[External Whitelist Total] 6,776 domains
 
-[ External Whitelist Sources ]
-----------------------------------------------------------------------
-  [OK]  AdGuard DNS Exclusions
-        URL       : https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt
-        Lines     : 1,094   Extracted: 541   New: 541
-  [OK]  AdGuard HTTPS - Banks
-        URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/banks.txt
-        Lines     : 3,988   Extracted: 3,978   New: 3,977
-  [OK]  AdGuard HTTPS - Sensitive
-        URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/sensitive.txt
-        Lines     : 216   Extracted: 180   New: 177
-  [OK]  AdGuard HTTPS - Issues
-        URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/issues.txt
-        Lines     : 123   Extracted: 68   New: 67
-  [OK]  AdGuard HTTPS - Android
-        URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/android.txt
-        Lines     : 257   Extracted: 97   New: 95
-  [OK]  AdGuard HTTPS - Firefox
-        URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/firefox.txt
-        Lines     : 25   Extracted: 18   New: 18
-  [OK]  AdGuard HTTPS - Windows
-        URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/windows.txt
-        Lines     : 14   Extracted: 7   New: 7
-  [OK]  AdGuard HTTPS - Mac
-        URL       : https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/mac.txt
-        Lines     : 30   Extracted: 11   New: 11
-  [OK]  HaGeZi Referral Whitelist (Native)
-        URL       : https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/whitelist-referral-native.txt
-        Lines     : 1,553   Extracted: 1,541   New: 1,508
-  [OK]  Discord Official Domains
-        URL       : https://raw.githubusercontent.com/Dogino/Discord-Phishing-URLs/main/official-domains.txt
-        Lines     : 48   Extracted: 43   New: 42
-  [OK]  anudeepND Whitelist
-        URL       : https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt
-        Lines     : 191   Extracted: 191   New: 183
-  [OK]  DandelionSprout AGH Whitelist
-        URL       : https://raw.githubusercontent.com/DandelionSprout/AdGuard-Home-Whitelist/master/whitelist.txt
-        Lines     : 354   Extracted: 285   New: 101
+[Tracker Auto-Filter] Removed 133 trackers from external whitelist
+  Sample removed (first 30):
+    - 2mdn.net
+    - a1.adform.net
+    - ad.admitad.com
+    - ad.doubleclick.net
+    - adform.com
+    - adjust.com
+    - admitad.com
+    - adobedtm.com
+    - adobetarget.data.adobedc.net
+    - adservice.google.at
+    - adservice.google.ca
+    - adservice.google.ch
+    - adservice.google.co.id
+    - adservice.google.co.in
+    - adservice.google.co.jp
+    - adservice.google.co.kr
+    - adservice.google.co.th
+    - adservice.google.co.uk
+    - adservice.google.co.za
+    - adservice.google.com
+    - adservice.google.com.ar
+    - adservice.google.com.au
+    - adservice.google.com.bd
+    - adservice.google.com.br
+    - adservice.google.com.co
+    - adservice.google.com.gt
+    - adservice.google.com.mx
+    - adservice.google.com.np
+    - adservice.google.com.om
+    - adservice.google.com.pe
+    ... and 103 more
 
-  Total whitelist domains: 6,727
+[3] Personal Blocklist
+  - Personal Blocklist: 28 domains
+[Personal Block Total] 28 domains
 
-[ Personal Blocklist (Force-add) ]
-----------------------------------------------------------------------
-  [OK]  Personal Blocklist
-        URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
-        Lines     : 35   Extracted: 28
+[4] Personal Whitelist (no filter applied)
+  - Personal Whitelist: 3 domains
+[Personal Whitelist Total] 3 domains
 
-  Total personal block: 28
+[5] Apply Priority Rules
+  Step 1 (base - external whitelist): 84,192
+  Step 2 (+ personal block): 84,214  (forced added: 22)
+  Step 3 (- personal white): 84,212  (whitelist override: 2)
 
-[ Personal Whitelist (Final Override) ]
-----------------------------------------------------------------------
-  [OK]  Personal Whitelist
-        URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/white.txt
-        Lines     : 6   Extracted: 3
-
-  Total personal white: 3
-
-[ Step 2: Apply External Whitelist ]
-----------------------------------------------------------------------
-  Before              : 84,206
-  Removed by whitelist: 19
-  After               : 84,187
-
-[ Step 3: Apply Personal Blocklist (force-add) ]
-----------------------------------------------------------------------
-  Personal block size : 28
-  New (not in base)   : 23
-  Forced black        : 18  (overrode whitelist)
-  Block set after     : 84,210
-
-[ Step 4: Apply Personal Whitelist (final override) ]
-----------------------------------------------------------------------
-  Personal white size : 3
-  Forced white        : 2  (overrode block)
-  Final block         : 84,208
-  Final exception     : 6,712
-
-[ Final Summary ]
-----------------------------------------------------------------------
-  1. Base block ( AdGuard DNS / HaGeZi's Pro DNS 공통 규칙)  : 84,206
-  2. Removed by external whitelist : 19
-  3. Personal block added          : 28  (forced black: 18)
-  4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 84,208
-  6. Final Exception Rules         : 6,712
+[6] Final Whitelist: 6,645 domains
