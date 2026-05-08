@@ -78,6 +78,12 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 !@@*$stealth=referrer|flash|java|3p-auth|useragent|ip|webrtc|3p-cookie|1p-cookie|3p-cache|searchhit|donottrack|push|location|xclient
 !
 !
+! 광고 데이터(스크립트 등)는 여전히 차단되지만, 화면상의 요소를 강제로 숨기는 규칙은 작동하지 마라는 규칙
+! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+@@||ad.co.kr^$ghide
+@@||arca.live^$ghide
+!
+!
 !
 !!! 트위치 등 일부 사이트 무한 로딩 발생으로 인한 애드가드 갤러리 필터 해제
 ! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
@@ -1191,6 +1197,13 @@ humorpick.com##.ie-center.ie-zone > p
 namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
 !
 !
+! 나무뉴스 (https://namu.news/)
+! - 오른쪽 배너 공간
+namu.news###main-sidebar-strip
+! - 기사 내 왼쪽 배너 공간
+namu.news###left-top-sidebar
+!
+!
 ! 일베 (https://www.ilbe.com/)
 ! - 이미지 복원
 !@@||ilbe.com/img/*$image
@@ -1524,7 +1537,7 @@ tvhot.store##.object-cover
 ![$domain=/^hoohootv\d+.xyz/]##.rhkd
 !
 !
-! 티비룸 (https://xn--jt2bx0hu7u.com/) (thttps://tvroom8.org/)
+! 티비룸  (https://tvroom.vip/)
 ! - 팝업
 ![$domain=/^tvroom\d+.org/]##.popup
 ! - 화면 뿌옇게 변한거 해결
@@ -1532,7 +1545,7 @@ tvhot.store##.object-cover
 ! - 배너 이미지
 !##.banner_
 ! - 영상 상단 흐르는 글자 광고
-[$domain=/^tvroom\d+.org/]##.mq-notice
+tvroom.vip##.mq-notice
 !
 !
 ! 누누티비 (https://www.nnuutv2.tv/)
@@ -2618,7 +2631,7 @@ pedia.watcha.com##.adFixed
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
 ! - - - 오늘의 중계 (https://today-sports8.com/)
 ! - - - 야동망고 (https://www.mango54.net/)
-! - - -  밍키넷 (https://mingky.net/)
+! - - -  밍키넷 (https://mingky13.net/) (https://mingky.net/)
 !##[target='_blank']:has([src*='.gif'])
 !##[target='_blank']:has([src$='.gif'])
 ! - - - - - 예외
@@ -3536,8 +3549,8 @@ wavve.com#@##main-banner
 ||sstv01.work.gd^$popup
 !
 !
-! 야동그라운드 (https://yagro48.com/)
-! 빨간비디오 (https://redvi77.com/)
+! 야동그라운드 (https://yagro48.com/) X
+! 빨간비디오 (https://redvi80.com/)
 ! 야동도시 (https://yadongred6.org/)
 ! 야동공장 (https://yagong89.com/)
 ! - 배너 이미지
@@ -3549,19 +3562,36 @@ wavve.com#@##main-banner
 !##[class*='main_popup']
 !##[class*="popup-pc"]:not(html):not(body):not(article):not(main):not(section)
 ##[class*="popup-pc"]
+! - - - ! 빨간비디오 (https://redvi80.com/)
+##[id*="-popup-"]
+!###desktop-popup-wrapper
 ! - - - mobile
 !##.w-80.relative
-##.relative.w-80
+!##.relative.w-80
 ! - 메인 상단 배너 (PC)
-##.cursor-pointer.shadow-sm.rounded-sm.w-full.object-fill
+!##.cursor-pointer.shadow-sm.rounded-sm.w-full.object-fill
 ! - 메인 상단 배너 (모바일)
-##.w-full.mt-1 > .items-center.justify-start.flex-wrap.flex
+!##.w-full.mt-1 > .items-center.justify-start.flex-wrap.flex
 ! 메인 하단 배너
-##.mt-1.justify-start.items-center.flex-wrap.flex
+!##.mt-1.justify-start.items-center.flex-wrap.flex
 ! - 영상내 하단 배너
-##.vjs-bottom-banner
+!##.vjs-bottom-banner
 ! 보증업체 더보기 텍스트 배너
 !##.rounded-md.border.p-1.w-full
+!
+!
+! 밤포탈 (https://bampt3.com/)
+! - 팝업 뿌연거 해결
+[$domain=/^bampt\d+.com/]##.popup-overlay
+! - 영상 목록 사이 배너
+[$domain=/^bampt\d+.com/]##[class^="video-card infeed-ad"]
+! - 영상 하단 배너
+[$domain=/^bampt\d+.com/]##a.infeed-ad
+!
+!
+! 야동존 (https://xxzone21.cc/)
+! - 영상 광고 차단
+*/data/file/admin_banner/*.mp4
 !
 !
 ! 오늘의 중계 (today-sports8.com)
@@ -4009,7 +4039,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ##.videoads
 !
 !
-! 밍키넷 (https://mingky03.net/)
+! 밍키넷 (https://mingky13.net/)
 ! 상단 텍스트 배너
 !mingky.net##div.mb-sm-4.mb-3:nth-of-type(1)
 ! - 오른쪽 배너
@@ -4090,7 +4120,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸 (https://darkgirl7.com/) (https://darkg15.com/)
+! 다크걸 (https://darkgirl8.com/) (https://darkg15.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://dodogirl3.com/)
 ! - - - 야동닷컴 (https://yadong7.com/)
@@ -4738,6 +4768,11 @@ yna.co.kr#@#[class*="popup-mo"]
 ##[class*="popup-event"]
 !
 !
+##[id^="top-banner"]
+!
+!
+!
+!
 !
 !
 !
@@ -4806,6 +4841,7 @@ gmarket.co.kr#@#a[target*="blank"]:has(img[src*="banner"], iframe[src*="banner"]
 
 
 
+
 ! - 티비몬 (https://tvmon.site/)
 ! - 티비핫 (https://tvhot.store/)
 ! - https://nunting.kr/
@@ -4823,6 +4859,13 @@ gmarket.co.kr#@#div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*=
 
 
 
+! - 티비룸 (https://tvroom.vip/)
+##[class*="banner"][target*="blank"]:has(img)
+
+
+
+
+
 
 
 
@@ -4831,7 +4874,7 @@ gmarket.co.kr#@#div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*=
 ! - - - 도지코믹스 (https://dozi352.com/)
 ! - - - 애니위크 (https://aniweek.com/)
 ! - - -  https://today-sports7.com/
-! - - - 밍키넷 (https://mingky03.net/)
+! - - - 밍키넷 (https://mingky13.net/)
 ! - - - 야툰 (https://yatoon207.com/)
 ! - - - 마징가툰 (https://z70.mzgtoon.com/)
 ! - - - 애니조아 (https://www.anizoa.net/)
@@ -4864,7 +4907,6 @@ gmarket.co.kr#@#div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*=
 ! - - - 토렌트좋다 (https://torrentzota135.com/)
 ! - - - 토렌트탑 (https://torrenttop156.com/)
 ! - - - 토렌트하하 (https://torrenthaha09.com/)
-! - - - 티비룸 (https://tvroom8.org/)
 ! - - - 블랙툰 (https://blacktoon371.com/)
 ! - - - 후후티비 (https://hoohootv265.xyz/)
 ! - - - 티비착 (https://tvchak149.com/)
@@ -4897,7 +4939,7 @@ gmarket.co.kr#@#div:has(> a[target="_blank"] > img[src*="banner"]), iframe[src*=
 ! - - - 주소골라 (https://jusopick01.com/)
 ! - - - 인생도박 (https://dobaklife21.com/)
 !##a[href*='http'][target*='blank'] img
-[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^tvroom\d+.org/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],newtoki.biz,[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/],[$domain=/^dobaklife.\d+.com/]##a[target*='blank']:has(img)
+[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkg\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],newtoki.biz,[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/],[$domain=/^dobaklife.\d+.com/]##a[target*='blank']:has(img)
 
 
 
@@ -5131,9 +5173,11 @@ yna.co.kr#@#[class*="banner"]:has(iframe)
 
 
 ##[class*="advertisement"]:has(iframe)
+##[class*="advertisement"]
 
 
 ##[id*="advertisement"]:has(iframe)
+##[id*="advertisement"]
 
 
 ! - https://mypikpak.com/
