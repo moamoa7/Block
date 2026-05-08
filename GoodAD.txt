@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260508
+! Version: 20260509
 !
 !
 !
@@ -119,13 +119,13 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 *$removeparam=gtm
 ! - 주로 온라인 카지노, 베팅 사이트, 제휴 마케팅(Affiliate) 플랫폼에서 사용하는 추적 코드 (URL 클린업)
 ! - - - 어떤 파트너 광고를 통해 사용자가 유입되었는지, 어떤 캠페인을 통해 들어왔는지 서버에 기록하는 역할
-*$removeparam=btag
+!*$removeparam=btag
 ! - 구글 애널리틱스(GA) 등에서 사용자가 어떤 경로(검색, 정기 뉴스레터, SNS 등)를 통해 들어왔는지 분석하는걸 차단하는 규칙
 ! - - - 이 필터를 사용하면 브라우저가 위 주소를 인식할 때 뒤의 ?utm_... 부분을 자동으로 깎아내어 깔끔한 주소로 접속하게 만들어 줍니다.
-*$removeparam=utm_medium
-*$removeparam=utm_source
+!*$removeparam=utm_medium
+!*$removeparam=utm_source
 !- 구글이 이 파라미터를 통해 사용자가 어떤 검색 경로로 들어왔는지, 어떤 최적화 환경에서 페이지를 보고 있는지 분석하는 것을 차단  (URL 클린업)
-*$removeparam=usqp
+!*$removeparam=usqp
 ! - 사이트에 내장된 구글 서비스가 사용자의 상호작용 데이터를 구글 클라우드로 보내는 것을 막습니다.
 ||google.com/ccm/
 ! - 나를 따라다니는 스토커 같은 '맞춤형 광고'의 연결 고리를 끊어버립니다.
@@ -181,7 +181,7 @@ $removeparam=__hs
 ! - - - 웹사이트가 현재 얼마나 많은 메모리를 쓰고 있는지, 자바스크립트가 지연되고 있지는 않은지 등의 기술적 상태
 ||instagram.com/ajax/bz
 ! - __s라는 특정 패턴의 추적 파라미터를 삭제하라는 매우 정교한 규칙 (이메일 마케팅 솔루션인 Drip에서 사용자의 유입을 식별할때 사용)
-*$removeparam=/^__s=[A-Za-z0-9]{6\,}/,domain=~univis.uni-erlangen.de|~univis.uni-bamberg.de|~univis.uni-luebeck.de|~univis.uni-kiel.de|~univis.th-koeln.de
+!*$removeparam=/^__s=[A-Za-z0-9]{6\,}/,domain=~univis.uni-erlangen.de|~univis.uni-bamberg.de|~univis.uni-luebeck.de|~univis.uni-kiel.de|~univis.th-koeln.de
 !
 !
 ! - 페이스북 사이트 내부뿐만 아니라, 페이스북 픽셀이 심어진 전 세계 수만 개의 외부 사이트에서 발생하는 다음과 같은 추적을 막습니다.
@@ -242,7 +242,7 @@ x.com/*/videoads/
 !
 !
 ! - 마이크로소프트(MS)의 검색 광고 서비스인 Bing Ads에서 사용하는 클릭 식별자
-*$removeparam=msclkid
+!*$removeparam=msclkid
 ! - 웹사이트 운영자가 내 브라우저에서 발생하는 에러 로그나 이용 패턴을 수집하여 MS 서버로 보내는 것을 막습니다.
 ||applicationinsights.azure.com^$domain=~azure.net
 !
@@ -909,6 +909,8 @@ fmkorea.com###fm_alert
 ! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
 !etoland.co.kr#@#[class^="ad"]
 ! - - - - - - - - 신버젼
+! - 팝업
+etoland.co.kr##.overflow-y-auto
 ! - 게시물 하단 남는 공간 (모바일)
 ! - - - 오징어랜드 이미지 안보여서 해제
 !etoland.co.kr##div.justify-center.w-full
@@ -5199,17 +5201,6 @@ yna.co.kr#@#[class*="banner"]:has(iframe)
 ##*:has(> iframe[src*="event"]):not(html):not(body)
 
 
-! - https://platinmods.com/
-##[class*="event"]:has(iframe)
-! - 제외
-! - --  https://platinmods.com/  - 본문 안보임
-platinmods.com#@#[class*="event"]:has(iframe)
-##[class*="event"]
-! - 제외
-! - --  https://platinmods.com/  - 본문 안보임
-platinmods.com#@#[class*="event"]
-
-
 ##[id*="event"]:has(iframe)
 
 
@@ -5268,16 +5259,3 @@ hankyung.com#@#div:has(> iframe[src*=".iframe"])
 ! - 오마이뉴스 (https://ohmynews.com/)
 ! - 문화일보 (https://www.munhwa.com/)
 ##*:has(> iframe[src*="/ad."])
-
-
-
-
-
-
-
-
-
-
-
-
-=======================================
