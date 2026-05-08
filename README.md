@@ -7,13 +7,9 @@
 ```
 https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_DNS.txt
 ```
-※ Block_Domains
+※ White_DNS
 ```
-https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Domains.txt
-```
-※ Block_Hosts
-```
-https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_Hosts.txt
+https://raw.githubusercontent.com/moamoa7/Block/main/output/White_DNS.txt
 ```
 <br/><br/>
 
