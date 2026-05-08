@@ -1,26 +1,37 @@
 ! ===== 광고/트래킹 핵심 (외부 화이트리스트가 풀어줘도 강제 차단) =====
 
 ! ===== 광고 네트워크 =====
-||doubleclick.net^
-||googlesyndication.com^
-||googleadservices.com^
 ||2mdn.net^
-
-! ===== 분석/추적 =====
-||google-analytics.com^
-||analytics.google.com^
-||ssl.google-analytics.com^
-||googletagmanager.com^
-||googletagservices.com^
-||scorecardresearch.com^
-||omtrdc.net^
+||ad-shield.io^
+||adform.com^
+||admitad.com^
+||adservice.google.co.kr^
+||adservice.google.com^
+||adswizz.com^
+||adtechus.com^
+||adzerk.net^
+||ads-twitter.com^
+||doubleclick.net^
+||googleadservices.com^
+||googlesyndication.com^
 ||viglink.com^
 
-! ===== SNS 픽셀/트래커 (본 도메인 제외) =====
-||connect.facebook.net^
-||an.facebook.com^
-||pixel.facebook.com^
-||graph.facebook.com^
+! ===== 분석/추적 =====
+||adjust.com^
+||adobedtm.com^
+||amplitude.com^
+||analytics.google.com^
+||analytics.pinterest.com^
 ||analytics.twitter.com^
-||ads-twitter.com^
-||static.ads-twitter.com^
+||appsflyer.com^
+||google-analytics.com^
+||googletagmanager.com^
+||googletagservices.com^
+||omtrdc.net^
+||scorecardresearch.com^
+
+! ===== Facebook 트래커 (본 도메인 제외) =====
+||an.facebook.com^
+||connect.facebook.net^
+||graph.facebook.com^
+||pixel.facebook.com^
