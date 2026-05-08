@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
-! Generated: 2026-05-08 11:10:18 UTC
+! Generated: 2026-05-08 11:10:47 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  (AdGuard DNS / HaGeZi's Pro DNS 공통 규칙) + 기타 DNS 규칙
-! Block Rules: 84,199
+! Block Rules: 84,210
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -2877,6 +2877,7 @@
 ||ad-serverparc.nl^
 ||ad-serving.de^
 ||ad-serving.iocreate.cloud^
+||ad-shield.io^
 ||ad-spire.net^
 ||ad-splash-tracking.hktvmall.com^
 ||ad-splash.hktvmall.com^
@@ -3420,6 +3421,7 @@
 ||adforgames.com^
 ||adforge.io^
 ||adfork.co.kr^
+||adform.com^
 ||adfox.yandex.ru^
 ||adfpoint.com^
 ||adfree-stat.p3g.hu^
@@ -3533,6 +3535,7 @@
 ||adjuggler.com^
 ||adjuggler.net^
 ||adjungle.com^
+||adjust.com^
 ||adjustmentthesilver.com^
 ||adjux.com^
 ||adk2x.com^
@@ -3661,6 +3664,7 @@
 ||admissiondemeanourusage.com^
 ||admissionpersuade.com^
 ||admitad-connect.com^
+||admitad.com^
 ||admitincarnateentertainment.com^
 ||admittedhi.com^
 ||admixer.co.kr^
@@ -3766,6 +3770,7 @@
 ||adobeanalytics.serveone.co.kr^
 ||adobeanalytics.teksystems.com^
 ||adobecorp.data.adobedc.net^
+||adobedtm.com^
 ||adobeedge.morganstanley.com^
 ||adobeedge.my.gov.au^
 ||adobemetrics.auth0.com^
@@ -4312,6 +4317,8 @@
 ||adserver.yahoo.com^
 ||adserverplus.com^
 ||adserverpub.com^
+||adservice.google.co.kr^
+||adservice.google.com^
 ||adservice.hani.co.kr^
 ||adservice.sbs.co.kr^
 ||adservice.tohsoft.com^
@@ -4479,6 +4486,7 @@
 ||adswag.nl^
 ||adswam.com^
 ||adsweb.vn^
+||adswizz.com^
 ||adsximg.com^
 ||adsxtits.com^
 ||adsxtits.pro^
@@ -4533,6 +4541,7 @@
 ||adtech.de^
 ||adtechium.com^
 ||adtechjp.com^
+||adtechus.com^
 ||adtechvideo.s3.amazonaws.com^
 ||adtegrity.net^
 ||adtelligence.de^
@@ -4847,6 +4856,7 @@
 ||adzcivwjgktmz.site^
 ||adzep.com.br^
 ||adzep.io^
+||adzerk.net^
 ||adzestocp.com^
 ||adzgame.com^
 ||adziff.com^
@@ -5921,6 +5931,7 @@
 ||amplitude-experiment.bandlab.com^
 ||amplitude.bandlab.com^
 ||amplitude.chess.com^
+||amplitude.com^
 ||amplitude.life360.com^
 ||amplitude.thepure.app^
 ||ampltd.top.gg^
@@ -6810,6 +6821,7 @@
 ||analytics.pineca.nl^
 ||analytics.pineca.pl^
 ||analytics.pineca.pt^
+||analytics.pinterest.com^
 ||analytics.pipelife-bewaesserung.at^
 ||analytics.pipelife.at^
 ||analytics.pipelife.ba^
@@ -7811,6 +7823,7 @@
 ||appsanalytics.appideas.it^
 ||appsdt.com^
 ||appserver-ap.com^
+||appsflyer.com^
 ||appslime.com^
 ||appsrv.display.io^
 ||appstorages.com^
@@ -65081,7 +65094,6 @@
 ||ssl-metrics.tim.it^
 ||ssl-services.com^
 ||ssl.aafp.org^
-||ssl.google-analytics.com^
 ||ssl.o.additudemag.com^
 ||ssl.o.coliquio.de^
 ||ssl.o.medicinenet.com^
@@ -65985,7 +65997,6 @@
 ||static.additionaldisplay.com^
 ||static.adlunar.com^
 ||static.adoptadx.com^
-||static.ads-twitter.com^
 ||static.ads.fantasanremo.com^
 ||static.affiliatly.com^
 ||static.altitudemarketing.com^

@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-08 11:10:18 UTC
+  Generated: 2026-05-08 11:10:47 UTC
 ======================================================================
 
 [ Reference Filters ]
@@ -65,9 +65,9 @@
 ----------------------------------------------------------------------
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
-        Lines     : 26   Extracted: 19
+        Lines     : 37   Extracted: 30
 
-  Total personal block: 19
+  Total personal block: 30
 
 [ Personal Whitelist (Final Override) ]
 ----------------------------------------------------------------------
@@ -85,23 +85,23 @@
 
 [ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
-  Personal block size : 19
-  New (not in base)   : 14
-  Forced black        : 7  (overrode whitelist)
-  Block set after     : 84,201
+  Personal block size : 30
+  New (not in base)   : 25
+  Forced black        : 19  (overrode whitelist)
+  Block set after     : 84,212
 
 [ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
   Forced white        : 2  (overrode block)
-  Final block         : 84,199
-  Final exception     : 6,723
+  Final block         : 84,210
+  Final exception     : 6,711
 
 [ Final Summary ]
 ----------------------------------------------------------------------
   1. Base block ( AdGuard DNS / HaGeZi's Pro DNS 공통 규칙)  : 84,206
   2. Removed by external whitelist : 19
-  3. Personal block added          : 19  (forced black: 7)
+  3. Personal block added          : 30  (forced black: 19)
   4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 84,199
-  6. Final Exception Rules         : 6,723
+  5. Final Block Rules             : 84,210
+  6. Final Exception Rules         : 6,711

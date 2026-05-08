@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
-! Generated: 2026-05-08 11:10:18 UTC
+! Generated: 2026-05-08 11:10:47 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  External Whitelist + Personal Whitelist (minus Personal Block)
-! Exception Rules: 6,723
+! Exception Rules: 6,711
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -139,7 +139,6 @@
 @@||action.metaffiliation.com^
 @@||ad-creative.pstatic.net^
 @@||ad-img.gmarket.com^
-@@||ad-shield.io^
 @@||ad.admitad.com^
 @@||ad.adverticum.net^
 @@||ad.doubleclick.net^
@@ -156,19 +155,15 @@
 @@||adelaidebank.com.au^
 @@||adelfibanking.com^
 @@||adfoc.us^
-@@||adform.com^
 @@||adfox.ru^
 @@||adimg.nate.com^
 @@||adj.st^
-@@||adjust.com^
 @@||adlucent.com^
 @@||admarkt.kleinanzeigen.de^
 @@||admd.ink^
 @@||admeira.ch^
-@@||admitad.com^
 @@||adn.wargaming.net^
 @@||adnt.wargaming.net^
-@@||adobedtm.com^
 @@||adobetarget.data.adobedc.net^
 @@||adorama.rfvk.net^
 @@||adosiz.io^
@@ -180,11 +175,9 @@
 @@||adservice.google.co.id^
 @@||adservice.google.co.in^
 @@||adservice.google.co.jp^
-@@||adservice.google.co.kr^
 @@||adservice.google.co.th^
 @@||adservice.google.co.uk^
 @@||adservice.google.co.za^
-@@||adservice.google.com^
 @@||adservice.google.com.ar^
 @@||adservice.google.com.au^
 @@||adservice.google.com.bd^
@@ -235,8 +228,6 @@
 @@||adsplusmetrics.com^
 @@||adsplustracker.com^
 @@||adsv.svc.litv.tv^
-@@||adswizz.com^
-@@||adtechus.com^
 @@||adtidy.org^
 @@||advcash.com^
 @@||adverigo.com^
@@ -244,7 +235,6 @@
 @@||adx.io^
 @@||adyen.com^
 @@||adzerk.com^
-@@||adzerk.net^
 @@||adzexpert.com^
 @@||ae.online.standardchartered.com^
 @@||af.mopo.jp^
@@ -329,7 +319,6 @@
 @@||amgload.net^
 @@||amnet.tw^
 @@||amp.com.au^
-@@||amplitude.com^
 @@||amrahbank.az^
 @@||amundi-tc.com^
 @@||amway-cdn.exponea.com^
@@ -342,7 +331,6 @@
 @@||analytics.adjust.io^
 @@||analytics.adjust.net.in^
 @@||analytics.adjust.world^
-@@||analytics.pinterest.com^
 @@||analytics.trustyou.com^
 @@||andebu-sparebank.no^
 @@||android.clients.google.com^
