@@ -7,6 +7,13 @@ DNS Block/Allow List Generator (Intersection-based)
     Block_DNS.txt  (||domain^)
     White_DNS.txt  (@@||domain^)
     Report.txt
+
+Defenses against accidental whitelist of base domains:
+  [1] extract_whitelist_domains() skips lines with $app=/$domain=/$denyallow= modifiers
+      → AdGuard for Android/browser-conditional rules don't pollute DNS whitelist
+  [2] WHITELIST_BLACKLIST removes major base domains (google.com, facebook.com, etc.)
+      from external whitelists even if they slip through other sources
+  [3] Personal whitelist (white.txt) is NEVER filtered — user intent is preserved
 """
 
 import re
@@ -49,10 +56,45 @@ OUT_REPORT = OUTPUT_DIR / "Report.txt"
 
 # ---------- Tracker Auto-Filter ----------
 # 외부 화이트리스트(EXCLUSION_URLS)에 섞여 들어온 광고/추적 도메인을 자동 제거.
-# 개인 화이트리스트(PERSONAL_WHITE_URLS)에는 적용하지 않음 — 사용자가 의도적으로 풀어준 항목 보호.
+# 개인 화이트리스트(PERSONAL_WHITE_URLS)에는 적용하지 않음.
+
+# [방어선 2] 절대 화이트리스트로 들어가면 안 되는 본 도메인.
+# 통째로 풀리면 모든 트래커 서브도메인까지 노출됨.
+WHITELIST_BLACKLIST = {
+    # 대형 SNS / 플랫폼 본 도메인
+    "google.com",
+    "facebook.com",
+    "twitter.com",
+    "x.com",
+    "instagram.com",
+    "tiktok.com",
+    "youtube.com",
+    "amazon.com",
+    "linkedin.com",
+    "pinterest.com",
+    "reddit.com",
+    "snapchat.com",
+    "vk.com",
+    "yandex.ru",
+    # 너무 광범위한 인프라 본 도메인 (서브도메인에 트래커 다수)
+    "amazonaws.com",
+    "microsoft.com",
+    "apple.com",
+    "googleapis.com",
+    "googleusercontent.com",
+    # 광고 네트워크 본 도메인
+    "doubleclick.net",
+    "googlesyndication.com",
+    "googleadservices.com",
+    "googletagservices.com",
+    # 대형 분석 플랫폼
+    "google-analytics.com",
+    "scorecardresearch.com",
+    "omtrdc.net",
+}
 
 TRACKER_PATTERNS = [
-    # 광고 네트워크 / 분석 (정확한 도메인/서브문자열)
+    # 광고 네트워크 / 분석
     "doubleclick", "googlesyndication", "googleadservices",
     "googletagservices", "google-analytics", "analytics.google",
     "adservice.google",
@@ -97,12 +139,15 @@ EXCEPTION_KEYWORDS = [
 
 
 def is_tracker_domain(domain: str) -> bool:
-    """외부 화이트리스트에서 트래커로 의심되는 도메인을 판별."""
+    """외부 화이트리스트에서 제거할 도메인 판별."""
     d = domain.lower()
-    # 예외 키워드가 있으면 트래커가 아님 (인프라 보호)
+    # ★ 본 도메인 블랙리스트 (최우선, 예외 키워드보다 먼저)
+    if d in WHITELIST_BLACKLIST:
+        return True
+    # 예외 키워드 (인프라 보호)
     if any(kw in d for kw in EXCEPTION_KEYWORDS):
         return False
-    # 트래커 키워드가 있으면 트래커
+    # 트래커 키워드
     return any(kw in d for kw in TRACKER_PATTERNS)
 
 
@@ -186,7 +231,13 @@ def extract_block_domains(text: str) -> set:
 
 
 def extract_whitelist_domains(text: str) -> set:
-    """다양한 화이트리스트 형식에서 도메인 추출."""
+    """다양한 화이트리스트 형식에서 도메인 추출.
+
+    [방어선 1] $app=, $domain=, $denyallow= modifier가 있는 라인은
+               앱별/사이트별 조건부 규칙이므로 DNS 레벨에서 의미 없음.
+               통째로 도메인이 풀리는 사고(예: google.com$app=com.vkontakte.android)를
+               방지하기 위해 건너뜀.
+    """
     out = set()
     for line in text.splitlines():
         s = line.strip()
@@ -196,6 +247,9 @@ def extract_whitelist_domains(text: str) -> set:
         # AdGuard 예외 규칙: @@||domain^...
         m = re.match(r"^@@\|\|([a-z0-9\-\.]+)\^", s)
         if m:
+            # @@||domain^$app=... 형태도 modifier 있으면 건너뜀
+            if "$app=" in s or "$domain=" in s or "$denyallow=" in s:
+                continue
             d = m.group(1)
             if is_valid_domain(d):
                 out.add(d)
@@ -204,17 +258,21 @@ def extract_whitelist_domains(text: str) -> set:
         # AdGuard SDNS exclusions 형식: ||domain^ (이 파일에서는 화이트리스트로 동작)
         m = re.match(r"^\|\|([a-z0-9\-\.]+)\^", s)
         if m:
+            if "$app=" in s or "$domain=" in s or "$denyallow=" in s:
+                continue
             d = m.group(1)
             if is_valid_domain(d):
                 out.add(d)
             continue
 
+        # ★ 일반 도메인 형식에서도 modifier가 있는 라인은 건너뜀
+        # 예: google.com$app=com.vkontakte.android (AdGuard for Android 앱별 규칙)
+        if "$app=" in s or "$domain=" in s or "$denyallow=" in s:
+            continue
+
         # 일반 도메인 (한 줄에 도메인 하나)
-        # $app= 같은 modifier 가 붙은 라인은 split[-1] 이 도메인이 아니므로 split[0]만 사용
         first = s.split()[0]
-        # $modifier 제거
-        first = first.split("$")[0]
-        # 주석 제거
+        first = first.split("$")[0]   # 혹시 남아있는 modifier 제거
         first = first.split("#")[0].strip()
         if is_valid_domain(first.lower()):
             out.add(first.lower())
@@ -266,12 +324,21 @@ def main():
     after = len(white_set)
     report.append(f"\n[Tracker Auto-Filter] Removed {before - after:,} trackers from external whitelist")
     if removed_trackers:
-        sample = sorted(removed_trackers)[:30]
-        report.append("  Sample removed (first 30):")
-        for d in sample:
-            report.append(f"    - {d}")
-        if len(removed_trackers) > 30:
-            report.append(f"    ... and {len(removed_trackers) - 30:,} more")
+        # WHITELIST_BLACKLIST 매칭과 패턴 매칭을 분리해서 보고
+        blacklist_hits = sorted(d for d in removed_trackers if d in WHITELIST_BLACKLIST)
+        pattern_hits = sorted(d for d in removed_trackers if d not in WHITELIST_BLACKLIST)
+
+        if blacklist_hits:
+            report.append(f"  [Blacklist hits] {len(blacklist_hits)} domains:")
+            for d in blacklist_hits:
+                report.append(f"    - {d}")
+
+        if pattern_hits:
+            report.append(f"  [Pattern hits] {len(pattern_hits)} domains (sample first 30):")
+            for d in pattern_hits[:30]:
+                report.append(f"    - {d}")
+            if len(pattern_hits) > 30:
+                report.append(f"    ... and {len(pattern_hits) - 30:,} more")
 
     # 3. 개인 블록 (강제 추가)
     report.append("\n[3] Personal Blocklist")
@@ -306,9 +373,8 @@ def main():
     overridden = step2 & personal_white_set
     report.append(f"  Step 3 (- personal white): {len(final_block_set):,}  (whitelist override: {len(overridden):,})")
 
-    # 6. 화이트리스트 출력 = 외부 화이트(필터링 후) + 개인 화이트, 단 개인 블록과 충돌하면 제외
-    final_white_set = (white_set | personal_white_set) - personal_block_set
-    final_white_set |= personal_white_set  # 개인 화이트는 무조건 포함
+    # 6. 화이트리스트 출력 = 외부 화이트(필터링 후) + 개인 화이트, 단 개인 블록과 충돌하면 외부는 제외
+    final_white_set = (white_set - personal_block_set) | personal_white_set
     report.append(f"\n[6] Final Whitelist: {len(final_white_set):,} domains")
 
     # 7. 충돌 검증
