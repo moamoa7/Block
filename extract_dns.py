@@ -8,12 +8,14 @@ DNS Block/Allow List Generator (Intersection-based)
     White_DNS.txt  (@@||domain^)
     Report.txt
 
-Defenses against accidental whitelist of base domains:
+Defenses against accidental whitelist of base/tracker domains:
   [1] extract_whitelist_domains() skips lines with $app=/$domain=/$denyallow= modifiers
       → AdGuard for Android/browser-conditional rules don't pollute DNS whitelist
   [2] WHITELIST_BLACKLIST removes major base domains (google.com, facebook.com, etc.)
-      from external whitelists even if they slip through other sources
-  [3] Personal whitelist (white.txt) is NEVER filtered — user intent is preserved
+  [3] TRACKER_DOMAINS removes specific tracker domains (bat.bing.com, mixpanel.com, etc.)
+      that don't match keyword patterns
+  [4] TRACKER_PATTERNS catches keyword-based trackers (adservice.google.*, etc.)
+  [5] Personal whitelist (white.txt) is NEVER filtered — user intent is preserved
 """
 
 import re
@@ -58,8 +60,8 @@ OUT_REPORT = OUTPUT_DIR / "Report.txt"
 # 외부 화이트리스트(EXCLUSION_URLS)에 섞여 들어온 광고/추적 도메인을 자동 제거.
 # 개인 화이트리스트(PERSONAL_WHITE_URLS)에는 적용하지 않음.
 
-# [방어선 2] 절대 화이트리스트로 들어가면 안 되는 본 도메인.
-# 통째로 풀리면 모든 트래커 서브도메인까지 노출됨.
+# [방어선 2] 본 도메인 블랙리스트
+# 통째로 풀리면 모든 트래커 서브도메인까지 노출되는 도메인.
 WHITELIST_BLACKLIST = {
     # 대형 SNS / 플랫폼 본 도메인
     "google.com",
@@ -93,6 +95,52 @@ WHITELIST_BLACKLIST = {
     "omtrdc.net",
 }
 
+# [방어선 3] 정확히 매칭되는 트래커 도메인
+# 키워드 패턴으로는 잡히지 않지만 명백한 트래커.
+TRACKER_DOMAINS = {
+    # Microsoft 광고
+    "bat.bing.com",
+    "bat.bing.net",
+    "atdmt.com",
+    # 분석/추적 SaaS
+    "mixpanel.com",
+    "qualtrics.com",
+    "visualwebsiteoptimizer.com",
+    "marfeel.com",
+    # 광고/광고 측정
+    "iesnare.com",
+    "imrworldwide.com",
+    "csi.gstatic.com",
+    "cedexis.net",
+    "podtrac.com",
+    "edigitalsurvey.com",
+    "smartmediarep.com",
+    "hxtrack.com",
+    "smartredirect.de",
+    "g17media.com",
+    "alipromo.com",
+    "adverigo.com",
+    "v3cdn.net",
+    "easylist.club",
+    "adfox.ru",
+    # 제휴/리디렉션 추적
+    "bnc.lt",
+    "digidip.net",
+    "xg4ken.com",
+    "zdbb.net",
+    # IP/지오 추적
+    "ip-api.com",
+    "freegeoip.net",
+    "georiot.com",
+    # 기타
+    "epn.bz",
+    "ethn.io",
+    "vectorstock.com",
+    "sascdn.com",
+    "ospserver.net",
+}
+
+# [방어선 4] 트래커 키워드 (도메인 어디든 포함되면 의심)
 TRACKER_PATTERNS = [
     # 광고 네트워크 / 분석
     "doubleclick", "googlesyndication", "googleadservices",
@@ -106,7 +154,7 @@ TRACKER_PATTERNS = [
     # 광고 네트워크 (일반)
     "admitad", "adform.", ".adform", "adswizz", "adtechus", "adzerk",
     "ads-twitter", "analytics.twitter", "analytics.pinterest",
-    "atdmt.com", "bluekai", "bkrtx", "bndspn",
+    "bluekai", "bkrtx", "bndspn",
     "auditude", "avantlink",
     "bdash-tracking", "bigcattracks", "bmtrck",
     "trackmytarget", "auth-analytics", "auth-analytix",
@@ -135,19 +183,32 @@ EXCEPTION_KEYWORDS = [
     "googleapis", "gstatic", "googleusercontent",
     # OS 연결성
     "msftncsi", "connectivitycheck", "captive", "msftconnecttest",
+    # Apple 보안 인프라
+    "safebrowsing.apple", "mask.icloud", "mask.apple-dns",
+    "push.apple.com", "courier.push.apple",
 ]
 
 
 def is_tracker_domain(domain: str) -> bool:
-    """외부 화이트리스트에서 제거할 도메인 판별."""
+    """외부 화이트리스트에서 제거할 도메인 판별.
+
+    우선순위:
+      1. WHITELIST_BLACKLIST (본 도메인)        → 트래커
+      2. TRACKER_DOMAINS (정확 매칭)             → 트래커
+      3. EXCEPTION_KEYWORDS (인프라 보호)        → 트래커 아님
+      4. TRACKER_PATTERNS (키워드 매칭)          → 트래커
+    """
     d = domain.lower()
-    # ★ 본 도메인 블랙리스트 (최우선, 예외 키워드보다 먼저)
+    # 1. 본 도메인 블랙리스트
     if d in WHITELIST_BLACKLIST:
         return True
-    # 예외 키워드 (인프라 보호)
+    # 2. 정확히 매칭되는 트래커 도메인 (예외보다 우선)
+    if d in TRACKER_DOMAINS:
+        return True
+    # 3. 예외 키워드 (인프라 보호)
     if any(kw in d for kw in EXCEPTION_KEYWORDS):
         return False
-    # 트래커 키워드
+    # 4. 트래커 키워드
     return any(kw in d for kw in TRACKER_PATTERNS)
 
 
@@ -247,7 +308,6 @@ def extract_whitelist_domains(text: str) -> set:
         # AdGuard 예외 규칙: @@||domain^...
         m = re.match(r"^@@\|\|([a-z0-9\-\.]+)\^", s)
         if m:
-            # @@||domain^$app=... 형태도 modifier 있으면 건너뜀
             if "$app=" in s or "$domain=" in s or "$denyallow=" in s:
                 continue
             d = m.group(1)
@@ -265,7 +325,7 @@ def extract_whitelist_domains(text: str) -> set:
                 out.add(d)
             continue
 
-        # ★ 일반 도메인 형식에서도 modifier가 있는 라인은 건너뜀
+        # 일반 도메인 형식에서도 modifier가 있는 라인은 건너뜀
         # 예: google.com$app=com.vkontakte.android (AdGuard for Android 앱별 규칙)
         if "$app=" in s or "$domain=" in s or "$denyallow=" in s:
             continue
@@ -324,13 +384,21 @@ def main():
     after = len(white_set)
     report.append(f"\n[Tracker Auto-Filter] Removed {before - after:,} trackers from external whitelist")
     if removed_trackers:
-        # WHITELIST_BLACKLIST 매칭과 패턴 매칭을 분리해서 보고
+        # 카테고리별로 분리해서 보고
         blacklist_hits = sorted(d for d in removed_trackers if d in WHITELIST_BLACKLIST)
-        pattern_hits = sorted(d for d in removed_trackers if d not in WHITELIST_BLACKLIST)
+        domain_hits = sorted(d for d in removed_trackers
+                             if d in TRACKER_DOMAINS and d not in WHITELIST_BLACKLIST)
+        pattern_hits = sorted(d for d in removed_trackers
+                              if d not in WHITELIST_BLACKLIST and d not in TRACKER_DOMAINS)
 
         if blacklist_hits:
-            report.append(f"  [Blacklist hits] {len(blacklist_hits)} domains:")
+            report.append(f"  [Blacklist hits] {len(blacklist_hits)} base domains:")
             for d in blacklist_hits:
+                report.append(f"    - {d}")
+
+        if domain_hits:
+            report.append(f"  [Tracker domain hits] {len(domain_hits)} exact matches:")
+            for d in domain_hits:
                 report.append(f"    - {d}")
 
         if pattern_hits:
