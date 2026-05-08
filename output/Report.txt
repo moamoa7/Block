@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-08 04:35:18 UTC
+  Generated: 2026-05-08 04:41:35 UTC
 ======================================================================
 
 [ Reference Filters ]
@@ -62,9 +62,9 @@
         Lines     : 14,843   Extracted: 14,837
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
-        Lines     : 4   Extracted: 3
+        Lines     : 1   Extracted: 0
 
-  Total personal block: 14,840
+  Total personal block: 14,837
 
 [ Personal Whitelist (Final Override) ]
 ----------------------------------------------------------------------
@@ -82,23 +82,23 @@
 
 [ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
-  Personal block size : 14,840
-  New (not in base)   : 14,793
+  Personal block size : 14,837
+  New (not in base)   : 14,790
   Forced black        : 0  (overrode whitelist)
-  Block set after     : 88,437
+  Block set after     : 88,434
 
 [ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
   Forced white        : 2  (overrode block)
-  Final block         : 88,435
+  Final block         : 88,432
   Final exception     : 6,438
 
 [ Final Summary ]
 ----------------------------------------------------------------------
   1. Base block ( AdGuard DNS / HaGeZi's Normal DNS 공통 규칙)  : 73,646
   2. Removed by external whitelist : 2
-  3. Personal block added          : 14,840  (forced black: 0)
+  3. Personal block added          : 14,837  (forced black: 0)
   4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 88,435
+  5. Final Block Rules             : 88,432
   6. Final Exception Rules         : 6,438

@@ -1,5 +1,5 @@
-# Generated: 2026-05-08 04:35:18 UTC
-# Block Domains: 88,435
+# Generated: 2026-05-08 04:41:35 UTC
+# Block Domains: 88,432
 #
 0.0.0.0 0-800-email.com
 0.0.0.0 0-vip.com
@@ -38564,11 +38564,8 @@
 0.0.0.0 fluxyt.xyz
 0.0.0.0 flw.camcaps.ac
 0.0.0.0 flx2.pnl.agency
-0.0.0.0 flxext.com
 0.0.0.0 flxpxl.com
 0.0.0.0 flxr.myplan-c.com
-0.0.0.0 flxso.net
-0.0.0.0 flxvideo.net
 0.0.0.0 flyads1.com
 0.0.0.0 flyersquare.com
 0.0.0.0 flygame.io
