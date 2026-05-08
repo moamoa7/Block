@@ -3,7 +3,10 @@
 DNS Block/Allow List Generator (Intersection-based)
 - Block list = AdGuard DNS Filter (15.txt) ∩ HaGeZi's Pro.txt
 - Then apply: External Whitelist -> Personal Blocklist -> Personal Whitelist
-- Outputs: Block_DNS.txt, Block_Domains.txt, Block_Hosts.txt, Report.txt
+- Outputs:
+    Block_DNS.txt    (||domain^ rules)
+    White_DNS.txt    (@@||domain^ rules)
+    Report.txt
 """
 
 import re
@@ -34,7 +37,6 @@ EXCLUSION_URLS = [
 
 # Personal blocklist (force-add - overrides external whitelist)
 PERSONAL_BLOCK_URLS = [
-#   "https://raw.githubusercontent.com/cbuijs/hagezi/main/lists/tif/domains.top-n.adblock",
     "https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt",
 ]
 
@@ -45,10 +47,9 @@ PERSONAL_WHITE_URLS = [
 
 # Output paths
 OUTPUT_DIR = Path("output")
-OUT_COMBINED = OUTPUT_DIR / "Block_DNS.txt"
-OUT_DOMAINS = OUTPUT_DIR / "Block_Domains.txt"
-OUT_HOSTS = OUTPUT_DIR / "Block_Hosts.txt"
-OUT_REPORT = OUTPUT_DIR / "Report.txt"
+OUT_BLOCK_DNS = OUTPUT_DIR / "Block_DNS.txt"
+OUT_WHITE_DNS = OUTPUT_DIR / "White_DNS.txt"
+OUT_REPORT    = OUTPUT_DIR / "Report.txt"
 
 
 # ==================== Utility Functions ====================
@@ -82,7 +83,6 @@ def short_name(url: str) -> str:
     mapping = [
         ("filters/15.txt", "AdGuard DNS Filter"),
         ("adblock/pro.txt", "HaGeZi's Pro DNS Blocklist"),
-#       ("tif/domains.top-n.adblock", 'HaGeZi TIF (Top-N)'),
         ("main/block.txt", "Personal Blocklist"),
         ("main/white.txt", "Personal Whitelist"),
         ("AdGuardSDNSFilter", "AdGuard DNS Exclusions"),
@@ -190,7 +190,7 @@ def main():
     if primary_set and secondary_set:
         base_block_set = primary_set & secondary_set
         report.append(f"  AdGuard DNS Filter (15.txt) : {len(primary_set):,}")
-        report.append(f"  HaGeZi Pro.txt            : {len(secondary_set):,}")
+        report.append(f"  HaGeZi Pro.txt              : {len(secondary_set):,}")
         report.append(f"  Intersection (base block)   : {len(base_block_set):,}")
         report.append(f"  15.txt only (excluded)      : {len(primary_set - secondary_set):,}")
         report.append(f"  HaGeZi only (excluded)      : {len(secondary_set - primary_set):,}")
@@ -262,7 +262,7 @@ def main():
 
     # --- 6. Apply Priority Rules ---
     base_count = len(base_block_set)
-    working_set = set(base_block_set)  # 작업용 복사본
+    working_set = set(base_block_set)
 
     # Step 2: Apply external whitelist
     report.append("\n[ Step 2: Apply External Whitelist ]")
@@ -311,45 +311,43 @@ def main():
     # --- 8. Write Output Files ---
     OUTPUT_DIR.mkdir(exist_ok=True)
 
-    header = (
-        f"! Title: Personal Block/Allow List (DNS)\n"
+    # Block_DNS.txt - 차단 규칙
+    block_header = (
+        f"! Title: Personal Block List (DNS)\n"
         f"! Generated: {ts}\n"
         f"! Homepage: https://github.com/moamoa7/adblock\n"
         f"! Method:  (AdGuard DNS / HaGeZi's Pro DNS 공통 규칙) + 기타 DNS 규칙\n"
         f"! Block Rules: {len(final_block_set):,}\n"
+        f"!\n"
+    )
+    with open(OUT_BLOCK_DNS, "w", encoding="utf-8") as f:
+        f.write(block_header)
+        for d in sorted(final_block_set):
+            f.write(f"||{d}^\n")
+
+    # White_DNS.txt - 예외(허용) 규칙
+    white_header = (
+        f"! Title: Personal Allow List (DNS)\n"
+        f"! Generated: {ts}\n"
+        f"! Homepage: https://github.com/moamoa7/adblock\n"
+        f"! Method:  External Whitelist + Personal Whitelist (minus Personal Block)\n"
         f"! Exception Rules: {len(final_white_set):,}\n"
         f"!\n"
     )
-
-    with open(OUT_COMBINED, "w", encoding="utf-8") as f:
-        f.write(header)
-        for d in sorted(final_block_set):
-            f.write(f"||{d}^\n")
-        f.write("\n! === EXCEPTION RULES ===\n")
+    with open(OUT_WHITE_DNS, "w", encoding="utf-8") as f:
+        f.write(white_header)
         for d in sorted(final_white_set):
             f.write(f"@@||{d}^\n")
 
-    with open(OUT_DOMAINS, "w", encoding="utf-8") as f:
-        f.write(f"# Generated: {ts}\n")
-        f.write(f"# Block Domains: {len(final_block_set):,}\n#\n")
-        for d in sorted(final_block_set):
-            f.write(f"{d}\n")
-
-    with open(OUT_HOSTS, "w", encoding="utf-8") as f:
-        f.write(f"# Generated: {ts}\n")
-        f.write(f"# Block Domains: {len(final_block_set):,}\n#\n")
-        for d in sorted(final_block_set):
-            f.write(f"0.0.0.0 {d}\n")
-
+    # Report.txt
     with open(OUT_REPORT, "w", encoding="utf-8") as f:
         f.write("\n".join(report))
         f.write("\n")
 
     print("\n".join(report))
     print(f"\n[DONE] Output files written to: {OUTPUT_DIR.resolve()}")
-    print(f"  - {OUT_COMBINED.name}    ({len(final_block_set):,} block + {len(final_white_set):,} except)")
-    print(f"  - {OUT_DOMAINS.name}")
-    print(f"  - {OUT_HOSTS.name}")
+    print(f"  - {OUT_BLOCK_DNS.name}    ({len(final_block_set):,} block rules)")
+    print(f"  - {OUT_WHITE_DNS.name}    ({len(final_white_set):,} exception rules)")
     print(f"  - {OUT_REPORT.name}")
 
 
