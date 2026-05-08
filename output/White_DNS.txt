@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
-! Generated: 2026-05-08 10:30:16 UTC
+! Generated: 2026-05-08 10:40:39 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  External Whitelist + Personal Whitelist (minus Personal Block)
-! Exception Rules: 6,730
+! Exception Rules: 6,723
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -29,7 +29,6 @@
 @@||24smi.info^
 @@||2checkout.com^
 @@||2ip.ua^
-@@||2mdn.net^
 @@||2performant.com^
 @@||3-aclk.net^
 @@||3cinteractive.com^
@@ -345,7 +344,6 @@
 @@||analytics.adjust.world^
 @@||analytics.pinterest.com^
 @@||analytics.trustyou.com^
-@@||analytics.twitter.com^
 @@||andebu-sparebank.no^
 @@||android.clients.google.com^
 @@||androidpay-users-pa.googleapis.com^
@@ -1991,8 +1989,6 @@
 @@||goods.bbm.blackberry.com^
 @@||googleadapis.l.google.com^
 @@||googleapis.com^
-@@||googletagmanager.com^
-@@||googletagservices.com^
 @@||goonline.bnpparibas.pl^
 @@||gopjn.com^
 @@||gorod23.ru^
@@ -3594,7 +3590,6 @@
 @@||olymptrade.com^
 @@||om.cbsi.com^
 @@||omasp.fi^
-@@||omtrdc.net^
 @@||onba.ch^
 @@||onboard.triptease.io^
 @@||one.impact-ad.jp^
@@ -4757,7 +4752,6 @@
 @@||schwab.com^
 @@||schwaebisch-hall.de^
 @@||schwaebische-bank.de^
-@@||scorecardresearch.com^
 @@||scotiabank.cl^
 @@||scotiabank.com^
 @@||scotiabankchile.cl^
@@ -6157,7 +6151,6 @@
 @@||vietcombank.com.vn^
 @@||vietinbank.vn^
 @@||view.email.nzz.ch^
-@@||viglink.com^
 @@||vip.ritzbank.ru^
 @@||virginmoney.com^
 @@||virtualbanking.mcb.com.lk^

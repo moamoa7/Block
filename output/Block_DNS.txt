@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
-! Generated: 2026-05-08 10:30:16 UTC
+! Generated: 2026-05-08 10:40:39 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  (AdGuard DNS / HaGeZi's Pro DNS 공통 규칙) + 기타 DNS 규칙
-! Block Rules: 84,185
+! Block Rules: 84,200
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -710,6 +710,7 @@
 ||2m3gdt0gc.de^
 ||2m55gqleg.de^
 ||2mdn-cn.net^
+||2mdn.net^
 ||2mf9kkbhab31.com^
 ||2mg2ibr6b.de^
 ||2mke5l187.de^
@@ -7068,6 +7069,7 @@
 ||analytics.turk.pro^
 ||analytics.turnertv.com^
 ||analytics.tver.jp^
+||analytics.twitter.com^
 ||analytics.ubports.com^
 ||analytics.ubs.com^
 ||analytics.uhhospitals.org^
@@ -14782,6 +14784,8 @@
 ||connead.net^
 ||connect.acspubs.org^
 ||connect.blockboardtech.com^
+||connect.facebook.com^
+||connect.facebook.net^
 ||connect.peter-bringts.de^
 ||connect.rottler.de^
 ||connectad.io^
@@ -19724,6 +19728,7 @@
 ||doubleclick.com^
 ||doubleclick.ctfile.com^
 ||doubleclick.ne.jp^
+||doubleclick.net^
 ||doubleclick.uk.net^
 ||doubledefend.com^
 ||doublemax.net^
@@ -23043,6 +23048,7 @@
 ||fabricww.com^
 ||facai383.oss-cn-guangzhou.aliyuncs.com^
 ||faceb00k.com.vn^
+||facebook.com^
 ||facebookinbox-omni-onapp.haravan.com^
 ||faceporn.com^
 ||facesnotebook.com^
@@ -23312,6 +23318,7 @@
 ||fbarhjryimocq.website^
 ||fbbjzowgnryzw.site^
 ||fbbkmuul.com^
+||fbcdn.net^
 ||fbcdn.xyz^
 ||fbcdn2.com^
 ||fbdata-edt.com^
@@ -26753,6 +26760,7 @@
 ||google-shopping.sapoapps.vn^
 ||googleads-cn.com^
 ||googleadservices-cn.com^
+||googleadservices.com^
 ||googleadsserving.cn^
 ||googleailesi.com^
 ||googleapi.club^
@@ -26760,7 +26768,10 @@
 ||googlerank.info^
 ||googles.video^
 ||googleshopping.sapoapps.vn^
+||googlesyndication.com^
 ||googletagmanager-cn.com^
+||googletagmanager.com^
+||googletagservices.com^
 ||googlevads-cn.com^
 ||gooierworrit.com^
 ||gooloeboonpia.com^
@@ -26962,6 +26973,7 @@
 ||granularconsideration.pro^
 ||granulargame.com^
 ||grapeshot.co.uk^
+||graph.facebook.com^
 ||grapheffect.com^
 ||graphicspikedisaster.com^
 ||graphsmeth.qpon^
@@ -47115,6 +47127,7 @@
 ||omt.dm.ro^
 ||omt.dm.rs^
 ||omt.shinobi.jp^
+||omtrdc.net^
 ||omtrns.sstats.q8.dk^
 ||omuoeykewy.com^
 ||omwtadxp.in^
@@ -56559,6 +56572,7 @@
 ||scorchobservedsow.com^
 ||scorchsorchic.com^
 ||scoreaisle.com^
+||scorecardresearch.com^
 ||scornfacultative.com^
 ||scornfulleg.com^
 ||scornfulsalary.pro^
@@ -77594,6 +77608,7 @@
 ||vigilancebreaking.com^
 ||vigilant-entry.pro^
 ||viglaumeedaivou.net^
+||viglink.com^
 ||vigorous-average.com^
 ||vigorous-rush.com^
 ||vigswobchob.com^

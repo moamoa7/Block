@@ -1,6 +1,6 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-08 10:30:16 UTC
+  Generated: 2026-05-08 10:40:39 UTC
 ======================================================================
 
 [ Reference Filters ]
@@ -65,9 +65,9 @@
 ----------------------------------------------------------------------
   [OK]  Personal Blocklist
         URL       : https://raw.githubusercontent.com/moamoa7/adblock/main/block.txt
-        Lines     : 1   Extracted: 0
+        Lines     : 26   Extracted: 17
 
-  Total personal block: 0
+  Total personal block: 17
 
 [ Personal Whitelist (Final Override) ]
 ----------------------------------------------------------------------
@@ -85,23 +85,23 @@
 
 [ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
-  Personal block size : 0
-  New (not in base)   : 0
-  Forced black        : 0  (overrode whitelist)
-  Block set after     : 84,187
+  Personal block size : 17
+  New (not in base)   : 15
+  Forced black        : 7  (overrode whitelist)
+  Block set after     : 84,202
 
 [ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
   Forced white        : 2  (overrode block)
-  Final block         : 84,185
-  Final exception     : 6,730
+  Final block         : 84,200
+  Final exception     : 6,723
 
 [ Final Summary ]
 ----------------------------------------------------------------------
   1. Base block ( AdGuard DNS / HaGeZi's Pro DNS 공통 규칙)  : 84,206
   2. Removed by external whitelist : 19
-  3. Personal block added          : 0  (forced black: 0)
+  3. Personal block added          : 17  (forced black: 7)
   4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 84,185
-  6. Final Exception Rules         : 6,730
+  5. Final Block Rules             : 84,200
+  6. Final Exception Rules         : 6,723
