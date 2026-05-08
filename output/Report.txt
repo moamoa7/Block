@@ -1,23 +1,23 @@
 ======================================================================
   Filter Extraction Report (Intersection-based)
-  Generated: 2026-05-08 06:47:18 UTC
+  Generated: 2026-05-08 10:02:15 UTC
 ======================================================================
 
 [ Reference Filters ]
 ----------------------------------------------------------------------
   [OK]  AdGuard DNS Filter
         URL     : https://filters.adtidy.org/windows/filters/15.txt
-        Lines   : 165,151   Domains: 162,648
+        Lines   : 165,167   Domains: 162,664
   [OK]  HaGeZi's Pro DNS Blocklist
         URL     : https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/pro.txt
         Lines   : 194,795   Domains: 194,757
 
 [ Step 1: Build Base Block List (Intersection) ]
 ----------------------------------------------------------------------
-  AdGuard DNS Filter (15.txt) : 162,648
+  AdGuard DNS Filter (15.txt) : 162,664
   HaGeZi Pro.txt              : 194,757
   Intersection (base block)   : 84,043
-  15.txt only (excluded)      : 78,605
+  15.txt only (excluded)      : 78,621
   HaGeZi only (excluded)      : 110,714
 
 [ External Whitelist Sources ]
@@ -48,12 +48,27 @@
         Lines     : 30   Extracted: 11   New: 11
   [OK]  HaGeZi Referral Whitelist (Native)
         URL       : https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/whitelist-referral-native.txt
-        Lines     : 1,545   Extracted: 1,533   New: 1,500
+        Lines     : 1,553   Extracted: 1,541   New: 1,508
   [OK]  Discord Official Domains
         URL       : https://raw.githubusercontent.com/Dogino/Discord-Phishing-URLs/main/official-domains.txt
         Lines     : 48   Extracted: 43   New: 42
+  [OK]  OISD Commonly Whitelisted
+        URL       : https://local.oisd.nl/extract/commonly_whitelisted.php
+        Lines     : 246   Extracted: 243   New: 235
+  [OK]  anudeepND Whitelist
+        URL       : https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt
+        Lines     : 191   Extracted: 191   New: 96
+  [OK]  anudeepND Referral Sites
+        URL       : https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/referral-sites.txt
+        Lines     : 77   Extracted: 76   New: 34
+  [OK]  DandelionSprout AGH Whitelist
+        URL       : https://raw.githubusercontent.com/DandelionSprout/AdGuard-Home-Whitelist/master/whitelist.txt
+        Lines     : 354   Extracted: 285   New: 97
+  [OK]  TogoFire AGH Whitelist
+        URL       : https://raw.githubusercontent.com/TogoFire-Home/AD-Settings/main/Filters/whitelist.txt
+        Lines     : 2,644   Extracted: 1,688   New: 1,074
 
-  Total whitelist domains: 6,435
+  Total whitelist domains: 7,979
 
 [ Personal Blocklist (Force-add) ]
 ----------------------------------------------------------------------
@@ -74,28 +89,28 @@
 [ Step 2: Apply External Whitelist ]
 ----------------------------------------------------------------------
   Before              : 84,043
-  Removed by whitelist: 15
-  After               : 84,028
+  Removed by whitelist: 36
+  After               : 84,007
 
 [ Step 3: Apply Personal Blocklist (force-add) ]
 ----------------------------------------------------------------------
   Personal block size : 0
   New (not in base)   : 0
   Forced black        : 0  (overrode whitelist)
-  Block set after     : 84,028
+  Block set after     : 84,007
 
 [ Step 4: Apply Personal Whitelist (final override) ]
 ----------------------------------------------------------------------
   Personal white size : 3
   Forced white        : 2  (overrode block)
-  Final block         : 84,026
-  Final exception     : 6,438
+  Final block         : 84,005
+  Final exception     : 7,982
 
 [ Final Summary ]
 ----------------------------------------------------------------------
   1. Base block ( AdGuard DNS / HaGeZi's Pro DNS 공통 규칙)  : 84,043
-  2. Removed by external whitelist : 15
+  2. Removed by external whitelist : 36
   3. Personal block added          : 0  (forced black: 0)
   4. Personal white applied        : 3  (forced white: 2)
-  5. Final Block Rules             : 84,026
-  6. Final Exception Rules         : 6,438
+  5. Final Block Rules             : 84,005
+  6. Final Exception Rules         : 7,982
