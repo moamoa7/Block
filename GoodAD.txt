@@ -3288,12 +3288,12 @@ missav.*,njavtv.com##.lg\:block
 ! - 영상 하단 오른쪽 따라다니는 배너
 !##.mb-5.space-y-5 > div > .mx-auto
 !##div.mx-auto > iframe
-##[class^="mx-auto"]
+missav.*,njavtv.com##[class^="mx-auto"]
 ! - 예외
 ! - - - https://etoland.co.kr/ - 상단 일부 짤림
-etoland.co.kr#@#[class^="mx-auto"]
+!etoland.co.kr#@#[class^="mx-auto"]
 ! - - - https://avple.tv/ - 영상 안나옴
-avple.tv#@#[class^="mx-auto"]
+!avple.tv#@#[class^="mx-auto"]
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
@@ -3635,6 +3635,8 @@ xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 ! - - 예외
 ! - - - https://kilho.net/ - 내용 안보임
 !kilho.net#@#[class*="border"]:has(> a[href][target*="_blank"])
+! - - - https://www.cnine.kr/ - 일부 박스내용 사라짐
+cnine.kr#@#[class*="border"]:has(> a[target*="_blank"])
 ! - 업소정보 글자
 ![$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(2)
 !![$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(1)
