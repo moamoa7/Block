@@ -1,5 +1,5 @@
 ! Title: Personal Allow List (DNS)
-! Generated: 2026-05-08 10:40:39 UTC
+! Generated: 2026-05-08 10:48:24 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  External Whitelist + Personal Whitelist (minus Personal Block)
 ! Exception Rules: 6,723

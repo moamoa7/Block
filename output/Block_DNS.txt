@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
-! Generated: 2026-05-08 10:40:39 UTC
+! Generated: 2026-05-08 10:48:24 UTC
 ! Homepage: https://github.com/moamoa7/adblock
 ! Method:  (AdGuard DNS / HaGeZi's Pro DNS 공통 규칙) + 기타 DNS 규칙
-! Block Rules: 84,200
+! Block Rules: 84,199
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -14784,7 +14784,6 @@
 ||connead.net^
 ||connect.acspubs.org^
 ||connect.blockboardtech.com^
-||connect.facebook.com^
 ||connect.facebook.net^
 ||connect.peter-bringts.de^
 ||connect.rottler.de^
@@ -23048,7 +23047,6 @@
 ||fabricww.com^
 ||facai383.oss-cn-guangzhou.aliyuncs.com^
 ||faceb00k.com.vn^
-||facebook.com^
 ||facebookinbox-omni-onapp.haravan.com^
 ||faceporn.com^
 ||facesnotebook.com^
@@ -23318,7 +23316,6 @@
 ||fbarhjryimocq.website^
 ||fbbjzowgnryzw.site^
 ||fbbkmuul.com^
-||fbcdn.net^
 ||fbcdn.xyz^
 ||fbcdn2.com^
 ||fbdata-edt.com^
@@ -65084,6 +65081,7 @@
 ||ssl-metrics.tim.it^
 ||ssl-services.com^
 ||ssl.aafp.org^
+||ssl.google-analytics.com^
 ||ssl.o.additudemag.com^
 ||ssl.o.coliquio.de^
 ||ssl.o.medicinenet.com^
@@ -65987,6 +65985,7 @@
 ||static.additionaldisplay.com^
 ||static.adlunar.com^
 ||static.adoptadx.com^
+||static.ads-twitter.com^
 ||static.ads.fantasanremo.com^
 ||static.affiliatly.com^
 ||static.altitudemarketing.com^
