@@ -33,6 +33,11 @@ EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/HttpsExclusions/master/exclusions/mac.txt",
     "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/whitelist-referral-native.txt",
     "https://raw.githubusercontent.com/Dogino/Discord-Phishing-URLs/main/official-domains.txt",
+    "https://local.oisd.nl/extract/commonly_whitelisted.php",
+    "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt",
+    "https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/referral-sites.txt",
+    "https://raw.githubusercontent.com/DandelionSprout/AdGuard-Home-Whitelist/master/whitelist.txt",
+    "https://raw.githubusercontent.com/TogoFire-Home/AD-Settings/main/Filters/whitelist.txt",
 ]
 
 # Personal blocklist (force-add - overrides external whitelist)
@@ -96,6 +101,11 @@ def short_name(url: str) -> str:
         ("whitelist-referral-native", "HaGeZi Referral Whitelist (Native)"),
         ("whitelist-referral", "HaGeZi Referral Whitelist"),
         ("Discord-Phishing-URLs", "Discord Official Domains"),
+        ("commonly_whitelisted", "OISD Commonly Whitelisted"),
+        ("anudeepND/whitelist/master/domains/whitelist.txt", "anudeepND Whitelist"),
+        ("anudeepND/whitelist/master/domains/referral-sites.txt", "anudeepND Referral Sites"),
+        ("DandelionSprout/AdGuard-Home-Whitelist", "DandelionSprout AGH Whitelist"),
+        ("TogoFire-Home/AD-Settings", "TogoFire AGH Whitelist"),
     ]
     for key, name in mapping:
         if key in url:
