@@ -1,26 +1,26 @@
 ! ===== 광고/트래킹 핵심 (외부 화이트리스트가 풀어줘도 강제 차단) =====
 
-! 구글 광고 인프라
+! ===== 광고 네트워크 =====
 ||doubleclick.net^
 ||googlesyndication.com^
 ||googleadservices.com^
-||googletagmanager.com^
-||googletagservices.com^
-||google-analytics.com^
-||analytics.google.com^
-
-! Adobe / comScore / VigLink 트래커
-||omtrdc.net^
-||scorecardresearch.com^
-||viglink.com^
 ||2mdn.net^
 
-! 페이스북 트래커
-||facebook.com^
-||fbcdn.net^
-||graph.facebook.com^
-||connect.facebook.com^
-||connect.facebook.net^
+! ===== 분석/추적 =====
+||google-analytics.com^
+||analytics.google.com^
+||ssl.google-analytics.com^
+||googletagmanager.com^
+||googletagservices.com^
+||scorecardresearch.com^
+||omtrdc.net^
+||viglink.com^
 
-! 트위터 트래커
+! ===== SNS 픽셀/트래커 (본 도메인 제외) =====
+||connect.facebook.net^
+||an.facebook.com^
+||pixel.facebook.com^
+||graph.facebook.com^
 ||analytics.twitter.com^
+||ads-twitter.com^
+||static.ads-twitter.com^
