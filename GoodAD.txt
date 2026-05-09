@@ -37,7 +37,7 @@
 !!! ══════════════════════════════════════════
 ! 스트리밍 서비스 로그 및 트래킹
 ! ═══════════════════════════════════════════
-||logs.netflix.com^$empty
+||||logs.netflix.com^$empty
 ||appboot.netflix.com/log^$empty
 ||customerevents.netflix.com^$empty
 ||youtubei.googleapis.com/youtubei/v1/log_event^$empty
@@ -565,6 +565,7 @@
 ! ═══════════════════════════════════════════
 ! 중국계 SDK
 ! ═══════════════════════════════════════════
+
 ||*.umeng.com^$empty
 ||*.umengcloud.com^$empty
 ||plbslog.umeng.com^$empty
@@ -581,6 +582,94 @@
 ||mssdk.bytedance.com^$empty
 ||mon.zijieapi.com^$empty
 ||log.snssdk.com^$empty
+
+! ═══════════════════════════════════════════
+! ───── 악성 팝업 / 팝언더 광고 네트워크 ─────
+! ═══════════════════════════════════════════
+
+||a-mo.net^$empty
+||magsrv.com^$empty
+||exoclick.com^$empty
+||exosrv.com^$empty
+||exdynsrv.com^$empty
+||juicyads.com^$empty
+||trafficjunky.net^$empty
+||trafficjunky.com^$empty
+||trafficstars.com^$empty
+||trafficfactory.biz^$empty
+||plugrush.com^$empty
+||clickaine.com^$empty
+||popads.net^$empty
+||popcash.net^$empty
+||popmyads.com^$empty
+||propellerads.com^$empty
+||propellerclick.com^$empty
+||onclickads.net^$empty
+||onclkds.com^$empty
+||adcash.com^$empty
+||adsterra.com^$empty
+||hilltopads.net^$empty
+||eroadvertising.com^$empty
+||clickadu.com^$empty
+||revenuehits.com^$empty
+||realsrv.com^$empty
+||adkernel.com^$empty
+||tsyndicate.com^$empty
+||tsyndicate.net^$empty
+
+! ───── ExoClick 계열 보조 도메인 ─────
+||exo.click^$empty
+||exoticads.com^$empty
+||syndication.exoclick.com^$empty
+
+! ───── PropellerAds 보조 도메인 ─────
+||propellerpops.com^$empty
+||propu.sh^$empty
+||propellertrk.com^$empty
+||rotaban.ru^$empty
+
+! ───── Adsterra 보조 도메인 ─────
+||displaycontentprovider.com^$empty
+||adsterracdn.com^$empty
+||hpyfvuig.com^$empty
+
+! ───── HilltopAds 보조 도메인 ─────
+||hilltopads.com^$empty
+||htlbid.com^$empty
+
+! ───── 그 외 팝업/광고 네트워크 ─────
+||clickfuse.com^$empty
+||clickfunneIs.com^$empty
+||lijit.com^$empty
+||adsbtrk.com^$empty
+||pushwhy.com^$empty
+||pushpushgo.com^$empty
+||pushengage.com^$empty
+||pushcrew.com^$empty
+||propu.sh^$empty
+||luckyads.online^$empty
+||vcommission.com^$empty
+||mgid.com^$empty
+||luckyforads.com^$empty
+||outbrain.com^$empty
+||taboola.com^$empty
+||revcontent.com^$empty
+||content.ad^$empty
+||mediavine.com^$empty
+||infolinks.com^$empty
+||adblade.com^$empty
+||sekindo.com^$empty
+||adsupplyads.com^$empty
+||smartyads.com^$empty
+||smartadserver.com^$empty
+||vidoomy.com^$empty
+||underdog.media^$empty
+||advertserve.com^$empty
+||adblockanalytics.com^$empty
+
+
+
+
 
 ! ═══════════════════════════════════════════
 ! 정규표현식 (보수적으로 선별)
@@ -2110,6 +2199,8 @@ lol.inven.co.kr#@#.banner
 [$domain=/^nolgoga\d+.com/]#@#.banner
 ! - - - 다운로드 하는 부분이 안보임
 dailyuploads.net#@#.banner
+! - - - i-boss.co.kr - 배너 안보임
+i-boss.co.kr#@#.banner
 ! - 왼쪽 상단 배너 공간
 !###mainHeadline
 !
@@ -5626,6 +5717,11 @@ theporndude.com##.chat-widget
 ! - 하딘 배너 (for you - 채팅사이트 목록)
 theporndude.com##.drawer-opener
 !
+! 
+! - 아이보스 (https://www.i-boss.co.kr/)
+! - 배너 복원 (List-KR)
+i-boss.co.kr#@#a[class*="_banner"]
+!
 !
 !
 !
@@ -5774,6 +5870,8 @@ yna.co.kr#@#[class*="popup-mo"]
 ! - 자브걸 (https://kr27.javgirl.co/)
 ! - 티비핫 (https://tvhot.store/)
 ##a[target*="blank"] > img[src*=".gif"]
+! - 예외
+i-boss.co.kr#@#a[target*="blank"] > img[src*=".gif"]
 
 
 ! - https://06.avsee.ru/
@@ -5843,6 +5941,8 @@ shoppinglive.kakao.com#@#[class*="banner"]:has(img)
 gsshop.com#@#[class*="banner"]:has(img)
 esall.co.kr#@#[class*="banner"]:has(img)
 emart.ssg.com#@#[class*="banner"]:has(img)
+i-boss.co.kr#@#[class*="banner"]:has(img)
+
 
 
 
@@ -6154,12 +6254,12 @@ danawa.com#@#[class*="banner"]:has(iframe)
 
 ##[class*="sponsor"]:has(iframe)
 
+##[class*="sponsor"]
+! -예외
+i-boss.co.kr#@#[class*="sponsor"]
+
 
 ##[id*="sponsor"]:has(iframe)
-
-
-##[class*="sponsor"]
-
 
 ##[id*="sponsor"]
 
