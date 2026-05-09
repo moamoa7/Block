@@ -31,12 +31,29 @@
 ||clientservices.googleapis.com^$dnsrewrite=0.0.0.0
 ||firebaselogging-pa.googleapis.com^$dnsrewrite=0.0.0.0
 ||crashlyticsreports-pa.googleapis.com^$dnsrewrite=0.0.0.0
+||adsystem.google.com^$dnsrewrite=0.0.0.0
+||pagead2.googlesyndication.com^$dnsrewrite=0.0.0.0
+||tpc.googlesyndication.com^$dnsrewrite=0.0.0.0
+||partner.googleadservices.com^$dnsrewrite=0.0.0.0
+||www.googleadservices.com^$dnsrewrite=0.0.0.0
+||ad.doubleclick.net^$dnsrewrite=0.0.0.0
+||stats.g.doubleclick.net^$dnsrewrite=0.0.0.0
+||ssl.google-analytics.com^$dnsrewrite=0.0.0.0
+||region1.google-analytics.com^$dnsrewrite=0.0.0.0
+||region1.analytics.google.com^$dnsrewrite=0.0.0.0
+||analytics.google.com^$dnsrewrite=0.0.0.0
+||stats.youtube.com^$dnsrewrite=0.0.0.0
 
 ! ───── 메타(페이스북) / 인스타그램 트래킹 ─────
 ||facebook.net^$dnsrewrite=0.0.0.0
 ||connect.facebook.net^$dnsrewrite=0.0.0.0
 ||an.facebook.com^$dnsrewrite=0.0.0.0
 ||pixel.facebook.com^$dnsrewrite=0.0.0.0
+||graph.facebook.com^$dnsrewrite=0.0.0.0
+||edge-mqtt.facebook.com^$dnsrewrite=0.0.0.0
+||analytics.facebook.com^$dnsrewrite=0.0.0.0
+||business.facebook.com^$dnsrewrite=0.0.0.0
+||atdmt.com^$dnsrewrite=0.0.0.0
 
 ! ───── 아마존 / 일반 광고 네트워크 ─────
 ||amazon-adsystem.com^$dnsrewrite=0.0.0.0
@@ -63,6 +80,39 @@
 ||yieldlab.net^$dnsrewrite=0.0.0.0
 ||rfihub.com^$dnsrewrite=0.0.0.0
 ||mathtag.com^$dnsrewrite=0.0.0.0
+
+! ───── 광고 네트워크 / RTB (추가) ─────
+||adform.net^$dnsrewrite=0.0.0.0
+||adition.com^$dnsrewrite=0.0.0.0
+||adroll.com^$dnsrewrite=0.0.0.0
+||adsafeprotected.com^$dnsrewrite=0.0.0.0
+||adscale.de^$dnsrewrite=0.0.0.0
+||adtech.com^$dnsrewrite=0.0.0.0
+||advertising.com^$dnsrewrite=0.0.0.0
+||adzerk.net^$dnsrewrite=0.0.0.0
+||agkn.com^$dnsrewrite=0.0.0.0
+||bidr.io^$dnsrewrite=0.0.0.0
+||bttrack.com^$dnsrewrite=0.0.0.0
+||conversantmedia.com^$dnsrewrite=0.0.0.0
+||districtm.io^$dnsrewrite=0.0.0.0
+||emxdgt.com^$dnsrewrite=0.0.0.0
+||go.sonobi.com^$dnsrewrite=0.0.0.0
+||gssprt.jp^$dnsrewrite=0.0.0.0
+||indexww.com^$dnsrewrite=0.0.0.0
+||inner-active.mobi^$dnsrewrite=0.0.0.0
+||lijit.com^$dnsrewrite=0.0.0.0
+||mediavine.com^$dnsrewrite=0.0.0.0
+||medianet.com^$dnsrewrite=0.0.0.0
+||mediamath.com^$dnsrewrite=0.0.0.0
+||moatads.com^$dnsrewrite=0.0.0.0
+||mookie1.com^$dnsrewrite=0.0.0.0
+||sovrn.com^$dnsrewrite=0.0.0.0
+||spotxchange.com^$dnsrewrite=0.0.0.0
+||stickyadstv.com^$dnsrewrite=0.0.0.0
+||teads.tv^$dnsrewrite=0.0.0.0
+||turn.com^$dnsrewrite=0.0.0.0
+||yieldmo.com^$dnsrewrite=0.0.0.0
+||zedo.com^$dnsrewrite=0.0.0.0
 
 ! ───── 모바일 광고 SDK / MMP ─────
 ||inmobi.com^$dnsrewrite=0.0.0.0
@@ -92,6 +142,21 @@
 ||appboy.com^$dnsrewrite=0.0.0.0
 ||leanplum.com^$dnsrewrite=0.0.0.0
 ||swrve.com^$dnsrewrite=0.0.0.0
+||revmob.com^$dnsrewrite=0.0.0.0
+||playhaven.com^$dnsrewrite=0.0.0.0
+||leadbolt.com^$dnsrewrite=0.0.0.0
+||mngads.com^$dnsrewrite=0.0.0.0
+||mintegral.com^$dnsrewrite=0.0.0.0
+||mintegral.net^$dnsrewrite=0.0.0.0
+||liftoff.io^$dnsrewrite=0.0.0.0
+||digitalturbine.com^$dnsrewrite=0.0.0.0
+||ogury.com^$dnsrewrite=0.0.0.0
+||ogury.io^$dnsrewrite=0.0.0.0
+||tenjin.io^$dnsrewrite=0.0.0.0
+||tenjin.com^$dnsrewrite=0.0.0.0
+||appflood.com^$dnsrewrite=0.0.0.0
+||domob.cn^$dnsrewrite=0.0.0.0
+||greedygame.com^$dnsrewrite=0.0.0.0
 
 ! ───── 앱 분석 / 크래시 리포팅 / APM ─────
 ||sentry.io^$dnsrewrite=0.0.0.0
@@ -122,6 +187,31 @@
 ||contentsquare.net^$dnsrewrite=0.0.0.0
 ||quantummetric.com^$dnsrewrite=0.0.0.0
 ||crazyegg.com^$dnsrewrite=0.0.0.0
+
+! ───── 분석 / 측정 (추가) ─────
+||statcounter.com^$dnsrewrite=0.0.0.0
+||histats.com^$dnsrewrite=0.0.0.0
+||clicktale.net^$dnsrewrite=0.0.0.0
+||clicktale.com^$dnsrewrite=0.0.0.0
+||piwik.pro^$dnsrewrite=0.0.0.0
+||matomo.cloud^$dnsrewrite=0.0.0.0
+||countly.com^$dnsrewrite=0.0.0.0
+||gauges.com^$dnsrewrite=0.0.0.0
+||clicky.com^$dnsrewrite=0.0.0.0
+||woopra.com^$dnsrewrite=0.0.0.0
+||keen.io^$dnsrewrite=0.0.0.0
+||snowplowanalytics.com^$dnsrewrite=0.0.0.0
+||mixpanel.org^$dnsrewrite=0.0.0.0
+||raygun.io^$dnsrewrite=0.0.0.0
+||raygun.com^$dnsrewrite=0.0.0.0
+||rollbar.com^$dnsrewrite=0.0.0.0
+||sentry-cdn.com^$dnsrewrite=0.0.0.0
+||trackjs.com^$dnsrewrite=0.0.0.0
+||honeycomb.io^$dnsrewrite=0.0.0.0
+||lightstep.com^$dnsrewrite=0.0.0.0
+||instana.io^$dnsrewrite=0.0.0.0
+||dynatrace.com^$dnsrewrite=0.0.0.0
+||appdynamics.com^$dnsrewrite=0.0.0.0
 
 ! ───── CRM / 인앱 마케팅 ─────
 ||iterable.com^$dnsrewrite=0.0.0.0
@@ -154,6 +244,23 @@
 ||demdex.net^$dnsrewrite=0.0.0.0
 ||omtrdc.net^$dnsrewrite=0.0.0.0
 ||2o7.net^$dnsrewrite=0.0.0.0
+||hubspot.com^$dnsrewrite=0.0.0.0
+||hs-scripts.com^$dnsrewrite=0.0.0.0
+||hs-analytics.net^$dnsrewrite=0.0.0.0
+||hsforms.com^$dnsrewrite=0.0.0.0
+||marketo.net^$dnsrewrite=0.0.0.0
+||mktoresp.com^$dnsrewrite=0.0.0.0
+||pardot.com^$dnsrewrite=0.0.0.0
+||eloqua.com^$dnsrewrite=0.0.0.0
+||en25.com^$dnsrewrite=0.0.0.0
+||mailchimp.com/track^$dnsrewrite=0.0.0.0
+||list-manage.com^$dnsrewrite=0.0.0.0
+||sendgrid.net^$dnsrewrite=0.0.0.0
+||mandrillapp.com^$dnsrewrite=0.0.0.0
+||klaviyo.com^$dnsrewrite=0.0.0.0
+||sailthru.com^$dnsrewrite=0.0.0.0
+||emarsys.net^$dnsrewrite=0.0.0.0
+||dotomi.com^$dnsrewrite=0.0.0.0
 
 ! ───── 어도비 / 기타 소프트웨어 텔레메트리 ─────
 ||cc-api-data.adobe.io^$dnsrewrite=0.0.0.0
@@ -203,6 +310,23 @@
 ||telemetry.urs.microsoft.com^$dnsrewrite=0.0.0.0
 ||diagnostics.support.microsoft.com^$dnsrewrite=0.0.0.0
 ||ssw.live.com^$dnsrewrite=0.0.0.0
+
+! ───── Microsoft 텔레메트리 (추가) ─────
+||functional.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||self.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||eu-mobile.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||us-mobile.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||eu-v10.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||us-v10.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||v20.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||mobile.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||cs.dds.microsoft.com^$dnsrewrite=0.0.0.0
+||cs1.wpc.v0cdn.net^$dnsrewrite=0.0.0.0
+||dc.services.visualstudio.com^$dnsrewrite=0.0.0.0
+||applicationinsights.azure.com^$dnsrewrite=0.0.0.0
+||applicationinsights.io^$dnsrewrite=0.0.0.0
+||fp.msedge.net^$dnsrewrite=0.0.0.0
+
 
 ! ───── 브라우저 텔레메트리 (Edge/Chrome/Brave 등) ─────
 ||browser.events.data.microsoft.com^$dnsrewrite=0.0.0.0
@@ -335,6 +459,123 @@
 ||logger.wemakeprice.com^$dnsrewrite=0.0.0.0
 ||stat.tmon.co.kr^$dnsrewrite=0.0.0.0
 ||tracker.daangn.com^$dnsrewrite=0.0.0.0
+||collector-cf.coupang.com^$dnsrewrite=0.0.0.0
+||click.coupang.com^$dnsrewrite=0.0.0.0
+||event.coupang.com^$dnsrewrite=0.0.0.0
+||analyticslog.coupang.com^$dnsrewrite=0.0.0.0
+||stat.coupangeats.com^$dnsrewrite=0.0.0.0
+||click.linkprice.com^$dnsrewrite=0.0.0.0
+||logger.linkprice.com^$dnsrewrite=0.0.0.0
+||stat.daum.net^$dnsrewrite=0.0.0.0
+||stat.kakao.com^$dnsrewrite=0.0.0.0
+||cf.kakao.com^$dnsrewrite=0.0.0.0
+||tr.kakao.com^$dnsrewrite=0.0.0.0
+||track.tiara.kakao.com^$dnsrewrite=0.0.0.0
+||stat.melon.com^$dnsrewrite=0.0.0.0
+||stats.melon.com^$dnsrewrite=0.0.0.0
+||cdp.melon.com^$dnsrewrite=0.0.0.0
+||logging.bugs.co.kr^$dnsrewrite=0.0.0.0
+||tracker.genie.co.kr^$dnsrewrite=0.0.0.0
+||stat.flo.co.kr^$dnsrewrite=0.0.0.0
+||analytics.tving.com^$dnsrewrite=0.0.0.0
+||log.tving.com^$dnsrewrite=0.0.0.0
+||analytics.wavve.com^$dnsrewrite=0.0.0.0
+||log.wavve.com^$dnsrewrite=0.0.0.0
+||tracker.watcha.com^$dnsrewrite=0.0.0.0
+||logger.watcha.com^$dnsrewrite=0.0.0.0
+||analytics.afreecatv.com^$dnsrewrite=0.0.0.0
+||log.chzzk.naver.com^$dnsrewrite=0.0.0.0
+||tracking.kt.com^$dnsrewrite=0.0.0.0
+||stat.kt.com^$dnsrewrite=0.0.0.0
+||tracker.skt.com^$dnsrewrite=0.0.0.0
+||analytics.lguplus.com^$dnsrewrite=0.0.0.0
+||tracker.kbstar.com^$dnsrewrite=0.0.0.0
+||logger.shinhan.com^$dnsrewrite=0.0.0.0
+||analytics.wooribank.com^$dnsrewrite=0.0.0.0
+||event-log.payco.com^$dnsrewrite=0.0.0.0
+||tracker.naverpay.com^$dnsrewrite=0.0.0.0
+||tracker.kakaopay.com^$dnsrewrite=0.0.0.0
+||analytics-log.kakaopay.com^$dnsrewrite=0.0.0.0
+||log.toss.im^$dnsrewrite=0.0.0.0
+||event.baemin.com^$dnsrewrite=0.0.0.0
+||logger.baemin.com^$dnsrewrite=0.0.0.0
+||tracker.yogiyo.co.kr^$dnsrewrite=0.0.0.0
+||event.bunjang.co.kr^$dnsrewrite=0.0.0.0
+||tracker.idus.com^$dnsrewrite=0.0.0.0
+||logger.ohou.se^$dnsrewrite=0.0.0.0
+||tracker.kurly.com^$dnsrewrite=0.0.0.0
+||event.gmarket.co.kr^$dnsrewrite=0.0.0.0
+||trace.zigbang.com^$dnsrewrite=0.0.0.0
+||analytics.dabangapp.com^$dnsrewrite=0.0.0.0
+||tracker.tmap.co.kr^$dnsrewrite=0.0.0.0
+||log.tmap.co.kr^$dnsrewrite=0.0.0.0
+||analytics.kakaomobility.com^$dnsrewrite=0.0.0.0
+||log.kakaomobility.com^$dnsrewrite=0.0.0.0
+||tracker.socar.kr^$dnsrewrite=0.0.0.0
+||logger.socar.kr^$dnsrewrite=0.0.0.0
+||stat.cj.net^$dnsrewrite=0.0.0.0
+||log.lottecard.co.kr^$dnsrewrite=0.0.0.0
+
+
+! ───── 비콘 / 픽셀 (추가) ─────
+||serving-sys.com^$dnsrewrite=0.0.0.0
+||eyeviewads.com^$dnsrewrite=0.0.0.0
+||flashtalking.com^$dnsrewrite=0.0.0.0
+||sitescout.com^$dnsrewrite=0.0.0.0
+||simpli.fi^$dnsrewrite=0.0.0.0
+||tribalfusion.com^$dnsrewrite=0.0.0.0
+||revcontent.com^$dnsrewrite=0.0.0.0
+||zergnet.com^$dnsrewrite=0.0.0.0
+||mgid.com^$dnsrewrite=0.0.0.0
+||content-recommendation.net^$dnsrewrite=0.0.0.0
+
+! ───── 보안 소프트웨어 텔레메트리 ─────
+||telemetry.malwarebytes.com^$dnsrewrite=0.0.0.0
+||telemetry-stats.avg.com^$dnsrewrite=0.0.0.0
+||analytics.avcdn.net^$dnsrewrite=0.0.0.0
+||stats.avast.com^$dnsrewrite=0.0.0.0
+||telemetry.kaspersky-labs.com^$dnsrewrite=0.0.0.0
+||locator2.kaspersky-labs.com^$dnsrewrite=0.0.0.0
+||edge.f-secure.com^$dnsrewrite=0.0.0.0
+
+! ───── 자동차 텔레메트리 ─────
+||telemetry.tesla.com^$dnsrewrite=0.0.0.0
+||logs.tesla.com^$dnsrewrite=0.0.0.0
+||diagnostics.tesla.com^$dnsrewrite=0.0.0.0
+||telemetry.bmwgroup.com^$dnsrewrite=0.0.0.0
+
+! ───── 비밀번호 관리자 / VPN ─────
+||events.1password.com^$dnsrewrite=0.0.0.0
+||app-telemetry.1password.com^$dnsrewrite=0.0.0.0
+||telemetry.lastpass.com^$dnsrewrite=0.0.0.0
+||stats.bitwarden.com^$dnsrewrite=0.0.0.0
+||events.bitwarden.com^$dnsrewrite=0.0.0.0
+||client-telemetry.protonvpn.com^$dnsrewrite=0.0.0.0
+
+! ───── 메신저 / 화상회의 ─────
+||telemetry.dropbox.com^$dnsrewrite=0.0.0.0
+||log.getdropbox.com^$dnsrewrite=0.0.0.0
+||client-events.dropbox.com^$dnsrewrite=0.0.0.0
+||client-telemetry.slack.com^$dnsrewrite=0.0.0.0
+||statsigapi.net^$dnsrewrite=0.0.0.0
+||featuregates.org^$dnsrewrite=0.0.0.0
+||clienttelemetry.webex.com^$dnsrewrite=0.0.0.0
+||telemetry-service.webex.com^$dnsrewrite=0.0.0.0
+||stats.line.me^$dnsrewrite=0.0.0.0
+||obs.line-apps.com^$dnsrewrite=0.0.0.0
+
+! ───── 생산성 도구 ─────
+||telemetry.notion.so^$dnsrewrite=0.0.0.0
+||telemetry.figma.com^$dnsrewrite=0.0.0.0
+||events.miro.com^$dnsrewrite=0.0.0.0
+||analytics.miro.com^$dnsrewrite=0.0.0.0
+||analytics.canva.com^$dnsrewrite=0.0.0.0
+||logs.canva.com^$dnsrewrite=0.0.0.0
+||telemetry.atlassian.com^$dnsrewrite=0.0.0.0
+||analytics.atlassian.com^$dnsrewrite=0.0.0.0
+||metrics-api.evernote.com^$dnsrewrite=0.0.0.0
+||telemetry.box.com^$dnsrewrite=0.0.0.0
+
 
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
@@ -345,3 +586,7 @@
 ! ||perimeterx.net^$dnsrewrite=0.0.0.0
 ! ||fingerprint.com^$dnsrewrite=0.0.0.0
 ! ||fpjs.io^$dnsrewrite=0.0.0.0
+! ||hcaptcha.com^$dnsrewrite=0.0.0.0
+! ||recaptcha.net^$dnsrewrite=0.0.0.0
+! ||statsig.anthropic.com^$dnsrewrite=0.0.0.0
+! ||analytics.perplexity.ai^$dnsrewrite=0.0.0.0
