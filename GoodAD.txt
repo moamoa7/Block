@@ -3813,7 +3813,7 @@ act.crxtlg.com##section.adaptation:nth-of-type(3)
 !javlemon.com##[style] [src]
 javlemon.com##style\=\"text-align\:center\;\"
 ! - 이미지가 아닌 동영상이 올때가 있어서 제대로 차단이 안됨/. js를 차단해야 함
-||a.magsrv.com/ad-provider.js
+!||a.magsrv.com/ad-provider.js
 ! - - - PC
 !javlemon.com##center
 ! - - - 모바일
