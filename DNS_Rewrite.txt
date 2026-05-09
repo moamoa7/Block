@@ -779,7 +779,10 @@
 ! ||recaptcha.net^$dnsrewrite=0.0.0.0
 ! ||statsig.anthropic.com^$dnsrewrite=0.0.0.0
 ! ||analytics.perplexity.ai^$dnsrewrite=0.0.0.0
-!
+! T맵(T map)이나 SKT 전용 앱(에이닷, T월드 등)에서 내 현재 위치를 확인하거나 지도를 불러올 때 사용
+! ||rf-lbsidcstmap.sktelecom.com^$dnsrewrite=0.0.0.0
+! 윈도우의 코파일럿 기능, 엣지 브라우저의 사이드바 AI, 그리고 코파일럿 웹사이트 사용안하면 가능
+! ||copilot.microsoft.com^$dnsrewrite=0.0.0.0
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
 ! android.apis.google.com           ← Google API 통합 엔드포인트
