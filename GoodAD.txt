@@ -5101,6 +5101,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 
+
 !!! ══════════════════════════════════════════
 !!! AdGuard 전용 트래킹/텔레메트리 차단 필터
 !!! ══════════════════════════════════════════
@@ -5614,18 +5615,10 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ||tracker.daangn.com^$empty
 ||trace.zigbang.com^$empty
 ||analytics.dabangapp.com^$empty
-||stat.melon.com^$empty
-||stats.melon.com^$empty
 ||cdp.melon.com^$empty
-||logging.bugs.co.kr^$empty
-||tracker.genie.co.kr^$empty
-||stat.flo.co.kr^$empty
 ||analytics.tving.com^$empty
-||log.tving.com^$empty
 ||analytics.wavve.com^$empty
-||log.wavve.com^$empty
 ||tracker.watcha.com^$empty
-||logger.watcha.com^$empty
 ||analytics.afreecatv.com^$empty
 ||tracking.kt.com^$empty
 ||stat.kt.com^$empty
