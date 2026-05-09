@@ -42,7 +42,7 @@
 
 ! ───── ExoClick 계열 보조 도메인 ─────
 ||exo.click^
-||syndication.exoclick.com
+||syndication.exoclick.com^
 
 ! ───── PropellerAds 보조 도메인 ─────
 ||propellerpops.com^
@@ -50,11 +50,11 @@
 
 ! ───── Adsterra 보조 도메인 ─────
 ||displaycontentprovider.com^
-||adsterracdn.com
-||hpyfvuig.com
+||adsterracdn.com^
+||hpyfvuig.com^
 
 ! ───── 그 외 팝업/광고 네트워크 ─────
-||clickfunneIs.com
+||clickfunnels.com^
 ||pushwhy.com^
 ||pushpushgo.com^
 ||pushengage.com^
