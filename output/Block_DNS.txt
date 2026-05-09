@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-09 08:05:39 UTC
+! Generated: 2026-05-09 08:13:27 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 84,336
+! Block Rules: 84,340
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -4477,6 +4477,7 @@
 ||adstats.tencentmusic.com^
 ||adstean.com^
 ||adsterra.com^
+||adsterracdn.com^
 ||adsterratech.com^
 ||adstik.click^
 ||adstime.org^
@@ -13864,6 +13865,7 @@
 ||clicker.chiaki.vn^
 ||clickexperts.net^
 ||clickfilter.co^
+||clickfunnels.com^
 ||clickfuse.com^
 ||clickgate.biz^
 ||clickgate07.biz^
@@ -32447,6 +32449,7 @@
 ||hpwynygtbbdo.com^
 ||hpxtgbcoinjhxsf.com^
 ||hpxzpzdpwnhxj.online^
+||hpyfvuig.com^
 ||hpyjmp.com^
 ||hpzvitkflstxx.website^
 ||hq1.appsflyer.com^
@@ -68568,6 +68571,7 @@
 ||syndication.elinkgo2.com^
 ||syndication.epcmh.com^
 ||syndication.epcmk.com^
+||syndication.exoclick.com^
 ||syndication.link2az.com^
 ||syndication.link2nx.com^
 ||syndication.link2zz.com^
