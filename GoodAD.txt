@@ -557,6 +557,21 @@
 ||stat.cj.net^$empty
 ||log.lottecard.co.kr^$empty
 
+! 한국계 광고/팝업 네트워크
+||adcjs.kr^$empty
+||realclick.co.kr^$empty
+||realclick.kr^$empty
+||widerplanet.com^$empty
+||displayad.cauly.co.kr
+||adop.cc^$empty
+||mobon.net^$empty
+||mediacategory.com^$empty
+||adpopcorn.com^$empty
+||tnkfactory.com^$empty
+||igaworks.com^$empty
+||recopick.com^$empt
+||astralog.naver.com^$empty
+
 ! 디시 광고 정적 리소스 ($empty 권장 - 이미지/스크립트만 비우기)
 ||nstatic.dcinside.com/dc/dcad^$empty
 ||nstatic.dcinside.com/dgn/gallery/images/popup^$empty
@@ -1958,6 +1973,15 @@ etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.f
 etoland.co.kr#@#[class^="ads"]
 etoland.co.kr#@#[class^="ad"]
 @@||doubleclick.net^$domain=etoland.co.kr
+! - 팝업 차단
+! etoland 팝업/팝언더 차단
+etoland.co.kr#%#//scriptlet('prevent-window-open')
+!etoland.co.kr#%#//scriptlet('abort-current-inline-script', 'window.open')
+! 좀 더 광범위하게 - 새 창 열기 전부 차단
+!etoland.co.kr#%#//scriptlet('no-window-open-if', '*')
+! - - - uBlock Origin 문법
+!etoland.co.kr##+js(nowoif)
+!etoland.co.kr##+js(aopr, open)
 !
 !
 !
@@ -5819,6 +5843,18 @@ yna.co.kr#@#[class*="popup-mo"]
 !
 !
 ##li:has-text(스폰)
+!
+!
+##.banner_top
+!
+!
+##.ad_wrap
+!
+!
+##div[class*="ad_"]
+!
+!
+#a[href*="adclick"]
 !
 !
 !
