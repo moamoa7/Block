@@ -18,7 +18,7 @@
 !!! - uBlock Origin·일반 AdGuard 앱에서는 동작하지 않음
 !!! - 결제·로그인 영향 가능 도메인은 "선택 적용"에 주석 처리
 !!! ═══════════════════════════════════════════════════════════
-
+!
 ! ───── 구글 광고 / 분석 네트워크 ─────
 ||doubleclick.net^$dnsrewrite=0.0.0.0
 ||ad.doubleclick.net^$dnsrewrite=0.0.0.0
@@ -368,7 +368,7 @@
 ||iadsdk.apple.com^$dnsrewrite=0.0.0.0
 ||xp.apple.com^$dnsrewrite=0.0.0.0
 ||supportmetrics.apple.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── NVIDIA / 기타 제조사 ─────
 ||telemetry.nvidia.com^$dnsrewrite=0.0.0.0
 ||events.gfe.nvidia.com^$dnsrewrite=0.0.0.0
