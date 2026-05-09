@@ -44,6 +44,22 @@
 ||firebaselogging-pa.googleapis.com^$dnsrewrite=0.0.0.0
 ||crashlyticsreports-pa.googleapis.com^$dnsrewrite=0.0.0.0
 
+! ───── Google Firebase / Crashlytics 관련 (이미 포함됨) ─────
+||crashlyticsreports-pa.googleapis.com^$dnsrewrite=0.0.0.0
+||firebaselogging-pa.googleapis.com^$dnsrewrite=0.0.0.0
+||app-measurement.com^$dnsrewrite=0.0.0.0
+
+! ───── 추가하면 좋을 Firebase 관련 ─────
+||firebase-settings.crashlytics.com^$dnsrewrite=0.0.0.0
+||settings.crashlytics.com^$dnsrewrite=0.0.0.0
+||reports.crashlytics.com^$dnsrewrite=0.0.0.0
+||e.crashlytics.com^$dnsrewrite=0.0.0.0
+||firebaseinstallations.googleapis.com^$dnsrewrite=0.0.0.0
+||firebaseremoteconfig.googleapis.com^$dnsrewrite=0.0.0.0
+||firebaseperformance.googleapis.com^$dnsrewrite=0.0.0.0
+||firebaseinappmessaging.googleapis.com^$dnsrewrite=0.0.0.0
+||firebasedynamiclinks.googleapis.com^$dnsrewrite=0.0.0.0
+
 ! ───── 메타(페이스북) / 인스타그램 트래킹 ─────
 ||facebook.net^$dnsrewrite=0.0.0.0
 ||connect.facebook.net^$dnsrewrite=0.0.0.0
