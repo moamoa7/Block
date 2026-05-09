@@ -5644,6 +5644,11 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ||stat.cj.net^$empty
 ||log.lottecard.co.kr^$empty
 
+! 디시 광고 정적 리소스 ($empty 권장 - 이미지/스크립트만 비우기)
+||nstatic.dcinside.com/dc/dcad^$empty
+||nstatic.dcinside.com/dgn/gallery/images/popup^$empty
+||nstatic.dcinside.com/dc/m/img/banner^$empty
+
 ! ═══════════════════════════════════════════
 ! 중국계 SDK
 ! ═══════════════════════════════════════════
