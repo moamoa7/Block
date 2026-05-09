@@ -829,3 +829,7 @@
 ||api.individual.githubcopilot.com^
 ! 2. 유튜브 영상 재생 필수 서버
 ||ångströ.com^
+! 3. 모바일 티머니 앱에서 잔액 조회, 충전, 결제 내역 확인, 그리고 스마트폰 NFC를 이용한 대중교통 결제 시
+! mapi.tmoney.co.kr^
+! 4. SKT 전용 단말기의 소프트웨어 업데이트 확인, 기기 인증, 혹은 T월드 같은 전용 앱의 연동 설정 등을 담당
+! urms.usp.sktelecom.com^
