@@ -166,6 +166,14 @@
 ||domob.cn^$dnsrewrite=0.0.0.0
 ||greedygame.com^$dnsrewrite=0.0.0.0
 
+! ───── 추가: 모바일 SDK / 광고 ─────
+||bugly.qq.com^$dnsrewrite=0.0.0.0
+||android.bugly.qq.com^$dnsrewrite=0.0.0.0
+||adjust.io^$dnsrewrite=0.0.0.0
+||app.adjust.io^$dnsrewrite=0.0.0.0
+||bulldogcpi.com^$dnsrewrite=0.0.0.0
+||ads.bulldogcpi.com^$dnsrewrite=0.0.0.0
+
 ! ───── 앱 분석 / 크래시 리포팅 / APM ─────
 ||sentry.io^$dnsrewrite=0.0.0.0
 ||sentry-cdn.com^$dnsrewrite=0.0.0.0
