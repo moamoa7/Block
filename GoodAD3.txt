@@ -1,3 +1,4 @@
+==================================
 
 
 
@@ -526,3 +527,303 @@ hankyung.com#@#div:has(> iframe[src*=".iframe"])
 
 
 =======================================
+
+
+
+
+
+
+
+!
+!
+!!!~귀찮은 팝업으로 인해 어쩔수 없이 열린 사이트 무력화!
+!
+!
+!
+land.hotgoddess.icu##html
+lust-goddess-game.online##html
+bestfungamestoday.com##html
+tonghrencomics.net##html
+iccku.com##html
+
+
+
+
+
+
+=======================================
+
+
+
+
+
+
+! - https://www.genspark.ai/
+! - https://www.reddit.com/
+! - https://gall.dcinside.com/
+! - ! - https://inven.co.kr/
+! - https://avple.tv/
+! - https://mypikpak.com/ - 캡챠 안보임
+!##div:has(> iframe[src*="google"]):not([src*="recaptcha"]):not(html):not(body)
+
+
+! - https://pann.nate.com/
+! - 국세청(https://hometax.go.kr/) - 이용 불가
+!##div:has(> iframe[src*="about:blank"])
+
+
+! - https://randburg.com/ - 영상 안나옴
+!##iframe[src*="index"]
+
+
+! - https://tvwiki19.net/
+! - https://hohoj.tv/
+! - https://www.reddit.com/
+! - https://etoland.co.kr/
+! - https://www.clien.net/
+! - https://mypikpak.com/
+! - https://ko.javfc2.live/ - 영상 안나옴
+! - https://supjav.com/
+! - https://www.ddanzi.com/
+! - https://www.82cook.com/
+! - https://web.humoruniv.com/
+! - https://www.goodgag.net/
+! - https://www.clien.net/
+!##div:has(> iframe[src*="iframe"])
+
+
+! - https://tv.naver.com/ - 목록 안나옴
+!##iframe[class*="iframe"]
+
+
+! - https://javgiga.com/ - 영상 안보임
+!##div[class*="popup"]:has(iframe)
+
+
+! - https://ko.javfc2.live/
+! - https://tv.naver.com/ - 목록 안나옴
+!##iframe[class*="frame"]
+
+! - 티바위키 안나옴 (https://tvwiki19.net/)
+!##iframe[src*="player"]
+!##iframe[src*="play"]
+
+! - https://funlove.info/ - 영상 클릭 안됨
+!##*:has(> iframe[src*="ads"]):not(html):not(body)
+
+
+! - https://javdoe.to/ - 영상 안나옴
+!##div[class*="ads"]:has(iframe)
+
+!- https://www.sooplive.com
+! - https://play.sooplive.com
+! - https://coktv1.com/ - 영상 안나옴
+! - https://ko.javfc2.live/
+! - https://missav.ws/
+! - https://7tv034.com/
+! - https://imagetwist.com/
+! - https://javfc2.xyz/
+!##div:has(> iframe[src*="live"])
+
+
+! https://poooo.ml/ - 영상 안보임
+!##div:has(> iframe[src*="video"])
+
+
+! - https://www.ddanzi.com/
+! - 쏘걸 (https://kr86.sogirl.so/) - 영상 안나옴
+!##div:has(> iframe[src*="media"]):not(html):not(body)
+
+
+! - https://missav.ws/
+! - https://javgg.net/
+! - https://javgiga.com/ - 영상 안나옴
+!##div:has(> iframe[src*="stream"])
+
+
+! - https://jav.sb/ - 영상틀 사라잠 - 여기 영상 안나오는곳인가..
+! - https://sports.donga.com/
+!##div:has(> iframe[src*="vod"])
+
+
+! - https://www.genspark.ai/
+! - https://poooo.ml/ - 영상 안보임
+!##div:has(> iframe[src*="chat"])
+
+
+! - https://ygosu.com/
+! - https://tvwiki19.net/ - 영상 안나옴
+!##iframe[id*="frame"]
+
+
+! - https://tvwiki19.net/ - 영상 안나옴
+!##[id*="iframe"]
+
+! - https://ygosu.com/ - 전체 안보임
+!##div[class*="hidden"]:has(iframe)
+
+
+! - https://missav.ws/
+! - https://www.goodgag.net/
+! - https://coktv1.com/ - 영상 안나옴
+!##div:has(> iframe[style*="hidden"])
+
+
+! - https://speedtest.telstra.com/
+! -  https://dvdprime.com/ - 영상 안보임
+!##[class^="iframe"]
+
+
+! - https://dvdprime.com/ - 영상 안보임
+!##[class*="popup"]
+
+
+! - https://sports.donga.com/ - 기사 내 이미지 안보임
+!##[class$="iframe"]
+
+
+!##[alt$="스폰"]
+
+
+! - https://platinmods.com/
+!##[class*="event"]:has(iframe)
+! - 제외
+! - --  https://platinmods.com/  - 본문 안보임
+!platinmods.com#@#[class*="event"]:has(iframe)
+!##[class*="event"]
+! - 제외
+! - --  https://platinmods.com/  - 본문 안보임
+!platinmods.com#@#[class*="event"]
+! - https://www.reddit.com/ - 상단 안보임
+!reddit.com#@#[class*="event"]
+
+
+
+
+
+
+
+=======================================
+
+
+
+
+! Adblock-Rule-Collection-Lite 필터 오류 해결 (일부)
+@@^$generichide,badfilter
+@@/fontawesome-$font,3p
+coupang.com#@#+js(json-prune-xhr-response, tracking, feeds, n-api/recommend/feeds)
+@@||bamgrid.com^$domain=disneyplus.com
+!
+!
+!
+! 디스코드 차단 해제
+||discord.com^$badfilter
+!
+!
+! - 일부 필터에 의해 이미지 차단 방지
+@@/1.gif?
+@@/2.gif?
+@@/3.gif?
+!
+!
+||ad.$badfilter
+!
+!
+liteapks.com#@#.app-cta:not(html, body, :empty)
+!
+!
+||com/ads$badfilter
+!
+!
+! - 복원 (🔒 Privacy Essentials) - 영상 안나옴
+@@||ok.ru/videoembed^$3p,frame
+!
+!
+! copilot.microsoft.com
+! - 일부 필터 문제로 오류 나는거 해결
+@@-ads-$script
+!
+!
+! Adguard DNS (https://adguard-dns.io/)
+! - 일부 필터로 인한 대시보드 진입 오류 해결 (AdVoid.Core)
+@@/stats^$xmlhttprequest,domain=~githubunwrapped.com|~jsdelivr.com|~youtube.com|~marketplace.visualstudio.com
+!
+!
+! https://91porna.com/
+! - 차단 목록 (AdVoid.Full) 해제 - 픽팍 등에서 공유 안보임
+#@#.share-container
+!
+!
+! https://www.dailymotion.com/
+! - Block third party fonts 해제 - 폰트 차단으로 틀 깨짐
+@@||fonts.googleapis.com^$domain=www.dailymotion.com
+!
+!
+! - 차단 목록 (Adblock-Rule-Collection-Lite) 해제 - 이미지 등 안보임
+!@@||aliexpress-media.com^
+!@@||alicdn.com^
+!
+!
+! https://www.cnine.kr/
+! - 차단 목록 (AdVoid.Full) 해제 - 엑셀 시그표 화면 안보임 해결
+/smartad.$script,from=~smartad.ai,badfilter
+!
+!
+! 잡코리아 (https://www.jobkorea.co.kr/)
+! - 차단 목록(Adblock-Rule-Collection-Lite) 해제 - 스크롤이 안됨
+@@jobkorea.co.kr/*/adbanner.js
+!
+!
+! 레딧 (https://www.reddit.com/)
+! - 차단 목록 (Adblock-Rule-Collection-Lite) 차단 해제 - 상단에 메세지창 나오는거 해결
+@@||www.reddit.com/svc/shreddit/partial/J7VVLM/*_ads_*
+!
+!
+! 차단 목록 해제 (BadBlock+ (ABP)) - 트위터 게시물 안보임
+||platform.twitter.com^$important,badfilter
+@@||syndication.twimg.com^
+!
+!
+! https://www.semrush.com/
+! - 사이트 차단 해제 (🔥 BadBlock+ (ABP))
+||semrush.com^$badfilter
+!
+!
+! https://apkcombo.com/
+! - 사이트 차단 해제 (🔥 BadBlock+ (ABP))
+||apkcombo.com^$badfilter
+
+! https://tv.naver.com/ (Adblock-Rule-Collection-Lite)
+! - 네이버 TV  영상 재생 불가 - 이걸 풀면 광고가 나옴
+!@@||smartmediarep.com^
+!
+!
+! https://fashionpick.shopping.naver.com/
+! - 사이트 로딩 안됨 (Adblock-Rule-Collection-Lite)
+/ad/*$script,badfilter
+!
+!
+! - https://poooo.ml/
+! - 이미지 사라짐 * (Adblock-Rule-Collection-Lite)
+!/gg/*$badfilter
+!
+!
+! - https://www.sooplive.com/  
+! - 이미지 안보임 (Adblock-Rule-Collection-Lite)
+*/ss/ss$badfilter
+!
+!
+! - https://hearheart.com/ - 배너 안보임
+/banners?$badfilter
+!
+!
+! - 옥션.지마켓 - 배너 안보임
+||ad-$badfilter
+! - 아래처럼 해도 안되네
+!@@||ad-$domain=auction.co.kr|m.gmarket.co.kr|www.gmarket.co.kr
+
+||ko.porndudecams.com^$badfilter
+
+
+/banner/*$frame,badfilter
+*/images/banner$domain=~ipo.chinairn.com|~www.shuame.com|~exp.qq.com,badfilter
