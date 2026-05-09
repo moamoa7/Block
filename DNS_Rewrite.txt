@@ -557,6 +557,15 @@
 ||stat.cj.net^$dnsrewrite=0.0.0.0
 ||log.lottecard.co.kr^$dnsrewrite=0.0.0.0
 
+! ───── 디시인사이드 광고 / 추적 ─────
+! 디시 자체 광고 서버 (서브도메인)
+||ad.dcinside.com^$dnsrewrite=0.0.0.0
+||adv.dcinside.com^$dnsrewrite=0.0.0.0
+||dcad.dcinside.com^$dnsrewrite=0.0.0.0
+||cnt.dcinside.com^$dnsrewrite=0.0.0.0
+||stat.dcinside.com^$dnsrewrite=0.0.0.0
+||stat.dcinside.co.kr^$dnsrewrite=0.0.0.0
+
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
 ! ||threatmetrix.com^$dnsrewrite=0.0.0.0
