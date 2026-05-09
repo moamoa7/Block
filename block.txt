@@ -33,3 +33,32 @@
 ||an.facebook.com^
 ||connect.facebook.net^
 ||pixel.facebook.com^
+
+! ===== 악성 팝업 / 강제 리다이렉트 =====
+||juicyads.com^
+||onclkds.com^
+||hilltopads.net^
+||tsyndicate.net^
+
+! ───── ExoClick 계열 보조 도메인 ─────
+||exo.click^
+||syndication.exoclick.com
+
+! ───── PropellerAds 보조 도메인 ─────
+||propellerpops.com^
+||propellertrk.com^
+
+! ───── Adsterra 보조 도메인 ─────
+||displaycontentprovider.com^
+||adsterracdn.com
+||hpyfvuig.com
+
+! ───── 그 외 팝업/광고 네트워크 ─────
+||clickfunneIs.com
+||pushwhy.com^
+||pushpushgo.com^
+||pushengage.com^
+||luckyads.online^
+||luckyforads.com^
+||content.ad^
+||adsupplyads.com^
