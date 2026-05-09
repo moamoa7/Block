@@ -582,9 +582,9 @@
 ||ad.dcinside.com^$dnsrewrite=0.0.0.0
 ||adv.dcinside.com^$dnsrewrite=0.0.0.0
 ||dcad.dcinside.com^$dnsrewrite=0.0.0.0
-||cnt.dcinside.com^$dnsrewrite=0.0.0.0
-||stat.dcinside.com^$dnsrewrite=0.0.0.0
-||stat.dcinside.co.kr^$dnsrewrite=0.0.0.0
+!||cnt.dcinside.com^$dnsrewrite=0.0.0.0
+!||stat.dcinside.com^$dnsrewrite=0.0.0.0
+!||stat.dcinside.co.kr^$dnsrewrite=0.0.0.0
 !
 ! ═══════════════════════════════════════════
 ! 라이브 스트리밍 플랫폼 - 보조 차단
