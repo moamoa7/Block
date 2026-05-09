@@ -40,12 +40,12 @@
 ||adsystem.google.com^$dnsrewrite=0.0.0.0
 ||stats.youtube.com^$dnsrewrite=0.0.0.0
 ||clientservices.googleapis.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── Google Firebase / Crashlytics 관련 (이미 포함됨) ─────
 ||crashlyticsreports-pa.googleapis.com^$dnsrewrite=0.0.0.0
 ||firebaselogging-pa.googleapis.com^$dnsrewrite=0.0.0.0
 ||app-measurement.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 추가하면 좋을 Firebase 관련 ─────
 ||firebase-settings.crashlytics.com^$dnsrewrite=0.0.0.0
 ||settings.crashlytics.com^$dnsrewrite=0.0.0.0
@@ -56,7 +56,7 @@
 ||firebaseperformance.googleapis.com^$dnsrewrite=0.0.0.0
 ||firebaseinappmessaging.googleapis.com^$dnsrewrite=0.0.0.0
 ||firebasedynamiclinks.googleapis.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 메타(페이스북) / 인스타그램 트래킹 ─────
 ||facebook.net^$dnsrewrite=0.0.0.0
 ||connect.facebook.net^$dnsrewrite=0.0.0.0
@@ -67,7 +67,7 @@
 ||analytics.facebook.com^$dnsrewrite=0.0.0.0
 ||business.facebook.com^$dnsrewrite=0.0.0.0
 ||atdmt.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 아마존 / 일반 광고 네트워크 / RTB ─────
 ||amazon-adsystem.com^$dnsrewrite=0.0.0.0
 ||adnxs.com^$dnsrewrite=0.0.0.0
@@ -134,7 +134,7 @@
 ||zergnet.com^$dnsrewrite=0.0.0.0
 ||mgid.com^$dnsrewrite=0.0.0.0
 ||content-recommendation.net^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 모바일 광고 SDK / MMP ─────
 ||inmobi.com^$dnsrewrite=0.0.0.0
 ||mopub.com^$dnsrewrite=0.0.0.0
@@ -178,7 +178,7 @@
 ||appflood.com^$dnsrewrite=0.0.0.0
 ||domob.cn^$dnsrewrite=0.0.0.0
 ||greedygame.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 추가: 모바일 SDK / 광고 ─────
 ||bugly.qq.com^$dnsrewrite=0.0.0.0
 ||android.bugly.qq.com^$dnsrewrite=0.0.0.0
@@ -186,7 +186,7 @@
 ||app.adjust.io^$dnsrewrite=0.0.0.0
 ||bulldogcpi.com^$dnsrewrite=0.0.0.0
 ||ads.bulldogcpi.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 앱 분석 / 크래시 리포팅 / APM ─────
 ||sentry.io^$dnsrewrite=0.0.0.0
 ||sentry-cdn.com^$dnsrewrite=0.0.0.0
@@ -240,7 +240,7 @@
 ||instana.io^$dnsrewrite=0.0.0.0
 ||dynatrace.com^$dnsrewrite=0.0.0.0
 ||appdynamics.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── CRM / 인앱 마케팅 / 마케팅 자동화 ─────
 ||iterable.com^$dnsrewrite=0.0.0.0
 ||customer.io^$dnsrewrite=0.0.0.0
@@ -273,7 +273,7 @@
 ||sailthru.com^$dnsrewrite=0.0.0.0
 ||emarsys.net^$dnsrewrite=0.0.0.0
 ||dotomi.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── CDP / 태그 매니저 / Cookie Sync ─────
 ||tealiumiq.com^$dnsrewrite=0.0.0.0
 ||tiqcdn.com^$dnsrewrite=0.0.0.0
@@ -288,16 +288,16 @@
 ||demdex.net^$dnsrewrite=0.0.0.0
 ||omtrdc.net^$dnsrewrite=0.0.0.0
 ||2o7.net^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 어도비 / 기타 소프트웨어 텔레메트리 ─────
 ||cc-api-data.adobe.io^$dnsrewrite=0.0.0.0
 ||stats.adobe.com^$dnsrewrite=0.0.0.0
 ||sstats.adobe.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 챠트비트 / 제3자 분석 ─────
 ||chartbeat.com^$dnsrewrite=0.0.0.0
 ||chartbeat.net^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 소셜 트래킹 픽셀 ─────
 ||ads-twitter.com^$dnsrewrite=0.0.0.0
 ||analytics.twitter.com^$dnsrewrite=0.0.0.0
@@ -306,7 +306,7 @@
 ||tr.snapchat.com^$dnsrewrite=0.0.0.0
 ||sc-static.net^$dnsrewrite=0.0.0.0
 ||snap.licdn.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 클릭 트래커 / 제휴 마케팅 ─────
 ||awin1.com^$dnsrewrite=0.0.0.0
 ||impactradius-event.com^$dnsrewrite=0.0.0.0
@@ -320,7 +320,7 @@
 ||jdoqocy.com^$dnsrewrite=0.0.0.0
 ||dpbolvw.net^$dnsrewrite=0.0.0.0
 ||kqzyfj.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── Windows 10/11 시스템 텔레메트리 ─────
 ||settings-win.data.microsoft.com^$dnsrewrite=0.0.0.0
 ||watson.telemetry.microsoft.com^$dnsrewrite=0.0.0.0
@@ -350,7 +350,7 @@
 ||applicationinsights.azure.com^$dnsrewrite=0.0.0.0
 ||applicationinsights.io^$dnsrewrite=0.0.0.0
 ||fp.msedge.net^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 브라우저 텔레메트리 (Edge/Chrome/Brave 등) ─────
 ||browser.events.data.microsoft.com^$dnsrewrite=0.0.0.0
 ||edge.microsoft.com^$dnsrewrite=0.0.0.0
@@ -361,7 +361,7 @@
 ||incoming.telemetry.mozilla.org^$dnsrewrite=0.0.0.0
 ||sitecheck2.opera.com^$dnsrewrite=0.0.0.0
 ||desktop.telemetry.opera.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── Apple 텔레메트리 ─────
 ||metrics.icloud.com^$dnsrewrite=0.0.0.0
 ||metrics.mzstatic.com^$dnsrewrite=0.0.0.0
@@ -373,7 +373,7 @@
 ||telemetry.nvidia.com^$dnsrewrite=0.0.0.0
 ||events.gfe.nvidia.com^$dnsrewrite=0.0.0.0
 ||telemetry.gfe.nvidia.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 보안 소프트웨어 텔레메트리 ─────
 ||telemetry.malwarebytes.com^$dnsrewrite=0.0.0.0
 ||telemetry-stats.avg.com^$dnsrewrite=0.0.0.0
@@ -382,13 +382,13 @@
 ||telemetry.kaspersky-labs.com^$dnsrewrite=0.0.0.0
 ||locator2.kaspersky-labs.com^$dnsrewrite=0.0.0.0
 ||edge.f-secure.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 자동차 텔레메트리 ─────
 ||telemetry.tesla.com^$dnsrewrite=0.0.0.0
 ||logs.tesla.com^$dnsrewrite=0.0.0.0
 ||diagnostics.tesla.com^$dnsrewrite=0.0.0.0
 ||telemetry.bmwgroup.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 비밀번호 관리자 / VPN 클라이언트 ─────
 ||events.1password.com^$dnsrewrite=0.0.0.0
 ||app-telemetry.1password.com^$dnsrewrite=0.0.0.0
@@ -396,7 +396,7 @@
 ||stats.bitwarden.com^$dnsrewrite=0.0.0.0
 ||events.bitwarden.com^$dnsrewrite=0.0.0.0
 ||client-telemetry.protonvpn.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 메신저 / 화상회의 텔레메트리 ─────
 ||telemetry.dropbox.com^$dnsrewrite=0.0.0.0
 ||log.getdropbox.com^$dnsrewrite=0.0.0.0
@@ -408,7 +408,7 @@
 ||telemetry-service.webex.com^$dnsrewrite=0.0.0.0
 ||stats.line.me^$dnsrewrite=0.0.0.0
 ||obs.line-apps.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 클라우드 스토리지 / 생산성 도구 ─────
 ||telemetry.notion.so^$dnsrewrite=0.0.0.0
 ||telemetry.figma.com^$dnsrewrite=0.0.0.0
@@ -420,7 +420,7 @@
 ||analytics.atlassian.com^$dnsrewrite=0.0.0.0
 ||metrics-api.evernote.com^$dnsrewrite=0.0.0.0
 ||telemetry.box.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 바이두 / 중국계 광고·분석 ─────
 ||hm.baidu.com^$dnsrewrite=0.0.0.0
 ||pos.baidu.com^$dnsrewrite=0.0.0.0
@@ -440,14 +440,14 @@
 ||mssdk.bytedance.com^$dnsrewrite=0.0.0.0
 ||mon.zijieapi.com^$dnsrewrite=0.0.0.0
 ||log.snssdk.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 얀덱스 / 동유럽 광고 ─────
 ||mc.yandex.ru^$dnsrewrite=0.0.0.0
 ||an.yandex.ru^$dnsrewrite=0.0.0.0
 ||metrika.yandex.ru^$dnsrewrite=0.0.0.0
 ||metrica.yandex.com^$dnsrewrite=0.0.0.0
 ||appmetrica.yandex.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 스마트TV / 셋톱박스 ─────
 ||logs.netflix.com^$dnsrewrite=0.0.0.0
 ||customerevents.netflix.com^$dnsrewrite=0.0.0.0
@@ -471,7 +471,7 @@
 ||metrics.roku.com^$dnsrewrite=0.0.0.0
 ||scribe.logs.roku.com^$dnsrewrite=0.0.0.0
 ||cooper.logs.roku.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 샤오미 / 화웨이 ─────
 ||api.ad.xiaomi.com^$dnsrewrite=0.0.0.0
 ||data.mistat.xiaomi.com^$dnsrewrite=0.0.0.0
@@ -484,7 +484,7 @@
 ||metrics.data.hicloud.com^$dnsrewrite=0.0.0.0
 ||logservice.hicloud.com^$dnsrewrite=0.0.0.0
 ||logservice1.hicloud.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 게임 플랫폼 텔레메트리 ─────
 ||telemetry.battle.net^$dnsrewrite=0.0.0.0
 ||logging.battle.net^$dnsrewrite=0.0.0.0
@@ -500,7 +500,7 @@
 ||cdp.cloud.unity3d.com^$dnsrewrite=0.0.0.0
 ||perf-events.cloud.unity3d.com^$dnsrewrite=0.0.0.0
 ||stats.unity3d.com^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 한국 서비스 (포털/쇼핑/통신/금융/OTT/배달) ─────
 ||log.coupang.com^$dnsrewrite=0.0.0.0
 ||logger.coupang.com^$dnsrewrite=0.0.0.0
@@ -577,7 +577,7 @@
 ||logger.socar.kr^$dnsrewrite=0.0.0.0
 ||stat.cj.net^$dnsrewrite=0.0.0.0
 ||log.lottecard.co.kr^$dnsrewrite=0.0.0.0
-
+!
 ! ───── 디시인사이드 광고 / 추적 ─────
 ! 디시 자체 광고 서버 (서브도메인)
 ||ad.dcinside.com^$dnsrewrite=0.0.0.0
@@ -586,70 +586,70 @@
 ||cnt.dcinside.com^$dnsrewrite=0.0.0.0
 ||stat.dcinside.com^$dnsrewrite=0.0.0.0
 ||stat.dcinside.co.kr^$dnsrewrite=0.0.0.0
-
+!
 ! ═══════════════════════════════════════════
 ! 라이브 스트리밍 플랫폼 - 보조 차단
 ! ═══════════════════════════════════════════
 ! 주의: 이것만으로는 광고 차단 불가
 ! 본 영상과 광고가 같은 도메인에서 송출되므로
 ! 전용 스크립트/확장(TwitchAdSolutions, autoHD 등) 병행 필수
-
+!
 ! ───── Twitch ─────
 ! 추적/분석만 차단 가능 (광고 자체는 못 막음)
 ||spade.twitch.tv^$dnsrewrite=0.0.0.0
 ||countess.twitch.tv^$dnsrewrite=0.0.0.0
-
+!
 ! Twitch 광고 메타데이터 (IMA SDK)
 ||imasdk.googleapis.com^$dnsrewrite=0.0.0.0
 ||pubads.g.doubleclick.net^$dnsrewrite=0.0.0.0
-
+!
 ! ⚠️ 절대 차단 금지 (방송 송출 끊김)
 ! usher.ttvnw.net  ← 본 영상 스트림
 ! video-edge-*.ttvnw.net  ← 영상 엣지 서버
 ! video-weaver.*.ttvnw.net  ← HLS 청크
-
+!
 ! ───── 치지직 (CHZZK) ─────
 ! 추적/분석 차단
 ||log.chzzk.naver.com^$dnsrewrite=0.0.0.0
 ||nelo2-col.navercorp.com^$dnsrewrite=0.0.0.0
 ||lcs.naver.com^$dnsrewrite=0.0.0.0
 ||siape.veta.naver.com^$dnsrewrite=0.0.0.0
-
+!
 ! ⚠️ 절대 차단 금지
 ! livecloud.pstatic.net  ← 본 영상 CDN
 ! ssl.pstatic.net/cmcdn  ← 일부 영상 청크
-
+!
 ! ───── 숲(SOOP) / 구 아프리카TV ─────
 ! 추적/분석 차단
 ||analytics.afreecatv.com^$dnsrewrite=0.0.0.0
 ||log.sooplive.co.kr^$dnsrewrite=0.0.0.0
 ||stat.sooplive.co.kr^$dnsrewrite=0.0.0.0
 ||analytics.sooplive.co.kr^$dnsrewrite=0.0.0.0
-
+!
 ! 숲 광고 서버
 ||adv.afreecatv.com^$dnsrewrite=0.0.0.0
 ||adimg.afreecatv.com^$dnsrewrite=0.0.0.0
 ||ads.sooplive.co.kr^$dnsrewrite=0.0.0.0
 ||adv.sooplive.co.kr^$dnsrewrite=0.0.0.0
 ||adimg.sooplive.co.kr^$dnsrewrite=0.0.0.0
-
+!
 ! ⚠️ 절대 차단 금지
 ! play.sooplive.co.kr  ← 본 영상 송출
 ! livestream-manager.sooplive.co.kr
-
+!
 ! ───── Kick ─────
 ! 추적/분석 차단
 ||analytics.kick.com^$dnsrewrite=0.0.0.0
 ||events.kick.com^$dnsrewrite=0.0.0.0
-
+!
 ! Kick는 Cloudflare CDN을 쓰고 광고가 적은 편이라
 ! 차단할 도메인이 거의 없음
-
+!
 ! ⚠️ 절대 차단 금지
 ! stream.kick.com  ← 본 영상
 ! cdn.kick.com  ← CDN
-
-
+!
+!
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
 ! ||threatmetrix.com^$dnsrewrite=0.0.0.0
@@ -663,8 +663,8 @@
 ! ||recaptcha.net^$dnsrewrite=0.0.0.0
 ! ||statsig.anthropic.com^$dnsrewrite=0.0.0.0
 ! ||analytics.perplexity.ai^$dnsrewrite=0.0.0.0
-
-
+!
+!
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
 ! android.apis.google.com           ← Google API 통합 엔드포인트
 ! www.googleapis.com                ← Google API 일반
