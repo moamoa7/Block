@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-09 04:41:08 UTC
+! Generated: 2026-05-09 07:01:07 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 84,318
+! Block Rules: 84,321
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -11363,6 +11363,7 @@
 ||brirriek.com^
 ||brisk-cold.pro^
 ||briskchart.com^
+||briskedge.net^
 ||briskstorm.com^
 ||bristlechurch.com^
 ||britageens.com^
@@ -13439,6 +13440,7 @@
 ||chinesegloriam.qpon^
 ||chingovernment.com^
 ||chioursorspolia.com^
+||chipcardice.com^
 ||chipleader.com^
 ||chipmunk.sqltoapi.com^
 ||chipnarrativefatherinlaw.com^
@@ -46136,6 +46138,7 @@
 ||nudeghogukwhx.store^
 ||nudesgirlsx.com^
 ||nudgesplityowza.com^
+||nudieintice.com^
 ||nudismsbilge.qpon^
 ||nuevaq.net^
 ||nueyowipxyuok.store^
