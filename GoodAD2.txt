@@ -832,17 +832,6 @@ $removeparam=/^_hs/
 ||rubiconproject.com^$cookie
 ||pubmatic.com^$cookie
 
-! 이름 기반 쿠키 차단 (모든 사이트에서)
-$cookie=/^_ga/
-@@||dcinside.com^$cookie=/^_ga/
-$cookie=/^_gid$/
-$cookie=/^_fbp$/
-$cookie=/^_fbc$/
-$cookie=/^_gcl_/
-$cookie=/^__utm/
-$cookie=/^_hjid$/
-$cookie=/^_hjSession/
-
 
 ! ═══════════════════════════════════════════
 ! [4] 광고 리소스 → 빈 리소스 대체 ($redirect)
