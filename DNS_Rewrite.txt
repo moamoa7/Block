@@ -402,7 +402,8 @@
 ||log.getdropbox.com^$dnsrewrite=0.0.0.0
 ||client-events.dropbox.com^$dnsrewrite=0.0.0.0
 ||client-telemetry.slack.com^$dnsrewrite=0.0.0.0
-||statsigapi.net^$dnsrewrite=0.0.0.0
+! - (요즘 유행하는 신생 앱/웹서비스들이 이 서비스를 '기능 플래그(기능 끄고 켜기)' 용도로 많이 씁니다. 이걸 막으면 특정 앱의 기능이 안 보일 수 있습니다)
+!||statsigapi.net^$dnsrewrite=0.0.0.0 
 ||featuregates.org^$dnsrewrite=0.0.0.0
 ||clienttelemetry.webex.com^$dnsrewrite=0.0.0.0
 ||telemetry-service.webex.com^$dnsrewrite=0.0.0.0
@@ -691,10 +692,41 @@
 ||api.msn.com^$dnsrewrite=0.0.0.0
 !
 ! 레딧의 광고 및 분석용 로그를 수집
-||alb.reddit.com$dnsrewrite=0.0.0.0
+||alb.reddit.com^$dnsrewrite=0.0.0.0
 !
 ! 마이크로소프트의 앱 분석 및 크래시 리포트(로그 수집) 서버
-||in.appcenter.ms$dnsrewrite=0.0.0.0
+||in.appcenter.ms^$dnsrewrite=0.0.0.0
+!
+! 로지텍 G Hub / 주변기기
+||r.logi.com^$dnsrewrite=0.0.0.0
+||logi-ghub-telemetry.s3.amazonaws.com^$dnsrewrite=0.0.0.0
+!
+! 레이저 (Razer Synapse)
+||telemetry.razerapi.com^$dnsrewrite=0.0.0.0
+!
+! 스틸시리즈 (SteelSeries)
+||engine-api.steelseries.com^$dnsrewrite=0.0.0.0
+!
+! OpenAI (ChatGPT) 추적
+||events.statsigapi.net^$dnsrewrite=0.0.0.0
+||oai-events.azureedge.net^$dnsrewrite=0.0.0.0
+!
+! Anthropic (Claude)
+||statsig.anthropic.com^$dnsrewrite=0.0.0.0
+!
+! 애드립 / 카울리 등 국내 모바일 광고 플랫폼
+||adlib.com^$dnsrewrite=0.0.0.0
+||cauly.co.kr^$dnsrewrite=0.0.0.0
+||mobon.net^$dnsrewrite=0.0.0.0
+||tg.widerplanet.com^$dnsrewrite=0.0.0.0
+!
+! 추가 쇼핑 트래커
+||wcs.naver.net^$dnsrewrite=0.0.0.0 (네이버 프리미엄 로그 분석 - 쇼핑몰용)
+||log.marketkurly.com^$dnsrewrite=0.0.0.0
+!
+! 폰트/아이콘 트래킹
+||use.fontawesome.com^$dnsrewrite=0.0.0.0
+||fonts.googleapis.com^$dnsrewrite=0.0.0.0 (주의: 웹사이트 폰트가 깨질 수 있음)
 !
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
