@@ -666,3 +666,16 @@
 ! ||recaptcha.net^$dnsrewrite=0.0.0.0
 ! ||statsig.anthropic.com^$dnsrewrite=0.0.0.0
 ! ||analytics.perplexity.ai^$dnsrewrite=0.0.0.0
+
+
+! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
+! android.apis.google.com           ← Google API 통합 엔드포인트
+! www.googleapis.com                ← Google API 일반
+! oauth2.googleapis.com             ← Google 로그인 인증
+! accounts.google.com               ← Google 계정 인증
+! play.googleapis.com               ← Play Store 통신
+! android.googleapis.com            ← 안드로이드 시스템 API
+! mtalk.google.com                  ← FCM 푸시 알림 (TCP 5228)
+! gcm-http.googleapis.com           ← FCM 메시징
+! fonts.googleapis.com              ← 웹폰트 (수많은 사이트가 사용)
+! apis.google.com                   ← Google API 일반 (로그인 위젯 등)
