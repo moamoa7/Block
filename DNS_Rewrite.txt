@@ -824,3 +824,8 @@
 ! gcm-http.googleapis.com           ← FCM 메시징
 ! fonts.googleapis.com              ← 웹폰트 (수많은 사이트가 사용)
 ! apis.google.com                   ← Google API 일반 (로그인 위젯 등)
+! 아래 도메인들은 리라이트(0.0.0.0)에 넣지 마세요!
+! 1. 코파일럿 사용자라면 필수
+||api.individual.githubcopilot.com^
+! 2. 유튜브 영상 재생 필수 서버
+||ångströ.com^
