@@ -621,8 +621,15 @@
 ! ───── 숲(SOOP) / 구 아프리카TV ─────
 ! 추적/분석 차단
 ||log.sooplive.com^$dnsrewrite=0.0.0.0
+||stat.sooplive.com^$dnsrewrite=0.0.0.0
 ||analysis.sooplive.com^$dnsrewrite=0.0.0.0
 ||collector1.sooplive.com^$dnsrewrite=0.0.0.0
+||collector2.sooplive.com^$dnsrewrite=0.0.0.0
+||collector3.sooplive.com^$dnsrewrite=0.0.0.0
+||collector4.sooplive.com^$dnsrewrite=0.0.0.0
+||afevent2.sooplive.com^$dnsrewrite=0.0.0.0
+||laglog.sooplive.com^$dnsrewrite=0.0.0.0
+
 !
 ! 숲 광고 서버
 ||adv.sooplive.com^$dnsrewrite=0.0.0.0
