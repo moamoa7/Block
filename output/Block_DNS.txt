@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-09 07:01:07 UTC
+! Generated: 2026-05-09 08:05:39 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 84,321
+! Block Rules: 84,336
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -4497,6 +4497,7 @@
 ||adsummos.net^
 ||adsunflower.com^
 ||adsupply.com^
+||adsupplyads.com^
 ||adsupplyssl.com^
 ||adsurve.com^
 ||adsushi.de^
@@ -14967,6 +14968,7 @@
 ||content-rec.com^
 ||content-row.com^
 ||content-settings.com^
+||content.ad^
 ||content.ingbank.pl^
 ||content.livesportmedia.eu^
 ||content.mql5.com^
@@ -19214,6 +19216,7 @@
 ||displayadimg.zumst.com^
 ||displaycontentnetwork.com^
 ||displaycontentprofit.com^
+||displaycontentprovider.com^
 ||displayfly.com^
 ||displayformatcontent.com^
 ||displayformatrevenue.com^
@@ -22830,6 +22833,7 @@
 ||exmwfltxyxwmr.website^
 ||exnesstrack.com^
 ||exnzg.de^
+||exo.click^
 ||exo6lobcgyqr7nwh6w2vlg871q5.cfd^
 ||exoclick.com^
 ||exodospaulian.shop^
@@ -31856,6 +31860,7 @@
 ||hilerant.site^
 ||hillglamorous.com^
 ||hilltopads.com^
+||hilltopads.net^
 ||hilton.data.adobedc.net^
 ||hiltszbirzcky.store^
 ||himediads.com^
@@ -35998,6 +36003,7 @@
 ||juicebard.com^
 ||juiceblocks.com^
 ||juicingoasis.com^
+||juicyads.com^
 ||juicyads.me^
 ||juicycash.net^
 ||juicycontext.com^
@@ -39602,10 +39608,12 @@
 ||luckilygelatine.com^
 ||lucky-website.com^
 ||luckyads.com^
+||luckyads.online^
 ||luckyads.pro^
 ||luckyads.tech^
 ||luckybasket.pro^
 ||luckydefinition.pro^
+||luckyforads.com^
 ||luckyforbet.com^
 ||luckyforworlds.com^
 ||luckyorange.com^
@@ -47261,6 +47269,7 @@
 ||onclickpulse.com^
 ||onclicksuper.com^
 ||onclicktop.com^
+||onclkds.com^
 ||onclklnd.com^
 ||oncustomer.asia^
 ||ondrotnw.com^
@@ -51079,6 +51088,8 @@
 ||propellerads.com^
 ||propellerads.tech^
 ||propellerclick.com^
+||propellerpops.com^
+||propellertrk.com^
 ||propenechemins.shop^
 ||proper.io^
 ||property58.top^
@@ -51582,6 +51593,7 @@
 ||pushe.co^
 ||pushell.info^
 ||pushelp.pro^
+||pushengage.com^
 ||pusherblight.com^
 ||pusherism.com^
 ||pushfilefind.click^
@@ -51610,6 +51622,7 @@
 ||pushpad.xyz^
 ||pushpong.net^
 ||pushprofit.net^
+||pushpushgo.com^
 ||pushq.ir^
 ||pushqwer.com^
 ||pushrase.com^
@@ -51623,6 +51636,7 @@
 ||pushupimposts.qpon^
 ||pushupperidia.cyou^
 ||pushwelcome.com^
+||pushwhy.com^
 ||pushy-extension.pro^
 ||pushy.ai^
 ||pushyimmaculateinestimable.com^
@@ -74380,6 +74394,7 @@
 ||tswzrqpkvltnx.website^
 ||tsxccsxbdloxt.online^
 ||tsyndicate.com^
+||tsyndicate.net^
 ||tt.bodenglueck.de^
 ||tt.livefastdieyoung.com^
 ||tt.theorietoppers.nl^
