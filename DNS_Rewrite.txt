@@ -666,6 +666,21 @@
 ! stream.kick.com  ← 본 영상
 ! cdn.kick.com  ← CDN
 !
+! GitHub 텔레메트리
+||collector.github.com^$dnsrewrite=0.0.0.0
+!
+! 네이버 웨일 브라우저 분석
+||cv.whale.naver.com^$dnsrewrite=0.0.0.0
+!
+! Brave 업데이트 (개인 판단)
+||go-updater.brave.com^$dnsrewrite=0.0.0.0
+!
+! Chrome 자동완성 추적 (개인 판단)
+||content-autofill.googleapis.com^$dnsrewrite=0.0.0.0
+!
+! Chrome 최적화 가이드 (개인 판단)
+||optimizationguide-pa.googleapis.com^$dnsrewrite=0.0.0.0
+!
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
