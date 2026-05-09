@@ -765,6 +765,33 @@
 ||browser.events.data.microsoft.com^$dnsrewrite=0.0.0.0
 ||self.events.data.microsoft.com^$dnsrewrite=0.0.0.0
 !
+! ───── 마이크로소프트 & 오피스 모바일 추가 ─────
+! 윈도우/오피스 앱에서 활동 내역 및 사용 습관 수집
+||vortex.data.microsoft.com^$dnsrewrite=0.0.0.0
+||vortex-win.data.microsoft.com^$dnsrewrite=0.0.0.0
+||events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||pipe.aria.microsoft.com^$dnsrewrite=0.0.0.0
+||onecollector.cloudapp.net^$dnsrewrite=0.0.0.0 (오피스 365 공통 수집기)
+!
+! ───── 레노버(Lenovo) & ZUI 진단 추가 ─────
+! UEF 외에도 기기 상태 및 사용 통계를 전송하는 서버들
+||stats.zui.com^$dnsrewrite=0.0.0.0
+||recom.zui.com^$dnsrewrite=0.0.0.0
+||api.zui.lenovomm.com^$dnsrewrite=0.0.0.0
+||dcf.lenovomm.com^$dnsrewrite=0.0.0.0
+!
+! ───── 구글(Google) 시스템 분석 & 개인화 추가 ─────
+! 기기 분석 및 검색 결과 최적화를 위한 데이터 전송
+||android-safebrowsing.google.com^$dnsrewrite=0.0.0.0
+||optimizationguide-pa.googleapis.com^$dnsrewrite=0.0.0.0
+||feedback-pa.googleapis.com^$dnsrewrite=0.0.0.0
+||speech.googleapis.com^$dnsrewrite=0.0.0.0 (음성 인식 미사용 시 차단 가능)
+!
+! ───── 제조사 공통 텔레메트리 (삼성/기타) ─────
+! 기기 오류 보고 및 익명 사용 데이터 전송
+||err.samsung.com^$dnsrewrite=0.0.0.0
+||samsung-com.112.2o7.net^$dnsrewrite=0.0.0.0 (어도비 기반 삼성 분석 서버)
+!
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
