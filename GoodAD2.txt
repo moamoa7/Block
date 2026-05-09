@@ -833,7 +833,7 @@ $removeparam=/^_hs/
 ||pubmatic.com^$cookie
 
 ! 이름 기반 쿠키 차단 (모든 사이트에서)
-$cookie=/^_ga/
+!$cookie=/^_ga/ - 디시안사이드 모바일에서 무한로딩 오류
 $cookie=/^_gid$/
 $cookie=/^_fbp$/
 $cookie=/^_fbc$/
