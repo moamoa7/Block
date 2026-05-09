@@ -834,6 +834,7 @@ $removeparam=/^_hs/
 
 ! 이름 기반 쿠키 차단 (모든 사이트에서)
 $cookie=/^_ga/
+@@||dcinside.com^$cookie=/^_ga/
 $cookie=/^_gid$/
 $cookie=/^_fbp$/
 $cookie=/^_fbc$/
