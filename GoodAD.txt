@@ -639,14 +639,13 @@
 
 ! ───── 그 외 팝업/광고 네트워크 ─────
 ||clickfuse.com^$empty
-||clickfunneIs.com^$empty
+||clickfunnels.com^$empty
 ||lijit.com^$empty
 ||adsbtrk.com^$empty
 ||pushwhy.com^$empty
 ||pushpushgo.com^$empty
 ||pushengage.com^$empty
 ||pushcrew.com^$empty
-||propu.sh^$empty
 ||luckyads.online^$empty
 ||vcommission.com^$empty
 ||mgid.com^$empty
