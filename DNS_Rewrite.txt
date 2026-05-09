@@ -792,6 +792,10 @@
 ||err.samsung.com^$dnsrewrite=NXDOMAIN
 ||samsung-com.112.2o7.net^$dnsrewrite=NXDOMAIN (어도비 기반 삼성 분석 서버)
 !
+! — 구글 개인화 데이터 수집 (계정 활동 추적)
+! — 구글 서비스 중 개인화된 스마트 기능(Personalization & Smart Features)과 관련된 서버 (사용자의 맥락을 파악"하는 기능)
+||geller-pa.googleapis.com^$dnsrewrite=NXDOMAIN
+!
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
@@ -812,6 +816,13 @@
 ! ||copilot.microsoft.com^$dnsrewrite=NXDOMAIN
 ! 페이스북이나 인스타그램 앱을 쓰지 않거나, "나는 앱을 켰을 때만 알림을 확인해도 상관없다"면 막으셔도 됩니다
 ! ||edge-mqtt-fallback.facebook.com^$dnsrewrite=NXDOMAIN
+! — 구글 위치 기록
+! ||locationhistoryplacedetails-pa.googleapis.com^$dnsrewrite=NXDOMAIN
+! ||locationhistory-pa.googleapis.com^$dnsrewrite=NXDOMAIN
+! — 구글 "내 기기 찾기" 관련 (본인이 안 쓰면 차단 OK)
+! ||spot-pa.googleapis.com^$dnsrewrite=NXDOMAIN
+! — 윈도우 날씨 위젯 타일
+! ||tile-service.weather.microsoft.com^$dnsrewrite=NXDOMAIN
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
 ! android.apis.google.com           ← Google API 통합 엔드포인트
