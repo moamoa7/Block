@@ -629,6 +629,7 @@
 ||collector4.sooplive.com^$dnsrewrite=0.0.0.0
 ||afevent2.sooplive.com^$dnsrewrite=0.0.0.0
 ||laglog.sooplive.com^$dnsrewrite=0.0.0.0
+||exlogcollector.sooplive.com^$dnsrewrite=0.0.0.0
 !
 ! 숲 광고 서버
 ||adv.sooplive.com^$dnsrewrite=0.0.0.0
@@ -678,8 +679,16 @@
 ! Chrome 자동완성 추적 (개인 판단)
 ||content-autofill.googleapis.com^$dnsrewrite=0.0.0.0
 !
+! 구글 검색창에 타이핑할 때 나오는 '연관 검색어' 제안
+||suggestqueries.google.com^$dnsrewrite=0.0.0.0
+!
 ! Chrome 최적화 가이드 (개인 판단)
 ||optimizationguide-pa.googleapis.com^$dnsrewrite=0.0.0.0
+!
+! 엣지의 비주얼 검색이나 빙 관련 분석용
+||gateway.bingviz.microsoftapp.net^$dnsrewrite=0.0.0.0
+! 엣지 새 탭의 뉴스나 날씨 관련 데이터 (첫 화면의 뉴스 피드가 보기 싫다면 막으세요)
+||api.msn.com^$dnsrewrite=0.0.0.0
 !
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
