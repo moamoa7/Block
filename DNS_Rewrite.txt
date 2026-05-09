@@ -353,7 +353,7 @@
 !
 ! ───── 브라우저 텔레메트리 (Edge/Chrome/Brave 등) ─────
 ||browser.events.data.microsoft.com^$dnsrewrite=0.0.0.0
-||edge.microsoft.com^$dnsrewrite=0.0.0.0
+!||edge.microsoft.com^$dnsrewrite=0.0.0.0
 ||p.brave.com^$dnsrewrite=0.0.0.0
 ||variations.brave.com^$dnsrewrite=0.0.0.0
 ||star-randsrv.bsg.brave.com^$dnsrewrite=0.0.0.0
