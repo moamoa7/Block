@@ -726,7 +726,8 @@
 !
 ! 폰트/아이콘 트래킹
 ||use.fontawesome.com^$dnsrewrite=0.0.0.0
-||fonts.googleapis.com^$dnsrewrite=0.0.0.0 (주의: 웹사이트 폰트가 깨질 수 있음)
+! - (주의: 웹사이트 폰트가 깨질 수 있음)
+!||fonts.googleapis.com^$dnsrewrite=0.0.0.0
 !
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
