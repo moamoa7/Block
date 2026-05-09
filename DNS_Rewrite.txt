@@ -729,6 +729,42 @@
 ! - (주의: 웹사이트 폰트가 깨질 수 있음)
 !||fonts.googleapis.com^$dnsrewrite=0.0.0.0
 !
+! ───── 레노버(Lenovo) & ZUI 추가 차단 ─────
+! 기기 진단 및 추가적인 중국 내수용 업데이트 서버
+||stats.zui.com^$dnsrewrite=0.0.0.0
+||api.zui.lenovomm.com^$dnsrewrite=0.0.0.0
+||recom.zui.com^$dnsrewrite=0.0.0.0
+||sus.lenovomm.com^$dnsrewrite=0.0.0.0
+||zui.lenovo.com^$dnsrewrite=0.0.0.0
+!
+! ───── nProtect & 안랩 등 국내 보안 프로그램 잔재 ─────
+! 1. 업데이트 서버 (은행 업무/백신 업데이트를 위해 가급적 허용 권장)
+! ||update.nprotect.net^ (<- 가급적 삭제)
+! ||liveupdate.ahnlab.com^ (<- 가급적 삭제)
+!
+! 2. 통계 및 추적 서버 (이건 계속 막아놔도 상관없습니다)
+||st.ahnlab.com^$dnsrewrite=0.0.0.0
+||aosupdate.ahnlab.com^$dnsrewrite=0.0.0.0 (설치 확인용 로그 서버)
+!
+! ───── 중국 앱/웹 서비스 공통 추적기 (QQ/Baidu/Xiaomi 등) ─────
+! 다양한 앱에서 공통으로 사용하는 중국발 분석 서버
+||analysis.appcenter.ms^$dnsrewrite=0.0.0.0
+||hm.baidu.com^$dnsrewrite=0.0.0.0
+||log.umsns.com^$dnsrewrite=0.0.0.0
+||trace.qq.com^$dnsrewrite=0.0.0.0
+||oth.eve.mdt.qq.com^$dnsrewrite=0.0.0.0
+||tracking.miui.com^$dnsrewrite=0.0.0.0
+!
+! ───── 국내 서비스 로그 수집기 추가 ─────
+||wp.kakaocdn.net^$dnsrewrite=0.0.0.0
+||log-upload.kakaopay.com^$dnsrewrite=0.0.0.0
+||pcs.naver.com^$dnsrewrite=0.0.0.0
+!
+! ───── 윈도우/엣지 브라우저 불필요 수집 ─────
+! 사용 습관 수집 및 광고 ID 관련
+||browser.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+||self.events.data.microsoft.com^$dnsrewrite=0.0.0.0
+!
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
