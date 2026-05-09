@@ -786,8 +786,11 @@ m.dcinside.com###notice_list > li:not(:has(.ntc-line-orange))
 m.dcinside.com###notice_list > li:nth-of-type(-n+3)
 ! - 개죽이 차단
 dcinside.com###moveOverlay, #gaejukimg
-m.dcinside.com##+js(nostif, adblock_detected7)
-gall.dcinside.com##+js(set, isBlockDetectedOnDiv, noopFunc)
+!.dcinside.com##+js(nostif, adblock_detected7)
+!all.dcinside.com##+js(set, isBlockDetectedOnDiv, noopFunc)
+! - 문법 호환을 위해 2개 규칙을 아래처럼 변경
+m.dcinside.com#%#//scriptlet('prevent-setTimeout', 'adblock_detected7')
+gall.dcinside.com#%#//scriptlet('set-constant', 'isBlockDetectedOnDiv', 'noopFunc')
 ! - 외부 링크 이동 경고 해제 -  페이지 이동시 , (콤마)가 같이 붙여서 페이지 여는 오류 (일시적 오류일 수 있음)
 m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 !
@@ -5698,6 +5701,216 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 ==================================
+
+
+
+
+
+
+! = = = = = = = = = = = = = = = = = = = = = = = = =
+!
+! Title: Traffic Saver & Privacy Filter
+! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
+!
+! = = = = = = = = = = = = = = = = = = = = = = = = =
+!!! ═══════════════════════════════════════════════════════════
+!!! AdGuard 트래픽 절감 / 개인정보 보호 필터
+!!! ═══════════════════════════════════════════════════════════
+!!!
+!!! [구성]
+!!! 1. URL 추적 파라미터 제거 ($removeparam)
+!!! 2. HTTP 헤더 정리 ($removeheader)
+!!! 3. 추적 쿠키 차단 ($cookie)
+!!! 4. 광고 영상/이미지/스크립트 → 빈 리소스 대체 ($redirect)
+!!! 5. 리소스 타입별 차단 ($media, $image, $script 등)
+!!!
+!!! [주의사항]
+!!! - AdGuard(데스크톱/홈/앱/브라우저 확장)에서만 동작
+!!! - uBlock Origin은 일부 문법이 다르니 그대로 쓰지 말 것
+!!! - 적용 후 자주 쓰는 사이트에서 이상 동작 시 해당 줄 주석(!) 처리
+!!! ═══════════════════════════════════════════════════════════
+
+
+! ═══════════════════════════════════════════
+! [1] URL 추적 파라미터 제거 ($removeparam)
+! ═══════════════════════════════════════════
+! 링크 클릭 시 따라붙는 추적 파라미터 제거
+! 트래픽보다는 개인정보 보호 + 깔끔한 URL 목적
+
+! Google Analytics / Google Ads
+$removeparam=utm_source
+$removeparam=utm_medium
+$removeparam=utm_campaign
+$removeparam=utm_term
+$removeparam=utm_content
+$removeparam=utm_id
+$removeparam=utm_name
+$removeparam=utm_brand
+$removeparam=_ga
+$removeparam=_gl
+$removeparam=gclid
+$removeparam=gclsrc
+$removeparam=gbraid
+$removeparam=wbraid
+$removeparam=dclid
+
+! Facebook / Meta
+$removeparam=fbclid
+$removeparam=fb_action_ids
+$removeparam=fb_action_types
+$removeparam=fb_source
+$removeparam=fb_ref
+
+! Microsoft / Bing
+$removeparam=msclkid
+
+! Yandex
+$removeparam=yclid
+$removeparam=_openstat
+
+! Instagram / TikTok
+$removeparam=igshid
+$removeparam=igsh
+$removeparam=ttclid
+
+! Mailchimp / 이메일 마케팅
+$removeparam=mc_eid
+$removeparam=mc_cid
+$removeparam=ml_subscriber
+$removeparam=ml_subscriber_hash
+
+! HubSpot
+$removeparam=__hsfp
+$removeparam=__hssc
+$removeparam=__hstc
+$removeparam=_hsenc
+$removeparam=hsCtaTracking
+
+! 기타 일반 추적
+$removeparam=ref_src
+$removeparam=ref_url
+$removeparam=referrer
+$removeparam=src
+$removeparam=source
+$removeparam=trk
+$removeparam=trkCampaign
+
+! 정규식 - 한 번에 처리
+$removeparam=/^utm_/
+$removeparam=/^(fb|g|y|ms|tt|d)clid$/
+$removeparam=/^_hs/
+
+
+! ═══════════════════════════════════════════
+! [2] HTTP 헤더 정리 ($removeheader)
+! ═══════════════════════════════════════════
+! 추적 도메인의 쿠키·리퍼러 헤더 제거
+
+||doubleclick.net^$removeheader=set-cookie
+||google-analytics.com^$removeheader=set-cookie
+||facebook.com^$removeheader=set-cookie,domain=~facebook.com
+||criteo.com^$removeheader=set-cookie
+||scorecardresearch.com^$removeheader=set-cookie
+||outbrain.com^$removeheader=set-cookie
+||taboola.com^$removeheader=set-cookie
+
+
+! ═══════════════════════════════════════════
+! [3] 추적 쿠키 차단 ($cookie)
+! ═══════════════════════════════════════════
+! 도메인별 쿠키 저장 차단
+
+||doubleclick.net^$cookie
+||google-analytics.com^$cookie
+||facebook.net^$cookie
+||facebook.com^$cookie=fr
+||facebook.com^$cookie=_fbp
+||criteo.com^$cookie
+||criteo.net^$cookie
+||scorecardresearch.com^$cookie
+||outbrain.com^$cookie
+||taboola.com^$cookie
+||adnxs.com^$cookie
+||rubiconproject.com^$cookie
+||pubmatic.com^$cookie
+
+! 이름 기반 쿠키 차단 (모든 사이트에서)
+$cookie=/^_ga/
+$cookie=/^_gid$/
+$cookie=/^_fbp$/
+$cookie=/^_fbc$/
+$cookie=/^_gcl_/
+$cookie=/^__utm/
+$cookie=/^_hjid$/
+$cookie=/^_hjSession/
+
+
+! ═══════════════════════════════════════════
+! [4] 광고 리소스 → 빈 리소스 대체 ($redirect)
+! ═══════════════════════════════════════════
+! 빈 응답 대신 가짜 리소스로 호환성 유지
+
+! 광고 영상 → 1초 빈 mp4 (트래픽 절감 효과 큼)
+||*$media,third-party,redirect=noopmp4-1s,domain=googlevideo.com|youtube.com|googlesyndication.com|doubleclick.net
+
+! 광고 이미지 → 1x1 투명 픽셀
+||doubleclick.net^$image,redirect=1x1-transparent.gif
+||googlesyndication.com^$image,redirect=1x1-transparent.gif
+||scorecardresearch.com^$image,redirect=1x1-transparent.gif
+||facebook.com/tr^$image,redirect=1x1-transparent.gif
+
+! 추적 스크립트 → 빈 JS (페이지 오류 방지)
+||google-analytics.com/analytics.js^$script,redirect=google-analytics.com/analytics.js
+||google-analytics.com/ga.js^$script,redirect=google-analytics.com/ga.js
+||googletagmanager.com/gtm.js^$script,redirect=googletagmanager.com/gtm.js
+||googletagmanager.com/gtag/js^$script,redirect=googletagmanager.com/gtag.js
+||googlesyndication.com/adsbygoogle.js^$script,redirect=googlesyndication.com/adsbygoogle.js
+
+! VAST 광고 응답 → 빈 VAST
+||*/vast/*$xmlhttprequest,redirect=noopvast-2.0
+||*/vmap/*$xmlhttprequest,redirect=noopvmap-1.0
+
+
+! ═══════════════════════════════════════════
+! [5] 리소스 타입별 차단
+! ═══════════════════════════════════════════
+! 트래픽 절감 핵심 - 영상/이미지 차단
+
+! 자동재생 광고 영상 (대용량)
+||*$media,third-party,domain=adserver-test.com
+
+! 백그라운드 비콘 / 대용량 추적
+||*/beacon$xmlhttprequest,third-party,empty
+||*/telemetry$xmlhttprequest,third-party,empty
+||*/collect$xmlhttprequest,third-party,empty
+
+! WebSocket 기반 실시간 추적
+||*.intercom.io^$websocket
+||nexus-websocket-a.intercom.io^$websocket
+
+
+! ═══════════════════════════════════════════
+! [6] 보조 옵션 사용 예시
+! ═══════════════════════════════════════════
+! 필요 시 주석(!) 제거하여 활성화
+
+! $denyallow - 광고 네트워크 차단하되 특정 사이트는 허용
+! ||criteo.com^$denyallow=trusted-site.com
+
+! $badfilter - 구독 리스트의 특정 규칙 무력화
+! ||example.com^$badfilter
+
+! $important - 다른 화이트리스트 규칙보다 우선
+! ||tracker.com^$important
+
+
+
+
+
+
+
+==================================
+
 
 
 
