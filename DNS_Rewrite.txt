@@ -39,10 +39,7 @@
 ||adservice.google.com^$dnsrewrite=0.0.0.0
 ||adsystem.google.com^$dnsrewrite=0.0.0.0
 ||stats.youtube.com^$dnsrewrite=0.0.0.0
-||app-measurement.com^$dnsrewrite=0.0.0.0
 ||clientservices.googleapis.com^$dnsrewrite=0.0.0.0
-||firebaselogging-pa.googleapis.com^$dnsrewrite=0.0.0.0
-||crashlyticsreports-pa.googleapis.com^$dnsrewrite=0.0.0.0
 
 ! ───── Google Firebase / Crashlytics 관련 (이미 포함됨) ─────
 ||crashlyticsreports-pa.googleapis.com^$dnsrewrite=0.0.0.0
