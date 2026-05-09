@@ -629,12 +629,26 @@
 ||collector4.sooplive.com^$dnsrewrite=0.0.0.0
 ||afevent2.sooplive.com^$dnsrewrite=0.0.0.0
 ||laglog.sooplive.com^$dnsrewrite=0.0.0.0
-
 !
 ! 숲 광고 서버
 ||adv.sooplive.com^$dnsrewrite=0.0.0.0
 ||ads.sooplive.com^$dnsrewrite=0.0.0.0
 ||adballoon.sooplive.com^$dnsrewrite=0.0.0.0
+!
+! 네이버 추가
+||nlog.naver.com^$dnsrewrite=0.0.0.0
+||nam.veta.naver.com^$dnsrewrite=0.0.0.0
+||kr-col-ext.nelo.navercorp.com^$dnsrewrite=0.0.0.0
+!
+! 모바일 광고 SDK 추가
+||appsflyersdk.com^$dnsrewrite=0.0.0.0
+!
+! 기타 텔레메트리
+||cnszui.lenovomm.com^$dnsrewrite=0.0.0.0
+||js.monitor.azure.com^$dnsrewrite=0.0.0.0
+||test-gateway.instagram.com^$dnsrewrite=0.0.0.0
+||loc.map.baidu.com^$dnsrewrite=0.0.0.0
+!
 !
 ! ⚠️ 절대 차단 금지
 ! play.sooplive.com  ← 본 영상 송출
