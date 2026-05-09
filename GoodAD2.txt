@@ -1,3 +1,5 @@
+! = = = = = = = = = = = = = = = = = = = = = = = = =
+!
 !!! ══════════════════════════════════════════
 !!! AdGuard 전용 트래킹/텔레메트리 차단 필터
 !!! ══════════════════════════════════════════
@@ -1028,3 +1030,4 @@ $cookie=/^_hjSession/
 ||github.com/_private/browser/stats^$empty
 ||github.com/_private/browser/errors^$empty
 ||github.com/notifications/beta/shelf^$empty
+==================================
