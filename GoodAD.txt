@@ -1037,6 +1037,15 @@ $cookie=/^_hjSession/
 ||afreecatv.com/api/stat^$xmlhttprequest,empty
 ||sooplive.co.kr/api/stat^$xmlhttprequest,empty
 
+! GitHub 텔레메트리 엔드포인트
+||api.github.com/_private/browser/stats^$empty
+||api.github.com/_private/browser/errors^$empty
+||collector.github.com^$empty
+||collector.githubapp.com^$empty
+||github.com/_private/browser/stats^$empty
+||github.com/_private/browser/errors^$empty
+||github.com/notifications/beta/shelf^$empty
+
 
 
 
