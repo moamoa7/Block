@@ -2,11 +2,11 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260509
+! Version: 20260510
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
-!!! AdGuard Home 전용 DNS 차단 필터 ($dnsrewrite=NXDOMAIN)
+!!! AdGuard Home 전용 DNS 차단 필터 ()
 !!! ═══════════════════════════════════════════════════════════
 !!!
 !!! [동작 방식]
@@ -20,572 +20,572 @@
 !!! ═══════════════════════════════════════════════════════════
 !
 ! ───── 구글 광고 / 분석 네트워크 ─────
-||doubleclick.net^$dnsrewrite=NXDOMAIN
-||ad.doubleclick.net^$dnsrewrite=NXDOMAIN
-||stats.g.doubleclick.net^$dnsrewrite=NXDOMAIN
-||google-analytics.com^$dnsrewrite=NXDOMAIN
-||ssl.google-analytics.com^$dnsrewrite=NXDOMAIN
-||region1.google-analytics.com^$dnsrewrite=NXDOMAIN
-||region1.analytics.google.com^$dnsrewrite=NXDOMAIN
-||analytics.google.com^$dnsrewrite=NXDOMAIN
-||googlesyndication.com^$dnsrewrite=NXDOMAIN
-||pagead2.googlesyndication.com^$dnsrewrite=NXDOMAIN
-||tpc.googlesyndication.com^$dnsrewrite=NXDOMAIN
-||googleadservices.com^$dnsrewrite=NXDOMAIN
-||www.googleadservices.com^$dnsrewrite=NXDOMAIN
-||partner.googleadservices.com^$dnsrewrite=NXDOMAIN
-||googletagmanager.com^$dnsrewrite=NXDOMAIN
-||googletagservices.com^$dnsrewrite=NXDOMAIN
-||adservice.google.com^$dnsrewrite=NXDOMAIN
-||adsystem.google.com^$dnsrewrite=NXDOMAIN
-||stats.youtube.com^$dnsrewrite=NXDOMAIN
-||clientservices.googleapis.com^$dnsrewrite=NXDOMAIN
+||doubleclick.net^
+||ad.doubleclick.net^
+||stats.g.doubleclick.net^
+||google-analytics.com^
+||ssl.google-analytics.com^
+||region1.google-analytics.com^
+||region1.analytics.google.com^
+||analytics.google.com^
+||googlesyndication.com^
+||pagead2.googlesyndication.com^
+||tpc.googlesyndication.com^
+||googleadservices.com^
+||www.googleadservices.com^
+||partner.googleadservices.com^
+||googletagmanager.com^
+||googletagservices.com^
+||adservice.google.com^
+||adsystem.google.com^
+||stats.youtube.com^
+||clientservices.googleapis.com^
 !
 ! ───── Google Firebase / Crashlytics 관련 (이미 포함됨) ─────
-||crashlyticsreports-pa.googleapis.com^$dnsrewrite=NXDOMAIN
-||firebaselogging-pa.googleapis.com^$dnsrewrite=NXDOMAIN
-||app-measurement.com^$dnsrewrite=NXDOMAIN
+||crashlyticsreports-pa.googleapis.com^
+||firebaselogging-pa.googleapis.com^
+||app-measurement.com^
 !
 ! ───── 추가하면 좋을 Firebase 관련 ─────
-||firebase-settings.crashlytics.com^$dnsrewrite=NXDOMAIN
-||settings.crashlytics.com^$dnsrewrite=NXDOMAIN
-||reports.crashlytics.com^$dnsrewrite=NXDOMAIN
-||e.crashlytics.com^$dnsrewrite=NXDOMAIN
-||firebaseinstallations.googleapis.com^$dnsrewrite=NXDOMAIN
-||firebaseremoteconfig.googleapis.com^$dnsrewrite=NXDOMAIN
-||firebaseperformance.googleapis.com^$dnsrewrite=NXDOMAIN
-||firebaseinappmessaging.googleapis.com^$dnsrewrite=NXDOMAIN
-||firebasedynamiclinks.googleapis.com^$dnsrewrite=NXDOMAIN
+||firebase-settings.crashlytics.com^
+||settings.crashlytics.com^
+||reports.crashlytics.com^
+||e.crashlytics.com^
+||firebaseinstallations.googleapis.com^
+||firebaseremoteconfig.googleapis.com^
+||firebaseperformance.googleapis.com^
+||firebaseinappmessaging.googleapis.com^
+||firebasedynamiclinks.googleapis.com^
 !
 ! ───── 메타(페이스북) / 인스타그램 트래킹 ─────
-||facebook.net^$dnsrewrite=NXDOMAIN
-||connect.facebook.net^$dnsrewrite=NXDOMAIN
-||an.facebook.com^$dnsrewrite=NXDOMAIN
-||pixel.facebook.com^$dnsrewrite=NXDOMAIN
-||graph.facebook.com^$dnsrewrite=NXDOMAIN
-||edge-mqtt.facebook.com^$dnsrewrite=NXDOMAIN
-||analytics.facebook.com^$dnsrewrite=NXDOMAIN
-||business.facebook.com^$dnsrewrite=NXDOMAIN
-||atdmt.com^$dnsrewrite=NXDOMAIN
+||facebook.net^
+||connect.facebook.net^
+||an.facebook.com^
+||pixel.facebook.com^
+||graph.facebook.com^
+||edge-mqtt.facebook.com^
+||analytics.facebook.com^
+||business.facebook.com^
+||atdmt.com^
 !
 ! ───── 아마존 / 일반 광고 네트워크 / RTB ─────
-||amazon-adsystem.com^$dnsrewrite=NXDOMAIN
-||adnxs.com^$dnsrewrite=NXDOMAIN
-||criteo.com^$dnsrewrite=NXDOMAIN
-||criteo.net^$dnsrewrite=NXDOMAIN
-||scorecardresearch.com^$dnsrewrite=NXDOMAIN
-||quantserve.com^$dnsrewrite=NXDOMAIN
-||quantcount.com^$dnsrewrite=NXDOMAIN
-||taboola.com^$dnsrewrite=NXDOMAIN
-||outbrain.com^$dnsrewrite=NXDOMAIN
-||adsrvr.org^$dnsrewrite=NXDOMAIN
-||rubiconproject.com^$dnsrewrite=NXDOMAIN
-||pubmatic.com^$dnsrewrite=NXDOMAIN
-||openx.net^$dnsrewrite=NXDOMAIN
-||casalemedia.com^$dnsrewrite=NXDOMAIN
-||bidswitch.net^$dnsrewrite=NXDOMAIN
-||smartadserver.com^$dnsrewrite=NXDOMAIN
-||contextweb.com^$dnsrewrite=NXDOMAIN
-||3lift.com^$dnsrewrite=NXDOMAIN
-||sharethrough.com^$dnsrewrite=NXDOMAIN
-||gumgum.com^$dnsrewrite=NXDOMAIN
-||sonobi.com^$dnsrewrite=NXDOMAIN
-||go.sonobi.com^$dnsrewrite=NXDOMAIN
-||yieldlab.net^$dnsrewrite=NXDOMAIN
-||rfihub.com^$dnsrewrite=NXDOMAIN
-||mathtag.com^$dnsrewrite=NXDOMAIN
-||adform.net^$dnsrewrite=NXDOMAIN
-||adition.com^$dnsrewrite=NXDOMAIN
-||adroll.com^$dnsrewrite=NXDOMAIN
-||adsafeprotected.com^$dnsrewrite=NXDOMAIN
-||adscale.de^$dnsrewrite=NXDOMAIN
-||adtech.com^$dnsrewrite=NXDOMAIN
-||advertising.com^$dnsrewrite=NXDOMAIN
-||adzerk.net^$dnsrewrite=NXDOMAIN
-||agkn.com^$dnsrewrite=NXDOMAIN
-||bidr.io^$dnsrewrite=NXDOMAIN
-||bttrack.com^$dnsrewrite=NXDOMAIN
-||conversantmedia.com^$dnsrewrite=NXDOMAIN
-||districtm.io^$dnsrewrite=NXDOMAIN
-||emxdgt.com^$dnsrewrite=NXDOMAIN
-||gssprt.jp^$dnsrewrite=NXDOMAIN
-||indexww.com^$dnsrewrite=NXDOMAIN
-||inner-active.mobi^$dnsrewrite=NXDOMAIN
-||lijit.com^$dnsrewrite=NXDOMAIN
-||mediavine.com^$dnsrewrite=NXDOMAIN
-||medianet.com^$dnsrewrite=NXDOMAIN
-||mediamath.com^$dnsrewrite=NXDOMAIN
-||moatads.com^$dnsrewrite=NXDOMAIN
-||mookie1.com^$dnsrewrite=NXDOMAIN
-||sovrn.com^$dnsrewrite=NXDOMAIN
-||spotxchange.com^$dnsrewrite=NXDOMAIN
-||stickyadstv.com^$dnsrewrite=NXDOMAIN
-||teads.tv^$dnsrewrite=NXDOMAIN
-||turn.com^$dnsrewrite=NXDOMAIN
-||yieldmo.com^$dnsrewrite=NXDOMAIN
-||zedo.com^$dnsrewrite=NXDOMAIN
-||serving-sys.com^$dnsrewrite=NXDOMAIN
-||eyeviewads.com^$dnsrewrite=NXDOMAIN
-||flashtalking.com^$dnsrewrite=NXDOMAIN
-||sitescout.com^$dnsrewrite=NXDOMAIN
-||simpli.fi^$dnsrewrite=NXDOMAIN
-||tribalfusion.com^$dnsrewrite=NXDOMAIN
-||revcontent.com^$dnsrewrite=NXDOMAIN
-||zergnet.com^$dnsrewrite=NXDOMAIN
-||mgid.com^$dnsrewrite=NXDOMAIN
-||content-recommendation.net^$dnsrewrite=NXDOMAIN
+||amazon-adsystem.com^
+||adnxs.com^
+||criteo.com^
+||criteo.net^
+||scorecardresearch.com^
+||quantserve.com^
+||quantcount.com^
+||taboola.com^
+||outbrain.com^
+||adsrvr.org^
+||rubiconproject.com^
+||pubmatic.com^
+||openx.net^
+||casalemedia.com^
+||bidswitch.net^
+||smartadserver.com^
+||contextweb.com^
+||3lift.com^
+||sharethrough.com^
+||gumgum.com^
+||sonobi.com^
+||go.sonobi.com^
+||yieldlab.net^
+||rfihub.com^
+||mathtag.com^
+||adform.net^
+||adition.com^
+||adroll.com^
+||adsafeprotected.com^
+||adscale.de^
+||adtech.com^
+||advertising.com^
+||adzerk.net^
+||agkn.com^
+||bidr.io^
+||bttrack.com^
+||conversantmedia.com^
+||districtm.io^
+||emxdgt.com^
+||gssprt.jp^
+||indexww.com^
+||inner-active.mobi^
+||lijit.com^
+||mediavine.com^
+||medianet.com^
+||mediamath.com^
+||moatads.com^
+||mookie1.com^
+||sovrn.com^
+||spotxchange.com^
+||stickyadstv.com^
+||teads.tv^
+||turn.com^
+||yieldmo.com^
+||zedo.com^
+||serving-sys.com^
+||eyeviewads.com^
+||flashtalking.com^
+||sitescout.com^
+||simpli.fi^
+||tribalfusion.com^
+||revcontent.com^
+||zergnet.com^
+||mgid.com^
+||content-recommendation.net^
 !
 ! ───── 모바일 광고 SDK / MMP ─────
-||inmobi.com^$dnsrewrite=NXDOMAIN
-||mopub.com^$dnsrewrite=NXDOMAIN
-||unityads.unity3d.com^$dnsrewrite=NXDOMAIN
-||is.com^$dnsrewrite=NXDOMAIN
-||vungle.com^$dnsrewrite=NXDOMAIN
-||applovin.com^$dnsrewrite=NXDOMAIN
-||ironsrc.com^$dnsrewrite=NXDOMAIN
-||ironsrc.mobi^$dnsrewrite=NXDOMAIN
-||tapjoy.com^$dnsrewrite=NXDOMAIN
-||chartboost.com^$dnsrewrite=NXDOMAIN
-||adcolony.com^$dnsrewrite=NXDOMAIN
-||startapp.com^$dnsrewrite=NXDOMAIN
-||flurry.com^$dnsrewrite=NXDOMAIN
-||smaato.com^$dnsrewrite=NXDOMAIN
-||mobfox.com^$dnsrewrite=NXDOMAIN
-||appodeal.com^$dnsrewrite=NXDOMAIN
-||fyber.com^$dnsrewrite=NXDOMAIN
-||appsflyer.com^$dnsrewrite=NXDOMAIN
-||adjust.com^$dnsrewrite=NXDOMAIN
-||branch.io^$dnsrewrite=NXDOMAIN
-||kochava.com^$dnsrewrite=NXDOMAIN
-||singular.net^$dnsrewrite=NXDOMAIN
-||airbridge.io^$dnsrewrite=NXDOMAIN
-||braze.com^$dnsrewrite=NXDOMAIN
-||appboy.com^$dnsrewrite=NXDOMAIN
-||leanplum.com^$dnsrewrite=NXDOMAIN
-||swrve.com^$dnsrewrite=NXDOMAIN
-||revmob.com^$dnsrewrite=NXDOMAIN
-||playhaven.com^$dnsrewrite=NXDOMAIN
-||leadbolt.com^$dnsrewrite=NXDOMAIN
-||mngads.com^$dnsrewrite=NXDOMAIN
-||mintegral.com^$dnsrewrite=NXDOMAIN
-||mintegral.net^$dnsrewrite=NXDOMAIN
-||liftoff.io^$dnsrewrite=NXDOMAIN
-||digitalturbine.com^$dnsrewrite=NXDOMAIN
-||ogury.com^$dnsrewrite=NXDOMAIN
-||ogury.io^$dnsrewrite=NXDOMAIN
-||tenjin.io^$dnsrewrite=NXDOMAIN
-||tenjin.com^$dnsrewrite=NXDOMAIN
-||appflood.com^$dnsrewrite=NXDOMAIN
-||domob.cn^$dnsrewrite=NXDOMAIN
-||greedygame.com^$dnsrewrite=NXDOMAIN
+||inmobi.com^
+||mopub.com^
+||unityads.unity3d.com^
+||is.com^
+||vungle.com^
+||applovin.com^
+||ironsrc.com^
+||ironsrc.mobi^
+||tapjoy.com^
+||chartboost.com^
+||adcolony.com^
+||startapp.com^
+||flurry.com^
+||smaato.com^
+||mobfox.com^
+||appodeal.com^
+||fyber.com^
+||appsflyer.com^
+||adjust.com^
+||branch.io^
+||kochava.com^
+||singular.net^
+||airbridge.io^
+||braze.com^
+||appboy.com^
+||leanplum.com^
+||swrve.com^
+||revmob.com^
+||playhaven.com^
+||leadbolt.com^
+||mngads.com^
+||mintegral.com^
+||mintegral.net^
+||liftoff.io^
+||digitalturbine.com^
+||ogury.com^
+||ogury.io^
+||tenjin.io^
+||tenjin.com^
+||appflood.com^
+||domob.cn^
+||greedygame.com^
 !
 ! ───── 추가: 모바일 SDK / 광고 ─────
-||bugly.qq.com^$dnsrewrite=NXDOMAIN
-||android.bugly.qq.com^$dnsrewrite=NXDOMAIN
-||adjust.io^$dnsrewrite=NXDOMAIN
-||app.adjust.io^$dnsrewrite=NXDOMAIN
-||bulldogcpi.com^$dnsrewrite=NXDOMAIN
-||ads.bulldogcpi.com^$dnsrewrite=NXDOMAIN
+||bugly.qq.com^
+||android.bugly.qq.com^
+||adjust.io^
+||app.adjust.io^
+||bulldogcpi.com^
+||ads.bulldogcpi.com^
 !
 ! ───── 앱 분석 / 크래시 리포팅 / APM ─────
-||sentry.io^$dnsrewrite=NXDOMAIN
-||sentry-cdn.com^$dnsrewrite=NXDOMAIN
-||bugsnag.com^$dnsrewrite=NXDOMAIN
-||fabric.io^$dnsrewrite=NXDOMAIN
-||nr-data.net^$dnsrewrite=NXDOMAIN
-||newrelic.com^$dnsrewrite=NXDOMAIN
-||loggly.com^$dnsrewrite=NXDOMAIN
-||datadoghq.com^$dnsrewrite=NXDOMAIN
-||amplitude.com^$dnsrewrite=NXDOMAIN
-||mixpanel.com^$dnsrewrite=NXDOMAIN
-||mixpanel.org^$dnsrewrite=NXDOMAIN
-||mparticle.com^$dnsrewrite=NXDOMAIN
-||segment.io^$dnsrewrite=NXDOMAIN
-||segment.com^$dnsrewrite=NXDOMAIN
-||segment-cdn.com^$dnsrewrite=NXDOMAIN
-||heap.io^$dnsrewrite=NXDOMAIN
-||heapanalytics.com^$dnsrewrite=NXDOMAIN
-||fullstory.com^$dnsrewrite=NXDOMAIN
-||hotjar.com^$dnsrewrite=NXDOMAIN
-||hotjar.io^$dnsrewrite=NXDOMAIN
-||logrocket.com^$dnsrewrite=NXDOMAIN
-||logrocket.io^$dnsrewrite=NXDOMAIN
-||smartlook.com^$dnsrewrite=NXDOMAIN
-||clarity.ms^$dnsrewrite=NXDOMAIN
-||mouseflow.com^$dnsrewrite=NXDOMAIN
-||luckyorange.com^$dnsrewrite=NXDOMAIN
-||luckyorange.net^$dnsrewrite=NXDOMAIN
-||inspectlet.com^$dnsrewrite=NXDOMAIN
-||contentsquare.net^$dnsrewrite=NXDOMAIN
-||quantummetric.com^$dnsrewrite=NXDOMAIN
-||crazyegg.com^$dnsrewrite=NXDOMAIN
-||statcounter.com^$dnsrewrite=NXDOMAIN
-||histats.com^$dnsrewrite=NXDOMAIN
-||clicktale.net^$dnsrewrite=NXDOMAIN
-||clicktale.com^$dnsrewrite=NXDOMAIN
-||piwik.pro^$dnsrewrite=NXDOMAIN
-||matomo.cloud^$dnsrewrite=NXDOMAIN
-||countly.com^$dnsrewrite=NXDOMAIN
-||gauges.com^$dnsrewrite=NXDOMAIN
-||clicky.com^$dnsrewrite=NXDOMAIN
-||woopra.com^$dnsrewrite=NXDOMAIN
-||keen.io^$dnsrewrite=NXDOMAIN
-||snowplowanalytics.com^$dnsrewrite=NXDOMAIN
-||raygun.io^$dnsrewrite=NXDOMAIN
-||raygun.com^$dnsrewrite=NXDOMAIN
-||rollbar.com^$dnsrewrite=NXDOMAIN
-||trackjs.com^$dnsrewrite=NXDOMAIN
-||honeycomb.io^$dnsrewrite=NXDOMAIN
-||lightstep.com^$dnsrewrite=NXDOMAIN
-||instana.io^$dnsrewrite=NXDOMAIN
-||dynatrace.com^$dnsrewrite=NXDOMAIN
-||appdynamics.com^$dnsrewrite=NXDOMAIN
+||sentry.io^
+||sentry-cdn.com^
+||bugsnag.com^
+||fabric.io^
+||nr-data.net^
+||newrelic.com^
+||loggly.com^
+||datadoghq.com^
+||amplitude.com^
+||mixpanel.com^
+||mixpanel.org^
+||mparticle.com^
+||segment.io^
+||segment.com^
+||segment-cdn.com^
+||heap.io^
+||heapanalytics.com^
+||fullstory.com^
+||hotjar.com^
+||hotjar.io^
+||logrocket.com^
+||logrocket.io^
+||smartlook.com^
+||clarity.ms^
+||mouseflow.com^
+||luckyorange.com^
+||luckyorange.net^
+||inspectlet.com^
+||contentsquare.net^
+||quantummetric.com^
+||crazyegg.com^
+||statcounter.com^
+||histats.com^
+||clicktale.net^
+||clicktale.com^
+||piwik.pro^
+||matomo.cloud^
+||countly.com^
+||gauges.com^
+||clicky.com^
+||woopra.com^
+||keen.io^
+||snowplowanalytics.com^
+||raygun.io^
+||raygun.com^
+||rollbar.com^
+||trackjs.com^
+||honeycomb.io^
+||lightstep.com^
+||instana.io^
+||dynatrace.com^
+||appdynamics.com^
 !
 ! ───── CRM / 인앱 마케팅 / 마케팅 자동화 ─────
-||iterable.com^$dnsrewrite=NXDOMAIN
-||customer.io^$dnsrewrite=NXDOMAIN
-||intercom.io^$dnsrewrite=NXDOMAIN
-||drift.com^$dnsrewrite=NXDOMAIN
-||helpscout.net^$dnsrewrite=NXDOMAIN
-||tawk.to^$dnsrewrite=NXDOMAIN
-||olark.com^$dnsrewrite=NXDOMAIN
-||userpilot.io^$dnsrewrite=NXDOMAIN
-||pendo.io^$dnsrewrite=NXDOMAIN
-||appcues.com^$dnsrewrite=NXDOMAIN
-||kissmetrics.com^$dnsrewrite=NXDOMAIN
-||kissmetrics.io^$dnsrewrite=NXDOMAIN
-||optimizely.com^$dnsrewrite=NXDOMAIN
-||vwo.com^$dnsrewrite=NXDOMAIN
-||visualwebsiteoptimizer.com^$dnsrewrite=NXDOMAIN
-||hubspot.com^$dnsrewrite=NXDOMAIN
-||hs-scripts.com^$dnsrewrite=NXDOMAIN
-||hs-analytics.net^$dnsrewrite=NXDOMAIN
-||hsforms.com^$dnsrewrite=NXDOMAIN
-||marketo.net^$dnsrewrite=NXDOMAIN
-||mktoresp.com^$dnsrewrite=NXDOMAIN
-||pardot.com^$dnsrewrite=NXDOMAIN
-||eloqua.com^$dnsrewrite=NXDOMAIN
-||en25.com^$dnsrewrite=NXDOMAIN
-||list-manage.com^$dnsrewrite=NXDOMAIN
-||sendgrid.net^$dnsrewrite=NXDOMAIN
-||mandrillapp.com^$dnsrewrite=NXDOMAIN
-||klaviyo.com^$dnsrewrite=NXDOMAIN
-||sailthru.com^$dnsrewrite=NXDOMAIN
-||emarsys.net^$dnsrewrite=NXDOMAIN
-||dotomi.com^$dnsrewrite=NXDOMAIN
+||iterable.com^
+||customer.io^
+||intercom.io^
+||drift.com^
+||helpscout.net^
+||tawk.to^
+||olark.com^
+||userpilot.io^
+||pendo.io^
+||appcues.com^
+||kissmetrics.com^
+||kissmetrics.io^
+||optimizely.com^
+||vwo.com^
+||visualwebsiteoptimizer.com^
+||hubspot.com^
+||hs-scripts.com^
+||hs-analytics.net^
+||hsforms.com^
+||marketo.net^
+||mktoresp.com^
+||pardot.com^
+||eloqua.com^
+||en25.com^
+||list-manage.com^
+||sendgrid.net^
+||mandrillapp.com^
+||klaviyo.com^
+||sailthru.com^
+||emarsys.net^
+||dotomi.com^
 !
 ! ───── CDP / 태그 매니저 / Cookie Sync ─────
-||tealiumiq.com^$dnsrewrite=NXDOMAIN
-||tiqcdn.com^$dnsrewrite=NXDOMAIN
-||krxd.net^$dnsrewrite=NXDOMAIN
-||lytics.io^$dnsrewrite=NXDOMAIN
-||bluekai.com^$dnsrewrite=NXDOMAIN
-||exelator.com^$dnsrewrite=NXDOMAIN
-||rlcdn.com^$dnsrewrite=NXDOMAIN
-||everesttech.net^$dnsrewrite=NXDOMAIN
-||eyeota.net^$dnsrewrite=NXDOMAIN
-||adsymptotic.com^$dnsrewrite=NXDOMAIN
-||demdex.net^$dnsrewrite=NXDOMAIN
-||omtrdc.net^$dnsrewrite=NXDOMAIN
-||2o7.net^$dnsrewrite=NXDOMAIN
+||tealiumiq.com^
+||tiqcdn.com^
+||krxd.net^
+||lytics.io^
+||bluekai.com^
+||exelator.com^
+||rlcdn.com^
+||everesttech.net^
+||eyeota.net^
+||adsymptotic.com^
+||demdex.net^
+||omtrdc.net^
+||2o7.net^
 !
 ! ───── 어도비 / 기타 소프트웨어 텔레메트리 ─────
-||cc-api-data.adobe.io^$dnsrewrite=NXDOMAIN
-||stats.adobe.com^$dnsrewrite=NXDOMAIN
-||sstats.adobe.com^$dnsrewrite=NXDOMAIN
+||cc-api-data.adobe.io^
+||stats.adobe.com^
+||sstats.adobe.com^
 !
 ! ───── 챠트비트 / 제3자 분석 ─────
-||chartbeat.com^$dnsrewrite=NXDOMAIN
-||chartbeat.net^$dnsrewrite=NXDOMAIN
+||chartbeat.com^
+||chartbeat.net^
 !
 ! ───── 소셜 트래킹 픽셀 ─────
-||ads-twitter.com^$dnsrewrite=NXDOMAIN
-||analytics.twitter.com^$dnsrewrite=NXDOMAIN
-||px.ads.linkedin.com^$dnsrewrite=NXDOMAIN
-||analytics.tiktok.com^$dnsrewrite=NXDOMAIN
-||tr.snapchat.com^$dnsrewrite=NXDOMAIN
-||sc-static.net^$dnsrewrite=NXDOMAIN
-||snap.licdn.com^$dnsrewrite=NXDOMAIN
+||ads-twitter.com^
+||analytics.twitter.com^
+||px.ads.linkedin.com^
+||analytics.tiktok.com^
+||tr.snapchat.com^
+||sc-static.net^
+||snap.licdn.com^
 !
 ! ───── 클릭 트래커 / 제휴 마케팅 ─────
-||awin1.com^$dnsrewrite=NXDOMAIN
-||impactradius-event.com^$dnsrewrite=NXDOMAIN
-||ojrq.net^$dnsrewrite=NXDOMAIN
-||rdrct.cc^$dnsrewrite=NXDOMAIN
-||linksynergy.com^$dnsrewrite=NXDOMAIN
-||shareasale.com^$dnsrewrite=NXDOMAIN
-||cj.com^$dnsrewrite=NXDOMAIN
-||anrdoezrs.net^$dnsrewrite=NXDOMAIN
-||tkqlhce.com^$dnsrewrite=NXDOMAIN
-||jdoqocy.com^$dnsrewrite=NXDOMAIN
-||dpbolvw.net^$dnsrewrite=NXDOMAIN
-||kqzyfj.com^$dnsrewrite=NXDOMAIN
+||awin1.com^
+||impactradius-event.com^
+||ojrq.net^
+||rdrct.cc^
+||linksynergy.com^
+||shareasale.com^
+||cj.com^
+||anrdoezrs.net^
+||tkqlhce.com^
+||jdoqocy.com^
+||dpbolvw.net^
+||kqzyfj.com^
 !
 ! ───── Windows 10/11 시스템 텔레메트리 ─────
-||settings-win.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||watson.telemetry.microsoft.com^$dnsrewrite=NXDOMAIN
-||survey.watson.microsoft.com^$dnsrewrite=NXDOMAIN
-||v10.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||v20.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||eu-v10.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||us-v10.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||mobile.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||eu-mobile.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||us-mobile.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||functional.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||self.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||vortex-win.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||vortex.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||telecommand.telemetry.microsoft.com^$dnsrewrite=NXDOMAIN
-||oca.telemetry.microsoft.com^$dnsrewrite=NXDOMAIN
-||sqm.telemetry.microsoft.com^$dnsrewrite=NXDOMAIN
-||telemetry.microsoft.com^$dnsrewrite=NXDOMAIN
-||telemetry.appex.bing.net^$dnsrewrite=NXDOMAIN
-||telemetry.urs.microsoft.com^$dnsrewrite=NXDOMAIN
-||diagnostics.support.microsoft.com^$dnsrewrite=NXDOMAIN
-||ssw.live.com^$dnsrewrite=NXDOMAIN
-||cs.dds.microsoft.com^$dnsrewrite=NXDOMAIN
-||cs1.wpc.v0cdn.net^$dnsrewrite=NXDOMAIN
-||dc.services.visualstudio.com^$dnsrewrite=NXDOMAIN
-||applicationinsights.azure.com^$dnsrewrite=NXDOMAIN
-||applicationinsights.io^$dnsrewrite=NXDOMAIN
-||fp.msedge.net^$dnsrewrite=NXDOMAIN
+||settings-win.data.microsoft.com^
+||watson.telemetry.microsoft.com^
+||survey.watson.microsoft.com^
+||v10.events.data.microsoft.com^
+||v20.events.data.microsoft.com^
+||eu-v10.events.data.microsoft.com^
+||us-v10.events.data.microsoft.com^
+||mobile.events.data.microsoft.com^
+||eu-mobile.events.data.microsoft.com^
+||us-mobile.events.data.microsoft.com^
+||functional.events.data.microsoft.com^
+||self.events.data.microsoft.com^
+||vortex-win.data.microsoft.com^
+||vortex.data.microsoft.com^
+||telecommand.telemetry.microsoft.com^
+||oca.telemetry.microsoft.com^
+||sqm.telemetry.microsoft.com^
+||telemetry.microsoft.com^
+||telemetry.appex.bing.net^
+||telemetry.urs.microsoft.com^
+||diagnostics.support.microsoft.com^
+||ssw.live.com^
+||cs.dds.microsoft.com^
+||cs1.wpc.v0cdn.net^
+||dc.services.visualstudio.com^
+||applicationinsights.azure.com^
+||applicationinsights.io^
+||fp.msedge.net^
 !
 ! ───── 브라우저 텔레메트리 (Edge/Chrome/Brave 등) ─────
-||browser.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-!||edge.microsoft.com^$dnsrewrite=NXDOMAIN
-||p.brave.com^$dnsrewrite=NXDOMAIN
-||variations.brave.com^$dnsrewrite=NXDOMAIN
-||star-randsrv.bsg.brave.com^$dnsrewrite=NXDOMAIN
-||telemetry.mozilla.org^$dnsrewrite=NXDOMAIN
-||incoming.telemetry.mozilla.org^$dnsrewrite=NXDOMAIN
-||sitecheck2.opera.com^$dnsrewrite=NXDOMAIN
-||desktop.telemetry.opera.com^$dnsrewrite=NXDOMAIN
+||browser.events.data.microsoft.com^
+!||edge.microsoft.com^
+||p.brave.com^
+||variations.brave.com^
+||star-randsrv.bsg.brave.com^
+||telemetry.mozilla.org^
+||incoming.telemetry.mozilla.org^
+||sitecheck2.opera.com^
+||desktop.telemetry.opera.com^
 !
 ! ───── Apple 텔레메트리 ─────
-||metrics.icloud.com^$dnsrewrite=NXDOMAIN
-||metrics.mzstatic.com^$dnsrewrite=NXDOMAIN
-||iadsdk.apple.com^$dnsrewrite=NXDOMAIN
-||xp.apple.com^$dnsrewrite=NXDOMAIN
-||supportmetrics.apple.com^$dnsrewrite=NXDOMAIN
+||metrics.icloud.com^
+||metrics.mzstatic.com^
+||iadsdk.apple.com^
+||xp.apple.com^
+||supportmetrics.apple.com^
 !
 ! ───── NVIDIA / 기타 제조사 ─────
-||telemetry.nvidia.com^$dnsrewrite=NXDOMAIN
-||events.gfe.nvidia.com^$dnsrewrite=NXDOMAIN
-||telemetry.gfe.nvidia.com^$dnsrewrite=NXDOMAIN
+||telemetry.nvidia.com^
+||events.gfe.nvidia.com^
+||telemetry.gfe.nvidia.com^
 !
 ! ───── 보안 소프트웨어 텔레메트리 ─────
-||telemetry.malwarebytes.com^$dnsrewrite=NXDOMAIN
-||telemetry-stats.avg.com^$dnsrewrite=NXDOMAIN
-||analytics.avcdn.net^$dnsrewrite=NXDOMAIN
-||stats.avast.com^$dnsrewrite=NXDOMAIN
-||telemetry.kaspersky-labs.com^$dnsrewrite=NXDOMAIN
-||locator2.kaspersky-labs.com^$dnsrewrite=NXDOMAIN
-||edge.f-secure.com^$dnsrewrite=NXDOMAIN
+||telemetry.malwarebytes.com^
+||telemetry-stats.avg.com^
+||analytics.avcdn.net^
+||stats.avast.com^
+||telemetry.kaspersky-labs.com^
+||locator2.kaspersky-labs.com^
+||edge.f-secure.com^
 !
 ! ───── 자동차 텔레메트리 ─────
-||telemetry.tesla.com^$dnsrewrite=NXDOMAIN
-||logs.tesla.com^$dnsrewrite=NXDOMAIN
-||diagnostics.tesla.com^$dnsrewrite=NXDOMAIN
-||telemetry.bmwgroup.com^$dnsrewrite=NXDOMAIN
+||telemetry.tesla.com^
+||logs.tesla.com^
+||diagnostics.tesla.com^
+||telemetry.bmwgroup.com^
 !
 ! ───── 비밀번호 관리자 / VPN 클라이언트 ─────
-||events.1password.com^$dnsrewrite=NXDOMAIN
-||app-telemetry.1password.com^$dnsrewrite=NXDOMAIN
-||telemetry.lastpass.com^$dnsrewrite=NXDOMAIN
-||stats.bitwarden.com^$dnsrewrite=NXDOMAIN
-||events.bitwarden.com^$dnsrewrite=NXDOMAIN
-||client-telemetry.protonvpn.com^$dnsrewrite=NXDOMAIN
+||events.1password.com^
+||app-telemetry.1password.com^
+||telemetry.lastpass.com^
+||stats.bitwarden.com^
+||events.bitwarden.com^
+||client-telemetry.protonvpn.com^
 !
 ! ───── 메신저 / 화상회의 텔레메트리 ─────
-||telemetry.dropbox.com^$dnsrewrite=NXDOMAIN
-||log.getdropbox.com^$dnsrewrite=NXDOMAIN
-||client-events.dropbox.com^$dnsrewrite=NXDOMAIN
-||client-telemetry.slack.com^$dnsrewrite=NXDOMAIN
+||telemetry.dropbox.com^
+||log.getdropbox.com^
+||client-events.dropbox.com^
+||client-telemetry.slack.com^
 ! - (요즘 유행하는 신생 앱/웹서비스들이 이 서비스를 '기능 플래그(기능 끄고 켜기)' 용도로 많이 씁니다. 이걸 막으면 특정 앱의 기능이 안 보일 수 있습니다)
-!||statsigapi.net^$dnsrewrite=NXDOMAIN 
-||featuregates.org^$dnsrewrite=NXDOMAIN
-||clienttelemetry.webex.com^$dnsrewrite=NXDOMAIN
-||telemetry-service.webex.com^$dnsrewrite=NXDOMAIN
-||stats.line.me^$dnsrewrite=NXDOMAIN
-||obs.line-apps.com^$dnsrewrite=NXDOMAIN
+!||statsigapi.net^ 
+||featuregates.org^
+||clienttelemetry.webex.com^
+||telemetry-service.webex.com^
+||stats.line.me^
+||obs.line-apps.com^
 !
 ! ───── 클라우드 스토리지 / 생산성 도구 ─────
-||telemetry.notion.so^$dnsrewrite=NXDOMAIN
-||telemetry.figma.com^$dnsrewrite=NXDOMAIN
-||events.miro.com^$dnsrewrite=NXDOMAIN
-||analytics.miro.com^$dnsrewrite=NXDOMAIN
-||analytics.canva.com^$dnsrewrite=NXDOMAIN
-||logs.canva.com^$dnsrewrite=NXDOMAIN
-||telemetry.atlassian.com^$dnsrewrite=NXDOMAIN
-||analytics.atlassian.com^$dnsrewrite=NXDOMAIN
-||metrics-api.evernote.com^$dnsrewrite=NXDOMAIN
-||telemetry.box.com^$dnsrewrite=NXDOMAIN
+||telemetry.notion.so^
+||telemetry.figma.com^
+||events.miro.com^
+||analytics.miro.com^
+||analytics.canva.com^
+||logs.canva.com^
+||telemetry.atlassian.com^
+||analytics.atlassian.com^
+||metrics-api.evernote.com^
+||telemetry.box.com^
 !
 ! ───── 바이두 / 중국계 광고·분석 ─────
-||hm.baidu.com^$dnsrewrite=NXDOMAIN
-||pos.baidu.com^$dnsrewrite=NXDOMAIN
-||tongji.baidu.com^$dnsrewrite=NXDOMAIN
-||cbjs.baidu.com^$dnsrewrite=NXDOMAIN
-||eclick.baidu.com^$dnsrewrite=NXDOMAIN
-||adash.m.taobao.com^$dnsrewrite=NXDOMAIN
-||umeng.com^$dnsrewrite=NXDOMAIN
-||umengcloud.com^$dnsrewrite=NXDOMAIN
-||talkingdata.com^$dnsrewrite=NXDOMAIN
-||talkingdata.net^$dnsrewrite=NXDOMAIN
-||getui.com^$dnsrewrite=NXDOMAIN
-||igexin.com^$dnsrewrite=NXDOMAIN
-||tencentmta.com^$dnsrewrite=NXDOMAIN
-||analytics.bytedance.com^$dnsrewrite=NXDOMAIN
-||log.bytedance.com^$dnsrewrite=NXDOMAIN
-||mssdk.bytedance.com^$dnsrewrite=NXDOMAIN
-||mon.zijieapi.com^$dnsrewrite=NXDOMAIN
-||log.snssdk.com^$dnsrewrite=NXDOMAIN
+||hm.baidu.com^
+||pos.baidu.com^
+||tongji.baidu.com^
+||cbjs.baidu.com^
+||eclick.baidu.com^
+||adash.m.taobao.com^
+||umeng.com^
+||umengcloud.com^
+||talkingdata.com^
+||talkingdata.net^
+||getui.com^
+||igexin.com^
+||tencentmta.com^
+||analytics.bytedance.com^
+||log.bytedance.com^
+||mssdk.bytedance.com^
+||mon.zijieapi.com^
+||log.snssdk.com^
 !
 ! ───── 얀덱스 / 동유럽 광고 ─────
-||mc.yandex.ru^$dnsrewrite=NXDOMAIN
-||an.yandex.ru^$dnsrewrite=NXDOMAIN
-||metrika.yandex.ru^$dnsrewrite=NXDOMAIN
-||metrica.yandex.com^$dnsrewrite=NXDOMAIN
-||appmetrica.yandex.com^$dnsrewrite=NXDOMAIN
+||mc.yandex.ru^
+||an.yandex.ru^
+||metrika.yandex.ru^
+||metrica.yandex.com^
+||appmetrica.yandex.com^
 !
 ! ───── 스마트TV / 셋톱박스 ─────
-||logs.netflix.com^$dnsrewrite=NXDOMAIN
-||customerevents.netflix.com^$dnsrewrite=NXDOMAIN
-||samsungads.com^$dnsrewrite=NXDOMAIN
-||samsungacr.com^$dnsrewrite=NXDOMAIN
-||samsungotn.net^$dnsrewrite=NXDOMAIN
-||samsungrm.net^$dnsrewrite=NXDOMAIN
-||log-ingestion.samsungacr.com^$dnsrewrite=NXDOMAIN
-||sa.samsungrs.com^$dnsrewrite=NXDOMAIN
-||ad.lgsmartad.com^$dnsrewrite=NXDOMAIN
-||lgad.line.me^$dnsrewrite=NXDOMAIN
-||lgad.cjpowercast.com.akadns.net^$dnsrewrite=NXDOMAIN
-||ad.lgappstv.com^$dnsrewrite=NXDOMAIN
-||rdx2.lgtvsdp.com^$dnsrewrite=NXDOMAIN
-||smartshare.lgtvsdp.com^$dnsrewrite=NXDOMAIN
-||us.ibs.lgappstv.com^$dnsrewrite=NXDOMAIN
-||r.lgsmartad.com^$dnsrewrite=NXDOMAIN
-||ads.vizio.com^$dnsrewrite=NXDOMAIN
-||tvinteractive.tv^$dnsrewrite=NXDOMAIN
-||scfd.inscapedata.com^$dnsrewrite=NXDOMAIN
-||metrics.roku.com^$dnsrewrite=NXDOMAIN
-||scribe.logs.roku.com^$dnsrewrite=NXDOMAIN
-||cooper.logs.roku.com^$dnsrewrite=NXDOMAIN
+||logs.netflix.com^
+||customerevents.netflix.com^
+||samsungads.com^
+||samsungacr.com^
+||samsungotn.net^
+||samsungrm.net^
+||log-ingestion.samsungacr.com^
+||sa.samsungrs.com^
+||ad.lgsmartad.com^
+||lgad.line.me^
+||lgad.cjpowercast.com.akadns.net^
+||ad.lgappstv.com^
+||rdx2.lgtvsdp.com^
+||smartshare.lgtvsdp.com^
+||us.ibs.lgappstv.com^
+||r.lgsmartad.com^
+||ads.vizio.com^
+||tvinteractive.tv^
+||scfd.inscapedata.com^
+||metrics.roku.com^
+||scribe.logs.roku.com^
+||cooper.logs.roku.com^
 !
 ! ───── 샤오미 / 화웨이 ─────
-||api.ad.xiaomi.com^$dnsrewrite=NXDOMAIN
-||data.mistat.xiaomi.com^$dnsrewrite=NXDOMAIN
-||data.mistat.intl.xiaomi.com^$dnsrewrite=NXDOMAIN
-||tracking.miui.com^$dnsrewrite=NXDOMAIN
-||tracking.intl.miui.com^$dnsrewrite=NXDOMAIN
-||sensor-data.ssl.mi.com^$dnsrewrite=NXDOMAIN
-||logbak.hicloud.com^$dnsrewrite=NXDOMAIN
-||hianalytics.com^$dnsrewrite=NXDOMAIN
-||metrics.data.hicloud.com^$dnsrewrite=NXDOMAIN
-||logservice.hicloud.com^$dnsrewrite=NXDOMAIN
-||logservice1.hicloud.com^$dnsrewrite=NXDOMAIN
+||api.ad.xiaomi.com^
+||data.mistat.xiaomi.com^
+||data.mistat.intl.xiaomi.com^
+||tracking.miui.com^
+||tracking.intl.miui.com^
+||sensor-data.ssl.mi.com^
+||logbak.hicloud.com^
+||hianalytics.com^
+||metrics.data.hicloud.com^
+||logservice.hicloud.com^
+||logservice1.hicloud.com^
 !
 ! ───── 게임 플랫폼 텔레메트리 ─────
-||telemetry.battle.net^$dnsrewrite=NXDOMAIN
-||logging.battle.net^$dnsrewrite=NXDOMAIN
-||kasc.blizzard.com^$dnsrewrite=NXDOMAIN
-||sentry.ea.com^$dnsrewrite=NXDOMAIN
-||pulse.ea.com^$dnsrewrite=NXDOMAIN
-||river.data.ea.com^$dnsrewrite=NXDOMAIN
-||telemetry.ea.com^$dnsrewrite=NXDOMAIN
-||rdp.epicgames.com^$dnsrewrite=NXDOMAIN
-||tracking.epicgames.com^$dnsrewrite=NXDOMAIN
-||datarouter.ol.epicgames.com^$dnsrewrite=NXDOMAIN
-||telemetry.unity3d.com^$dnsrewrite=NXDOMAIN
-||cdp.cloud.unity3d.com^$dnsrewrite=NXDOMAIN
-||perf-events.cloud.unity3d.com^$dnsrewrite=NXDOMAIN
-||stats.unity3d.com^$dnsrewrite=NXDOMAIN
+||telemetry.battle.net^
+||logging.battle.net^
+||kasc.blizzard.com^
+||sentry.ea.com^
+||pulse.ea.com^
+||river.data.ea.com^
+||telemetry.ea.com^
+||rdp.epicgames.com^
+||tracking.epicgames.com^
+||datarouter.ol.epicgames.com^
+||telemetry.unity3d.com^
+||cdp.cloud.unity3d.com^
+||perf-events.cloud.unity3d.com^
+||stats.unity3d.com^
 !
 ! ───── 한국 서비스 (포털/쇼핑/통신/금융/OTT/배달) ─────
-||log.coupang.com^$dnsrewrite=NXDOMAIN
-||logger.coupang.com^$dnsrewrite=NXDOMAIN
-||tracker.coupang.com^$dnsrewrite=NXDOMAIN
-||clog.coupang.com^$dnsrewrite=NXDOMAIN
-||tms.coupang.com^$dnsrewrite=NXDOMAIN
-||collector-cf.coupang.com^$dnsrewrite=NXDOMAIN
-||click.coupang.com^$dnsrewrite=NXDOMAIN
-||event.coupang.com^$dnsrewrite=NXDOMAIN
-||analyticslog.coupang.com^$dnsrewrite=NXDOMAIN
-||stat.coupangeats.com^$dnsrewrite=NXDOMAIN
-||click.linkprice.com^$dnsrewrite=NXDOMAIN
-||logger.linkprice.com^$dnsrewrite=NXDOMAIN
-||log.naver.com^$dnsrewrite=NXDOMAIN
-||cc.naver.com^$dnsrewrite=NXDOMAIN
-||lcs.naver.com^$dnsrewrite=NXDOMAIN
-||siape.veta.naver.com^$dnsrewrite=NXDOMAIN
-||nelo2-col.navercorp.com^$dnsrewrite=NXDOMAIN
-||log.chzzk.naver.com^$dnsrewrite=NXDOMAIN
-||stat.daum.net^$dnsrewrite=NXDOMAIN
-||stat.kakao.com^$dnsrewrite=NXDOMAIN
-||cf.kakao.com^$dnsrewrite=NXDOMAIN
-||tr.kakao.com^$dnsrewrite=NXDOMAIN
-||tiara.kakao.com^$dnsrewrite=NXDOMAIN
-||tiara.daum.net^$dnsrewrite=NXDOMAIN
-||track.tiara.kakao.com^$dnsrewrite=NXDOMAIN
-||stat.ad.kakao.com^$dnsrewrite=NXDOMAIN
-||analytics.ad.daum.net^$dnsrewrite=NXDOMAIN
-||display.ad.daum.net^$dnsrewrite=NXDOMAIN
-||analytics.kakaocorp.com^$dnsrewrite=NXDOMAIN
-||analytics-log.kakao.com^$dnsrewrite=NXDOMAIN
-||displayad.cauly.co.kr^$dnsrewrite=NXDOMAIN
-||tg.socdm.com^$dnsrewrite=NXDOMAIN
-||log.gmarket.co.kr^$dnsrewrite=NXDOMAIN
-||event.gmarket.co.kr^$dnsrewrite=NXDOMAIN
-||log.11st.co.kr^$dnsrewrite=NXDOMAIN
-||log.auction.co.kr^$dnsrewrite=NXDOMAIN
-||logger.ssg.com^$dnsrewrite=NXDOMAIN
-||tracker.musinsa.com^$dnsrewrite=NXDOMAIN
-||logger.wemakeprice.com^$dnsrewrite=NXDOMAIN
-||stat.tmon.co.kr^$dnsrewrite=NXDOMAIN
-||tracker.daangn.com^$dnsrewrite=NXDOMAIN
-||event.bunjang.co.kr^$dnsrewrite=NXDOMAIN
-||tracker.idus.com^$dnsrewrite=NXDOMAIN
-||logger.ohou.se^$dnsrewrite=NXDOMAIN
-||tracker.kurly.com^$dnsrewrite=NXDOMAIN
-||trace.zigbang.com^$dnsrewrite=NXDOMAIN
-||analytics.dabangapp.com^$dnsrewrite=NXDOMAIN
-||cdp.melon.com^$dnsrewrite=NXDOMAIN
-||analytics.tving.com^$dnsrewrite=NXDOMAIN
-||analytics.wavve.com^$dnsrewrite=NXDOMAIN
-||tracker.watcha.com^$dnsrewrite=NXDOMAIN
-||tracking.kt.com^$dnsrewrite=NXDOMAIN
-||stat.kt.com^$dnsrewrite=NXDOMAIN
-||tracker.skt.com^$dnsrewrite=NXDOMAIN
-||analytics.lguplus.com^$dnsrewrite=NXDOMAIN
-||tracker.kbstar.com^$dnsrewrite=NXDOMAIN
-||logger.shinhan.com^$dnsrewrite=NXDOMAIN
-||analytics.wooribank.com^$dnsrewrite=NXDOMAIN
-||event-log.payco.com^$dnsrewrite=NXDOMAIN
-||tracker.naverpay.com^$dnsrewrite=NXDOMAIN
-||tracker.kakaopay.com^$dnsrewrite=NXDOMAIN
-||analytics-log.kakaopay.com^$dnsrewrite=NXDOMAIN
-||log.toss.im^$dnsrewrite=NXDOMAIN
-||event.baemin.com^$dnsrewrite=NXDOMAIN
-||logger.baemin.com^$dnsrewrite=NXDOMAIN
-||tracker.yogiyo.co.kr^$dnsrewrite=NXDOMAIN
-||tracker.tmap.co.kr^$dnsrewrite=NXDOMAIN
-||log.tmap.co.kr^$dnsrewrite=NXDOMAIN
-||analytics.kakaomobility.com^$dnsrewrite=NXDOMAIN
-||log.kakaomobility.com^$dnsrewrite=NXDOMAIN
-||tracker.socar.kr^$dnsrewrite=NXDOMAIN
-||logger.socar.kr^$dnsrewrite=NXDOMAIN
-||stat.cj.net^$dnsrewrite=NXDOMAIN
-||log.lottecard.co.kr^$dnsrewrite=NXDOMAIN
+||log.coupang.com^
+||logger.coupang.com^
+||tracker.coupang.com^
+||clog.coupang.com^
+||tms.coupang.com^
+||collector-cf.coupang.com^
+||click.coupang.com^
+||event.coupang.com^
+||analyticslog.coupang.com^
+||stat.coupangeats.com^
+||click.linkprice.com^
+||logger.linkprice.com^
+||log.naver.com^
+||cc.naver.com^
+||lcs.naver.com^
+||siape.veta.naver.com^
+||nelo2-col.navercorp.com^
+||log.chzzk.naver.com^
+||stat.daum.net^
+||stat.kakao.com^
+||cf.kakao.com^
+||tr.kakao.com^
+||tiara.kakao.com^
+||tiara.daum.net^
+||track.tiara.kakao.com^
+||stat.ad.kakao.com^
+||analytics.ad.daum.net^
+||display.ad.daum.net^
+||analytics.kakaocorp.com^
+||analytics-log.kakao.com^
+||displayad.cauly.co.kr^
+||tg.socdm.com^
+||log.gmarket.co.kr^
+||event.gmarket.co.kr^
+||log.11st.co.kr^
+||log.auction.co.kr^
+||logger.ssg.com^
+||tracker.musinsa.com^
+||logger.wemakeprice.com^
+||stat.tmon.co.kr^
+||tracker.daangn.com^
+||event.bunjang.co.kr^
+||tracker.idus.com^
+||logger.ohou.se^
+||tracker.kurly.com^
+||trace.zigbang.com^
+||analytics.dabangapp.com^
+||cdp.melon.com^
+||analytics.tving.com^
+||analytics.wavve.com^
+||tracker.watcha.com^
+||tracking.kt.com^
+||stat.kt.com^
+||tracker.skt.com^
+||analytics.lguplus.com^
+||tracker.kbstar.com^
+||logger.shinhan.com^
+||analytics.wooribank.com^
+||event-log.payco.com^
+||tracker.naverpay.com^
+||tracker.kakaopay.com^
+||analytics-log.kakaopay.com^
+||log.toss.im^
+||event.baemin.com^
+||logger.baemin.com^
+||tracker.yogiyo.co.kr^
+||tracker.tmap.co.kr^
+||log.tmap.co.kr^
+||analytics.kakaomobility.com^
+||log.kakaomobility.com^
+||tracker.socar.kr^
+||logger.socar.kr^
+||stat.cj.net^
+||log.lottecard.co.kr^
 !
 ! ───── 디시인사이드 광고 / 추적 ─────
 ! 디시 자체 광고 서버 (서브도메인)
-||ad.dcinside.com^$dnsrewrite=NXDOMAIN
-||adv.dcinside.com^$dnsrewrite=NXDOMAIN
-||dcad.dcinside.com^$dnsrewrite=NXDOMAIN
-!||cnt.dcinside.com^$dnsrewrite=NXDOMAIN
-!||stat.dcinside.com^$dnsrewrite=NXDOMAIN
-!||stat.dcinside.co.kr^$dnsrewrite=NXDOMAIN
+||ad.dcinside.com^
+||adv.dcinside.com^
+||dcad.dcinside.com^
+!||cnt.dcinside.com^
+!||stat.dcinside.com^
+!||stat.dcinside.co.kr^
 !
 ! ═══════════════════════════════════════════
 ! 라이브 스트리밍 플랫폼 - 보조 차단
@@ -596,12 +596,12 @@
 !
 ! ───── Twitch ─────
 ! 추적/분석만 차단 가능 (광고 자체는 못 막음)
-||spade.twitch.tv^$dnsrewrite=NXDOMAIN
-||countess.twitch.tv^$dnsrewrite=NXDOMAIN
+||spade.twitch.tv^
+||countess.twitch.tv^
 !
 ! Twitch 광고 메타데이터 (IMA SDK)
-||imasdk.googleapis.com^$dnsrewrite=NXDOMAIN
-||pubads.g.doubleclick.net^$dnsrewrite=NXDOMAIN
+||imasdk.googleapis.com^
+||pubads.g.doubleclick.net^
 !
 ! ⚠️ 절대 차단 금지 (방송 송출 끊김)
 ! usher.ttvnw.net  ← 본 영상 스트림
@@ -610,10 +610,10 @@
 !
 ! ───── 치지직 (CHZZK) ─────
 ! 추적/분석 차단
-||log.chzzk.naver.com^$dnsrewrite=NXDOMAIN
-||nelo2-col.navercorp.com^$dnsrewrite=NXDOMAIN
-||lcs.naver.com^$dnsrewrite=NXDOMAIN
-||siape.veta.naver.com^$dnsrewrite=NXDOMAIN
+||log.chzzk.naver.com^
+||nelo2-col.navercorp.com^
+||lcs.naver.com^
+||siape.veta.naver.com^
 !
 ! ⚠️ 절대 차단 금지
 ! livecloud.pstatic.net  ← 본 영상 CDN
@@ -621,35 +621,35 @@
 !
 ! ───── 숲(SOOP) / 구 아프리카TV ─────
 ! 추적/분석 차단
-||log.sooplive.com^$dnsrewrite=NXDOMAIN
-||stat.sooplive.com^$dnsrewrite=NXDOMAIN
-||analysis.sooplive.com^$dnsrewrite=NXDOMAIN
-||collector1.sooplive.com^$dnsrewrite=NXDOMAIN
-||collector2.sooplive.com^$dnsrewrite=NXDOMAIN
-||collector3.sooplive.com^$dnsrewrite=NXDOMAIN
-||collector4.sooplive.com^$dnsrewrite=NXDOMAIN
-||afevent2.sooplive.com^$dnsrewrite=NXDOMAIN
-||laglog.sooplive.com^$dnsrewrite=NXDOMAIN
-||exlogcollector.sooplive.com^$dnsrewrite=NXDOMAIN
+||log.sooplive.com^
+||stat.sooplive.com^
+||analysis.sooplive.com^
+||collector1.sooplive.com^
+||collector2.sooplive.com^
+||collector3.sooplive.com^
+||collector4.sooplive.com^
+||afevent2.sooplive.com^
+||laglog.sooplive.com^
+||exlogcollector.sooplive.com^
 !
 ! 숲 광고 서버
-||adv.sooplive.com^$dnsrewrite=NXDOMAIN
-||ads.sooplive.com^$dnsrewrite=NXDOMAIN
-||adballoon.sooplive.com^$dnsrewrite=NXDOMAIN
+||adv.sooplive.com^
+||ads.sooplive.com^
+||adballoon.sooplive.com^
 !
 ! 네이버 추가
-||nlog.naver.com^$dnsrewrite=NXDOMAIN
-||nam.veta.naver.com^$dnsrewrite=NXDOMAIN
-||kr-col-ext.nelo.navercorp.com^$dnsrewrite=NXDOMAIN
+||nlog.naver.com^
+||nam.veta.naver.com^
+||kr-col-ext.nelo.navercorp.com^
 !
 ! 모바일 광고 SDK 추가
-||appsflyersdk.com^$dnsrewrite=NXDOMAIN
+||appsflyersdk.com^
 !
 ! 기타 텔레메트리
-||cnszui.lenovomm.com^$dnsrewrite=NXDOMAIN
-||js.monitor.azure.com^$dnsrewrite=NXDOMAIN
-||test-gateway.instagram.com^$dnsrewrite=NXDOMAIN
-||loc.map.baidu.com^$dnsrewrite=NXDOMAIN
+||cnszui.lenovomm.com^
+||js.monitor.azure.com^
+||test-gateway.instagram.com^
+||loc.map.baidu.com^
 !
 !
 ! ⚠️ 절대 차단 금지
@@ -658,8 +658,8 @@
 !
 ! ───── Kick ─────
 ! 추적/분석 차단
-||analytics.kick.com^$dnsrewrite=NXDOMAIN
-||events.kick.com^$dnsrewrite=NXDOMAIN
+||analytics.kick.com^
+||events.kick.com^
 !
 ! Kick는 Cloudflare CDN을 쓰고 광고가 적은 편이라
 ! 차단할 도메인이 거의 없음
@@ -669,73 +669,73 @@
 ! cdn.kick.com  ← CDN
 !
 ! GitHub 텔레메트리
-||collector.github.com^$dnsrewrite=NXDOMAIN
+||collector.github.com^
 !
 ! 네이버 웨일 브라우저 분석
-||cv.whale.naver.com^$dnsrewrite=NXDOMAIN
+||cv.whale.naver.com^
 !
 ! Brave 업데이트 (개인 판단)
-||go-updater.brave.com^$dnsrewrite=NXDOMAIN
+||go-updater.brave.com^
 !
 ! Chrome 자동완성 추적 (개인 판단)
-||content-autofill.googleapis.com^$dnsrewrite=NXDOMAIN
+||content-autofill.googleapis.com^
 !
 ! 구글 검색창에 타이핑할 때 나오는 '연관 검색어' 제안
-||suggestqueries.google.com^$dnsrewrite=NXDOMAIN
+||suggestqueries.google.com^
 !
 ! Chrome 최적화 가이드 (개인 판단)
-||optimizationguide-pa.googleapis.com^$dnsrewrite=NXDOMAIN
+||optimizationguide-pa.googleapis.com^
 !
 ! 엣지의 비주얼 검색이나 빙 관련 분석용
-||gateway.bingviz.microsoftapp.net^$dnsrewrite=NXDOMAIN
+||gateway.bingviz.microsoftapp.net^
 ! 엣지 새 탭의 뉴스나 날씨 관련 데이터 (첫 화면의 뉴스 피드가 보기 싫다면 막으세요)
-||api.msn.com^$dnsrewrite=NXDOMAIN
+||api.msn.com^
 !
 ! 레딧의 광고 및 분석용 로그를 수집
-||alb.reddit.com^$dnsrewrite=NXDOMAIN
+||alb.reddit.com^
 !
 ! 마이크로소프트의 앱 분석 및 크래시 리포트(로그 수집) 서버
-||in.appcenter.ms^$dnsrewrite=NXDOMAIN
+||in.appcenter.ms^
 !
 ! 로지텍 G Hub / 주변기기
-||r.logi.com^$dnsrewrite=NXDOMAIN
-||logi-ghub-telemetry.s3.amazonaws.com^$dnsrewrite=NXDOMAIN
+||r.logi.com^
+||logi-ghub-telemetry.s3.amazonaws.com^
 !
 ! 레이저 (Razer Synapse)
-||telemetry.razerapi.com^$dnsrewrite=NXDOMAIN
+||telemetry.razerapi.com^
 !
 ! 스틸시리즈 (SteelSeries)
-||engine-api.steelseries.com^$dnsrewrite=NXDOMAIN
+||engine-api.steelseries.com^
 !
 ! OpenAI (ChatGPT) 추적
-||events.statsigapi.net^$dnsrewrite=NXDOMAIN
-||oai-events.azureedge.net^$dnsrewrite=NXDOMAIN
+||events.statsigapi.net^
+||oai-events.azureedge.net^
 !
 ! Anthropic (Claude)
-||statsig.anthropic.com^$dnsrewrite=NXDOMAIN
+||statsig.anthropic.com^
 !
 ! 애드립 / 카울리 등 국내 모바일 광고 플랫폼
-||adlib.com^$dnsrewrite=NXDOMAIN
-||cauly.co.kr^$dnsrewrite=NXDOMAIN
-||mobon.net^$dnsrewrite=NXDOMAIN
-||tg.widerplanet.com^$dnsrewrite=NXDOMAIN
+||adlib.com^
+||cauly.co.kr^
+||mobon.net^
+||tg.widerplanet.com^
 !
 ! 추가 쇼핑 트래커
-||wcs.naver.net^$dnsrewrite=NXDOMAIN (네이버 프리미엄 로그 분석 - 쇼핑몰용)
-||log.marketkurly.com^$dnsrewrite=NXDOMAIN
+||wcs.naver.net^ (네이버 프리미엄 로그 분석 - 쇼핑몰용)
+||log.marketkurly.com^
 !
 ! 폰트/아이콘 트래킹
-||use.fontawesome.com^$dnsrewrite=NXDOMAIN
+||use.fontawesome.com^
 ! - (주의: 웹사이트 폰트가 깨질 수 있음)
-!||fonts.googleapis.com^$dnsrewrite=NXDOMAIN
+!||fonts.googleapis.com^
 !
 ! ───── 레노버(Lenovo) & ZUI 추가 차단 ─────
 ! 기기 진단 및 추가적인 중국 내수용 업데이트 서버
-||stats.zui.com^$dnsrewrite=NXDOMAIN
-||api.zui.lenovomm.com^$dnsrewrite=NXDOMAIN
-||recom.zui.com^$dnsrewrite=NXDOMAIN
-||sus.lenovomm.com^$dnsrewrite=NXDOMAIN
-||zui.lenovo.com^$dnsrewrite=NXDOMAIN
+||stats.zui.com^
+||api.zui.lenovomm.com^
+||recom.zui.com^
+||sus.lenovomm.com^
+||zui.lenovo.com^
 !
 ! ───── nProtect & 안랩 등 국내 보안 프로그램 잔재 ─────
 ! 1. 업데이트 서버 (은행 업무/백신 업데이트를 위해 가급적 허용 권장)
@@ -743,86 +743,86 @@
 ! ||liveupdate.ahnlab.com^ (<- 가급적 삭제)
 !
 ! 2. 통계 및 추적 서버 (이건 계속 막아놔도 상관없습니다)
-||st.ahnlab.com^$dnsrewrite=NXDOMAIN
-||aosupdate.ahnlab.com^$dnsrewrite=NXDOMAIN (설치 확인용 로그 서버)
+||st.ahnlab.com^
+||aosupdate.ahnlab.com^ (설치 확인용 로그 서버)
 !
 ! ───── 중국 앱/웹 서비스 공통 추적기 (QQ/Baidu/Xiaomi 등) ─────
 ! 다양한 앱에서 공통으로 사용하는 중국발 분석 서버
-||analysis.appcenter.ms^$dnsrewrite=NXDOMAIN
-||hm.baidu.com^$dnsrewrite=NXDOMAIN
-||log.umsns.com^$dnsrewrite=NXDOMAIN
-||trace.qq.com^$dnsrewrite=NXDOMAIN
-||oth.eve.mdt.qq.com^$dnsrewrite=NXDOMAIN
-||tracking.miui.com^$dnsrewrite=NXDOMAIN
+||analysis.appcenter.ms^
+||hm.baidu.com^
+||log.umsns.com^
+||trace.qq.com^
+||oth.eve.mdt.qq.com^
+||tracking.miui.com^
 !
 ! ───── 국내 서비스 로그 수집기 추가 ─────
-||wp.kakaocdn.net^$dnsrewrite=NXDOMAIN
-||log-upload.kakaopay.com^$dnsrewrite=NXDOMAIN
-||pcs.naver.com^$dnsrewrite=NXDOMAIN
+||wp.kakaocdn.net^
+||log-upload.kakaopay.com^
+||pcs.naver.com^
 !
 ! ───── 윈도우/엣지 브라우저 불필요 수집 ─────
 ! 사용 습관 수집 및 광고 ID 관련
-||browser.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||self.events.data.microsoft.com^$dnsrewrite=NXDOMAIN
+||browser.events.data.microsoft.com^
+||self.events.data.microsoft.com^
 !
 ! ───── 마이크로소프트 & 오피스 모바일 추가 ─────
 ! 윈도우/오피스 앱에서 활동 내역 및 사용 습관 수집
-||vortex.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||vortex-win.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||events.data.microsoft.com^$dnsrewrite=NXDOMAIN
-||pipe.aria.microsoft.com^$dnsrewrite=NXDOMAIN
-||onecollector.cloudapp.net^$dnsrewrite=NXDOMAIN (오피스 365 공통 수집기)
+||vortex.data.microsoft.com^
+||vortex-win.data.microsoft.com^
+||events.data.microsoft.com^
+||pipe.aria.microsoft.com^
+||onecollector.cloudapp.net^ (오피스 365 공통 수집기)
 !
 ! ───── 레노버(Lenovo) & ZUI 진단 추가 ─────
 ! UEF 외에도 기기 상태 및 사용 통계를 전송하는 서버들
-||stats.zui.com^$dnsrewrite=NXDOMAIN
-||recom.zui.com^$dnsrewrite=NXDOMAIN
-||api.zui.lenovomm.com^$dnsrewrite=NXDOMAIN
-||dcf.lenovomm.com^$dnsrewrite=NXDOMAIN
+||stats.zui.com^
+||recom.zui.com^
+||api.zui.lenovomm.com^
+||dcf.lenovomm.com^
 !
 ! ───── 구글(Google) 시스템 분석 & 개인화 추가 ─────
 ! 기기 분석 및 검색 결과 최적화를 위한 데이터 전송
-||android-safebrowsing.google.com^$dnsrewrite=NXDOMAIN
-||optimizationguide-pa.googleapis.com^$dnsrewrite=NXDOMAIN
-||feedback-pa.googleapis.com^$dnsrewrite=NXDOMAIN
-||speech.googleapis.com^$dnsrewrite=NXDOMAIN (음성 인식 미사용 시 차단 가능)
+||android-safebrowsing.google.com^
+||optimizationguide-pa.googleapis.com^
+||feedback-pa.googleapis.com^
+||speech.googleapis.com^ (음성 인식 미사용 시 차단 가능)
 !
 ! ───── 제조사 공통 텔레메트리 (삼성/기타) ─────
 ! 기기 오류 보고 및 익명 사용 데이터 전송
-||err.samsung.com^$dnsrewrite=NXDOMAIN
-||samsung-com.112.2o7.net^$dnsrewrite=NXDOMAIN (어도비 기반 삼성 분석 서버)
+||err.samsung.com^
+||samsung-com.112.2o7.net^ (어도비 기반 삼성 분석 서버)
 !
 ! — 구글 개인화 데이터 수집 (계정 활동 추적)
 ! — 구글 서비스 중 개인화된 스마트 기능(Personalization & Smart Features)과 관련된 서버 (사용자의 맥락을 파악"하는 기능)
-||geller-pa.googleapis.com^$dnsrewrite=NXDOMAIN
+||geller-pa.googleapis.com^
 !
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
-! ||threatmetrix.com^$dnsrewrite=NXDOMAIN
-! ||online-metrix.net^$dnsrewrite=NXDOMAIN
-! ||iovation.com^$dnsrewrite=NXDOMAIN
-! ||iesnare.com^$dnsrewrite=NXDOMAIN
-! ||perimeterx.net^$dnsrewrite=NXDOMAIN
-! ||fingerprint.com^$dnsrewrite=NXDOMAIN
-! ||fpjs.io^$dnsrewrite=NXDOMAIN
-! ||hcaptcha.com^$dnsrewrite=NXDOMAIN
-! ||recaptcha.net^$dnsrewrite=NXDOMAIN
-! ||statsig.anthropic.com^$dnsrewrite=NXDOMAIN
-! ||analytics.perplexity.ai^$dnsrewrite=NXDOMAIN
+! ||threatmetrix.com^
+! ||online-metrix.net^
+! ||iovation.com^
+! ||iesnare.com^
+! ||perimeterx.net^
+! ||fingerprint.com^
+! ||fpjs.io^
+! ||hcaptcha.com^
+! ||recaptcha.net^
+! ||statsig.anthropic.com^
+! ||analytics.perplexity.ai^
 ! T맵(T map)이나 SKT 전용 앱(에이닷, T월드 등)에서 내 현재 위치를 확인하거나 지도를 불러올 때 사용
-! ||rf-lbsidcstmap.sktelecom.com^$dnsrewrite=NXDOMAIN
+! ||rf-lbsidcstmap.sktelecom.com^
 ! 윈도우의 코파일럿 기능, 엣지 브라우저의 사이드바 AI, 그리고 코파일럿 웹사이트 사용안하면 가능
-! ||copilot.microsoft.com^$dnsrewrite=NXDOMAIN
+! ||copilot.microsoft.com^
 ! 페이스북이나 인스타그램 앱을 쓰지 않거나, "나는 앱을 켰을 때만 알림을 확인해도 상관없다"면 막으셔도 됩니다
-! ||edge-mqtt-fallback.facebook.com^$dnsrewrite=NXDOMAIN
+! ||edge-mqtt-fallback.facebook.com^
 ! — 구글 위치 기록
-! ||locationhistoryplacedetails-pa.googleapis.com^$dnsrewrite=NXDOMAIN
-! ||locationhistory-pa.googleapis.com^$dnsrewrite=NXDOMAIN
+! ||locationhistoryplacedetails-pa.googleapis.com^
+! ||locationhistory-pa.googleapis.com^
 ! — 구글 "내 기기 찾기" 관련 (본인이 안 쓰면 차단 OK)
-! ||spot-pa.googleapis.com^$dnsrewrite=NXDOMAIN
+! ||spot-pa.googleapis.com^
 ! — 윈도우 날씨 위젯 타일
-! ||tile-service.weather.microsoft.com^$dnsrewrite=NXDOMAIN
+! ||tile-service.weather.microsoft.com^
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
 ! android.apis.google.com           ← Google API 통합 엔드포인트
