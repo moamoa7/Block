@@ -844,3 +844,5 @@
 ! mapi.tmoney.co.kr^
 ! 4. SKT 전용 단말기의 소프트웨어 업데이트 확인, 기기 인증, 혹은 T월드 같은 전용 앱의 연동 설정 등을 담당
 ! urms.usp.sktelecom.com^
+! 5. 삼성 기본 앱 알림 / 삼성 멤버스 & 이벤트 / 내 디바이스 찾기
+! sdk.pushmessage.samsung.com
