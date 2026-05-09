@@ -553,7 +553,6 @@
 ||analytics.tving.com^$dnsrewrite=0.0.0.0
 ||analytics.wavve.com^$dnsrewrite=0.0.0.0
 ||tracker.watcha.com^$dnsrewrite=0.0.0.0
-||analytics.afreecatv.com^$dnsrewrite=0.0.0.0
 ||tracking.kt.com^$dnsrewrite=0.0.0.0
 ||stat.kt.com^$dnsrewrite=0.0.0.0
 ||tracker.skt.com^$dnsrewrite=0.0.0.0
@@ -621,21 +620,18 @@
 !
 ! ───── 숲(SOOP) / 구 아프리카TV ─────
 ! 추적/분석 차단
-||analytics.afreecatv.com^$dnsrewrite=0.0.0.0
-||log.sooplive.co.kr^$dnsrewrite=0.0.0.0
-||stat.sooplive.co.kr^$dnsrewrite=0.0.0.0
-||analytics.sooplive.co.kr^$dnsrewrite=0.0.0.0
+||log.sooplive.com^$dnsrewrite=0.0.0.0
+||analysis.sooplive.com^$dnsrewrite=0.0.0.0
+||collector1.sooplive.com^$dnsrewrite=0.0.0.0
 !
 ! 숲 광고 서버
-||adv.afreecatv.com^$dnsrewrite=0.0.0.0
-||adimg.afreecatv.com^$dnsrewrite=0.0.0.0
-||ads.sooplive.co.kr^$dnsrewrite=0.0.0.0
-||adv.sooplive.co.kr^$dnsrewrite=0.0.0.0
-||adimg.sooplive.co.kr^$dnsrewrite=0.0.0.0
+||adv.sooplive.com^$dnsrewrite=0.0.0.0
+||ads.sooplive.com^$dnsrewrite=0.0.0.0
+||adballoon.sooplive.com^$dnsrewrite=0.0.0.0
 !
 ! ⚠️ 절대 차단 금지
-! play.sooplive.co.kr  ← 본 영상 송출
-! livestream-manager.sooplive.co.kr
+! play.sooplive.com  ← 본 영상 송출
+! livestream-manager.sooplive.com
 !
 ! ───── Kick ─────
 ! 추적/분석 차단
