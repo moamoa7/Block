@@ -5906,6 +5906,127 @@ $cookie=/^_hjSession/
 
 
 
+!///////////////////////////////////////////////
+
+
+! ═══════════════════════════════════════════
+! 라이브 스트리밍 - 다양한 옵션 활용
+! ═══════════════════════════════════════════
+
+! ───── [$empty] 경로 단위 차단 (서비스는 살림) ─────
+! Twitch
+||twitch.tv/track^$empty
+||twitch.tv/api/channels/*/ad^$empty
+||gql.twitch.tv/integrity^$empty
+||spade.twitch.tv^$empty
+||countess.twitch.tv^$empty
+
+! 치지직
+||log.chzzk.naver.com^$empty
+||apis.naver.com/commercial^$empty
+||apis.naver.com/nng_main/nng/log^$empty
+||ssl.pstatic.net/static.commercial^$empty
+
+! 숲 (SOOP)
+||stbbs.afreecatv.com/api/log^$empty
+||static.file.sooplive.co.kr/log^$empty
+||log.sooplive.co.kr/api^$empty
+||afreecatv.com/api/stat^$empty
+||sooplive.co.kr/api/stat^$empty
+
+! Kick
+||kick.com/api/v2/track^$empty
+||kick.com/api/v1/analytics^$empty
+
+
+! ───── [$removeparam] 추적 파라미터 제거 ─────
+! 라이브 스트리밍 플랫폼은 자체 추적 파라미터를 많이 씀
+
+! Twitch 클립/VOD 공유 링크 추적 제거
+||twitch.tv^$removeparam=tt_content
+||twitch.tv^$removeparam=tt_medium
+||twitch.tv^$removeparam=referrer
+
+! 치지직 공유 링크 추적
+||chzzk.naver.com^$removeparam=track
+||chzzk.naver.com^$removeparam=trackingId
+
+! 숲 공유 링크 추적
+||afreecatv.com^$removeparam=hash
+||sooplive.co.kr^$removeparam=hash
+||afreecatv.com^$removeparam=stationNo
+||sooplive.co.kr^$removeparam=trackingNo
+
+! YouTube 라이브도 같이
+||youtube.com^$removeparam=feature
+||youtube.com^$removeparam=si
+||youtu.be^$removeparam=si
+
+
+! ───── [$cookie] 추적 쿠키 차단 ─────
+! 광고 타겟팅용 쿠키만 골라서 차단
+
+! Twitch
+||twitch.tv^$cookie=unique_id
+||twitch.tv^$cookie=server_session_id
+||twitch.tv^$cookie=experiment_overrides
+! 로그인 쿠키(auth-token)는 건들면 안 됨
+
+! 치지직 / 네이버
+||chzzk.naver.com^$cookie=NID_AUT_TARGETING
+||naver.com^$cookie=nid_inf
+||naver.com^$cookie=ba.uid
+
+! 숲
+||afreecatv.com^$cookie=_au
+||afreecatv.com^$cookie=_aupath
+||sooplive.co.kr^$cookie=_au
+||sooplive.co.kr^$cookie=_aupath
+
+
+! ───── [$redirect] 광고 리소스 → 빈 응답 대체 ─────
+! VAST/VMAP 광고 응답을 빈 응답으로 - 광고 영상 자리는 즉시 스킵
+
+! 일반 IMA SDK 기반 광고 (YouTube 라이브, 일부 임베드)
+||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=googletagservices.com/gpt.js
+||pubads.g.doubleclick.net/gampad/ads^$xmlhttprequest,redirect=noopvast-2.0
+||pubads.g.doubleclick.net/gampad/live/ads^$xmlhttprequest,redirect=noopvast-2.0
+
+! 치지직 광고 매니페스트 (라이브 광고)
+||apis.naver.com/commercial/*/vast^$xmlhttprequest,redirect=noopvast-4.0
+||livecloud.pstatic.net/*/ad/*^$media,redirect=noopmp4-1s
+
+! 숲 광고 비디오
+||adimg.afreecatv.com/*.mp4^$media,redirect=noopmp4-1s
+||adimg.sooplive.co.kr/*.mp4^$media,redirect=noopmp4-1s
+||adv.sooplive.co.kr/*.mp4^$media,redirect=noopmp4-1s
+
+
+! ───── [$removeheader] 추적 헤더 제거 ─────
+||twitch.tv^$removeheader=client-session-id
+||twitch.tv^$removeheader=x-device-id
+||sooplive.co.kr^$removeheader=set-cookie,domain=ads.sooplive.co.kr
+
+
+! ───── [리소스 타입별 차단] 영상/이미지/스크립트 한정 ─────
+! 광고 SDK 스크립트만 차단 (도메인은 살림)
+||imasdk.googleapis.com^$script
+||pagead2.googlesyndication.com^$script,domain=youtube.com|twitch.tv
+
+! 광고 비디오만 차단 (영상 외 리소스는 통과)
+||adv.sooplive.co.kr^$media
+||adimg.sooplive.co.kr^$media
+||adv.afreecatv.com^$media
+
+! 추적 비콘만 차단 (페이지 로딩은 정상)
+||twitch.tv/v1/stats^$xmlhttprequest,empty
+||chzzk.naver.com/service/v1/stats^$xmlhttprequest,empty
+||afreecatv.com/api/stat^$xmlhttprequest,empty
+||sooplive.co.kr/api/stat^$xmlhttprequest,empty
+
+
+
+
 
 
 
