@@ -938,7 +938,12 @@ etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.f
 ! - 애드블럭 감지 해제
 etoland.co.kr#@#[class^="ads"]
 etoland.co.kr#@#[class^="ad"]
-@@||doubleclick.net^$domain=etoland.co.kr
+!@@||doubleclick.net^$domain=etoland.co.kr
+!@@$removeparam=biw,domain=etoland.co.kr
+!@@$removeparam=bih,domain=etoland.co.kr
+!@@$removeparam=iu_parts,domain=etoland.co.kr
+!@@$removeparam=correlator,domain=etoland.co.kr
+!@@||doubleclick.net^$xhr,domain=etoland.co.kr
 ! - 팝업 차단
 ! etoland 팝업/팝언더 차단
 etoland.co.kr#%#//scriptlet('prevent-window-open')
@@ -4831,6 +4836,9 @@ yna.co.kr#@#[class*="popup-mo"]
 !
 !
 ##div[class*="ad_"]
+! - 예외
+! - 더쿠 (https://theqoo.net/) - 본문 다 날라감
+theqoo.net#@#div[class*="ad_"]
 !
 !
 #a[href*="adclick"]
