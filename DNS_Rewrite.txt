@@ -875,6 +875,10 @@
 ! ||tile-service.weather.microsoft.com^
 ! - 구글의 "내 활동(My Activity)" / 웹·앱 활동 기록 서버
 ||footprints-pa.googleapis.com^
+! - 위버스 앱 내 사용자의 활동 데이터를 수집하는 분석(Analytics) 서버
+||collection.weverse.io^
+! - SK텔레콤(SKT) 관련 서비스의 로그 수집 및 텔레메트리 서버 (기기 정보나 앱 사용 통계 전송)
+||slf.sktswe.net^
 !
 !
 !
