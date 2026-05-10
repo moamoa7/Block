@@ -866,8 +866,8 @@
 ||mkamp.kakao.com^
 ! 카카오 광고 메트릭
 ||kamp.kakao.com^
-! 카카오 Play 통계
-||vst.play.kakao.com^
+! 카카오 Play 통계 - 카카오tv 재생 차단
+!||vst.play.kakao.com^
 !
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
