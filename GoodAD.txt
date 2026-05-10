@@ -3619,11 +3619,13 @@ wavve.com#@##main-banner
 !
 ! 밤포탈 (https://bampt3.com/)
 ! - 팝업 뿌연거 해결
-[$domain=/^bampt\d+.com/]##.popup-overlay
+! - - - 뉴토끼 (https://ntk01.com/)
+[$domain=/^bampt/],[$domain=/^ntk/]##.popup-overlay
+##.popup-overlay
 ! - 영상 목록 사이 배너
-[$domain=/^bampt\d+.com/]##[class^="video-card infeed-ad"]
+[$domain=/^bampt/]##[class^="video-card infeed-ad"]
 ! - 영상 하단 배너
-[$domain=/^bampt\d+.com/]##a.infeed-ad
+[$domain=/^bampt/]##a.infeed-ad
 !
 !
 ! 야동존 (https://xxzone21.cc/)
