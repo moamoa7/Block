@@ -1690,7 +1690,8 @@ $removeparam=stream_id
 $removeparam=session_id
 $removeparam=visitor_id
 $removeparam=device_id
-$removeparam=client_id
+! - 로그인시 정상적인 접근이 아닙니다. 발생 주의 (이토랜드 등)
+!$removeparam=client_id
 $removeparam=tracking_session
 $removeparam=watch_session
 
