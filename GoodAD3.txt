@@ -430,6 +430,14 @@ i-boss.co.kr#@#[class*="sponsor"]
 
 
 
+##*:has(> iframe[src*="pusj"]):not(html):not(body)
+
+
+##[class*="push"]:has(iframe)
+
+
+##[id*="push"]:has(iframe)
+
 
 ! - https://mypikpak.com/
 ! - 조선일보 (https://www.chosun.com/)
