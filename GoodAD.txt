@@ -62,7 +62,7 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 @@||isplus.$stealth=dpi
 @@||koreainvestment.com^$stealth=dpi
 @@||kr^$stealth=dpi
-@@||pincrux.com^$stealth=dpi
+!@@||pincrux.com^$stealth=dpi
 @@||shopping.naver.com^$stealth
 @@||smartstore.naver.com^$stealth
 @@||sofrano.com^$stealth=dpi
@@ -340,7 +340,6 @@ x.com/*/videoads/
 ! - 숏폼 안보이게 (필요시) - 아래 규칙은 안해도 됨
 !||shortformstats.kakao.com^$app=com.kakao.talk
 ! - 카카오TV 광고 차단 우회
-! - - - ||kamp.kakao.com^ 차단해도 가능
 ! - - - ||vst.play.kakao.com^ 차단해도 가능
 tv.kakao.com#%#//scriptlet('set-constant', 'kakao.tv.adManager', 'noopFunc')
 !
@@ -600,6 +599,9 @@ sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'st
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
 ##[id="sub-ceremony-banner"]
+! - 광고 차단 방어(Anti-Adblock)'를 무력화하기 위한 우회 기술
+! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+!sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
@@ -1566,7 +1568,8 @@ tvhot.store##.object-cover
 ! - 배너 이미지
 !##.banner_
 ! - 영상 상단 흐르는 글자 광고
-tvroom.vip##.mq-notice
+!tvroom.vip##.mq-notice
+[$domain=/^tvroom/]##.mq-notice
 !
 !
 ! 누누티비 (https://www.nnuutv2.tv/)
@@ -3321,7 +3324,11 @@ missav.*,njavtv.com##.lg\:block
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 @@||fourhoi.com
 ! - 기타
-##a[rel*="sponsored"]
+!##a[rel*="sponsor"]
+!##div:has(> [rel*='sponsor'])
+##*:has(> [rel*='sponsor'])
+
+
 ##[src*="//ads.adxadserv.com/"]
 !
 !
@@ -3617,6 +3624,8 @@ wavve.com#@##main-banner
 ! 야동존 (https://xxzone21.cc/)
 ! - 영상 광고 차단
 */data/file/admin_banner/*.mp4
+! - 팝업 일부
+[$domain=/^xxzone/]###popupBannerModal
 !
 !
 ! 오늘의 중계 (today-sports8.com)
@@ -4518,9 +4527,9 @@ tistory.com##+js(set, adblockChecker, noopFunc)
 ! 조드 (https://zod.kr/)
 ! - 배너
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-zod.kr##[data-href^='https://zod.kr/go/']:has(img)
+!zod.kr##[data-href^='https://zod.kr/go/']:has(img)
 ! - 상단 배너공간
-zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.swiper-initialized.swiper
+!zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.swiper-initialized.swiper
 !
 !
 ! 주소콘 (https://www.jusocon.com/) (https://jusocon1.com/)
@@ -4710,6 +4719,12 @@ theporndude.com##.drawer-opener
 i-boss.co.kr#@#a[class*="_banner"]
 !
 !
+! 투디갤 (https://tdgall.com/)
+! 상단 배너
+! - - - https://hygall.com/
+##.admanager-row
+!
+!
 !
 !
 !
@@ -4856,3 +4871,10 @@ yna.co.kr#@#[class*="popup-mo"]
 ! - 출처 : Adblock-Rule-Collection-Lite
 ! - - - Funding Choices 서비스 삽입 (광고 차단 감지(Anti-AdBlock) / GDPR/쿠키 동의 배너 / 광고 수익 보호)
 ##iframe[name="googlefcPresent"]
+
+
+
+
+
+
+==================================
