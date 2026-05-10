@@ -52,7 +52,8 @@
 ||reports.crashlytics.com^
 ||e.crashlytics.com^
 ||firebaseinstallations.googleapis.com^
-||firebaseremoteconfig.googleapis.com^
+! - WIFI에서 디시인사이드 구동 안됨
+!||firebaseremoteconfig.googleapis.com^
 ||firebaseperformance.googleapis.com^
 ||firebaseinappmessaging.googleapis.com^
 ||firebasedynamiclinks.googleapis.com^
