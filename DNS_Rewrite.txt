@@ -825,8 +825,6 @@
 ||bzm-log.kakao.com^
 !
 ! ───── 차단 OK ─────
-! 카카오 숏폼 통계
-||shortformstats.kakao.com^
 ! MSN 광고/콘텐츠 추천
 ||arc.msn.com^
 ! 구글 동의 메시지
@@ -840,9 +838,12 @@
 ! 카카오 광고 메트릭 -  - 카카오tv 재생 차단 (라이브 방송)
 ! -  카카오tv광고차단 스크립트 규칙 사용과 무관
 !||kamp.kakao.com^
+||kamp.kakao.com^$app=com.kakao.talk
 ! 카카오 Play 통계 -  - 카카오tv 재생 차단 (일반 영상)
 ! -  카카오tv광고차단 스크립트 규칙 사용하면 차단 가능
 ||vst.play.kakao.com^
+! 카카오 숏폼 통계
+||shortformstats.kakao.com^
 !
 !
 !
