@@ -53,6 +53,9 @@
 ||e.crashlytics.com^
 ||firebaseinstallations.googleapis.com^
 ! - WIFI에서 디시인사이드 구동 안됨
+! - 버전 체크 / 서버 상태 확인 등 수행
+! - 광고 차단 리스트에서는 이걸 '분석용(Telemetry)'으로 보고 차단하는 경우가 많지만,
+! - 디시인사이드 같은 국내 앱들은 이 통로가 막히면 "서버 정보를 못 가져오니 실행을 중단
 !||firebaseremoteconfig.googleapis.com^
 ||firebaseperformance.googleapis.com^
 ||firebaseinappmessaging.googleapis.com^
