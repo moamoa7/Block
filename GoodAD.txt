@@ -334,11 +334,15 @@ x.com/*/videoads/
 !
 !
 ! 카카오톡 (앱)
-! - 숏폼 안보이게 (필요시)
+! - 숏폼 안보이게 (필요시) - 카카오tv 재생 막힘
+!||kamp.kakao.com^ - 앱에서만 막는 방법으로 하면 카카오TV 재생 가능
 !||kamp.kakao.com^$app=com.kakao.talk
-! - 숏폼 안보이게 (필요시) - 아래 2개 규칙은 안해도 됨
+! - 숏폼 안보이게 (필요시) - 아래 규칙은 안해도 됨
 !||shortformstats.kakao.com^$app=com.kakao.talk
-!||thumb.kakaocdn.net^$app=com.kakao.talk
+! - 카카오TV 광고 차단 우회
+! - - - ||kamp.kakao.com^ 차단해도 가능
+! - - - ||vst.play.kakao.com^ 차단해도 가능
+tv.kakao.com#%#//scriptlet('set-constant', 'kakao.tv.adManager', 'noopFunc')
 !
 !
 !
@@ -584,7 +588,7 @@ sooplive.com##.event_tooltip
 point.sooplive.com#@#[class^="ad"]
 ! -무한 버퍼링 해결?  (AdGuard DNS filter 필터 해제)
 ! - -- 출처 : https://gall.dcinside.com/adguard/9010
-@@||exlogcollector.sooplive.com^
+!@@||exlogcollector.sooplive.com^
 ! - 19금 다시보기 시청시 로그인 하라고 나오는거 해결 (애드가드만 해당)
 ! - - -  출처 : https://gall.dcinside.com/adguard/9365 댓글
 sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
@@ -4817,6 +4821,9 @@ yna.co.kr#@#[class*="popup-mo"]
 #a[href*="adclick"]
 !
 !
+##[class*="ads"]:has(video)
+!
+!
 !
 !
 !
@@ -4849,10 +4856,3 @@ yna.co.kr#@#[class*="popup-mo"]
 ! - 출처 : Adblock-Rule-Collection-Lite
 ! - - - Funding Choices 서비스 삽입 (광고 차단 감지(Anti-AdBlock) / GDPR/쿠키 동의 배너 / 광고 수익 보호)
 ##iframe[name="googlefcPresent"]
-
-
-
-
-
-
-==================================
