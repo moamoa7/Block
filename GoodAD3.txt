@@ -830,3 +830,5 @@ liteapks.com#@#.app-cta:not(html, body, :empty)
 
 /banner/*$frame,badfilter
 */images/banner$domain=~ipo.chinairn.com|~www.shuame.com|~exp.qq.com,badfilter
+
+||exlogcollector.sooplive.com^$badfilter
