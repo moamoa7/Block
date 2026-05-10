@@ -865,9 +865,11 @@
 ! 카카오 마케팅 플랫폼
 ||mkamp.kakao.com^
 ! 카카오 광고 메트릭 -  - 카카오tv 재생 차단 (라이브 방송)
-!||kamp.kakao.com^
+! -  카카오tv광고차단 스크립트 규칙 사용하면 차단 가능
+||kamp.kakao.com^
 ! 카카오 Play 통계 -  - 카카오tv 재생 차단 (일반 영상)
-!||vst.play.kakao.com^
+! -  카카오tv광고차단 스크립트 규칙 사용하면 차단 가능
+||vst.play.kakao.com^
 !
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
