@@ -10,6 +10,8 @@
 ##a[target*="blank"] > img[src*=".gif"]
 ! - 예외
 i-boss.co.kr#@#a[target*="blank"] > img[src*=".gif"]
+sooplive.com#@#a[target*="blank"] > img[src*=".gif"]
+
 
 
 ! - https://06.avsee.ru/
@@ -832,3 +834,4 @@ liteapks.com#@#.app-cta:not(html, body, :empty)
 */images/banner$domain=~ipo.chinairn.com|~www.shuame.com|~exp.qq.com,badfilter
 
 ||exlogcollector.sooplive.com^$badfilter
+
