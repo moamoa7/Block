@@ -801,37 +801,6 @@
 ! — 구글 서비스 중 개인화된 스마트 기능(Personalization & Smart Features)과 관련된 서버 (사용자의 맥락을 파악"하는 기능)
 ||geller-pa.googleapis.com^
 !
-!
-! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
-! 필요 시 주석(!) 제거하여 활성화
-! ||threatmetrix.com^
-! ||online-metrix.net^
-! ||iovation.com^
-! ||iesnare.com^
-! ||perimeterx.net^
-! ||fingerprint.com^
-! ||fpjs.io^
-! ||hcaptcha.com^
-! ||recaptcha.net^
-! ||statsig.anthropic.com^
-! ||analytics.perplexity.ai^
-! T맵(T map)이나 SKT 전용 앱(에이닷, T월드 등)에서 내 현재 위치를 확인하거나 지도를 불러올 때 사용
-! ||rf-lbsidcstmap.sktelecom.com^
-! 윈도우의 코파일럿 기능, 엣지 브라우저의 사이드바 AI, 그리고 코파일럿 웹사이트 사용안하면 가능
-! ||copilot.microsoft.com^
-! 페이스북이나 인스타그램 앱을 쓰지 않거나, "나는 앱을 켰을 때만 알림을 확인해도 상관없다"면 막으셔도 됩니다
-! ||edge-mqtt-fallback.facebook.com^
-! — 구글 위치 기록
-! ||locationhistoryplacedetails-pa.googleapis.com^
-! ||locationhistory-pa.googleapis.com^
-! — 구글 "내 기기 찾기" 관련 (본인이 안 쓰면 차단 OK)
-! ||spot-pa.googleapis.com^
-! — 윈도우 날씨 위젯 타일
-! ||tile-service.weather.microsoft.com^
-! - 구글의 "내 활동(My Activity)" / 웹·앱 활동 기록 서버
-||footprints-pa.googleapis.com^
-!
-!
 ! ───── 카카오톡 / 카카오 추가 추적 ─────
 ||analytics.kakao.com^
 ||tracker.kakao.com^
@@ -870,6 +839,40 @@
 ! 카카오 Play 통계 -  - 카카오tv 재생 차단 (일반 영상)
 ! -  카카오tv광고차단 스크립트 규칙 사용하면 차단 가능
 ||vst.play.kakao.com^
+!
+!
+!
+!
+! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
+! 필요 시 주석(!) 제거하여 활성화
+! ||threatmetrix.com^
+! ||online-metrix.net^
+! ||iovation.com^
+! ||iesnare.com^
+! ||perimeterx.net^
+! ||fingerprint.com^
+! ||fpjs.io^
+! ||hcaptcha.com^
+! ||recaptcha.net^
+! ||statsig.anthropic.com^
+! ||analytics.perplexity.ai^
+! T맵(T map)이나 SKT 전용 앱(에이닷, T월드 등)에서 내 현재 위치를 확인하거나 지도를 불러올 때 사용
+! ||rf-lbsidcstmap.sktelecom.com^
+! 윈도우의 코파일럿 기능, 엣지 브라우저의 사이드바 AI, 그리고 코파일럿 웹사이트 사용안하면 가능
+! ||copilot.microsoft.com^
+! 페이스북이나 인스타그램 앱을 쓰지 않거나, "나는 앱을 켰을 때만 알림을 확인해도 상관없다"면 막으셔도 됩니다
+! ||edge-mqtt-fallback.facebook.com^
+! — 구글 위치 기록
+! ||locationhistoryplacedetails-pa.googleapis.com^
+! ||locationhistory-pa.googleapis.com^
+! — 구글 "내 기기 찾기" 관련 (본인이 안 쓰면 차단 OK)
+! ||spot-pa.googleapis.com^
+! — 윈도우 날씨 위젯 타일
+! ||tile-service.weather.microsoft.com^
+! - 구글의 "내 활동(My Activity)" / 웹·앱 활동 기록 서버
+||footprints-pa.googleapis.com^
+!
+!
 !
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
