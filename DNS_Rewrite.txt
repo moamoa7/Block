@@ -721,7 +721,8 @@
 ||tg.widerplanet.com^
 !
 ! 추가 쇼핑 트래커
-||wcs.naver.net^ (네이버 프리미엄 로그 분석 - 쇼핑몰용)
+! 네이버 프리미엄 로그 분석 - 쇼핑몰용
+||wcs.naver.net^
 ||log.marketkurly.com^
 !
 ! 폰트/아이콘 트래킹
@@ -744,7 +745,8 @@
 !
 ! 2. 통계 및 추적 서버 (이건 계속 막아놔도 상관없습니다)
 ||st.ahnlab.com^
-||aosupdate.ahnlab.com^ (설치 확인용 로그 서버)
+! 설치 확인용 로그 서버
+||aosupdate.ahnlab.com^
 !
 ! ───── 중국 앱/웹 서비스 공통 추적기 (QQ/Baidu/Xiaomi 등) ─────
 ! 다양한 앱에서 공통으로 사용하는 중국발 분석 서버
@@ -771,7 +773,8 @@
 ||vortex-win.data.microsoft.com^
 ||events.data.microsoft.com^
 ||pipe.aria.microsoft.com^
-||onecollector.cloudapp.net^ (오피스 365 공통 수집기)
+! 오피스 365 공통 수집기
+||onecollector.cloudapp.net^
 !
 ! ───── 레노버(Lenovo) & ZUI 진단 추가 ─────
 ! UEF 외에도 기기 상태 및 사용 통계를 전송하는 서버들
@@ -785,12 +788,14 @@
 ||android-safebrowsing.google.com^
 ||optimizationguide-pa.googleapis.com^
 ||feedback-pa.googleapis.com^
-||speech.googleapis.com^ (음성 인식 미사용 시 차단 가능)
+! 음성 인식 미사용 시 차단 가능
+||speech.googleapis.com^
 !
 ! ───── 제조사 공통 텔레메트리 (삼성/기타) ─────
 ! 기기 오류 보고 및 익명 사용 데이터 전송
 ||err.samsung.com^
-||samsung-com.112.2o7.net^ (어도비 기반 삼성 분석 서버)
+! 어도비 기반 삼성 분석 서버
+||samsung-com.112.2o7.net^
 !
 ! — 구글 개인화 데이터 수집 (계정 활동 추적)
 ! — 구글 서비스 중 개인화된 스마트 기능(Personalization & Smart Features)과 관련된 서버 (사용자의 맥락을 파악"하는 기능)
@@ -847,13 +852,22 @@
 ||bzm-log.kakao.com^
 !
 ! ───── 차단 OK ─────
-||shortformstats.kakao.com^        ! 카카오 숏폼 통계
-||arc.msn.com^                     ! MSN 광고/콘텐츠 추천
+! 카카오 숏폼 통계
+||shortformstats.kakao.com^
+! MSN 광고/콘텐츠 추천
+||arc.msn.com^
+! 구글 동의 메시지
+||fundingchoicesmessages.google.com^
+! 네이트 광고/미디어 추정
+||dmc.nate.com^
 !
 ! ───── 차단 가능 (카카오 광고 사용 안 하면) ─────
-||mkamp.kakao.com^                 ! 카카오 마케팅 플랫폼
-||kamp.kakao.com^                  ! 카카오 광고 메트릭
-||vst.play.kakao.com^              ! 카카오 Play 통계
+! 카카오 마케팅 플랫폼
+||mkamp.kakao.com^
+! 카카오 광고 메트릭
+||kamp.kakao.com^
+! 카카오 Play 통계
+||vst.play.kakao.com^
 !
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
