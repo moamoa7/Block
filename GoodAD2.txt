@@ -898,7 +898,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||platform.twitter.com/widgets.js^$script,redirect=click2load.html
 ||connect.facebook.net/*/sdk.js^$script,redirect=click2load.html
 ||platform.linkedin.com/in.js^$script,redirect=click2load.html
-||www.youtube.com/embed/*$subdocument,redirect=click2load.html
+!||www.youtube.com/embed/*$subdocument,redirect=click2load.html
 ||player.vimeo.com/video/*$subdocument,redirect=click2load.html
 
 
