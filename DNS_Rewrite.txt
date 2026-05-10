@@ -634,7 +634,8 @@
 ||collector4.sooplive.com^
 ||afevent2.sooplive.com^
 ||laglog.sooplive.com^
-||exlogcollector.sooplive.com^
+! - 차단시 영상 버벅임 발생
+@@||exlogcollector.sooplive.com^
 !
 ! 숲 광고 서버
 ||adv.sooplive.com^
