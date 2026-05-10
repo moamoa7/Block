@@ -336,7 +336,9 @@ x.com/*/videoads/
 ! 카카오톡 (앱)
 ! - 숏폼 안보이게 (필요시) - 카카오tv 재생 막힘
 !||kamp.kakao.com^ - 앱에서만 막는 방법으로 하면 카카오TV 재생 가능
-!||kamp.kakao.com^$app=com.kakao.talk
+||kamp.kakao.com^$app=com.kakao.talk
+! - - - thumb.kakaocdn.net은 숏폼 썸네일만이 아니라 카카오톡 앱 내부 거의 모든 이미지 미리보기에 쓰입니다.
+!  -- -||thumb.kakaocdn.net^$app=com.kakao.talk   ← 빼는 게 안전
 ! - 숏폼 안보이게 (필요시) - 아래 규칙은 안해도 됨
 !||shortformstats.kakao.com^$app=com.kakao.talk
 ! - 카카오TV 광고 차단 우회
@@ -437,9 +439,10 @@ baidu.com###s-hotsearch-wrapper
 !
 ! 네이버 (https://www.naver.com/)
 ! - 네이버앱 깨지는거 해결 (참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
+@@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
-! - 아래 규칙은 안해도 되는듯
-!@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
+@@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
+@@||tivan.naver.com^$app=com.nhn.android.search
 !  - point.pay.naver.com 팝업 차단 - 차단하면 스크롤 안되서 해제
 !##[class*="Layer-module"]
 ! - 검색 AI버튼 없애기 (검색 버튼 복구) (필요시)
