@@ -1488,7 +1488,8 @@ $cookie=/^__hstc$/            ! HubSpot
 ||log.sooplive.co.kr/api^$empty
 ||afreecatv.com/api/stat^$empty
 ||sooplive.co.kr/api/stat^$empty
-||afevent2.sooplive.com^$empty
+! - 로그인을 해도 로그인은 되었지만 아바타 아이콘으로 바뀌지 않아 개인활동을 못함
+!||afevent2.sooplive.com^$empty
 ||laglog.sooplive.com^$empty
 ||exlogcollector.sooplive.com^$empty
 ||collector1.sooplive.com^$empty
