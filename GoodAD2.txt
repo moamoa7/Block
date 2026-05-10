@@ -2139,3 +2139,28 @@ $removeparam=watch_session
 ! ||analytics.perplexity.ai^$empty
 ! ||openai.com/v1/rgstr^$empty
 ! ||*.cohere.ai/v1/track^$empty
+
+
+============
+
+! ═══════════════════════════════════════════
+! 추가
+! ═══════════════════════════════════════════
+! Google 개인화
+||locationhistoryplacedetails-pa.googleapis.com^$empty
+||locationhistory-pa.googleapis.com^$empty
+||spot-pa.googleapis.com^$empty
+||geller-pa.googleapis.com^$empty
+
+! Windows 위젯/뉴스
+||tile-service.weather.microsoft.com^$empty
+
+! 추가 분석 도구
+||*.posthog.com^$empty
+||app.posthog.com^$empty
+||*.matomo.cloud^$empty
+||*.plausible.io^$empty
+
+! AI 서비스 텔레메트리 (이미 "선택 적용"에 일부 있음)
+||api.openai.com/v1/rgstr^$empty
+||telemetry.cursor.sh^$empty
