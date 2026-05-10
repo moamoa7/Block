@@ -293,13 +293,37 @@ $removeparam=pp
 $removeparam=si
 $removeparam=ab_channel
 
-! ───── 구글 검색 결과 추적 ─────
-$removeparam=sa
-$removeparam=sca_esv
-$removeparam=sxsrf
-$removeparam=source
-$removeparam=biw
-$removeparam=bih
+! ───── 구글 광고 추적 (안전, 전역 적용) ─────
+$removeparam=iu_parts
+$removeparam=correlator
+! - 광고 클릭 시 무한 로딩 범인일 확률이 99%
+$removeparam=adurl
+$removeparam=ad_id
+$removeparam=adgroupid
+$removeparam=campaignid
+$removeparam=matchtype
+$removeparam=targetid
+! - 지역 기반 검색을 지우므로 인해 근처 맛집"을 검색했을 때 엉뚱한 위치가 나올수 있음
+$removeparam=loc_physical_ms
+$removeparam=loc_interest_ms
+$removeparam=adposition
+$removeparam=ad_position
+$removeparam=ad_format
+$removeparam=ad_type
+
+! ───── DS 시리즈 (정규식) ─────
+$removeparam=/^ds_/
+
+! ───── 일반 단어형 (구글 도메인 전부 + 광고 도메인) ─────
+$removeparam=source,domain=google.com|google.co.kr|google.co.jp|google.co.uk|googleadservices.com|doubleclick.net
+$removeparam=device,domain=google.com|google.co.kr|google.co.jp|google.co.uk|googleadservices.com|doubleclick.net
+$removeparam=network,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+$removeparam=target,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+$removeparam=keyword,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+$removeparam=placement,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+$removeparam=creative,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+$removeparam=devicemodel,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+
 
 ! ───── 제휴 마케팅 (Affiliate) ─────
 $removeparam=affiliate_id
