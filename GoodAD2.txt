@@ -882,7 +882,8 @@ $cookie=/^__hstc$/            ! HubSpot
 ||doubleclick.net^$subdocument,redirect=noopframe
 ||googlesyndication.com^$subdocument,redirect=noopframe
 ||facebook.com/plugins/like.php^$subdocument,redirect=noopframe
-||platform.twitter.com^$subdocument,redirect=noopframe
+! - 트위터 임베드 안보임
+!||platform.twitter.com^$subdocument,redirect=noopframe
 
 ! ───── 폰트/CSS 추적 → 빈 응답 ─────
 ||use.fontawesome.com^$css,redirect=noopcss
