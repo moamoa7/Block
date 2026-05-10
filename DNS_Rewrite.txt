@@ -846,6 +846,14 @@
 ||shortformstats.kakao.com^
 !
 !
+! - 구글의 "내 활동(My Activity)" / 웹·앱 활동 기록 서버
+||footprints-pa.googleapis.com^
+! - 위버스 앱 내 사용자의 활동 데이터를 수집하는 분석(Analytics) 서버
+||collection.weverse.io^
+! - SK텔레콤(SKT) 관련 서비스의 로그 수집 및 텔레메트리 서버 (기기 정보나 앱 사용 통계 전송)
+||slf.sktswe.net^
+!
+!
 !
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
@@ -874,12 +882,6 @@
 ! ||spot-pa.googleapis.com^
 ! — 윈도우 날씨 위젯 타일
 ! ||tile-service.weather.microsoft.com^
-! - 구글의 "내 활동(My Activity)" / 웹·앱 활동 기록 서버
-||footprints-pa.googleapis.com^
-! - 위버스 앱 내 사용자의 활동 데이터를 수집하는 분석(Analytics) 서버
-||collection.weverse.io^
-! - SK텔레콤(SKT) 관련 서비스의 로그 수집 및 텔레메트리 서버 (기기 정보나 앱 사용 통계 전송)
-||slf.sktswe.net^
 !
 !
 !
