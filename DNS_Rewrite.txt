@@ -826,6 +826,27 @@
 ! - 구글의 "내 활동(My Activity)" / 웹·앱 활동 기록 서버
 ||footprints-pa.googleapis.com^
 !
+!
+! ───── 카카오톡 / 카카오 추가 추적 ─────
+||analytics.kakao.com^
+||tracker.kakao.com^
+||stat.talk.kakao.com^
+||log.kakao.com^
+||logger.kakao.com^
+!
+! ───── 카카오 광고 플랫폼 (Adfit / Moment) ─────
+||adfit.kakao.com^
+||sdk.adfit.kakao.com^
+||analytics.adfit.kakao.com^
+||display.ad.kakao.com^
+||display-ad.kakao.com^
+||tracker.moment.kakao.com^
+!
+! ───── 카카오 비즈메시지 분석 (일반 카톡 사용엔 영향 없음) ─────
+||bzm-capi.kakao.com^
+||bzm-log.kakao.com^
+!
+!
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
 ! android.apis.google.com           ← Google API 통합 엔드포인트
 ! www.googleapis.com                ← Google API 일반
