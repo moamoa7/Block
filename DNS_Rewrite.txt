@@ -846,6 +846,15 @@
 ||bzm-capi.kakao.com^
 ||bzm-log.kakao.com^
 !
+! ───── 차단 OK ─────
+||shortformstats.kakao.com^        ! 카카오 숏폼 통계
+||arc.msn.com^                     ! MSN 광고/콘텐츠 추천
+!
+! ───── 차단 가능 (카카오 광고 사용 안 하면) ─────
+||mkamp.kakao.com^                 ! 카카오 마케팅 플랫폼
+||kamp.kakao.com^                  ! 카카오 광고 메트릭
+||vst.play.kakao.com^              ! 카카오 Play 통계
+!
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
 ! android.apis.google.com           ← Google API 통합 엔드포인트
