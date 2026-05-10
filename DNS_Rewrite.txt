@@ -856,6 +856,7 @@
 !
 !
 !
+!
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
 ! ||threatmetrix.com^
@@ -882,6 +883,7 @@
 ! ||spot-pa.googleapis.com^
 ! — 윈도우 날씨 위젯 타일
 ! ||tile-service.weather.microsoft.com^
+!
 !
 !
 !
