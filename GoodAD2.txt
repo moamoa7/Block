@@ -425,7 +425,6 @@ $removeparam=/^matomo_/
 ||taboola.com^$removeheader=set-cookie
 ||revcontent.com^$removeheader=set-cookie
 ||mgid.com^$removeheader=set-cookie
-||dable.io^$removeheader=set-cookie
 
 ! ───── 측정/리서치/검증 ─────
 ||scorecardresearch.com^$removeheader=set-cookie
@@ -517,7 +516,6 @@ $removeparam=/^matomo_/
 ||cc-api-data.adobe.io^$removeheader=set-cookie
 
 ! ───── 한국 트래커 ─────
-||wcs.naver.net^$removeheader=set-cookie
 ||siape.veta.naver.com^$removeheader=set-cookie
 ||cc.naver.com^$removeheader=set-cookie
 ||lcs.naver.com^$removeheader=set-cookie
@@ -580,9 +578,7 @@ $removeparam=/^matomo_/
 ||bat.bing.com^$removeheader=request:referer
 ||hm.baidu.com^$removeheader=request:referer
 ||mc.yandex.ru^$removeheader=request:referer
-||wcs.naver.net^$removeheader=request:referer
 ||tiara.kakao.com^$removeheader=request:referer
-||dable.io^$removeheader=request:referer
 
 
 ! ═══════════════════════════════════════════
@@ -649,11 +645,9 @@ $removeparam=/^matomo_/
 ||bat.bing.com^$cookie
 
 ! ───── 한국 ─────
-||wcs.naver.net^$cookie
 ||tiara.kakao.com^$cookie
 ||click.coupang.com^$cookie
 ||tg.widerplanet.com^$cookie
-||dable.io^$cookie
 
 ! ───── 본체 살리고 추적 쿠키만 차단 ─────
 ! - 로봇인지 확인하는거 해결을 위한 주석 처리
@@ -736,7 +730,6 @@ $cookie=/^__hstc$/            ! HubSpot
 ||outbrain.com^$image,redirect=1x1-transparent.gif
 ||taboola.com^$image,redirect=1x1-transparent.gif
 ||revcontent.com^$image,redirect=1x1-transparent.gif
-||dable.io^$image,redirect=1x1-transparent.gif
 ||hotjar.com^$image,redirect=1x1-transparent.gif
 ||mixpanel.com^$image,redirect=1x1-transparent.gif
 ||segment.io^$image,redirect=1x1-transparent.gif
@@ -750,7 +743,6 @@ $cookie=/^__hstc$/            ! HubSpot
 ||px.ads.linkedin.com^$image,redirect=1x1-transparent.gif
 ||analytics.pinterest.com^$image,redirect=1x1-transparent.gif
 ||bat.bing.com^$image,redirect=1x1-transparent.gif
-||wcs.naver.net^$image,redirect=1x1-transparent.gif
 ||tiara.kakao.com^$image,redirect=1x1-transparent.gif
 ||analytics.ad.daum.net^$image,redirect=1x1-transparent.gif
 ||click.coupang.com^$image,redirect=1x1-transparent.gif
@@ -1032,7 +1024,6 @@ $cookie=/^__hstc$/            ! HubSpot
 ||s.ytimg.com/yts/jsbin/www-pagead*$script,third-party
 
 ! ───── 한국 추적 (리소스 타입별) ─────
-||wcs.naver.net^$image,third-party
 ||lcs.naver.com^$xmlhttprequest,third-party,empty
 ||cc.naver.com^$xmlhttprequest,third-party,empty
 ||tiara.kakao.com^$xmlhttprequest,third-party,empty
