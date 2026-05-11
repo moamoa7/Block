@@ -628,6 +628,7 @@
 ! 추적/분석 차단
 ||log.sooplive.com^
 ||stat.sooplive.com^
+||stat.afreecatv.com^
 ||analysis.sooplive.com^
 ||collector1.sooplive.com^
 ||collector2.sooplive.com^
@@ -637,11 +638,16 @@
 !||afevent2.sooplive.com^
 ||laglog.sooplive.com^
 ||exlogcollector.sooplive.com^
+||eventapi.sooplive.com^
 !
 ! 숲 광고 서버
 ||adv.sooplive.com^
 ||ads.sooplive.com^
 ||adballoon.sooplive.com^
+||adv.sooplive.co.kr^
+||adv.afreecatv.com^
+||adimg.sooplive.co.kr^
+||adimg.afreecatv.com^
 !
 ! 네이버 추가
 ||nlog.naver.com^
