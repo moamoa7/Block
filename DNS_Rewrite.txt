@@ -313,6 +313,8 @@
 ||sailthru.com^
 ||emarsys.net^
 ||dotomi.com^
+||static.zdassets.com^
+||ekr.zdassets.com^
 !
 ! ───── A/B 테스트 / 개인화 (신규) ─────
 ||dynamicyield.com^
