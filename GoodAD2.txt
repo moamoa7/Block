@@ -1325,28 +1325,8 @@ $cookie=/^__hstc$/            ! HubSpot
 ||sooplive.co.kr/api/stat^$empty
 ! - 로그인을 해도 아바타 아이콘으로 바뀌지 않아 개인활동을 못함
 !||afevent2.sooplive.com^$empty
-||laglog.sooplive.com^$empty
-||exlogcollector.sooplive.com^$empty
-||collector1.sooplive.com^$empty
-||collector2.sooplive.com^$empty
-||collector3.sooplive.com^$empty
-||collector4.sooplive.com^$empty
-||stat.sooplive.com^$empty
-||analysis.sooplive.com^$empty
-||stat.afreecatv.com^$empty
 ! 광고 표시 여부 결정 API
 ||st.sooplive.com/api/da_*^$xmlhttprequest,empty
-! 이벤트 수집 (텔레메트리)
-||eventapi.sooplive.com^$empty
-
-! 광고 비디오
-||adimg.afreecatv.com/*.mp4^$media,redirect=noopmp4-1s
-||adimg.sooplive.co.kr/*.mp4^$media,redirect=noopmp4-1s
-||adv.sooplive.co.kr/*.mp4^$media,redirect=noopmp4-1s
-||adv.afreecatv.com/*.mp4^$media,redirect=noopmp4-1s
-||adballoon.sooplive.com^$media,redirect=noopmp4-1s
-||ads.sooplive.com^$media,redirect=noopmp4-1s
-||adv.sooplive.com^$media,redirect=noopmp4-1s
 
 ! 광고 매니페스트
 ||*sooplive*/vast^$xmlhttprequest,redirect=noopvast-2.0
@@ -1354,11 +1334,6 @@ $cookie=/^__hstc$/            ! HubSpot
 ||afreecatv.com/api/v1/ad^$xmlhttprequest,empty
 ||sooplive.co.kr/api/v1/ad^$xmlhttprequest,empty
 ||sooplive.com/api/v1/ad^$xmlhttprequest,empty
-
-! 광고 이미지/배너
-||adimg.afreecatv.com^$image,redirect=1x1-transparent.gif
-||adimg.sooplive.co.kr^$image,redirect=1x1-transparent.gif
-||adballoon.sooplive.com^$image,redirect=1x1-transparent.gif
 
 ! 추적 파라미터
 ||afreecatv.com^$removeparam=hash
