@@ -1088,6 +1088,8 @@
 ! ||spot-pa.googleapis.com^
 ! — 윈도우 날씨 위젯 타일
 ! ||tile-service.weather.microsoft.com^
+! - 차단 시 방송 기능 영향 가능, 미검증
+! ||deapi.sooplive.com^
 !
 !
 !
