@@ -653,6 +653,8 @@
 !
 ! 기타 텔레메트리
 ||cnszui.lenovomm.com^
+! - Lenovo 모토로라/레노버 폰의 시스템 푸시 채널
+||icns.zui.lenovomm.com^
 ||js.monitor.azure.com^
 ||test-gateway.instagram.com^
 ||loc.map.baidu.com^
@@ -743,6 +745,7 @@
 ||recom.zui.com^
 ||sus.lenovomm.com^
 ||zui.lenovo.com^
+||icns.zui.lenovomm.com^
 !
 ! ───── nProtect & 안랩 등 국내 보안 프로그램 잔재 ─────
 ! 1. 업데이트 서버 (은행 업무/백신 업데이트를 위해 가급적 허용 권장)
@@ -857,38 +860,6 @@
 ! - SK텔레콤(SKT) 관련 서비스의 로그 수집 및 텔레메트리 서버 (기기 정보나 앱 사용 통계 전송)
 ||slf.sktswe.net^
 !
-!
-!
-!
-!
-! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
-! 필요 시 주석(!) 제거하여 활성화
-! ||threatmetrix.com^
-! ||online-metrix.net^
-! ||iovation.com^
-! ||iesnare.com^
-! ||perimeterx.net^
-! ||fingerprint.com^
-! ||fpjs.io^
-! ||hcaptcha.com^
-! ||recaptcha.net^
-! ||statsig.anthropic.com^
-! ||analytics.perplexity.ai^
-! T맵(T map)이나 SKT 전용 앱(에이닷, T월드 등)에서 내 현재 위치를 확인하거나 지도를 불러올 때 사용
-! ||rf-lbsidcstmap.sktelecom.com^
-! 윈도우의 코파일럿 기능, 엣지 브라우저의 사이드바 AI, 그리고 코파일럿 웹사이트 사용안하면 가능
-! ||copilot.microsoft.com^
-! 페이스북이나 인스타그램 앱을 쓰지 않거나, "나는 앱을 켰을 때만 알림을 확인해도 상관없다"면 막으셔도 됩니다
-! ||edge-mqtt-fallback.facebook.com^
-! — 구글 위치 기록
-! ||locationhistoryplacedetails-pa.googleapis.com^
-! ||locationhistory-pa.googleapis.com^
-! — 구글 "내 기기 찾기" 관련 (본인이 안 쓰면 차단 OK)
-! ||spot-pa.googleapis.com^
-! — 윈도우 날씨 위젯 타일
-! ||tile-service.weather.microsoft.com^
-!
-!
 ! ───── 악성 팝업/팝언더 광고 네트워크 ─────
 ||a-mo.net^
 ||magsrv.com^
@@ -997,10 +968,38 @@
 ! - ByteDance(틱톡 모회사)의 글로벌 모바일 광고 네트워크입니다. TikTok의 광고 SDK
 ||pangle.io^
 ! - Google Safe Browsing 서비스
-! - - - 용자가 접속하려는 사이트가 피싱·악성코드·사기 사이트인지 실시간으로 확인하는 보안 인프라
+! - - - 사용자가 접속하려는 사이트가 피싱·악성코드·사기 사이트인지 실시간으로 확인하는 보안 인프라
 @@||safebrowsing.googleapis.com^
 !
 !
+!
+!
+! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
+! 필요 시 주석(!) 제거하여 활성화
+! ||threatmetrix.com^
+! ||online-metrix.net^
+! ||iovation.com^
+! ||iesnare.com^
+! ||perimeterx.net^
+! ||fingerprint.com^
+! ||fpjs.io^
+! ||hcaptcha.com^
+! ||recaptcha.net^
+! ||statsig.anthropic.com^
+! ||analytics.perplexity.ai^
+! T맵(T map)이나 SKT 전용 앱(에이닷, T월드 등)에서 내 현재 위치를 확인하거나 지도를 불러올 때 사용
+! ||rf-lbsidcstmap.sktelecom.com^
+! 윈도우의 코파일럿 기능, 엣지 브라우저의 사이드바 AI, 그리고 코파일럿 웹사이트 사용안하면 가능
+! ||copilot.microsoft.com^
+! 페이스북이나 인스타그램 앱을 쓰지 않거나, "나는 앱을 켰을 때만 알림을 확인해도 상관없다"면 막으셔도 됩니다
+! ||edge-mqtt-fallback.facebook.com^
+! — 구글 위치 기록
+! ||locationhistoryplacedetails-pa.googleapis.com^
+! ||locationhistory-pa.googleapis.com^
+! — 구글 "내 기기 찾기" 관련 (본인이 안 쓰면 차단 OK)
+! ||spot-pa.googleapis.com^
+! — 윈도우 날씨 위젯 타일
+! ||tile-service.weather.microsoft.com^
 !
 !
 !
