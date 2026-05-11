@@ -67,6 +67,7 @@
 ||an.facebook.com^
 ||pixel.facebook.com^
 ||graph.facebook.com^
+||b-graph.facebook.com^
 ||edge-mqtt.facebook.com^
 ||analytics.facebook.com^
 ||business.facebook.com^
