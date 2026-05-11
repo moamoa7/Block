@@ -992,6 +992,14 @@
 ||posthog.com^
 ||plausible.io^
 !
+! - Yandex(러시아 검색엔진)의 AppMetrica 모바일 SDK 엔드포인트
+||startup.mobile.yandex.net^
+! - ByteDance(틱톡 모회사)의 글로벌 모바일 광고 네트워크입니다. TikTok의 광고 SDK
+||pangle.io^
+! - Google Safe Browsing 서비스
+! - - - 용자가 접속하려는 사이트가 피싱·악성코드·사기 사이트인지 실시간으로 확인하는 보안 인프라
+@@||safebrowsing.googleapis.com^
+!
 !
 !
 !
