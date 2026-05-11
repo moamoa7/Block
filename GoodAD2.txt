@@ -75,8 +75,9 @@ $removeparam=gad_source
 $removeparam=gad
 $removeparam=gad_campaignid
 $removeparam=srsltid
-$removeparam=ved
-$removeparam=usg
+! - 구글 링크 클릭시 리디렉션 알림 나오는거 해제
+!$removeparam=ved
+!$removeparam=usg
 
 ! ───── Facebook / Meta ─────
 $removeparam=fbclid
