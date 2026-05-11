@@ -936,7 +936,7 @@
 ||advertserve.com^
 ||adblockanalytics.com^
 ||doubleverify.com^
-
+!
 ! ───── 한국 광고/팝업 네트워크 ─────
 ||adcjs.kr^
 ||realclick.co.kr^
@@ -948,7 +948,7 @@
 ||igaworks.com^
 ||recopick.com^
 ||astralog.naver.com^
-
+!
 ! ───── 스트리밍/OTT 추가 ─────
 ||twitchcdn.net^
 ||analytics.twitch.tv^
@@ -959,7 +959,7 @@
 ||disney.demdex.net^
 ||disneyplus.bn5x.net^
 ||hbomax-analytics.warnermediacdn.com^
-
+!
 ! ───── 개발/소프트웨어 텔레메트리 추가 ─────
 ||telemetry.gradle.com^
 ||telemetry.dotnet.microsoft.com^
