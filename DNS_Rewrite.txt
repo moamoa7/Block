@@ -832,6 +832,8 @@
 ||fundingchoicesmessages.google.com^
 ! 네이트 광고/미디어 추정
 ||dmc.nate.com^
+! - 네이트 광고/콘텐츠 추천 서버일 가능성
+||wpde.nate.com^
 !
 ! ───── 차단 가능 (카카오 광고 사용 안 하면) ─────
 ! 카카오 마케팅 플랫폼
