@@ -958,7 +958,7 @@
 ||browser.events.data.msn.com^
 ||mig.vivaldi.com^
 ||update.vivaldi.com^
-
+!
 ! ───── 기타 분석 ─────
 ||posthog.com^
 ||plausible.io^
