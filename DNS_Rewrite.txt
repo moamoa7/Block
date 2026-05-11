@@ -970,6 +970,8 @@
 ! - Google Safe Browsing 서비스
 ! - - - 사용자가 접속하려는 사이트가 피싱·악성코드·사기 사이트인지 실시간으로 확인하는 보안 인프라
 @@||safebrowsing.googleapis.com^
+! - 명확한 광고 도메인이고, 리워드 앱을 안 쓴다면 막아도 아무 지장 없습니다.
+||pincrux.com^
 !
 !
 !
