@@ -75,7 +75,7 @@ $removeparam=gad_source
 $removeparam=gad
 $removeparam=gad_campaignid
 $removeparam=srsltid
-! - 구글 링크 클릭시 리디렉션 알림 나오는거 해제
+! - 구글 링크 클릭시 리디렉션 알림 해결을 위한 주석 처리 (2개)
 !$removeparam=ved
 !$removeparam=usg
 
@@ -672,7 +672,7 @@ $removeparam=/^vero_/
 ||tg.widerplanet.com^$cookie
 
 ! ───── 추가 ⭐ 본체 살리고 추적 쿠키만 차단 (가장 효과적) ─────
-! - LTE에서 로봇인지 확인하는거 귀찮아서 주석처리
+! - 로봇인지 확인하는거 해결을 위한 주석 처리
 !||google.com^$cookie=NID
 ||youtube.com^$cookie=VISITOR_INFO1_LIVE
 ||youtube.com^$cookie=YSC
@@ -686,7 +686,8 @@ $removeparam=/^vero_/
 ||tiktok.com^$cookie=_ttp
 
 ! 이름 기반 쿠키 차단 (모든 사이트에서)
-!$cookie=/^_ga/ - 디시안사이드 모바일에서 무한로딩 오류
+! -  - 디시안사이드 모바일에서 무한로딩 오류 해결을 위한 주석 처리
+!$cookie=/^_ga/
 $cookie=/^_gid$/
 $cookie=/^_fbp$/
 $cookie=/^_fbc$/
