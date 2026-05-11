@@ -26,7 +26,7 @@
 !
 ! Title: Traffic Saver & Privacy Filter
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
-! Version: integrated-rev3
+! Version: 20260512
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
