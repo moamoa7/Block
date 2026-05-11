@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260510
+! Version: 20260511
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -883,6 +883,110 @@
 ! ||spot-pa.googleapis.com^
 ! — 윈도우 날씨 위젯 타일
 ! ||tile-service.weather.microsoft.com^
+!
+!
+! ───── 악성 팝업/팝언더 광고 네트워크 ─────
+||a-mo.net^
+||magsrv.com^
+||exoclick.com^
+||exosrv.com^
+||exdynsrv.com^
+||exo.click^
+||exoticads.com^
+||juicyads.com^
+||trafficjunky.net^
+||trafficjunky.com^
+||trafficstars.com^
+||trafficfactory.biz^
+||plugrush.com^
+||clickaine.com^
+||popads.net^
+||popcash.net^
+||popmyads.com^
+||propellerads.com^
+||propellerclick.com^
+||propellerpops.com^
+||propu.sh^
+||propellertrk.com^
+||onclickads.net^
+||onclkds.com^
+||adcash.com^
+||adsterra.com^
+||adsterracdn.com^
+||hilltopads.net^
+||hilltopads.com^
+||htlbid.com^
+||eroadvertising.com^
+||clickadu.com^
+||revenuehits.com^
+||realsrv.com^
+||adkernel.com^
+||tsyndicate.com^
+||tsyndicate.net^
+||rotaban.ru^
+||clickfuse.com^
+||adsbtrk.com^
+||pushwhy.com^
+||pushpushgo.com^
+||pushengage.com^
+||pushcrew.com^
+||luckyads.online^
+||luckyforads.com^
+||vcommission.com^
+||content.ad^
+||infolinks.com^
+||adblade.com^
+||sekindo.com^
+||adsupplyads.com^
+||smartyads.com^
+||vidoomy.com^
+||underdog.media^
+||advertserve.com^
+||adblockanalytics.com^
+||doubleverify.com^
+
+! ───── 한국 광고/팝업 네트워크 ─────
+||adcjs.kr^
+||realclick.co.kr^
+||realclick.kr^
+||adop.cc^
+||mediacategory.com^
+||adpopcorn.com^
+||tnkfactory.com^
+||igaworks.com^
+||recopick.com^
+||astralog.naver.com^
+
+! ───── 스트리밍/OTT 추가 ─────
+||twitchcdn.net^
+||analytics.twitch.tv^
+||client-event-reporter.twitch.tv^
+||appboot.netflix.com^
+||ichnaea.netflix.com^
+||pixel.spotify.com^
+||disney.demdex.net^
+||disneyplus.bn5x.net^
+||hbomax-analytics.warnermediacdn.com^
+
+! ───── 개발/소프트웨어 텔레메트리 추가 ─────
+||telemetry.gradle.com^
+||telemetry.dotnet.microsoft.com^
+||telemetry.npmjs.org^
+||telemetry.docker.com^
+||telemetry.cursor.sh^
+||shavar.services.mozilla.com^
+||location.services.mozilla.com^
+||browser-intake-datadoghq.com^
+||firebaselogging.googleapis.com^
+||redirector.gvt1.com^
+||config.edge.skype.com^
+||browser.events.data.msn.com^
+||mig.vivaldi.com^
+||update.vivaldi.com^
+
+! ───── 기타 분석 ─────
+||posthog.com^
+||plausible.io^
 !
 !
 !
