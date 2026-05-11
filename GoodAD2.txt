@@ -671,7 +671,8 @@ $removeparam=/^vero_/
 ||tg.widerplanet.com^$cookie
 
 ! ───── 추가 ⭐ 본체 살리고 추적 쿠키만 차단 (가장 효과적) ─────
-||google.com^$cookie=NID
+! - LTE에서 로봇인지 확인하는거 귀찮아서 주석처리
+!||google.com^$cookie=NID
 ||youtube.com^$cookie=VISITOR_INFO1_LIVE
 ||youtube.com^$cookie=YSC
 ||twitter.com^$cookie=personalization_id
