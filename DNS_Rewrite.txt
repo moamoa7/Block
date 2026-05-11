@@ -613,12 +613,23 @@
 ! video-edge-*.ttvnw.net  ← 영상 엣지 서버
 ! video-weaver.*.ttvnw.net  ← HLS 청크
 !
-! ───── 치지직 (CHZZK) ─────
-! 추적/분석 차단
+!! ───── 치지직 (CHZZK) + 네이버 공용 추적/광고 ─────
+! 추적/분석 차단 (치지직 직접 관련)
 ||log.chzzk.naver.com^
 ||nelo2-col.navercorp.com^
+||kr-col-ext.nelo.navercorp.com^
+||nlog.naver.com^
+!
+! 네이버 공용 분석 (치지직도 사용)
 ||lcs.naver.com^
+||cc.naver.com^
+||wcs.naver.net^
 ||siape.veta.naver.com^
+||nam.veta.naver.com^
+||astralog.naver.com^
+!
+! 네이버 광고 추천 위젯 (데이블)
+||dable.io^
 !
 ! ⚠️ 절대 차단 금지
 ! livecloud.pstatic.net  ← 본 영상 CDN
