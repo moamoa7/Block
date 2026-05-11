@@ -63,6 +63,7 @@
 !
 ! ───── 메타(페이스북) / 인스타그램 트래킹 ─────
 ||facebook.net^
+! - "페이스북으로 로그인" 버튼이 동작하지 않습니다. 해당 기능을 쓰신다면 그 도메인만 예외 처리
 ||connect.facebook.net^
 ||an.facebook.com^
 ||pixel.facebook.com^
