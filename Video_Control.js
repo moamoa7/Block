@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v32.0.6)
+// @name         Video_Control (v32.0.7)
 // @namespace    https://github.com/moamoa7
-// @version      32.0.6
-// @description  v32.0.6: 크롬계열 브라우저 일부 사용 범위 확대
+// @version      32.0.7
+// @description  v32.0.7: cosmetic filter 회피 (호스트 인라인 style 최소화)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,7 +33,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '32.0.6';
+  const VSC_VERSION = '32.0.7';
   const DEBUG = false;
 
   const log = {
@@ -492,7 +492,7 @@
     const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { for (const e of entries) { if (e.isIntersecting || e.intersectionRatio > 0) { scheduler.request(); return; } } }, { root: null, threshold: [0, 0.05, 0.5], rootMargin: '150px' }) : null;
     const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => { for (const e of entries) { if (e.target.tagName === 'VIDEO') { scheduler.request(); return; } } }) : null;
 
-    const isVscNode = (n) => { if (!n || n.nodeType !== 1) return false; return !!(n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd'); };
+    const isVscNode = (n) => { if (!n || n.nodeType !== 1) return false; return !!(n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd-host'); };
 
     let _onLoadstartCallback = null;
     function setOnLoadstartCallback(fn) { _onLoadstartCallback = fn; }
@@ -711,7 +711,6 @@
     let bypassMode = false;
     let generation = 0;
 
-    // ★ 수정: MES로 연결된 적이 있는 비디오를 추적
     const mesConnectedVideos = new WeakSet();
 
     const jwCache = new WeakMap();
@@ -859,7 +858,6 @@
           if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
         }
         else {
-          // ★ 수정: MES 소스는 ctx.destination에 연결해서 소리 유지
           try { currentSrc.connect(ctx.destination); } catch (_) {}
         }
       }
@@ -888,13 +886,12 @@
       try {
         s = ctx.createMediaElementSource(video);
         mesMap.set(video, s);
-        mesConnectedVideos.add(video); // ★ 추적
+        mesConnectedVideos.add(video);
         return s;
       }
       catch (e) { video.dataset.vscMesFail = "1"; return null; }
     }
 
-    // ★ 수정: MES로 연결된 비디오인지 확인
     function hasMesConnection(video) {
       return mesMap.has(video) || mesConnectedVideos.has(video);
     }
@@ -935,7 +932,6 @@
         streamMap.delete(target);
       }
       try { currentSrc.disconnect(); } catch (_) {}
-      // ★ 수정: MES 소스는 disconnect 후 반드시 ctx.destination에 재연결해야 소리가 남
       if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') {
         try { currentSrc.connect(ctx.destination); } catch (_) {}
       }
@@ -963,8 +959,6 @@
       else if (targetVideo?.isConnected && isAnyAudioActive() && canConnect(targetVideo)) {
         connectSource(targetVideo);
       }
-      // ★ 수정: 오디오가 모두 비활성이고, MES 연결이 있었던 비디오인데 currentSrc가 없으면
-      //          ctx.destination 경로가 유지되고 있으므로 그냥 놔둠 (소리가 이미 남)
     }
 
     function setTarget(video) {
@@ -976,7 +970,6 @@
           return;
         }
         if (currentSrc) { updateMix(); return; }
-        // ★ 수정: 오디오 기능이 전부 꺼져있으면 연결 시도하지 않음
         if (!isAnyAudioActive()) return;
         if (canConnect(video)) {
           if (!initCtx()) return;
@@ -988,7 +981,6 @@
       const gen = ++generation;
       const active = isAnyAudioActive();
 
-      // ★ 핵심 수정: 오디오 처리가 전혀 불필요하면 AudioContext/MES 연결을 절대 하지 않음
       if (!active) {
         const oldTarget = targetVideo;
         if (currentSrc || bypassMode) {
@@ -1036,9 +1028,6 @@
         streamMap.delete(video);
         if (currentSrc === s) { currentSrc = null; currentMode = 'none'; currentRouteIsProcessed = false; }
       }
-      // ★ 수정: MES는 loadstart 시에도 mesMap에서 제거 (새 소스로 다시 연결 필요)
-      // 단, MES는 한번 생성되면 재사용되므로 실제로는 mesMap을 유지
-      // mesConnectedVideos도 유지 (같은 video 엘리먼트이므로)
     }
 
     let gestureHooked = false;
@@ -1088,7 +1077,9 @@
     }
 
     function buildSvg(root) {
-      const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
+      // SVG는 inline style을 사용하지 않고 SVG 속성만 사용 (cosmetic filter 회피)
+      const svg = h('svg', { ns: 'svg', width: '0', height: '0', 'aria-hidden': 'true', focusable: 'false' });
+      // SVG의 시각적 숨김은 width/height=0으로 처리
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
@@ -1265,18 +1256,66 @@
     };
   }
 
+  // ★ OSD를 Shadow DOM으로 감싸 cosmetic filter 회피
   function createOSD() {
-    let el = null, timerId = 0;
+    let host = null, shadow = null, el = null, timerId = 0;
+
+    function ensureHost() {
+      if (host && host.isConnected) return;
+      const root = document.fullscreenElement || document.documentElement || document.body;
+      if (!root) return;
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'vsc-osd-host';
+        host.setAttribute('data-vsc-ui', '1');
+        // 호스트 인라인 style은 비워둠 (cosmetic filter 회피)
+        shadow = host.attachShadow({ mode: 'closed' });
+        const style = document.createElement('style');
+        style.textContent = `
+          :host {
+            all: initial !important;
+            position: fixed !important;
+            top: 48px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 2147483647 !important;
+            pointer-events: none !important;
+            contain: none !important;
+          }
+          .osd {
+            background: rgba(12,12,18,0.92);
+            color: rgba(255,255,255,0.95);
+            padding: 10px 28px;
+            border-radius: 14px;
+            border: 1px solid rgba(0,229,255,0.15);
+            font: 600 13px/1.4 system-ui, sans-serif;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(0,229,255,0.08);
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.3s;
+            white-space: nowrap;
+          }
+          .osd.show { opacity: 1; }
+        `;
+        shadow.appendChild(style);
+        el = document.createElement('div');
+        el.className = 'osd';
+        shadow.appendChild(el);
+      }
+      if (host.parentNode !== root) {
+        try { root.appendChild(host); } catch (_) {}
+      }
+    }
+
     return {
       show: (text, ms = 1200) => {
         if (!document.body) return;
-        const root = document.fullscreenElement || document.documentElement || document.body;
-        if (!el) { el = document.createElement('div'); el.id = 'vsc-osd'; el.setAttribute('data-vsc-ui', '1'); el.style.cssText = 'position:fixed!important;top:48px!important;left:50%!important;transform:translateX(-50%)!important;background:rgba(12,12,18,0.92)!important;color:rgba(255,255,255,0.95)!important;padding:10px 28px!important;border-radius:14px!important;border:1px solid rgba(0,229,255,0.15)!important;font:600 13px/1.4 system-ui,sans-serif!important;z-index:2147483647!important;pointer-events:none!important;opacity:0!important;transition:opacity 0.2s,transform 0.3s!important;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(0,229,255,0.08)!important;text-align:center!important;'; }
-        if (el.parentNode !== root) root.appendChild(el);
+        ensureHost();
+        if (!el) return;
         el.textContent = text;
-        requestAnimationFrame(() => { el.style.setProperty('opacity', '1', 'important'); });
+        requestAnimationFrame(() => { el.classList.add('show'); });
         clearTimeout(timerId);
-        timerId = setTimeout(() => { if (el) el.style.setProperty('opacity', '0', 'important'); }, ms);
+        timerId = setTimeout(() => { if (el) el.classList.remove('show'); }, ms);
       }
     };
   }
@@ -1285,7 +1324,6 @@
     const overlays = new WeakMap();
     let active = false;
     let timeUpdateHandler = null;
-    let _hideMethod = 'opacity';
 
     function formatTime(sec) {
       if (!sec || !isFinite(sec)) return '--:--';
@@ -1297,37 +1335,109 @@
         : `${m}:${String(s).padStart(2,'0')}`;
     }
 
+    // ★ 라디오 오버레이를 Shadow DOM으로 감싸 cosmetic filter 회피
     function createOverlay(video) {
       if (overlays.has(video)) return overlays.get(video);
       const container = video.parentElement;
       if (!container) return null;
 
-      const overlay = document.createElement('div');
-      overlay.setAttribute('data-vsc-ui', '1');
-      overlay.setAttribute('data-vsc-radio', '1');
-      overlay.style.cssText = `
-        position:absolute!important; top:0!important; left:0!important;
-        width:100%!important; height:100%!important;
-        background:linear-gradient(135deg, rgba(8,8,16,0.97) 0%, rgba(12,12,24,0.98) 50%, rgba(8,8,16,0.97) 100%)!important;
-        z-index:2147483646!important; pointer-events:none!important;
-        display:flex!important; flex-direction:column!important;
-        align-items:center!important; justify-content:center!important;
-        gap:16px!important; font-family:system-ui,sans-serif!important;
-        transition:opacity 0.4s ease!important; opacity:0!important;
+      const host = document.createElement('div');
+      host.setAttribute('data-vsc-ui', '1');
+      host.setAttribute('data-vsc-radio', '1');
+      // 호스트 인라인 style 최소화: 위치 잡기에 꼭 필요한 것만 별도 클래스로 처리하기 어렵기 때문에
+      // 호스트 자체는 비워두고 부모 위에 absolute로 띄우기 위해 클래스로 처리
+      const shadow = host.attachShadow({ mode: 'closed' });
+
+      const style = document.createElement('style');
+      style.textContent = `
+        :host {
+          all: initial !important;
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          z-index: 2147483646 !important;
+          pointer-events: none !important;
+        }
+        .ovl {
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(135deg, rgba(8,8,16,0.97) 0%, rgba(12,12,24,0.98) 50%, rgba(8,8,16,0.97) 100%);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+          font-family: system-ui, sans-serif;
+          opacity: 0;
+          transition: opacity 0.4s ease;
+        }
+        .ovl.show { opacity: 1; }
+        .icon-wrap {
+          position: relative;
+          width: 64px;
+          height: 64px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .pulse {
+          position: absolute;
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          border: 2px solid rgba(0,229,255,0.3);
+          animation: vsc-radio-pulse 2s ease-in-out infinite;
+        }
+        @keyframes vsc-radio-pulse {
+          0% { transform: scale(1); opacity: 0.6; }
+          50% { transform: scale(1.4); opacity: 0; }
+          100% { transform: scale(1); opacity: 0; }
+        }
+        .icon {
+          position: relative;
+          z-index: 1;
+          display: flex;
+        }
+        .label {
+          font-size: 14px;
+          font-weight: 700;
+          letter-spacing: 3px;
+          color: rgba(0,229,255,0.8);
+          text-transform: uppercase;
+        }
+        .time {
+          font-family: 'SF Mono', monospace;
+          font-size: 18px;
+          color: rgba(255,255,255,0.5);
+          font-variant-numeric: tabular-nums;
+        }
+        .hint {
+          font-size: 11px;
+          color: rgba(255,255,255,0.25);
+        }
+        .warn {
+          font-size: 11px;
+          color: rgba(255,190,70,0.8);
+          margin-top: 4px;
+          display: none;
+        }
+        .warn.show { display: block; }
       `;
+      shadow.appendChild(style);
+
+      const ovl = document.createElement('div');
+      ovl.className = 'ovl';
 
       const iconWrap = document.createElement('div');
-      iconWrap.style.cssText = 'position:relative!important;width:64px!important;height:64px!important;display:flex!important;align-items:center!important;justify-content:center!important;';
+      iconWrap.className = 'icon-wrap';
 
       const pulse = document.createElement('div');
-      pulse.style.cssText = `
-        position:absolute!important;width:64px!important;height:64px!important;
-        border-radius:50%!important;border:2px solid rgba(0,229,255,0.3)!important;
-        animation:vsc-radio-pulse 2s ease-in-out infinite!important;
-      `;
+      pulse.className = 'pulse';
 
       const icon = document.createElement('div');
-      icon.style.cssText = 'position:relative!important;z-index:1!important;display:flex!important;';
+      icon.className = 'icon';
       icon.appendChild(
         h('svg', { ns: 'svg', width: '32', height: '32', viewBox: '0 0 24 24', fill: 'none', stroke: 'rgba(0,229,255,0.9)', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
           h('path', { ns: 'svg', d: 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' }),
@@ -1341,57 +1451,39 @@
       iconWrap.append(pulse, icon);
 
       const label = document.createElement('div');
+      label.className = 'label';
       label.textContent = 'RADIO MODE';
-      label.style.cssText = `
-        font-size:14px!important;font-weight:700!important;letter-spacing:3px!important;
-        color:rgba(0,229,255,0.8)!important;text-transform:uppercase!important;
-      `;
 
       const timeEl = document.createElement('div');
-      timeEl.style.cssText = `
-        font-family:'SF Mono',monospace!important;font-size:18px!important;
-        color:rgba(255,255,255,0.5)!important;font-variant-numeric:tabular-nums!important;
-      `;
+      timeEl.className = 'time';
       timeEl.textContent = '--:-- / --:--';
 
       const hint = document.createElement('div');
+      hint.className = 'hint';
       hint.textContent = '영상 화면만 검게 표시';
-      hint.style.cssText = 'font-size:11px!important;color:rgba(255,255,255,0.25)!important;';
 
       const audioWarn = document.createElement('div');
-      audioWarn.style.cssText = 'font-size:11px!important;color:rgba(255,190,70,0.8)!important;margin-top:4px!important;display:none!important;';
-      audioWarn.setAttribute('data-vsc-radio-warn', '1');
+      audioWarn.className = 'warn';
 
-      overlay.append(iconWrap, label, timeEl, hint, audioWarn);
-
-      if (!document.getElementById('vsc-radio-css')) {
-        const style = document.createElement('style');
-        style.id = 'vsc-radio-css';
-        style.textContent = `
-          @keyframes vsc-radio-pulse {
-            0% { transform:scale(1); opacity:0.6; }
-            50% { transform:scale(1.4); opacity:0; }
-            100% { transform:scale(1); opacity:0; }
-          }
-        `;
-        (document.head || document.documentElement).appendChild(style);
-      }
+      ovl.append(iconWrap, label, timeEl, hint, audioWarn);
+      shadow.appendChild(ovl);
 
       const pos = getComputedStyle(container).position;
       if (pos === 'static') container.style.position = 'relative';
 
-      container.appendChild(overlay);
-      requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+      container.appendChild(host);
+      requestAnimationFrame(() => { ovl.classList.add('show'); });
 
-      overlays.set(video, { overlay, timeEl, audioWarn });
-      return { overlay, timeEl, audioWarn };
+      const data = { host, ovl, timeEl, audioWarn };
+      overlays.set(video, data);
+      return data;
     }
 
     function removeOverlay(video) {
       const data = overlays.get(video);
       if (!data) return;
-      data.overlay.style.opacity = '0';
-      setTimeout(() => { try { data.overlay.remove(); } catch (_) {} }, 400);
+      data.ovl.classList.remove('show');
+      setTimeout(() => { try { data.host.remove(); } catch (_) {} }, 400);
       overlays.delete(video);
     }
 
@@ -1406,19 +1498,15 @@
       if (!data) return;
       if (msg) {
         data.audioWarn.textContent = msg;
-        data.audioWarn.style.display = 'block';
+        data.audioWarn.classList.add('show');
       } else {
-        data.audioWarn.style.display = 'none';
+        data.audioWarn.classList.remove('show');
       }
     }
 
     function hideVideo(video) {
-      if (_hideMethod === 'opacity') {
-        video.style.setProperty('opacity', '0', 'important');
-        video.style.setProperty('pointer-events', 'none', 'important');
-      } else {
-        video.style.setProperty('visibility', 'hidden', 'important');
-      }
+      video.style.setProperty('opacity', '0', 'important');
+      video.style.setProperty('pointer-events', 'none', 'important');
     }
 
     function showVideo(video) {
@@ -1509,8 +1597,34 @@
     };
     const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생', settings: '저장' };
 
+    // ★ :host 규칙에서 position/z-index/pointer-events를 모두 처리 (호스트 인라인 style 키워드 회피)
+    const HOST_CSS = `
+    :host {
+      all: initial !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      z-index: 2147483647 !important;
+      pointer-events: none !important;
+      contain: none !important;
+      overflow: visible !important;
+      width: 0 !important;
+      height: 0 !important;
+      isolation: isolate;
+    }
+    :host(.vsc-fs) {
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    :host(.vsc-hidden) {
+      display: none !important;
+    }
+    `;
+
     const CSS_VARS = `
-    :host { position: fixed !important; contain: none !important; overflow: visible !important; isolation: isolate; z-index: 2147483647 !important;
+    :host {
       --vsc-glass: rgba(12, 12, 18, 0.72); --vsc-glass-blur: blur(24px) saturate(200%); --vsc-glass-border: rgba(255, 255, 255, 0.06);
       --vsc-neon: #00e5ff; --vsc-neon-glow: 0 0 12px rgba(0, 229, 255, 0.35), 0 0 40px rgba(0, 229, 255, 0.08); --vsc-neon-soft: rgba(0, 229, 255, 0.15); --vsc-neon-border: rgba(0, 229, 255, 0.25); --vsc-neon-dim: rgba(0, 229, 255, 0.08);
       --vsc-purple: #b47aff; --vsc-amber: #ffbe46; --vsc-green: #4cff8e;
@@ -1521,9 +1635,10 @@
       --vsc-font-sm: 11px; --vsc-font-md: 13px;
       --vsc-touch-min: ${IS_MOBILE ? '44px' : '34px'}; --vsc-touch-slider: ${IS_MOBILE ? '20px' : '14px'}; --vsc-panel-width: 380px; --vsc-panel-right: ${IS_MOBILE ? '56px' : '52px'}; --vsc-panel-max-h: 82vh; --vsc-qbar-right: ${IS_MOBILE ? '6px' : '10px'};
       --vsc-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --vsc-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-      font-family: var(--vsc-font) !important; font-size: var(--vsc-font-md) !important; color: var(--vsc-text) !important; -webkit-font-smoothing: antialiased; }`;
+      font-family: var(--vsc-font) !important; font-size: var(--vsc-font-md) !important; color: var(--vsc-text) !important; -webkit-font-smoothing: antialiased;
+    }`;
 
-    const PANEL_CSS = `${CSS_VARS}
+    const PANEL_CSS = `${HOST_CSS}${CSS_VARS}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; color: inherit; }
     .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px) !important; top: 50% !important; width: var(--vsc-panel-width) !important; max-height: var(--vsc-panel-max-h) !important; background: var(--vsc-glass) !important; border: 1px solid var(--vsc-glass-border) !important; border-radius: var(--vsc-radius-xl) !important; backdrop-filter: var(--vsc-glass-blur) !important; -webkit-backdrop-filter: var(--vsc-glass-blur) !important; box-shadow: var(--vsc-shadow-panel) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; user-select: none !important; opacity: 0 !important; transform: translate(16px, -50%) scale(0.92) !important; transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring) !important; overscroll-behavior: none !important; }
     .panel.open { opacity: 1 !important; transform: translate(0, -50%) scale(1) !important; pointer-events: auto !important; }
@@ -1593,7 +1708,7 @@
     .save-card .save-btn.primary { background:rgba(0,229,255,0.1); border-color:rgba(0,229,255,0.25); color:var(--vsc-neon); }
     .save-card .save-btn.danger { border-color:rgba(255,100,100,0.2); color:rgba(255,100,100,0.7); }
     .save-card .save-btn.danger:hover { background:rgba(255,100,100,0.1); border-color:rgba(255,100,100,0.4); color:rgba(255,100,100,0.9); }
-    .save-status { font-family:var(--vsc-font-mono); font-size:11px; padding:8px 12px; border-radius:var(--vsc-radius-sm); background:rgba(0,229,255,0.04); border:1px solid rgba(0,229,255,0.1); color:rgba(0,229,255,0.7); margin:6px 0; line-height:1.5; }
+    .save-status { font-family:var(--vsc-font-mono); font-size:11px; padding:8px 12px; border-radius:var(--vsc-radius-sm); background:rgba(0,229,255,0.04); border:1px solid rgba(0,229,255,0.1); color:rgba(0,229,255,0.7); margin:6px 0; line-height:1.5; white-space:pre-line; }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
@@ -1602,31 +1717,40 @@
       if (fs) { if (fs.tagName === 'VIDEO') return fs.parentElement || document.documentElement; if (fs.shadowRoot) return document.documentElement; return fs; }
       return document.documentElement || document.body;
     }
-    const HOST_STYLE_BASE = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
-    const HOST_STYLE_NORMAL = HOST_STYLE_BASE + 'width:0!important;height:0!important;';
-    const HOST_STYLE_FS = HOST_STYLE_BASE + 'right:0!important;bottom:0!important;width:100%!important;height:100%!important;';
+
     let _lastMount = null, _qbarHasVideo = false, _lastIsFs = null;
 
     function reparent() {
       if (!quickBarHost) return; const target = getMountTarget(); if (!target) return;
       const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      if (target !== _lastMount) { _lastMount = target; if (quickBarHost.parentNode !== target) try { target.appendChild(quickBarHost); } catch (_) {} if (panelHost && panelHost.parentNode !== target) try { target.appendChild(panelHost); } catch (_) {} }
-      if (_lastIsFs !== isFs) { _lastIsFs = isFs; const style = isFs ? HOST_STYLE_FS : HOST_STYLE_NORMAL; quickBarHost.style.cssText = style; if (panelHost) panelHost.style.cssText = style; if (!_qbarHasVideo) quickBarHost.style.setProperty('display', 'none', 'important'); }
-      if (panelHost && panelOpen && panelEl) panelEl.style.pointerEvents = 'auto';
+      if (target !== _lastMount) {
+        _lastMount = target;
+        if (quickBarHost.parentNode !== target) try { target.appendChild(quickBarHost); } catch (_) {}
+        if (panelHost && panelHost.parentNode !== target) try { target.appendChild(panelHost); } catch (_) {}
+      }
+      if (_lastIsFs !== isFs) {
+        _lastIsFs = isFs;
+        // ★ 인라인 style 대신 클래스로 fs 모드 토글
+        quickBarHost.classList.toggle('vsc-fs', isFs);
+        if (panelHost) panelHost.classList.toggle('vsc-fs', isFs);
+      }
     }
+
     function onFullscreenChange() { reparent(); Scheduler.request(); setTimeout(reparent, 80); setTimeout(reparent, 400); if (!document.fullscreenElement && !document.webkitFullscreenElement) { _lastMount = null; _lastIsFs = null; } }
+
     function updateQuickBarVisibility() {
       if (!quickBarHost) return;
       if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
-        if (_qbarHasVideo) { _qbarHasVideo = false; quickBarHost.style.setProperty('display', 'none', 'important'); if (panelOpen) togglePanel(false); }
+        if (_qbarHasVideo) { _qbarHasVideo = false; quickBarHost.classList.add('vsc-hidden'); if (panelOpen) togglePanel(false); }
         return;
       }
       let has = Registry.videos.size > 0;
       if (!has) try { has = !!document.querySelector('video'); } catch (_) {}
       if (!has && Registry.shadowRootsLRU) { for (const it of Registry.shadowRootsLRU) { if (it.host?.isConnected && it.root) { try { if (it.root.querySelector('video')) { has = true; break; } } catch (_) {} } } }
-      if (has && !_qbarHasVideo) { _qbarHasVideo = true; quickBarHost.style.removeProperty('display'); }
-      else if (!has && _qbarHasVideo) { _qbarHasVideo = false; quickBarHost.style.setProperty('display', 'none', 'important'); if (panelOpen) togglePanel(false); }
+      if (has && !_qbarHasVideo) { _qbarHasVideo = true; quickBarHost.classList.remove('vsc-hidden'); }
+      else if (!has && _qbarHasVideo) { _qbarHasVideo = false; quickBarHost.classList.add('vsc-hidden'); if (panelOpen) togglePanel(false); }
     }
+
     function updateTabIndicator(tabBar, tabName) { if (!tabBar) return; const tabs = tabBar.querySelectorAll('.tab'); const idx = ['video','audio','playback','settings'].indexOf(tabName); if (idx < 0) return; const tabEl = tabs[idx]; if (!tabEl) return; requestAnimationFrame(() => { const barRect = tabBar.getBoundingClientRect(); const tabRect = tabEl.getBoundingClientRect(); tabBar.style.setProperty('--tab-indicator-left', `${tabRect.left - barRect.left}px`); tabBar.style.setProperty('--tab-indicator-width', `${tabRect.width}px`); tabs.forEach(t => t.classList.toggle('on', t.dataset.t === tabName)); }); }
 
     function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
@@ -1651,14 +1775,15 @@
 
     function mkSliderWithFine(label, path, min, max, step, fineStep) {
       const [slider, valEl] = mkSlider(path, min, max, step);
-      const mkFine = (d, t) => { const b = h('button', { class: 'fine-btn', style: 'font-size:11px' }, t); b.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path) || 0) + d) * 100) / 100, min, max)); }); return b; };
-      const resetBtn = h('button', { class: 'fine-btn', style: 'min-width:24px;font-size:10px;opacity:.6' }, '0');
+      const mkFine = (d, t) => { const b = h('button', { class: 'fine-btn fine-btn-pm' }, t); b.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path) || 0) + d) * 100) / 100, min, max)); }); return b; };
+      const resetBtn = h('button', { class: 'fine-btn fine-btn-reset' }, '0');
       resetBtn.addEventListener('click', () => { Store.set(path, 0); });
-      return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
+      const wrap = h('div', { class: 'fine-wrap' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn);
+      return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, wrap));
     }
 
     function mkChipRow(label, path, chips, onSelectOverride) {
-      const wrap = h('div', {}); if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
+      const wrap = h('div', {}); if (label) wrap.append(h('label', { class: 'chip-label' }, label));
       const row = h('div', { class: 'chips' });
       for (const ch of chips) row.appendChild(h('span', { class: 'chip', 'data-v': String(ch.v) }, ch.l));
       row.addEventListener('click', e => { const chip = e.target.closest('.chip'); if (!chip) return; const val = chip.dataset.v; const parsed = isNaN(Number(val)) ? val : Number(val); if (onSelectOverride) { onSelectOverride(parsed); } else { Store.set(path, parsed); } for (const c of row.children) c.classList.toggle('on', c.dataset.v === val); });
@@ -1674,17 +1799,17 @@
 
     function buildPreGainButtons() {
       const wrap = h('div', {});
-      const headerRow = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0 2px' });
-      const label = h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '프리 게인');
+      const headerRow = h('div', { class: 'pregain-header' });
+      const label = h('label', { class: 'pregain-label' }, '프리 게인');
       headerRow.append(label);
       wrap.append(headerRow);
 
-      const ctrlRow = h('div', { style: 'display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 0' });
+      const ctrlRow = h('div', { class: 'pregain-ctrl' });
 
-      const btnDown = h('button', { class: 'fine-btn', style: 'font-size:14px;min-width:36px;min-height:36px' }, '◀');
-      const valDisplay = h('span', { style: 'font-family:var(--vsc-font-mono);font-size:18px;font-weight:700;color:var(--vsc-neon);min-width:52px;text-align:center' }, '100%');
-      const btnUp = h('button', { class: 'fine-btn', style: 'font-size:14px;min-width:36px;min-height:36px' }, '▶');
-      const resetBtn = h('button', { class: 'fine-btn', style: 'font-size:10px;min-width:36px;opacity:.6' }, '100');
+      const btnDown = h('button', { class: 'fine-btn pregain-btn' }, '◀');
+      const valDisplay = h('span', { class: 'pregain-val' }, '100%');
+      const btnUp = h('button', { class: 'fine-btn pregain-btn' }, '▶');
+      const resetBtn = h('button', { class: 'fine-btn pregain-reset' }, '100');
 
       const STEP = 5;
       const MIN = 1;
@@ -1707,7 +1832,8 @@
       const sync = () => {
         const cur = Number(Store.get(P.V_MAN_PREGAIN) ?? 100);
         valDisplay.textContent = `${cur}%`;
-        valDisplay.style.color = cur < 100 ? 'var(--vsc-amber)' : cur > 100 ? 'var(--vsc-green)' : 'var(--vsc-neon)';
+        valDisplay.classList.toggle('low', cur < 100);
+        valDisplay.classList.toggle('high', cur > 100);
       };
       tabFns.push(sync);
 
@@ -1725,9 +1851,9 @@
 
     function buildPresetGrid() {
       const wrap = h('div', {});
-      const headerRow = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0 2px' });
-      const label = h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '톤 보정');
-      const offBtn = h('button', { class: 'fine-btn', style: 'font-size:10px;min-width:36px' }, 'OFF');
+      const headerRow = h('div', { class: 'preset-header' });
+      const label = h('label', { class: 'pregain-label' }, '톤 보정');
+      const offBtn = h('button', { class: 'fine-btn preset-off' }, 'OFF');
       offBtn.addEventListener('click', () => {
         const obj = {};
         for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = 0;
@@ -1785,7 +1911,6 @@
         const on = !!Store.get(P.RADIO_EN);
         card.classList.toggle('on', on);
         badge.textContent = on ? 'ON' : 'OFF';
-        iconWrap.style.color = on ? 'var(--vsc-neon)' : 'rgba(255,255,255,0.4)';
       };
       tabFns.push(sync);
       sync();
@@ -1864,9 +1989,9 @@
       globalCard.append(globalActions);
       wrap.append(globalCard);
 
-      const dangerCard = h('div', { class: 'save-card', style: 'border-color:rgba(255,100,100,0.15)' });
+      const dangerCard = h('div', { class: 'save-card danger-card' });
       dangerCard.append(
-        h('div', { class: 'save-title', style: 'color:rgba(255,100,100,0.8)' }, '전체 초기화'),
+        h('div', { class: 'save-title danger-title' }, '전체 초기화'),
         h('div', { class: 'save-desc' }, '모든 사이트 설정과 글로벌 기본값을 삭제하고 공장 초기값으로 복원합니다.')
       );
       const dangerActions = h('div', { class: 'save-actions' });
@@ -1963,43 +2088,158 @@
       }
     }
 
+    // ★ 퀵바 호스트도 인라인 style 제거, :host CSS로 처리
+    const QBAR_EXTRA_CSS = `
+    .qbar {
+      pointer-events: none;
+      position: fixed !important;
+      top: 50% !important;
+      right: var(--vsc-qbar-right) !important;
+      transform: translateY(-50%) !important;
+      display: flex !important;
+      align-items: center !important;
+      z-index: 2147483647 !important;
+    }
+    .qbar .qb-main {
+      pointer-events: auto;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--vsc-glass);
+      border: 1px solid rgba(255,255,255,0.08);
+      opacity: ${IS_MOBILE ? '0' : '0.1'};
+      transition: all 0.3s var(--vsc-ease-out);
+      box-shadow: var(--vsc-shadow-fab);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-tap-highlight-color: transparent;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .qbar:hover .qb-main {
+        opacity: 1;
+        transform: scale(1.08);
+        border-color: var(--vsc-neon-border);
+        box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow);
+      }
+      .qbar:hover .qb-main svg { stroke: var(--vsc-neon) !important; }
+    }
+    .qbar .qb-main.touch-reveal {
+      opacity: 0.85 !important;
+      border-color: var(--vsc-neon-border);
+      box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow);
+    }
+    .qbar .qb-main.touch-reveal svg { stroke: var(--vsc-neon) !important; }
+    .qbar svg {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: #fff !important;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      display: block !important;
+      pointer-events: none !important;
+    }
+    .qbar .qb-main.radio-active {
+      opacity: 0.9;
+      border-color: rgba(0,229,255,0.4);
+      animation: qb-radio-blink 2s ease-in-out infinite;
+    }
+    @keyframes qb-radio-blink {
+      0%, 100% { box-shadow: var(--vsc-shadow-fab), 0 0 8px rgba(0,229,255,0.2); }
+      50% { box-shadow: var(--vsc-shadow-fab), 0 0 20px rgba(0,229,255,0.5); }
+    }
+    `;
+
+    // ★ 패널 추가 CSS (인라인 style 제거를 위한 보조 클래스)
+    const PANEL_EXTRA_CSS = `
+    .hdr-close { margin-left: auto; }
+    .chip-label { font-size: 11px; opacity: 0.6; display: block; margin-bottom: 3px; }
+    .fine-wrap { display: flex; gap: 3px; margin-left: 4px; }
+    .fine-btn-pm { font-size: 11px; }
+    .fine-btn-reset { min-width: 24px; font-size: 10px; opacity: 0.6; }
+    .pregain-header, .preset-header { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 2px; }
+    .pregain-label { font-size: 12px; opacity: 0.8; font-weight: 600; }
+    .pregain-ctrl { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 0; }
+    .pregain-btn { font-size: 14px; min-width: 36px; min-height: 36px; }
+    .pregain-val { font-family: var(--vsc-font-mono); font-size: 18px; font-weight: 700; color: var(--vsc-neon); min-width: 52px; text-align: center; }
+    .pregain-val.low { color: var(--vsc-amber); }
+    .pregain-val.high { color: var(--vsc-green); }
+    .pregain-reset { font-size: 10px; min-width: 36px; opacity: 0.6; }
+    .preset-off { font-size: 10px; min-width: 36px; }
+    .danger-card { border-color: rgba(255,100,100,0.15) !important; }
+    .danger-title { color: rgba(255,100,100,0.8) !important; }
+    `;
+
     function buildQuickBar() {
       if (quickBarHost) return;
-      quickBarHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-gear-host', style: HOST_STYLE_NORMAL }); quickBarHost.style.setProperty('display', 'none', 'important');
+      // ★ 인라인 style 완전 제거. 클래스만 사용
+      quickBarHost = document.createElement('div');
+      quickBarHost.setAttribute('data-vsc-ui', '1');
+      quickBarHost.id = 'vsc-gear-host';
+      quickBarHost.classList.add('vsc-hidden');
       shieldHost(quickBarHost);
       _qbarShadow = quickBarHost.attachShadow({ mode: 'closed' });
       const qStyle = document.createElement('style');
-      qStyle.textContent = `${CSS_VARS} .qbar { pointer-events:none; position:fixed!important; top:50%!important; right:var(--vsc-qbar-right)!important; transform:translateY(-50%)!important; display:flex!important; align-items:center!important; z-index:2147483647!important; } .qbar .qb-main { pointer-events:auto; width:46px; height:46px; border-radius:50%; background:var(--vsc-glass); border:1px solid rgba(255,255,255,0.08); opacity:${IS_MOBILE ? '0' : '0.1'}; transition:all 0.3s var(--vsc-ease-out); box-shadow:var(--vsc-shadow-fab); display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(16px) saturate(180%); -webkit-tap-highlight-color:transparent; } @media (hover: hover) and (pointer: fine) { .qbar:hover .qb-main { opacity:1; transform:scale(1.08); border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar:hover .qb-main svg { stroke:var(--vsc-neon)!important; } } .qbar .qb-main.touch-reveal { opacity:0.85!important; border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar .qb-main.touch-reveal svg { stroke:var(--vsc-neon)!important; } .qbar svg { width:22px; height:22px; fill:none; stroke:#fff!important; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block!important; pointer-events:none!important; } .qbar .qb-main.radio-active { opacity:0.9; border-color:rgba(0,229,255,0.4); animation:qb-radio-blink 2s ease-in-out infinite; } @keyframes qb-radio-blink { 0%,100% { box-shadow:var(--vsc-shadow-fab), 0 0 8px rgba(0,229,255,0.2); } 50% { box-shadow:var(--vsc-shadow-fab), 0 0 20px rgba(0,229,255,0.5); } }`;
+      qStyle.textContent = `${HOST_CSS}${CSS_VARS}${QBAR_EXTRA_CSS}`;
       _qbarShadow.appendChild(qStyle);
-      const bar = h('div', { class: 'qbar' }); const mainBtn = h('div', { class: 'qb qb-main' });
+      const bar = h('div', { class: 'qbar' });
+      const mainBtn = h('div', { class: 'qb qb-main' });
       mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
-      mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); }); bar.append(mainBtn); _qbarShadow.appendChild(bar); getMountTarget().appendChild(quickBarHost);
+      mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); });
+      bar.append(mainBtn);
+      _qbarShadow.appendChild(bar);
+      getMountTarget().appendChild(quickBarHost);
 
       const syncRadioBadge = () => {
         mainBtn.classList.toggle('radio-active', Radio.isActive());
       };
       globalSignalCleanups.push(Scheduler.onSignal(syncRadioBadge));
 
-      if (IS_MOBILE) { let touchRevealTimer = 0; const revealGear = () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500); }; document.addEventListener('touchstart', revealGear, { passive: true }); mainBtn.addEventListener('touchstart', () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true }); }
+      if (IS_MOBILE) {
+        let touchRevealTimer = 0;
+        const revealGear = () => {
+          mainBtn.classList.add('touch-reveal');
+          clearTimeout(touchRevealTimer);
+          touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500);
+        };
+        document.addEventListener('touchstart', revealGear, { passive: true });
+        mainBtn.addEventListener('touchstart', () => {
+          mainBtn.classList.add('touch-reveal');
+          clearTimeout(touchRevealTimer);
+        }, { passive: true });
+      }
     }
 
     function buildPanel() {
       if (panelHost) return;
-      panelHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-host', style: HOST_STYLE_NORMAL });
+      // ★ 인라인 style 완전 제거
+      panelHost = document.createElement('div');
+      panelHost.setAttribute('data-vsc-ui', '1');
+      panelHost.id = 'vsc-host';
       shieldHost(panelHost);
       _shadow = panelHost.attachShadow({ mode: 'closed' });
-      _shadow.appendChild(h('style', {}, PANEL_CSS));
+      _shadow.appendChild(h('style', {}, PANEL_CSS + PANEL_EXTRA_CSS));
       panelEl = h('div', { class: 'panel' });
       panelEl.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
-      panelEl.style.overscrollBehavior = 'none';
-      const closeBtn = h('button', { class: 'btn', style: 'margin-left:auto' }, '✕');
+      const closeBtn = h('button', { class: 'btn hdr-close' }, '✕');
       closeBtn.addEventListener('click', () => togglePanel(false));
       panelEl.appendChild(h('div', { class: 'hdr' }, h('span', { class: 'tl' }, 'VSC'), closeBtn));
       const tabBar = h('div', { class: 'tabs' });
-      ['video','audio','playback','settings'].forEach(t => { const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t }); tab.append(TAB_ICONS[t]?.() || '', h('span', {}, TAB_LABELS[t])); tab.addEventListener('click', () => { activeTab = t; renderTab(); }); tabBar.appendChild(tab); });
+      ['video','audio','playback','settings'].forEach(t => {
+        const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t });
+        tab.append(TAB_ICONS[t]?.() || '', h('span', {}, TAB_LABELS[t]));
+        tab.addEventListener('click', () => { activeTab = t; renderTab(); });
+        tabBar.appendChild(tab);
+      });
       panelEl.appendChild(tabBar);
-      const bodyEl = h('div', { class: 'body' }); bodyEl.style.overscrollBehavior = 'none'; panelEl.appendChild(bodyEl);
-      _shadow.appendChild(panelEl); getMountTarget().appendChild(panelHost);
+      const bodyEl = h('div', { class: 'body' });
+      panelEl.appendChild(bodyEl);
+      _shadow.appendChild(panelEl);
+      getMountTarget().appendChild(panelHost);
     }
 
     function renderTab() {
@@ -2017,9 +2257,17 @@
     }
 
     function togglePanel(force) {
-      buildPanel(); panelOpen = force !== undefined ? force : !panelOpen;
-      if (panelOpen) { panelEl.classList.add('open'); panelEl.style.pointerEvents = 'auto'; renderTab(); }
-      else { panelEl.classList.remove('open'); tabSignalCleanups.forEach(c => c()); tabSignalCleanups.length = 0; tabFns.length = 0; setTimeout(() => { if (!panelOpen) panelEl.style.pointerEvents = 'none'; }, 300); }
+      buildPanel();
+      panelOpen = force !== undefined ? force : !panelOpen;
+      if (panelOpen) {
+        panelEl.classList.add('open');
+        renderTab();
+      } else {
+        panelEl.classList.remove('open');
+        tabSignalCleanups.forEach(c => c());
+        tabSignalCleanups.length = 0;
+        tabFns.length = 0;
+      }
     }
 
     buildQuickBar(); updateQuickBarVisibility();
