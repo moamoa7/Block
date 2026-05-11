@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260511
+! Version: 20260512
 !
 !
 !
@@ -160,6 +160,10 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 !/generate_204?$image
 !
 !
+! - Google Fonts에서 폰트 스타일(CSS)을 불러오는 요청을 차단하는 필터 (개인정보 보호 (Tracking 방지) / 로딩 속도 개선 / 데이터 절약)
+||fonts.googleapis.com/css?
+!
+!
 ! - HubSpot 서버가 내 유입 경로를 구체적으로 파악하지 못하게 방해하여 개인정보 보호 및 URL 클린업
 ! -- -  인스타
 *$removeparam=__hs
@@ -311,8 +315,15 @@ x.com/*/videoads/
 *$ping,3p
 !
 !
+! - 해제
+!
+! - 구글 GPT 스크립트를 광범위하게 차단(및 무해한 코드로 대체)하되, 차단 시 오작동이 발생하는 유명 사이트들만 선별적으로 제외하는 고도로 관리된 필터
+||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect=googletagservices-gpt,domain=~golf.com|~today.line.me|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~eksisozluk.com|~heycar.co.uk|~gizmodo.jp|~dexerto.com|~makorrishon.co.il|~mensjournal.com
+!
+!
 ! - 새창 뜨는거 막음
-*##+js(prevent-window-open)
+!*##+js(prevent-window-open)
+!cloudflare.com#@#+js(prevent-window-open)
 !
 ! - 스크롤 막힘 해제 (set-constant)
 !*##+js(set-constant, document.body.style.overflow, 'auto')
@@ -494,6 +505,19 @@ nid.naver.com#@#[class^="ad"]
 ! -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
 m.naver.com##script#MM_search_disaster ~*
+! - 기타
+! - - - 네이버에서 제공하는 서비스나 앱 내에서 사용자 행동 로그 및 데이터 분석을 위해 사용하는 도메인
+||apis.naver.com/mcollector/
+! - - - 네이버에서 자체적으로 개발하여 사용하는 로그 수집 시스템인 NELO(Naver Error Log Optimizer)의 수집 서버 주소
+! - - - 네이버 지도(map.naver.com) 도메인에서 접속할 때는 예외로 두고 차단
+||nelo2-col.navercorp.com^$domain=~map.naver.com
+! - - - 네이버의 태그 관리 시스템인 NTM(Naver Tag Manager) 관련 스크립트를 제어하는 필터 규칙
+! - - - 네이버 메인 도메인(naver.com) 내에서 작동하는 NTM 스크립트를 차단
+! - - - 스마트스토어, 브랜드스토어, 네이버 항공권 등 결제나 예약이 이루어지는 도메인에서는 차단하지 말라
+||ntm.pstatic.net/scripts/ntm_$domain=naver.com
+||ntm.pstatic.net/scripts/ntm_*.js$domain=~smartstore.naver.com|~brand.naver.com|~flight.naver.com
+! - 네이버가 내 브라우저에 심어놓는 고유 식별 쿠키(ba.uuid)를 쓸모없는 값(0)으로 바꿔서, 내 활동이 추적되지 않도록 방어해라
+naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
 !
 !
 ! 네이버 뉴스 (https://news.naver.com/)
@@ -645,6 +669,25 @@ point.sooplive.com#@#[class^="ad"]
 ! - 광고 차단 방어(Anti-Adblock)'를 무력화하기 위한 우회 기술
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 !sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
+! - 기타
+! - - - SOOP'에서 사용하는 광고 차단 탐지 및 광고 관련 데이터 통신을 막기 위한 규칙
+||st.sooplive.com/api/da_block_api.php
+! - - - SOOP(아프리카TV) 서버에서 광고에 사용되는 이미지나 스크립트 파일들을 가져오지 못하게 길목을 막으라
+! - - -  kr: List-KR Classic
+||static.sooplive.com/asset/service/ad/
+! - - - SOOP(구 아프리카TV)의 생방송 시청 시 재생되는 광고 정보를 가져오는 핵심 경로를 차단하는 규칙
+! - - -  kr: List-KR Classic
+||live.sooplive.com/api/get_ad.php
+! - - - SOOP(아프리카TV)이 자체 서버에 복사해둔 구글 애널리틱스(GA) 스크립트를 차단하는 규칙
+! - - - SOOP이 광고 차단기를 피하려고 자기네 서버에 숨겨놓은 구글 추적 스크립트까지 찾아내서 확실히 막아라 (추적 무력화 / 프라이버시 강화)
+||sooplive.com/js/google.analytics.js
+! - - - SOOP(아프리카TV)의 각종 사용자 활동 로그를 수집하는 API를 차단하는 규칙
+! - - - SOOP 게시판 환경에서 발생하는 사용자의 모든 행동 기록(Log) 전송을 원천 차단하라 (행동 추적 방지 / 불필요한 통신 차단 / 광고 지표 무력화)
+||stbbs.sooplive.com/api/*_log.php
+! - - - SOOP(아프리카TV)의 VOD(다시보기) 페이지에서 '애드벌룬' 관련 데이터를 제거하기 위한 고도의 자바스크립트 주입 필터
+! - - - SOOP VOD 시청 시 서버로부터 받아오는 영상 상세 데이터 중, '애드벌룬' 광고와 관련된 항목만 골라내서 삭제하라
+! - - -  kr: List-KR Classic
+vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/a/view')
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
@@ -687,9 +730,14 @@ chzzk.naver.com##.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
 chzzk.naver.com##.pzp-pc__loading-indicator
 ! - 해제
-@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
-@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
-@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
+!@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
+!@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
+!@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
+! - 치지직에서 광고 서버(veta)로부터 오는 데이터 중 광고와 관련된 정보만 골라내서 삭제함으로써, 광고가 아예 시작되지 않도록 만드는 필터
+chzzk.naver.com##+js(json-prune-fetch-response, ads advertiserDomains adDuplicationKeys, '', veta.naver.com/gfp)
+! - 치지직(Chzzk)에서 생방송 중에 나오는 광고(중간 광고)를 차단하기 위한 규칙
+||api.chzzk.naver.com/ad-polling/*/lives/*/ad
+||api.chzzk.naver.com/service/*/ad/display-status
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -971,6 +1019,8 @@ fmkorea.com###fm_alert
 !etoland.co.kr#@#[class^="ad"]
 ! - - - - - - - - 신버젼
 ! - 팝업
+! - - -  - 다른 요소까지 지워짐
+!##[class*="overflow" i]
 etoland.co.kr##.overflow-y-auto
 ! - 게시물 하단 남는 공간 (모바일)
 ! - - - 오징어랜드 이미지 안보여서 해제
@@ -987,8 +1037,9 @@ etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has
 ! Etoland 네이버 광고 차단 (모바일)
 etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 ! - 애드블럭 감지 해제
-etoland.co.kr#@#[class^="ads"]
-etoland.co.kr#@#[class^="ad"]
+etoland.co.kr#@#[class^="ads" i]
+etoland.co.kr#@#[class^="ad" i]
+@@||doubleclick.net^$domain=etoland.co.kr
 !@@||doubleclick.net^$domain=etoland.co.kr
 !@@$removeparam=biw,domain=etoland.co.kr
 !@@$removeparam=bih,domain=etoland.co.kr
@@ -1383,7 +1434,9 @@ slrclub.com##[class="notice"]
 ! - - - 예외 (공지글 제목 안보임
 !cineaste.co.kr#@#.notice
 ! - 하단 배너 공백
-!slrclub.com##.adsbyadop
+!##.adsbyadop
+! - - - https://etoland.co.kr/ 하단 배너 공백
+##[class*="adsbyadop" i]
 !
 !
 ! 클리앙 (https://www.clien.net/)
@@ -1516,19 +1569,9 @@ music.bugs.co.kr##.topBanner
 ! 넷플릭스 (https://www.netflix.com/)
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
-!||logs.netflix.com^
-! - - - 출처 : https://github.com/ajstrick81/Netflix-Ads
-! - - - - - 광고 콘텐츠를 전송하는 서브도메인 차단 (Ublock) 및 우회(ADGUARD)
+||logs.netflix.com^
 ! - - - - - 푸쉬 광고는 차단되는거 확인
 ! - - - - - 넷플릭스 앱은 콘텐츠와 동일한 도메인에서 광고를 게재하기 때문에 모든 광고를 차단하는 것은 매우 어려움
-!||flxvideo.net^
-!||flxso.net^
-!||flxext.com^
-!||ad.akamaized.net^
-!||ads.akamaized.net^
-||ad.akamaized.net^$dnsrewrite=0.0.0.0
-||ads.akamaized.net^$dnsrewrite=0.0.0.0
-!||logs.netflix.com^$empty - 별도 작성
 ! - - - 출처 : uBlock filters – Ads
 ! - - - 플릭스가 서버에서 영상 목록이나 설정 값을 받아올 때, 그 데이터 안에 포함된 광고(adverts) 정보를 브라우저가 읽기 전에 미리 삭제해라
 netflix.com##+js(json-prune, result.adverts)
@@ -2264,7 +2307,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! 기상청 날씨누리 (https://www.weather.go.kr/)
 ! - 팝업 배너
 !##[class="popup-banner"]
-##.popup-banner
+!##.popup-banner
+##[class*="popup-banner" i]
 ! - 왼쪽 배너
 !##[class*="list-banner"] - ##[class*="banner"]:has(img) 로 대체
 !##.list-banner
@@ -4064,8 +4108,8 @@ jusogall.com#@#[class*="rainbow-text" i]
 !
 ! 주소갤러리 (https://jusogall.com/)
 ! - 배너
-!##[src*="/data/banner"]
-##[id*="banner" i]
+##[src*="/data/banner"]
+!##[id*="banner" i]
 !
 !
 ! 딥페이크 (https://dfkor4.com/)
@@ -4762,7 +4806,7 @@ noonnu.cc##.is-visible.is-active.justify-center.items-center.flex.splide__slide
 !
 ! 도박랜드 (https://dblove.net/)
 ! - 배너 이미지
-##[ class*="banner-item" i]
+dblove.net##[ class*="banner-item" i]
 !
 !
 ! 오르비 (https://orbi.kr/)
