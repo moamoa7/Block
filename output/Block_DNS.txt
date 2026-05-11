@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-11 17:07:02 UTC
+! Generated: 2026-05-11 19:14:53 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,053
+! Block Rules: 85,058
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -25414,6 +25414,7 @@
 ||fugetech.com^
 ||fugitivedepart.com^
 ||fugsslosher.com^
+||fugurehires.qpon^
 ||fuhcoupnmivfn.site^
 ||fuhzuajqwcmyl.site^
 ||fuixbmllpzabg.website^
@@ -38097,6 +38098,7 @@
 ||lcpavtrwvavnq.website^
 ||lcqbi7nsv.com^
 ||lcrdjgov.com^
+||lcrevjbidimcqc.com^
 ||lcs.loginfra.com^
 ||lcs.modoo.at^
 ||lcs.naver.com^
@@ -55374,6 +55376,7 @@
 ||rrentlysearchi.org^
 ||rretmobueggyz.site^
 ||rrifogyvo.com^
+||rrijzqicwrqew.website^
 ||rrkbmhendbdv.com^
 ||rrkvgegrywbkf.site^
 ||rrlpfsdammzii.site^
@@ -64638,6 +64641,7 @@
 ||socialspark.com^
 ||socialtrack.co^
 ||sociaplus.com^
+||sociistales.qpon^
 ||sociomantic.com^
 ||socket.streamable.com^
 ||socketawayobject.com^
@@ -77808,6 +77812,7 @@
 ||vauwhaptaiha.net^
 ||vav4.com^
 ||vavuwetus.com^
+||vavyorkish.shop^
 ||vavywfsfldhpb.space^
 ||vawczipukvty.com^
 ||vawonybnkgclb.site^
