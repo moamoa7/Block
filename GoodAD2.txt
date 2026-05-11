@@ -24,46 +24,21 @@
 !
 ! Title: Traffic Saver & Privacy Filter
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
+! Version: integrated-rev2
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
-!!! ═══════════════════════════════════════════════════════════
-!!! AdGuard 트래픽 절감 / 개인정보 보호 필터
-!!! ═══════════════════════════════════════════════════════════
-!!!
-!!! [구성]
-!!! 1. URL 추적 파라미터 제거 ($removeparam)
-!!! 2. HTTP 헤더 정리 ($removeheader)
-!!! 3. 추적 쿠키 차단 ($cookie)
-!!! 4. 광고 영상/이미지/스크립트 → 빈 리소스 대체 ($redirect)
-!!! 5. 리소스 타입별 차단 ($media, $image, $script 등)
-!!!
-!!! [주의사항]
-!!! - AdGuard(데스크톱/홈/앱/브라우저 확장)에서만 동작
-!!! - uBlock Origin은 일부 문법이 다르니 그대로 쓰지 말 것
-!!! - 적용 후 자주 쓰는 사이트에서 이상 동작 시 해당 줄 주석(!) 처리
-!!! ═══════════════════════════════════════════════════════════
 
 
 ! ═══════════════════════════════════════════
 ! [1] URL 추적 파라미터 제거 ($removeparam)
 ! ═══════════════════════════════════════════
-! 링크 클릭 시 따라붙는 추적 파라미터 제거
-! 트래픽보다는 개인정보 보호 + 깔끔한 URL 목적
+! 가독성을 위해 정규식이 일괄 처리하는 개별 항목은 정리했습니다.
+! 섹션 맨 아래 "정규식 일괄 처리"가 utm_*, _hs*, hsa_*, pk_*, mtm_*,
+! pi_*, elq*, sfmc_*, ml_*, mc_*, mkt_*, pf_rd_*, pd_rd_*, aff_*,
+! at_*, oly_*, vero_*, _branch_*, stm_*, xtor*, wt_*, matomo_* 등을 모두 잡습니다.
 
 ! ───── Google Analytics / Google Ads ─────
-$removeparam=utm_source
-$removeparam=utm_medium
-$removeparam=utm_campaign
-$removeparam=utm_term
-$removeparam=utm_content
-$removeparam=utm_id
-$removeparam=utm_name
-$removeparam=utm_brand
-$removeparam=utm_social
-$removeparam=utm_social-type
-$removeparam=utm_referrer
-$removeparam=utm_creative_format
-$removeparam=utm_marketing_tactic
+! utm_* 는 정규식이 일괄 처리
 $removeparam=_ga
 $removeparam=_gl
 $removeparam=gclid
@@ -74,7 +49,10 @@ $removeparam=dclid
 $removeparam=gad_source
 $removeparam=gad
 $removeparam=gad_campaignid
+$removeparam=gas
+$removeparam=gclid_field
 $removeparam=srsltid
+$removeparam=opi
 ! - 구글 링크 클릭시 리디렉션 알림 해결을 위한 주석 처리 (2개)
 !$removeparam=ved
 !$removeparam=usg
@@ -92,10 +70,12 @@ $removeparam=action_ref_map
 
 ! ───── Microsoft / Bing ─────
 $removeparam=msclkid
-$removeparam=mc_cid
 $removeparam=cvid
 $removeparam=oicd
 $removeparam=form
+$removeparam=ocid
+$removeparam=ei
+$removeparam=qs
 
 ! ───── Yandex ─────
 $removeparam=yclid
@@ -103,6 +83,14 @@ $removeparam=ymclid
 $removeparam=_openstat
 $removeparam=_ym_uid
 $removeparam=_ym_counter
+
+! ───── Yahoo / Verizon ─────
+$removeparam=guce_referrer
+$removeparam=guce_referrer_sig
+$removeparam=guccounter
+$removeparam=soc_src
+$removeparam=soc_trk
+$removeparam=yptr
 
 ! ───── Instagram / TikTok ─────
 $removeparam=igshid
@@ -112,16 +100,18 @@ $removeparam=ig_mid
 $removeparam=ttclid
 $removeparam=tt_medium
 $removeparam=tt_content
-$removeparam=_t
+! - _t 는 짧은 이름이라 TikTok 도메인 한정으로 안전화
+$removeparam=_t,domain=tiktok.com|vt.tiktok.com
 
 ! ───── Twitter / X ─────
+! 짧은 파라미터(s, t, cn)는 트위터/X 도메인 한정으로
 $removeparam=twclid
 $removeparam=ref_src
 $removeparam=ref_url
-$removeparam=s
-$removeparam=t
-$removeparam=cn
 $removeparam=refsrc
+$removeparam=s,domain=twitter.com|x.com
+$removeparam=t,domain=twitter.com|x.com
+$removeparam=cn,domain=twitter.com|x.com
 
 ! ───── LinkedIn ─────
 !$removeparam=trk
@@ -149,20 +139,17 @@ $removeparam=share_id
 $removeparam=$share_id
 $removeparam=correlation_id
 
+! ───── Telegram / 메신저 ─────
+$removeparam=tgWebAppStartParam
+$removeparam=tgWebAppPlatform
+
 ! ───── 한국 서비스 ─────
-$removeparam=n_ad_group
-$removeparam=n_query
-$removeparam=n_rank
-$removeparam=n_campaign_type
-$removeparam=n_media
-$removeparam=n_match
-$removeparam=n_keyword
-$removeparam=n_keyword_id
-$removeparam=n_ad
-$removeparam=n_campaign
-$removeparam=n_ad_group_type
+! n_* 는 정규식이 일괄 처리
 $removeparam=NaPm
 $removeparam=nv_mid
+$removeparam=ssc
+$removeparam=qvt
+$removeparam=mkt_cmpgn
 $removeparam=kakao_track_id
 $removeparam=trackingCode
 $removeparam=tracking_code
@@ -173,46 +160,20 @@ $removeparam=cmp_code
 $removeparam=tcd_code
 
 ! ───── Mailchimp / 이메일 마케팅 ─────
+! _hs*, hsa_*, mkt_*, mc_*, ml_*, elq*, vero_* 는 정규식이 일괄 처리
 $removeparam=mc_eid
 !$removeparam=mc_cid
-$removeparam=ml_subscriber
-$removeparam=ml_subscriber_hash
-$removeparam=mkt_tok
 $removeparam=mailing_id
 $removeparam=campaign_id
 $removeparam=email_source
 $removeparam=email_campaign
-$removeparam=elqTrackId
-$removeparam=elqTrack
-$removeparam=elqaid
-$removeparam=elqat
-$removeparam=elqcampaignid
 $removeparam=ck_subscriber_id
-$removeparam=vero_conv
-$removeparam=vero_id
 
 ! ───── HubSpot ─────
-$removeparam=__hsfp
-$removeparam=__hssc
-$removeparam=__hstc
-$removeparam=_hsenc
-$removeparam=_hsmi
 $removeparam=hsCtaTracking
-$removeparam=hsa_acc
-$removeparam=hsa_cam
-$removeparam=hsa_grp
-$removeparam=hsa_ad
-$removeparam=hsa_src
-$removeparam=hsa_tgt
-$removeparam=hsa_kw
-$removeparam=hsa_mt
-$removeparam=hsa_net
-$removeparam=hsa_ver
 
 ! ───── Marketo / Pardot / Eloqua ─────
-$removeparam=mkt_tok
-$removeparam=pi_ad_id
-$removeparam=pi_campaign_id
+! pi_* 는 정규식이 일괄 처리
 
 ! ───── Klaviyo ─────
 $removeparam=_kx
@@ -225,17 +186,21 @@ $removeparam=icid
 $removeparam=cid
 
 ! ───── Salesforce / Marketing Cloud ─────
-$removeparam=sfmc_id
-$removeparam=sfmc_sub
-$removeparam=sfmc_journey_id
-$removeparam=sfmc_activity_id
-$removeparam=sfmc_asset_id
+! sfmc_* 는 정규식이 일괄 처리
 
 ! ───── Criteo ─────
 $removeparam=cto_pld
 $removeparam=cto_lid
 
+! ───── Shopify / 이커머스 ─────
+$removeparam=_pos
+$removeparam=_sid
+$removeparam=_ss
+! - variant 는 쇼핑몰 옵션 선택 깨질 수 있어 주석. 필요 시 도메인 한정으로
+!$removeparam=variant
+
 ! ───── 아마존 ─────
+! pf_rd_*, pd_rd_* 는 정규식이 일괄 처리
 $removeparam=ascsubtag
 $removeparam=asc_campaign
 $removeparam=asc_refurl
@@ -246,16 +211,6 @@ $removeparam=linkId
 $removeparam=ref_
 $removeparam=psc
 $removeparam=th
-$removeparam=pf_rd_p
-$removeparam=pf_rd_r
-$removeparam=pf_rd_s
-$removeparam=pf_rd_t
-$removeparam=pf_rd_i
-$removeparam=pf_rd_m
-$removeparam=pd_rd_w
-$removeparam=pd_rd_wg
-$removeparam=pd_rd_r
-$removeparam=pd_rd_i
 $removeparam=_encoding
 $removeparam=smid
 $removeparam=spIA
@@ -274,14 +229,11 @@ $removeparam=toolid
 $removeparam=customid
 
 ! ───── 알리/타오바오/중국 ─────
-$removeparam=spm
+! spm 은 정규식이 일괄 처리, aff_* 도 정규식이 일괄 처리
 $removeparam=scm
 $removeparam=pvid
 $removeparam=algo_pvid
 $removeparam=algo_exp_id
-$removeparam=aff_request_id
-$removeparam=aff_platform
-$removeparam=aff_trace_key
 $removeparam=businessType
 $removeparam=terminal_id
 $removeparam=afSmartRedirect
@@ -304,7 +256,7 @@ $removeparam=adgroupid
 $removeparam=campaignid
 $removeparam=matchtype
 $removeparam=targetid
-! - 지역 기반 검색을 지우므로 인해 근처 맛집"을 검색했을 때 엉뚱한 위치가 나올수 있음
+! - 지역 기반 검색을 지우므로 인해 "근처 맛집"을 검색했을 때 엉뚱한 위치가 나올수 있음
 $removeparam=loc_physical_ms
 $removeparam=loc_interest_ms
 $removeparam=adposition
@@ -325,8 +277,8 @@ $removeparam=placement,domain=google.com|google.co.kr|googleadservices.com|doubl
 $removeparam=creative,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
 $removeparam=devicemodel,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
 
-
 ! ───── 제휴 마케팅 (Affiliate) ─────
+! aff_* 는 정규식이 일괄 처리
 $removeparam=affiliate_id
 $removeparam=aff_id
 $removeparam=aff
@@ -350,56 +302,45 @@ $removeparam=awc
 $removeparam=zanpid
 
 ! ───── Matomo / Piwik ─────
-$removeparam=pk_campaign
-$removeparam=pk_kwd
-$removeparam=pk_source
-$removeparam=pk_medium
-$removeparam=pk_content
-$removeparam=mtm_campaign
-$removeparam=mtm_kwd
-$removeparam=mtm_source
-$removeparam=mtm_medium
-$removeparam=mtm_content
-$removeparam=mtm_cid
-$removeparam=mtm_group
-$removeparam=mtm_placement
+! pk_*, mtm_*, matomo_* 는 정규식이 일괄 처리
 
 ! ───── 기타 일반 추적 ─────
-$removeparam=ref
-$removeparam=referer
+! 짧은 파라미터(ref, src, referer)는 도메인 한정 또는 주석 처리로
 $removeparam=referrer
-$removeparam=src
-!$removeparam=source
 $removeparam=src_source
-$removeparam=trk
-$removeparam=trkCampaign
+$removeparam=trk,domain=linkedin.com
+$removeparam=trkCampaign,domain=linkedin.com
 $removeparam=trackingId
 $removeparam=tracking_id
 $removeparam=tracking_source
-$removeparam=guce_referrer
-$removeparam=guce_referrer_sig
-$removeparam=guccounter
 $removeparam=spReportId
 $removeparam=spJobID
 $removeparam=spUserID
 $removeparam=spMailingID
+!$removeparam=source
+!$removeparam=referer
+$removeparam=ref,domain=twitter.com|x.com|github.com|medium.com|reddit.com
+$removeparam=src,domain=twitter.com|x.com|github.com|medium.com
 
 ! ───── 분석 도구 일반 ─────
+! at_*, oly_* 는 정규식이 일괄 처리
 $removeparam=__cf_chl_jschl_tk__
 $removeparam=__cf_chl_captcha_tk__
-$removeparam=oly_anon_id
-$removeparam=oly_enc_id
 $removeparam=otc
 $removeparam=ito
-$removeparam=at_medium
-$removeparam=at_campaign
-$removeparam=at_custom1
-$removeparam=at_custom2
-$removeparam=at_custom3
-$removeparam=at_custom4
 
-! ───── 정규식 - 한 번에 처리 ─────
-! 위에 개별 명시한 것 외에 패턴으로 잡히는 것들
+! ───── 라이브 스트리밍 공통 ─────
+! (원본 라이브 스트리밍 섹션에서 글로벌 적용된 것들)
+$removeparam=stream_id
+$removeparam=session_id
+$removeparam=visitor_id
+$removeparam=device_id
+! - 로그인시 정상적인 접근이 아닙니다 오류 (이토랜드 등)
+!$removeparam=client_id
+$removeparam=tracking_session
+$removeparam=watch_session
+
+! ───── 정규식 일괄 처리 ─────
 $removeparam=/^utm_/
 $removeparam=/^(fb|g|y|ms|tt|tw|sc|li|rdt|d)clid$/
 $removeparam=/^_hs/
@@ -420,12 +361,16 @@ $removeparam=/^at_/
 $removeparam=/^oly_/
 $removeparam=/^spm$/
 $removeparam=/^vero_/
+$removeparam=/^_branch_/
+$removeparam=/^stm_/
+$removeparam=/^xtor/
+$removeparam=/^wt_/
+$removeparam=/^matomo_/
 
 
 ! ═══════════════════════════════════════════
 ! [2] HTTP 헤더 정리 ($removeheader)
 ! ═══════════════════════════════════════════
-! 추적 도메인의 쿠키·리퍼러 헤더 제거
 
 ! ───── 구글 광고/분석 ─────
 ||doubleclick.net^$removeheader=set-cookie
@@ -467,12 +412,20 @@ $removeparam=/^vero_/
 ||serving-sys.com^$removeheader=set-cookie
 ||agkn.com^$removeheader=set-cookie
 ||advertising.com^$removeheader=set-cookie
+||indexww.com^$removeheader=set-cookie
+||yieldmo.com^$removeheader=set-cookie
+
+! ───── CDP / 식별자 그래프 (신규 보강) ─────
+||liadm.com^$removeheader=set-cookie
+||id5-sync.com^$removeheader=set-cookie
+||tapad.com^$removeheader=set-cookie
 
 ! ───── 콘텐츠 추천/네이티브 광고 ─────
 ||outbrain.com^$removeheader=set-cookie
 ||taboola.com^$removeheader=set-cookie
 ||revcontent.com^$removeheader=set-cookie
 ||mgid.com^$removeheader=set-cookie
+||dable.io^$removeheader=set-cookie
 
 ! ───── 측정/리서치/검증 ─────
 ||scorecardresearch.com^$removeheader=set-cookie
@@ -502,6 +455,19 @@ $removeparam=/^vero_/
 ||heapanalytics.com^$removeheader=set-cookie
 ||statcounter.com^$removeheader=set-cookie
 ||histats.com^$removeheader=set-cookie
+! - RUM/에러추적 (신규 보강)
+||cloudflareinsights.com^$removeheader=set-cookie
+||newrelic.com^$removeheader=set-cookie
+||nr-data.net^$removeheader=set-cookie
+||datadoghq.com^$removeheader=set-cookie
+
+! ───── A/B 테스트 / 개인화 (신규 보강) ─────
+||optimizely.com^$removeheader=set-cookie
+||vwo.com^$removeheader=set-cookie
+||dynamicyield.com^$removeheader=set-cookie
+||monetate.net^$removeheader=set-cookie
+||kameleoon.com^$removeheader=set-cookie
+||abtasty.com^$removeheader=set-cookie
 
 ! ───── 마케팅 자동화/CRM ─────
 ||hubspot.com^$removeheader=set-cookie
@@ -529,7 +495,6 @@ $removeparam=/^vero_/
 
 ! ───── Microsoft ─────
 ||bat.bing.com^$removeheader=set-cookie
-||clarity.ms^$removeheader=set-cookie
 
 ! ───── CDP/태그 매니저/쿠키 매칭 ─────
 ||tealiumiq.com^$removeheader=set-cookie
@@ -586,9 +551,7 @@ $removeparam=/^vero_/
 ||ojrq.net^$removeheader=set-cookie
 ||rdrct.cc^$removeheader=set-cookie
 
-! ───── Referer 헤더 제거 (추적 방지 강화) ─────
-! 광고 도메인으로 가는 요청에 Referer 빼서
-! "어디서 왔는지" 정보 노출 방지
+! ───── Referer 헤더 제거 ─────
 ||doubleclick.net^$removeheader=request:referer
 ||google-analytics.com^$removeheader=request:referer
 ||googlesyndication.com^$removeheader=request:referer
@@ -619,13 +582,12 @@ $removeparam=/^vero_/
 ||mc.yandex.ru^$removeheader=request:referer
 ||wcs.naver.net^$removeheader=request:referer
 ||tiara.kakao.com^$removeheader=request:referer
-
+||dable.io^$removeheader=request:referer
 
 
 ! ═══════════════════════════════════════════
 ! [3] 추적 쿠키 차단 ($cookie)
 ! ═══════════════════════════════════════════
-! 도메인별 쿠키 저장 차단
 
 ! ───── 기존 룰 (유지) ─────
 ||doubleclick.net^$cookie
@@ -642,14 +604,22 @@ $removeparam=/^vero_/
 ||rubiconproject.com^$cookie
 ||pubmatic.com^$cookie
 
-! ───── 추가 (광고 네트워크) ─────
+! ───── 광고 네트워크 ─────
 ||openx.net^$cookie
 ||amazon-adsystem.com^$cookie
 ||adsrvr.org^$cookie
 ||casalemedia.com^$cookie
 ||3lift.com^$cookie
+||indexww.com^$cookie
+||yieldmo.com^$cookie
 
-! ───── 추가 (분석/세션 리플레이) ─────
+! ───── CDP / 식별자 그래프 (신규 보강) ─────
+||liadm.com^$cookie
+||id5-sync.com^$cookie
+||tapad.com^$cookie
+||agkn.com^$cookie
+
+! ───── 분석/세션 리플레이/RUM ─────
 ||hotjar.com^$cookie
 ||mixpanel.com^$cookie
 ||amplitude.com^$cookie
@@ -657,21 +627,35 @@ $removeparam=/^vero_/
 ||clarity.ms^$cookie
 ||segment.io^$cookie
 ||hs-analytics.net^$cookie
+! - 신규 보강
+||cloudflareinsights.com^$cookie
+||newrelic.com^$cookie
+||nr-data.net^$cookie
+||datadoghq.com^$cookie
 
-! ───── 추가 (소셜 트래커) ─────
+! ───── A/B 테스트 / 개인화 (신규 보강) ─────
+||optimizely.com^$cookie
+||vwo.com^$cookie
+||dynamicyield.com^$cookie
+||monetate.net^$cookie
+||kameleoon.com^$cookie
+||abtasty.com^$cookie
+
+! ───── 소셜 트래커 ─────
 ||ads-twitter.com^$cookie
 ||analytics.tiktok.com^$cookie
 ||tr.snapchat.com^$cookie
 ||px.ads.linkedin.com^$cookie
 ||bat.bing.com^$cookie
 
-! ───── 추가 (한국) ─────
+! ───── 한국 ─────
 ||wcs.naver.net^$cookie
 ||tiara.kakao.com^$cookie
 ||click.coupang.com^$cookie
 ||tg.widerplanet.com^$cookie
+||dable.io^$cookie
 
-! ───── 추가 ⭐ 본체 살리고 추적 쿠키만 차단 (가장 효과적) ─────
+! ───── 본체 살리고 추적 쿠키만 차단 ─────
 ! - 로봇인지 확인하는거 해결을 위한 주석 처리
 !||google.com^$cookie=NID
 ||youtube.com^$cookie=VISITOR_INFO1_LIVE
@@ -686,7 +670,7 @@ $removeparam=/^vero_/
 ||tiktok.com^$cookie=_ttp
 
 ! 이름 기반 쿠키 차단 (모든 사이트에서)
-! -  - 디시안사이드 모바일에서 무한로딩 오류 해결을 위한 주석 처리
+! - 디시인사이드 모바일에서 무한로딩 오류 해결을 위한 주석 처리
 !$cookie=/^_ga/
 $cookie=/^_gid$/
 $cookie=/^_fbp$/
@@ -695,7 +679,6 @@ $cookie=/^_gcl_/
 $cookie=/^__utm/
 $cookie=/^_hjid$/
 $cookie=/^_hjSession/
-
 $cookie=/^_ttp$/              ! TikTok
 $cookie=/^_uetsid$/           ! Bing
 $cookie=/^_uetvid$/           ! Bing
@@ -708,10 +691,8 @@ $cookie=/^__hstc$/            ! HubSpot
 ! ═══════════════════════════════════════════
 ! [4] 광고 리소스 → 빈 리소스 대체 ($redirect)
 ! ═══════════════════════════════════════════
-! 빈 응답 대신 가짜 리소스로 호환성 유지
-! 트래픽 절감 + 사이트 호환성 둘 다 달성
 
-! ───── 광고 영상 → 1초 빈 MP4 (트래픽 절감 매우 큼) ─────
+! ───── 광고 영상 → 1초 빈 MP4 ─────
 ||*$media,third-party,redirect=noopmp4-1s,domain=googlevideo.com|youtube.com|googlesyndication.com|doubleclick.net
 ||*$media,third-party,redirect=noopmp4-1s,domain=imasdk.googleapis.com|2mdn.net|innovid.com|adsafeprotected.com
 ||*$media,third-party,redirect=noopmp4-1s,domain=adnxs.com|spotxchange.com|teads.tv|stickyadstv.com|yieldmo.com
@@ -720,13 +701,12 @@ $cookie=/^__hstc$/            ! HubSpot
 ||*$media,third-party,redirect=noopmp4-1s,domain=outbrain.com|taboola.com|revcontent.com
 ||*$media,third-party,redirect=noopmp4-1s,domain=amazon-adsystem.com|criteo.com|criteo.net
 
-! 영상 광고 (광고 SDK 도메인 직접 차단)
+! 영상 광고 SDK
 ||imasdk.googleapis.com/js/sdkloader/ima3.js$script,redirect=noopjs
 ||2mdn.net^$media,redirect=noopmp4-1s
 ||innovid.com^$media,redirect=noopmp4-1s
 
 ! ───── 광고 이미지 → 1x1 투명 픽셀 ─────
-! 트래킹 픽셀
 ||doubleclick.net^$image,redirect=1x1-transparent.gif
 ||googlesyndication.com^$image,redirect=1x1-transparent.gif
 ||googleadservices.com^$image,redirect=1x1-transparent.gif
@@ -735,8 +715,6 @@ $cookie=/^__hstc$/            ! HubSpot
 ||facebook.com/tr^$image,redirect=1x1-transparent.gif
 ||facebook.com/tr/^$image,redirect=1x1-transparent.gif
 ||connect.facebook.net^$image,redirect=1x1-transparent.gif
-
-! 광고 네트워크 픽셀
 ||adnxs.com^$image,redirect=1x1-transparent.gif
 ||rubiconproject.com^$image,redirect=1x1-transparent.gif
 ||pubmatic.com^$image,redirect=1x1-transparent.gif
@@ -750,54 +728,42 @@ $cookie=/^__hstc$/            ! HubSpot
 ||bidswitch.net^$image,redirect=1x1-transparent.gif
 ||smartadserver.com^$image,redirect=1x1-transparent.gif
 ||serving-sys.com^$image,redirect=1x1-transparent.gif
-
-! 측정/검증 픽셀
+||indexww.com^$image,redirect=1x1-transparent.gif
 ||moatads.com^$image,redirect=1x1-transparent.gif
 ||adsafeprotected.com^$image,redirect=1x1-transparent.gif
 ||doubleverify.com^$image,redirect=1x1-transparent.gif
 ||quantserve.com^$image,redirect=1x1-transparent.gif
-
-! 콘텐츠 추천 픽셀
 ||outbrain.com^$image,redirect=1x1-transparent.gif
 ||taboola.com^$image,redirect=1x1-transparent.gif
 ||revcontent.com^$image,redirect=1x1-transparent.gif
-
-! 분석 도구 픽셀
+||dable.io^$image,redirect=1x1-transparent.gif
 ||hotjar.com^$image,redirect=1x1-transparent.gif
 ||mixpanel.com^$image,redirect=1x1-transparent.gif
 ||segment.io^$image,redirect=1x1-transparent.gif
 ||amplitude.com^$image,redirect=1x1-transparent.gif
 ||clarity.ms^$image,redirect=1x1-transparent.gif
-
-! 소셜 픽셀
+||stats.wp.com^$image,redirect=1x1-transparent.gif
+||pixel.wp.com^$image,redirect=1x1-transparent.gif
 ||ads-twitter.com^$image,redirect=1x1-transparent.gif
 ||analytics.tiktok.com^$image,redirect=1x1-transparent.gif
 ||tr.snapchat.com^$image,redirect=1x1-transparent.gif
 ||px.ads.linkedin.com^$image,redirect=1x1-transparent.gif
 ||analytics.pinterest.com^$image,redirect=1x1-transparent.gif
 ||bat.bing.com^$image,redirect=1x1-transparent.gif
-
-! 한국 트래커 픽셀
 ||wcs.naver.net^$image,redirect=1x1-transparent.gif
 ||tiara.kakao.com^$image,redirect=1x1-transparent.gif
 ||analytics.ad.daum.net^$image,redirect=1x1-transparent.gif
 ||click.coupang.com^$image,redirect=1x1-transparent.gif
 ||tg.widerplanet.com^$image,redirect=1x1-transparent.gif
 ||cauly.co.kr^$image,redirect=1x1-transparent.gif
-
-! 중국/러시아 픽셀
 ||hm.baidu.com^$image,redirect=1x1-transparent.gif
 ||mc.yandex.ru^$image,redirect=1x1-transparent.gif
-
-! 어도비/마케팅 픽셀
 ||sstats.adobe.com^$image,redirect=1x1-transparent.gif
 ||omtrdc.net^$image,redirect=1x1-transparent.gif
 ||demdex.net^$image,redirect=1x1-transparent.gif
 ||2o7.net^$image,redirect=1x1-transparent.gif
 
-! ───── 추적 스크립트 → 가짜 JS (Scriptlet/Stub) ─────
-! 가짜 객체를 주입해 사이트 호환성 유지 (에러 방지)
-
+! ───── 추적 스크립트 → 가짜 JS ─────
 ! Google Analytics
 ||google-analytics.com/analytics.js^$script,redirect=google-analytics.com/analytics.js
 ||google-analytics.com/ga.js^$script,redirect=google-analytics.com/ga.js
@@ -816,7 +782,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||googlesyndication.com/adsbygoogle.js^$script,redirect=googlesyndication.com/adsbygoogle.js
 ||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js^$script,redirect=googlesyndication.com/adsbygoogle.js
 
-! Google IMA SDK (영상 광고)
+! Google IMA SDK
 ||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=google-ima.js
 
 ! Facebook Pixel
@@ -855,8 +821,11 @@ $cookie=/^__hstc$/            ! HubSpot
 ||rubiconproject.com/*$script,redirect=noopjs
 ||pubmatic.com/*$script,redirect=noopjs
 
+! 추가 추적 스크립트 (신규 보강)
+||cdn.optimizely.com^$script,redirect=noopjs
+||static.cloudflareinsights.com^$script,redirect=noopjs
+
 ! ───── VAST/VMAP 광고 응답 → 빈 응답 ─────
-! 영상 플레이어가 광고 정보 요청할 때 빈 응답 줌
 ||*/vast/*$xmlhttprequest,redirect=noopvast-2.0
 ||*/vmap/*$xmlhttprequest,redirect=noopvmap-1.0
 ||*/vast.xml$xmlhttprequest,redirect=noopvast-2.0
@@ -870,7 +839,6 @@ $cookie=/^__hstc$/            ! HubSpot
 ||doubleclick.net/instream/ad_status.js$script,redirect=noopjs
 
 ! ───── JSON API 응답 → 빈 JSON ─────
-! 광고/추적 API가 JSON 반환할 때
 ||*/adsense/*$xmlhttprequest,redirect=noopjson
 ||*/ads-api/*$xmlhttprequest,redirect=noopjson
 ||*/analytics/collect*$xmlhttprequest,redirect=noopjson
@@ -878,6 +846,9 @@ $cookie=/^__hstc$/            ! HubSpot
 ||google-analytics.com/collect^$xmlhttprequest,redirect=noopjson
 ||google-analytics.com/j/collect^$xmlhttprequest,redirect=noopjson
 ||google-analytics.com/r/collect^$xmlhttprequest,redirect=noopjson
+||stats.g.doubleclick.net/g/collect^$xmlhttprequest,redirect=noopjson
+||region1.analytics.google.com/g/collect^$xmlhttprequest,redirect=noopjson
+||region1.google-analytics.com/g/collect^$xmlhttprequest,redirect=noopjson
 ||facebook.com/tr/^$xmlhttprequest,redirect=noopjson
 ||analytics.tiktok.com/api/v2/pixel^$xmlhttprequest,redirect=noopjson
 
@@ -893,12 +864,9 @@ $cookie=/^__hstc$/            ! HubSpot
 ||*/tracking.css$css,redirect=noopcss
 
 ! ───── 오디오 광고 → 빈 MP3 ─────
-! Spotify 외 일부 라디오/팟캐스트 광고
 ||*$media,third-party,redirect=noopmp3-0.1s,domain=spotify.com|pdst.fm|art19.com|megaphone.fm
 
 ! ───── 소셜 위젯 → 클릭해서 로드 ─────
-! 페이지 로드 시 소셜 위젯이 추적하는 거 방지
-! 사용자가 "클릭"해야만 실제 위젯 로드됨
 ||platform.twitter.com/widgets.js^$script,redirect=click2load.html
 ||connect.facebook.net/*/sdk.js^$script,redirect=click2load.html
 ||platform.linkedin.com/in.js^$script,redirect=click2load.html
@@ -964,8 +932,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||*/impression$xmlhttprequest,third-party,empty
 ||*/impressions$xmlhttprequest,third-party,empty
 
-! ───── sendBeacon API (브라우저 백그라운드 전송) ─────
-! 페이지 떠날 때 비동기로 데이터 보내는 API
+! ───── sendBeacon API ─────
 ||*$ping,third-party
 ||*/beacon$ping
 ||*/collect$ping
@@ -978,7 +945,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||nexus-websocket-b.intercom.io^$websocket
 ||nexus-long-poller.intercom.io^$websocket
 
-! 드리프트, 인터콤 등 라이브챗
+! 드리프트, 라이브챗
 ||drift.com^$websocket
 ||driftt.com^$websocket
 ||tawk.to^$websocket
@@ -1000,20 +967,18 @@ $cookie=/^__hstc$/            ! HubSpot
 ||rubiconproject.com^$websocket
 ||pubmatic.com^$websocket
 
-! ───── 폰트 추적 (구글 폰트 등) ─────
-! ⚠️ 주의: 폰트 차단 시 사이트 폰트 깨질 수 있음
-! 프라이버시 우선이면 활성화, 미관 우선이면 주석 처리
+! ───── 폰트 추적 ─────
+! ⚠️ 폰트 차단 시 사이트 폰트 깨질 수 있음
 !||fonts.googleapis.com^$font,third-party
 !||fonts.gstatic.com^$font,third-party
 ||use.fontawesome.com^$font,third-party
 ||use.typekit.net^$font,third-party
 
 ! ───── 스타일시트 추적 ─────
-! 일부 트래커가 CSS로 추적 (드물지만 존재)
 ||*/tracking.css$stylesheet,third-party,empty
 ||*/analytics.css$stylesheet,third-party,empty
 
-! ───── iframe 광고 (대용량 + 추적) ─────
+! ───── iframe 광고 ─────
 ||doubleclick.net^$subdocument,third-party
 ||googlesyndication.com^$subdocument,third-party
 ||googleadservices.com^$subdocument,third-party
@@ -1027,12 +992,10 @@ $cookie=/^__hstc$/            ! HubSpot
 ||facebook.com/plugins/^$subdocument,third-party
 
 ! ───── ping 속성 (링크 클릭 추적) ─────
-! <a ping="..."> 형식 추적
 !*$ping
 *$ping,third-party
 
-! ───── 큰 분석 스크립트 (대용량 트래픽) ─────
-! Hotjar, FullStory 등은 스크립트가 수백 KB
+! ───── 큰 분석 스크립트 ─────
 ||static.hotjar.com^$script,third-party
 ||script.hotjar.com^$script,third-party
 ||rs.fullstory.com^$script,third-party
@@ -1052,8 +1015,12 @@ $cookie=/^__hstc$/            ! HubSpot
 ||cdn.mouseflow.com^$script,third-party
 ||cdn.contentsquare.net^$script,third-party
 ||snap.licdn.com^$script,third-party
+! - 신규 보강
+||datadoghq-browser-agent.com^$script,third-party
+||cdn.dynamicyield.com^$script,third-party
+||widget.intercom.io^$script,third-party
 
-! ───── 콘텐츠 추천 위젯 (대용량) ─────
+! ───── 콘텐츠 추천 위젯 ─────
 ||widgets.outbrain.com^$script,third-party
 ||widgets.outbrain.com^$subdocument,third-party
 ||cdn.taboola.com^$script,third-party
@@ -1084,18 +1051,15 @@ $cookie=/^__hstc$/            ! HubSpot
 ||mc.yandex.ru^$xmlhttprequest,third-party,empty
 
 ! ───── HEAD 요청만 보내는 추적 ─────
-! 일부 트래커는 HEAD로 가벼운 핑만 보냄
 ||*/ping$xmlhttprequest,third-party,empty
 ||*/heartbeat$xmlhttprequest,third-party,empty
 
 ! ───── GraphQL 추적 엔드포인트 ─────
-! 요즘 신생 서비스들이 GraphQL로 추적
 ||*/graphql/track$xmlhttprequest,third-party,empty
 ||*/graphql/event$xmlhttprequest,third-party,empty
 ||*/graphql/analytics$xmlhttprequest,third-party,empty
 
 ! ───── 동영상 사전 분석 (preconnect/prefetch) ─────
-! 페이지 로드 시 광고 서버 미리 연결하는 거 방지
 ||*/prefetch?*$xmlhttprequest,third-party,empty,domain=doubleclick.net|googlesyndication.com
 ||*/preload?*$xmlhttprequest,third-party,empty,domain=doubleclick.net|googlesyndication.com
 
@@ -1104,291 +1068,148 @@ $cookie=/^__hstc$/            ! HubSpot
 ! [6] 보조 옵션 사용 예시
 ! ═══════════════════════════════════════════
 ! 필요 시 주석(!) 제거하여 활성화
-! 모두 예시이며, 실제 사용은 본인 환경에 맞게 수정
 
 ! ───────────────────────────────────────────
 ! $denyallow - 차단하되 특정 도메인은 예외
 ! ───────────────────────────────────────────
-! 화이트리스트(@@)와 비슷하지만 "이 차단 룰에서만" 예외
-! ||criteo.com을 차단하되, trusted-site.com에서만 허용
 ! ||criteo.com^$denyallow=trusted-site.com
-!
-! 여러 도메인 예외도 가능 (| 구분)
 ! ||doubleclick.net^$denyallow=youtube.com|google.com
-!
-! 실용 예: 광고는 막되 특정 쇼핑몰 결제는 허용
 ! ||criteo.com^$denyallow=mybank.com|paypal.com
 
 ! ───────────────────────────────────────────
 ! $badfilter - 구독 리스트의 특정 룰 무력화
 ! ───────────────────────────────────────────
-! 외부 필터 리스트에서 마음에 안 드는 룰만 제거
-! 형식: 원래 룰 + $badfilter
-!
-! 예: 외부 리스트가 ||example.com^로 차단 중인데 풀고 싶을 때
 ! ||example.com^$badfilter
-!
-! 옵션이 있는 룰도 정확히 매칭해야 함
-! ||tracker.com^$third-party$badfilter  (이렇게 옵션도 일치시켜야 함)
+! ||tracker.com^$third-party$badfilter
 
 ! ───────────────────────────────────────────
 ! $important - 다른 화이트리스트보다 우선 적용
 ! ───────────────────────────────────────────
-! @@ 예외 룰이 있어도 무시하고 강제 차단
-! 보통 광고주들이 "예외 처리 받아낸" 도메인에 사용
-!
 ! ||tracker.com^$important
 ! ||analytics.example.com^$important
 
 ! ───────────────────────────────────────────
 ! @@ - 화이트리스트 (예외 처리)
 ! ───────────────────────────────────────────
-! 차단 룰을 무력화 (이 도메인은 통과시킴)
-! 형식: @@ 시작 + 일반 룰
-!
-! 예: 디시 사고 방지용 화이트리스트
 ! @@||cnt.dcinside.com^
 ! @@||stat.dcinside.com^
-!
-! 특정 페이지에서만 예외
 ! @@||google-analytics.com^$domain=mywork-site.com
-!
-! 광고는 막되 분석은 허용 (반대 케이스)
 ! @@||doubleclick.net^$xmlhttprequest
 
 ! ───────────────────────────────────────────
 ! $domain - 특정 사이트에서만 적용
 ! ───────────────────────────────────────────
-! 이 룰을 어떤 도메인에서만 적용할지 지정
-!
-! example.com에서만 차단
 ! ||tracker.com^$domain=example.com
-!
-! 여러 도메인 (| 구분)
 ! ||tracker.com^$domain=example.com|test.com
-!
-! 특정 도메인 제외 (~ 사용)
 ! ||tracker.com^$domain=~trusted.com
-!
-! 실용 예: 네이버에서만 외부 트래커 차단
 ! ||google-analytics.com^$domain=naver.com
 
 ! ───────────────────────────────────────────
-! $third-party / $first-party (=$~third-party)
+! $third-party / $first-party
 ! ───────────────────────────────────────────
-! 요청 출처에 따른 차단
-! 
-! third-party: 다른 도메인에서 온 요청만 차단
 ! ||doubleclick.net^$third-party
-!
-! first-party: 같은 도메인 요청만 차단 (1st-party 트래킹 잡기)
 ! ||example.com/track^$~third-party
-! ||example.com/track^$first-party  (동일)
-!
-! 실용 예: 1st-party로 위장한 GA 프록시 잡기
 ! ||example.com/ga-collect^$first-party
 
 ! ───────────────────────────────────────────
 ! $popup - 팝업 차단
 ! ───────────────────────────────────────────
-! 새 창/탭으로 열리는 광고 차단
-!
 ! ||ads.example.com^$popup
-! ||*$popup,domain=streamingsite.com  (특정 사이트의 모든 팝업)
+! ||*$popup,domain=streamingsite.com
 
 ! ───────────────────────────────────────────
 ! $genericblock / $generichide
 ! ───────────────────────────────────────────
-! 일반 차단/숨김 룰 무력화 (특정 사이트에서)
-! 사이트별로 정밀 제어할 때
-!
 ! @@||example.com^$genericblock
 ! @@||example.com^$generichide
 
 ! ───────────────────────────────────────────
 ! $elemhide - 요소 숨김 룰만 비활성화
 ! ───────────────────────────────────────────
-! 네트워크 차단은 유지, CSS 숨김만 풀기
-!
 ! @@||example.com^$elemhide
 
 ! ───────────────────────────────────────────
 ! $csp - Content Security Policy 강제
 ! ───────────────────────────────────────────
-! 사이트에 CSP 헤더 강제 주입 (스크립트 실행 제한 등)
-!
-! 인라인 스크립트 차단
 ! ||example.com^$csp=script-src 'self'
-!
-! 외부 폰트 차단
 ! ||example.com^$csp=font-src 'none'
 
 ! ───────────────────────────────────────────
 ! $replace - 응답 본문 내용 치환 (고급)
 ! ───────────────────────────────────────────
-! 페이지 HTML/JS 내용을 정규식으로 치환
-! ⚠️ 주의: HTTPS 필터링 + 매우 신중하게 사용
-!
-! 광고 스크립트 변수 무력화
 ! ||example.com^$replace=/window\.adsbygoogle/window\.adsbygoogle_disabled/g
 
 ! ───────────────────────────────────────────
 ! $jsonprune - JSON 응답에서 특정 필드 제거 (AdGuard 전용)
 ! ───────────────────────────────────────────
-! API 응답 JSON에서 광고/추적 필드만 제거
-!
-! 응답에서 "ads" 키 제거
 ! ||example.com/api/feed^$jsonprune=\$.ads
-!
-! 응답에서 추적 ID 제거
 ! ||example.com/api/data^$jsonprune=\$..tracking_id
 
 ! ───────────────────────────────────────────
 ! $hls - HLS 스트림 매니페스트에서 광고 제거 (AdGuard 전용)
 ! ───────────────────────────────────────────
-! m3u8 플레이리스트에서 광고 세그먼트 제거
-! Twitch, YouTube Live 등 광고 차단에 유용
-!
 ! ||example.com/stream.m3u8^$hls=/ad
 
 ! ───────────────────────────────────────────
-! $cookie - 쿠키 차단/제거 (이미 [3]에서 사용)
+! $cookie / $removeparam / $removeheader / $redirect / $redirect-rule
 ! ───────────────────────────────────────────
-! 모든 쿠키 차단
-! ||tracker.com^$cookie
-!
-! 특정 이름 쿠키만
-! ||example.com^$cookie=tracking_id
-!
-! 정규식 매칭
-! $cookie=/^_ga$/
-
-! ───────────────────────────────────────────
-! $removeparam - URL 파라미터 제거 (이미 [1]에서 사용)
-! ───────────────────────────────────────────
-! 모든 파라미터 제거
-! ||example.com^$removeparam
-!
-! 특정 파라미터만
-! $removeparam=fbclid
-
-! ───────────────────────────────────────────
-! $removeheader - HTTP 헤더 제거 (이미 [2]에서 사용)
-! ───────────────────────────────────────────
-! 응답 헤더 제거
-! ||example.com^$removeheader=set-cookie
-!
-! 요청 헤더 제거
-! ||example.com^$removeheader=request:referer
-
-! ───────────────────────────────────────────
-! $redirect - 가짜 리소스 대체 (이미 [4]에서 사용)
-! ───────────────────────────────────────────
-! ||example.com/ad.mp4^$redirect=noopmp4-1s
-
-! ───────────────────────────────────────────
-! $redirect-rule - $redirect의 약한 버전
-! ───────────────────────────────────────────
-! 차단 룰이 있을 때만 redirect 적용
-! 차단 안 하면 그냥 통과
-!
-! ||example.com^$redirect-rule=noopjs
+! 위 섹션 [1]~[4]에서 이미 활용 중. 예시는 원본 문서 참고.
 
 ! ───────────────────────────────────────────
 ! $stealth - 프라이버시 보호 옵션 (AdGuard 전용)
 ! ───────────────────────────────────────────
-! 특정 사이트에서 스텔스 모드 비활성화
-!
 ! @@||trusted-site.com^$stealth
 
 ! ───────────────────────────────────────────
 ! 요소 숨김 (Cosmetic Filter) - 기본 문법
 ! ───────────────────────────────────────────
-! 네트워크 차단 못한 광고 요소를 CSS로 숨김
-!
-! 특정 사이트의 요소 숨김
 ! example.com##.ad-banner
 ! example.com##div[id^="ad-"]
-!
-! 모든 사이트 공통
 ! ##.advertisement
-! ##div.sponsored
-!
-! 예외 (이 사이트만 숨기지 않기)
 ! example.com#@#.ad-banner
 
 ! ───────────────────────────────────────────
 ! 확장 요소 숨김 (Extended CSS)
 ! ───────────────────────────────────────────
-! 일반 CSS로 못 잡는 요소를 숨김 (텍스트 매칭 등)
-!
-! "광고" 텍스트가 들어간 div 숨김
 ! example.com#?#div:has-text(광고)
-!
-! 부모 요소 숨김
 ! example.com#?#div:has(> .ad)
 
 ! ───────────────────────────────────────────
 ! 스크립트릿 (Scriptlet) - JavaScript 인젝션
 ! ───────────────────────────────────────────
-! 페이지에 자바스크립트 코드 주입해서 광고 우회
-!
-! 광고 차단 감지 우회
 ! example.com#%#//scriptlet('set-constant', 'adblockDetected', 'false')
-!
-! 특정 변수 무력화
 ! example.com#%#//scriptlet('set-constant', 'canRunAds', 'true')
-!
-! setTimeout/setInterval에서 광고 코드 차단
 ! example.com#%#//scriptlet('prevent-setTimeout', 'adsbygoogle')
 
 ! ───────────────────────────────────────────
-! HTML 필터링 (응답 HTML 직접 수정)
+! HTML 필터링
 ! ───────────────────────────────────────────
-! HTML 응답에서 특정 요소 제거 (서버 단에서 처리)
-!
 ! example.com$$script[tag-content="ads"]
 ! example.com$$div[class="popup"]
 
 ! ═══════════════════════════════════════════
 ! 실용 예시 모음
 ! ═══════════════════════════════════════════
-
-! ───── 디시인사이드 사고 방지용 화이트리스트 ─────
 ! @@||cnt.dcinside.com^
 ! @@||stat.dcinside.com^
 ! @@||stat.dcinside.co.kr^
-
-! ───── 토스/은행 결제 페이지 보호 ─────
 ! @@||static.toss.im^
 ! @@||*.toss.im^$domain=toss.im
 ! @@||*.kbstar.com^$domain=kbstar.com
-
-! ───── 본인 회사 사이트는 GA 허용 (업무용) ─────
 ! @@||google-analytics.com^$domain=mywork-site.com
 ! @@||googletagmanager.com^$domain=mywork-site.com
-
-! ───── 유튜브는 광고 차단하되 통계는 허용 ─────
 ! @@||youtube.com/api/stats^$domain=youtube.com
-
-! ───── 페이스북 본체는 허용, 외부 사이트의 페이스북 픽셀만 차단 ─────
 ! @@||facebook.com^$domain=facebook.com|messenger.com
 ! ||facebook.com^$third-party
-
-! ───── 특정 광고주 도메인 강제 차단 (예외 무시) ─────
 ! ||obnoxious-tracker.com^$important
-
-! ───── 외부 필터 리스트의 잘못된 차단 무력화 ─────
-! 예: 어떤 리스트가 정상 사이트를 잘못 차단할 때
 ! ||legitimate-site.com^$badfilter
-
 
 
 !///////////////////////////////////////////////
 
 
 ! ═══════════════════════════════════════════
-! 라이브 스트리밍 - 다양한 옵션 활용 (확장판)
+! [7] 라이브 스트리밍 - 정밀 차단
 ! ═══════════════════════════════════════════
 ! ⚠️ 라이브 스트리밍은 본 영상과 광고가 같은 도메인 사용
 ! ⚠️ DNS 차단 불가 → 경로/파라미터/리소스 타입 단위로 정밀 차단
@@ -1397,7 +1218,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ! Twitch (트위치)
 ! ───────────────────────────────────────────
 
-! ───── [$empty] 경로 단위 차단 ─────
+! 경로 단위 차단
 ||twitch.tv/track^$empty
 ||twitch.tv/api/channels/*/ad^$empty
 ||twitch.tv/api/channels/*/commercial^$empty
@@ -1410,15 +1231,14 @@ $cookie=/^__hstc$/            ! HubSpot
 ||video-edge-*.abs.hls.ttvnw.net/*/stats^$empty
 ||analytics.twitch.tv^$empty
 
-! ───── 광고 매니페스트/세그먼트 ─────
-! HLS 광고 세그먼트 (조심해서 사용)
+! 광고 매니페스트/세그먼트
 ||twitchcdn.net^$xmlhttprequest,redirect=noopvast-2.0
 ||*twitch.tv*/ads^$xmlhttprequest,empty
 
-! IMA SDK (Twitch 영상 광고)
+! IMA SDK
 ||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=noopjs
 
-! ───── [$removeparam] 추적 파라미터 ─────
+! 추적 파라미터
 ||twitch.tv^$removeparam=tt_content
 ||twitch.tv^$removeparam=tt_medium
 ||twitch.tv^$removeparam=tt_term
@@ -1426,8 +1246,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||twitch.tv^$removeparam=session_id
 ||twitch.tv^$removeparam=tag
 
-! ───── [$cookie] 추적 쿠키 ─────
-! ⚠️ auth-token, login 등은 절대 건들지 마세요!
+! 추적 쿠키 (auth-token, login 등은 건드리지 않음)
 ||twitch.tv^$cookie=unique_id
 ||twitch.tv^$cookie=unique_id_durable
 ||twitch.tv^$cookie=server_session_id
@@ -1435,28 +1254,21 @@ $cookie=/^__hstc$/            ! HubSpot
 ||twitch.tv^$cookie=ttsess
 ||twitch.tv^$cookie=last_login
 
-! ───── [$removeheader] ─────
+! 헤더
 ||twitch.tv^$removeheader=client-session-id
 ||twitch.tv^$removeheader=x-device-id
 ||twitch.tv^$removeheader=client-version
 
-! ───── [$hls] HLS 광고 세그먼트 제거 (게임 체인저) ─────
-! ⚠️ 최신 AdGuard에서만 동작
-! Twitch 광고가 본 영상에 섞여 들어오는 것 제거
+! HLS 광고 세그먼트 제거 (최신 AdGuard 전용)
 ||usher.ttvnw.net/api/channel/hls/*$hls=/stitched-ad/
 ||video-weaver.*.hls.ttvnw.net^$hls=/Amazon/
 ||video-edge-*.*.hls.ttvnw.net^$hls=/Amazon/
-
-! ⚠️ 절대 차단 금지 (방송 송출 끊김)
-! @@||usher.ttvnw.net^$important
-! @@||video-edge-*.ttvnw.net^$important
-! @@||video-weaver.*.ttvnw.net^$important
 
 ! ───────────────────────────────────────────
 ! 치지직 (CHZZK / Naver)
 ! ───────────────────────────────────────────
 
-! ───── [$empty] 경로 단위 차단 ─────
+! 경로 단위 차단
 ||log.chzzk.naver.com^$empty
 ||apis.naver.com/commercial^$empty
 ||apis.naver.com/nng_main/nng/log^$empty
@@ -1482,14 +1294,14 @@ $cookie=/^__hstc$/            ! HubSpot
 ||ssl.pstatic.net/cmcdn/ad^$media,redirect=noopmp4-1s
 ||ssl.pstatic.net/cmcdn/ad^$image,redirect=1x1-transparent.gif
 
-! ───── [$removeparam] ─────
+! 추적 파라미터
 ||chzzk.naver.com^$removeparam=track
 ||chzzk.naver.com^$removeparam=trackingId
 ||chzzk.naver.com^$removeparam=trackingCode
 ||chzzk.naver.com^$removeparam=clickArea
 ||chzzk.naver.com^$removeparam=NaPm
 
-! ───── [$cookie] ─────
+! 추적 쿠키
 ||chzzk.naver.com^$cookie=NID_AUT_TARGETING
 ||chzzk.naver.com^$cookie=ba.uid
 ||naver.com^$cookie=nid_inf
@@ -1497,26 +1309,21 @@ $cookie=/^__hstc$/            ! HubSpot
 ||naver.com^$cookie=NV_WETR_LOCATION_RGN_M
 ||naver.com^$cookie=_naver_usersession_
 
-! ───── [$removeheader] ─────
+! 헤더
 ||chzzk.naver.com^$removeheader=x-naver-client-id
 ||chzzk.naver.com^$removeheader=x-trace-id
-
-! ⚠️ 절대 차단 금지
-! @@||livecloud.pstatic.net^$important
-! @@||ssl.pstatic.net^$important
-! @@||chzzk.naver.com/polling/v2/channels/*/live-detail^$important
 
 ! ───────────────────────────────────────────
 ! 숲 (SOOP / 구 아프리카TV)
 ! ───────────────────────────────────────────
 
-! ───── [$empty] 경로 단위 차단 ─────
+! 경로 단위 차단
 ||stbbs.afreecatv.com/api/log^$empty
 ||static.file.sooplive.co.kr/log^$empty
 ||log.sooplive.co.kr/api^$empty
 ||afreecatv.com/api/stat^$empty
 ||sooplive.co.kr/api/stat^$empty
-! - 로그인을 해도 로그인은 되었지만 아바타 아이콘으로 바뀌지 않아 개인활동을 못함
+! - 로그인을 해도 아바타 아이콘으로 바뀌지 않아 개인활동을 못함
 !||afevent2.sooplive.com^$empty
 ||laglog.sooplive.com^$empty
 ||exlogcollector.sooplive.com^$empty
@@ -1528,7 +1335,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||analysis.sooplive.com^$empty
 ||stat.afreecatv.com^$empty
 
-! 광고 비디오 (대용량 → 빈 응답으로 트래픽 절감)
+! 광고 비디오
 ||adimg.afreecatv.com/*.mp4^$media,redirect=noopmp4-1s
 ||adimg.sooplive.co.kr/*.mp4^$media,redirect=noopmp4-1s
 ||adv.sooplive.co.kr/*.mp4^$media,redirect=noopmp4-1s
@@ -1549,7 +1356,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||adimg.sooplive.co.kr^$image,redirect=1x1-transparent.gif
 ||adballoon.sooplive.com^$image,redirect=1x1-transparent.gif
 
-! ───── [$removeparam] ─────
+! 추적 파라미터
 ||afreecatv.com^$removeparam=hash
 ||sooplive.co.kr^$removeparam=hash
 ||afreecatv.com^$removeparam=stationNo
@@ -1561,7 +1368,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||afreecatv.com^$removeparam=src
 ||sooplive.co.kr^$removeparam=src
 
-! ───── [$cookie] ─────
+! 추적 쿠키
 ||afreecatv.com^$cookie=_au
 ||afreecatv.com^$cookie=_aupath
 ||afreecatv.com^$cookie=_aupcid
@@ -1569,46 +1376,25 @@ $cookie=/^__hstc$/            ! HubSpot
 ||sooplive.co.kr^$cookie=_aupath
 ||sooplive.co.kr^$cookie=_aupcid
 
-! ───── [$removeheader] ─────
+! 헤더
 ||sooplive.co.kr^$removeheader=set-cookie,domain=ads.sooplive.co.kr
 ||afreecatv.com^$removeheader=set-cookie,domain=ads.afreecatv.com
 ||sooplive.com^$removeheader=set-cookie,domain=adv.sooplive.com
 
-! ⚠️ 절대 차단 금지
-! @@||play.sooplive.com^$important
-! @@||livestream-manager.sooplive.com^$important
-! @@||*.afreecatv.com/streaming^$important
-
 ! ───────────────────────────────────────────
 ! Kick (킥)
 ! ───────────────────────────────────────────
-
-! ───── [$empty] 경로 단위 차단 ─────
 ||kick.com/api/v2/track^$empty
 ||kick.com/api/v1/analytics^$empty
 ||kick.com/api/v1/log^$empty
 ||analytics.kick.com^$empty
 ||events.kick.com^$empty
-
-! Kick는 Cloudflare CDN 사용 + 광고 적음
-! 차단할 경로가 거의 없음
-
-! ───── [$cookie] ─────
 ||kick.com^$cookie=_kk_session
 ||kick.com^$cookie=_kk_tracking
-
-! ⚠️ 절대 차단 금지
-! @@||stream.kick.com^$important
-! @@||cdn.kick.com^$important
 
 ! ───────────────────────────────────────────
 ! YouTube 라이브 / YouTube 일반
 ! ───────────────────────────────────────────
-
-! ───── 광고 (가장 까다로움) ─────
-! YouTube는 자체 SABR(Server-side Ad Broadcasting Resolver) 도입으로
-! 클라이언트 단 광고 차단이 점점 어려워지는 중
-! AdGuard, uBlock Origin 같은 전문 도구 권장
 
 ! 광고 매니페스트
 ||youtube.com/api/stats/ads^$empty
@@ -1629,7 +1415,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=googletagservices.com/gpt.js
 ||imasdk.googleapis.com/js/sdkloader/ima3_dai.js^$script,redirect=noopjs
 
-! ───── [$removeparam] (공유 링크 추적 제거) ─────
+! 공유 링크 추적 제거
 ||youtube.com^$removeparam=feature
 ||youtube.com^$removeparam=si
 ||youtube.com^$removeparam=pp
@@ -1644,23 +1430,10 @@ $cookie=/^__hstc$/            ! HubSpot
 ||youtu.be^$removeparam=feature
 ||youtu.be^$removeparam=t
 
-! ───── [$cookie] (본체 살리고 추적만) ─────
-||youtube.com^$cookie=VISITOR_INFO1_LIVE
+! 추적 쿠키
 ||youtube.com^$cookie=VISITOR_PRIVACY_METADATA
-||youtube.com^$cookie=YSC
 ||youtube.com^$cookie=__Secure-YEC
 ||youtube.com^$cookie=PREF
-
-! ⚠️ 절대 차단 금지
-! @@||*.googlevideo.com^$important
-! @@||youtube.com/videoplayback^$important
-! @@||youtube.com/watch^$important
-
-! ───────────────────────────────────────────
-! 트위치 클립 / 클립챔프 등 (Mature 시청자 우회)
-! ───────────────────────────────────────────
-! Mature 콘텐츠 경고 우회 (선택)
-! ||twitch.tv/api/channels/*/access_token^$xmlhttprequest
 
 ! ───────────────────────────────────────────
 ! Niconico (니코니코) 일본
@@ -1679,7 +1452,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||cm.bilibili.com^$empty
 
 ! ───────────────────────────────────────────
-! 일반 라이브/VOD 플랫폼 광고 차단
+! 일반 라이브/VOD 플랫폼
 ! ───────────────────────────────────────────
 
 ! Vimeo
@@ -1710,20 +1483,6 @@ $cookie=/^__hstc$/            ! HubSpot
 ||ichnaea.netflix.com^$empty
 
 ! ───────────────────────────────────────────
-! 일반 트래커 헤더/파라미터
-! ───────────────────────────────────────────
-
-! 라이브 스트리밍 공통 추적 파라미터
-$removeparam=stream_id
-$removeparam=session_id
-$removeparam=visitor_id
-$removeparam=device_id
-! - 로그인시 정상적인 접근이 아닙니다. 발생 주의 (이토랜드 등)
-!$removeparam=client_id
-$removeparam=tracking_session
-$removeparam=watch_session
-
-! ───────────────────────────────────────────
 ! GitHub 텔레메트리 (개발자용)
 ! ───────────────────────────────────────────
 ||api.github.com/_private/browser/stats^$empty
@@ -1736,11 +1495,8 @@ $removeparam=watch_session
 ||github.com/_graphql/GetTelemetryConfig^$empty
 
 ! ───────────────────────────────────────────
-! 세이프티넷 (이 도메인들은 절대 차단 금지)
+! 세이프티넷 (절대 차단 금지)
 ! ───────────────────────────────────────────
-! 만약 위 룰들이 실수로 본 영상까지 막으면 사용
-! @@를 활성화하면 어떤 룰보다 우선해서 통과시킴
-
 ! Twitch 본 영상
 @@||usher.ttvnw.net^$important
 @@||video-edge-*.ttvnw.net^$important
@@ -1769,19 +1525,15 @@ $removeparam=watch_session
 
 
 ! ═══════════════════════════════════════════
-! [8] $empty 정밀 차단 (메인 DNS 차단과 중복 제외)
+! [8] $empty 정밀 차단 (도메인/경로 단위)
 ! ═══════════════════════════════════════════
-! ⚠️ 메인 룰셋의 $dnsrewrite=NXDOMAIN과 중복되지 않는 것만
+! ⚠️ 메인 DNS 차단과 중복되지 않는 것만
 ! ⚠️ 경로/와일드카드/신규 도메인 위주
 
 ! ───── 스트리밍 - 경로 단위 (도메인은 살리고 추적만) ─────
 ||appboot.netflix.com/log^$empty
 ||youtubei.googleapis.com/youtubei/v1/log_event^$empty
-||youtube.com/api/stats/ads^$empty
 ||youtube.com/api/stats/watchtime^$empty
-||youtube.com/api/stats/qoe^$empty
-||youtube.com/ptracking^$empty
-||youtube.com/pagead^$empty
 ||spclient.wg.spotify.com/ads-enabled-check^$empty
 ||spclient.wg.spotify.com/ad-logic^$empty
 ||spclient.wg.spotify.com/gabo-receiver-service^$empty
@@ -1790,18 +1542,15 @@ $removeparam=watch_session
 ||disneyplus.bn5x.net^$empty
 ||tubitv.com/oz/analytics^$empty
 ||hbomax-analytics.warnermediacdn.com^$empty
-||twitch.tv/track^$empty
-||spade.twitch.tv^$empty
-||countess.twitch.tv^$empty
 
-! ───── OS / 제조사 텔레메트리 (메인에 없는 것) ─────
+! ───── OS / 제조사 텔레메트리 ─────
 ||v10.vortex-win.data.microsoft.com^$empty
 ||cdn.samsungcloudsolution.com^$empty
 ||log-config.samsungdm.com^$empty
 ||lcprd1.samsungcloudsolution.net^$empty
 ||xiaomi.com/log^$empty
 
-! ───── 브라우저 (메인에 없는 것) ─────
+! ───── 브라우저 ─────
 ||update.googleapis.com/service/update2^$empty
 ||clients2.google.com/cr/report^$empty
 ||clients4.google.com/chrome-sync^$empty
@@ -1813,7 +1562,7 @@ $removeparam=watch_session
 ||mig.vivaldi.com^$empty
 ||update.vivaldi.com/update_check^$empty
 
-! ───── 소프트웨어 (메인에 없는 것) ─────
+! ───── 소프트웨어 ─────
 ||cc-api-data-stage.adobe.io^$empty
 ||adobe.demdex.net^$empty
 ||dpm.demdex.net^$empty
@@ -1822,9 +1571,10 @@ $removeparam=watch_session
 ||shavar.services.mozilla.com^$empty
 ||location.services.mozilla.com^$empty
 
-! ───── 앱 분석 / APM (와일드카드 + 메인에 없는 것) ─────
+! ───── 앱 분석 / APM ─────
 ||*.sentry.io^$empty
 ||*.ingest.sentry.io^$empty
+||sentry-cdn.com^$third-party,empty
 ||firebaselogging.googleapis.com^$empty
 ||bam.nr-data.net^$empty
 ||bam-cell.nr-data.net^$empty
@@ -1855,8 +1605,12 @@ $removeparam=watch_session
 ||*.branch.io^$empty
 ||*.kochava.com^$empty
 ||*.singular.net^$empty
+! - 신규 보강
+||*.bugsnag.com^$empty
+||*.rollbar.com^$empty
+||*.raygun.io^$empty
 
-! ───── 광고/웹 분석 (경로 단위 + 와일드카드) ─────
+! ───── 광고/웹 분석 ─────
 ||google-analytics.com/collect^$empty
 ||google-analytics.com/g/collect^$empty
 ||www.googletagmanager.com/gtag^$empty
@@ -1876,7 +1630,7 @@ $removeparam=watch_session
 ||*.pubmatic.com^$empty
 ||*.openx.net^$empty
 
-! ───── 소셜 트래킹 (경로 단위) ─────
+! ───── 소셜 트래킹 ─────
 ||www.facebook.com/tr^$empty
 ||connect.facebook.net/signals^$empty
 ||graph.facebook.com/logging_client_events^$empty
@@ -1886,7 +1640,7 @@ $removeparam=watch_session
 ||snap.licdn.com/li.lms-analytics^$empty
 ||sc-static.net/scevent^$empty
 
-! ───── 게임 (메인에 없는 것) ─────
+! ───── 게임 ─────
 ||client-telemetry.battle.net^$empty
 ||metrics.api.ea.com^$empty
 ||telemetry-in.ksinfra.com^$empty
@@ -1896,7 +1650,8 @@ $removeparam=watch_session
 ||wgu-prom-relay.wgnet.eu^$empty
 ||steambeat.steamstatic.com^$empty
 
-! ───── 모바일 광고 (와일드카드 + 메인에 없는 것) ─────
+! ───── 모바일 광고 ─────
+! ⚠️ 모바일 게임 보상형 광고 영향 가능. 게임 광고 보시면 해당 줄 주석 처리
 ||*.applovin.com^$empty
 ||a.applovin.com^$empty
 ||*.unityads.unity3d.com^$empty
@@ -1925,7 +1680,7 @@ $removeparam=watch_session
 ||*.swrve.com^$empty
 ||*.airbridge.io^$empty
 
-! ───── CRM / 인앱 마케팅 (와일드카드 + 경로) ─────
+! ───── CRM / 인앱 마케팅 ─────
 ||*.iterable.com^$empty
 ||links.iterable.com^$empty
 ||*.customer.io^$empty
@@ -1960,8 +1715,14 @@ $removeparam=watch_session
 ||*.inspectlet.com^$empty
 ||*.contentsquare.net^$empty
 ||*.quantummetric.com^$empty
+! - 신규 보강
+||*.dynamicyield.com^$empty
+||*.monetate.net^$empty
+||*.kameleoon.com^$empty
+||*.abtasty.com^$empty
+||*.channel.io^$empty
 
-! ───── CDP / 태그 매니저 (와일드카드 + 경로) ─────
+! ───── CDP / 태그 매니저 ─────
 ||*.tealiumiq.com^$empty
 ||tags.tiqcdn.com^$empty
 ||collect.tealiumiq.com^$empty
@@ -1994,21 +1755,41 @@ $removeparam=watch_session
 ||*.rfihub.com^$empty
 ||tags.rd.linksynergy.com^$empty
 ||*.go2cloud.org^$empty
+! - 신규 보강 (CDP / 식별자 그래프)
+||*.liadm.com^$empty
+||*.id5-sync.com^$empty
+||*.sharethis.com^$empty
+||*.addthis.com^$empty
+||*.addthisedge.com^$empty
+||*.permutive.com^$empty
+||*.permutive.app^$empty
+||*.lotame.com^$empty
+||*.crwdcntrl.net^$empty
+||*.tapad.com^$empty
+||*.indexww.com^$empty
+||*.yieldmo.com^$empty
+||*.spotxchange.com^$empty
+||*.teads.tv^$empty
+||*.stickyadstv.com^$empty
 
-! ───── IoT / 스마트TV (메인에 없는 것) ─────
+! ───── 클라우드플레어/RUM (신규 보강) ─────
+||cloudflareinsights.com^$empty
+||static.cloudflareinsights.com^$empty
+
+! ───── IoT / 스마트TV ─────
 ||*.sr.roku.com^$empty
 
-! ───── 자동차 (메인에 없는 것) ─────
+! ───── 자동차 ─────
 ||stat.toyota.com^$empty
 ||car-metrics.audi.com^$empty
 ||telematics.gm.com^$empty
 
-! ───── 보안 (경로 단위) ─────
+! ───── 보안 ─────
 ||*.avast.com/log^$empty
 ||*.norton.com/telemetry^$empty
 ||*.eset.com/telemetry^$empty
 
-! ───── 개발자 도구 (메인에 없는 것) ─────
+! ───── 개발자 도구 ─────
 ||r.rdocumentation.org^$empty
 ||telemetry.gradle.com^$empty
 ||*.gradle-profiler.gradle.org^$empty
@@ -2021,7 +1802,7 @@ $removeparam=watch_session
 ||telemetry.docker.com^$empty
 ||hooks.docker.com^$empty
 
-! ───── 메신저/화상회의 (경로 단위 + 와일드카드) ─────
+! ───── 메신저/화상회의 ─────
 ||statsigapi.net^$empty
 ||events.statsig.com^$empty
 ||*.discord.com/api/science^$empty
@@ -2032,21 +1813,21 @@ $removeparam=watch_session
 ||metrics-a.webex.com^$empty
 ||stats-g.line.me^$empty
 
-! ───── 클라우드 스토리지 / 생산성 (경로 단위) ─────
+! ───── 클라우드 스토리지 / 생산성 ─────
 ||msgstore.notion.so/api/v3/track^$empty
 ||www.figma.com/track^$empty
 ||www.figma.com/api/tracking^$empty
 
-! ───── 비밀번호 관리자 (경로 단위) ─────
+! ───── VPN ─────
 ||api.nordvpn.com/v1/analytics^$empty
 
-! ───── 한국 서비스 (메인에 없는 것) ─────
+! ───── 한국 서비스 ─────
 ||log.smartstore.naver.com^$empty
 ||stats.gmarket.co.kr^$empty
 ||action.11st.co.kr^$empty
 ||analytics.afreecatv.com^$empty
 
-! ───── 한국계 광고/팝업 네트워크 (대부분 메인에 없음) ─────
+! ───── 한국계 광고/팝업 네트워크 ─────
 ||adcjs.kr^$empty
 ||realclick.co.kr^$empty
 ||realclick.kr^$empty
@@ -2057,13 +1838,19 @@ $removeparam=watch_session
 ||igaworks.com^$empty
 ||recopick.com^$empty
 ||astralog.naver.com^$empty
+! - 신규 보강
+||dable.io^$empty
+||logger.recopick.com^$empty
+||enliple.com^$empty
+||rtbplus.io^$empty
+||astrid.kakao.com^$empty
 
 ! ───── 디시 광고 정적 리소스 ─────
 ||nstatic.dcinside.com/dc/dcad^$empty
 ||nstatic.dcinside.com/dgn/gallery/images/popup^$empty
 ||nstatic.dcinside.com/dc/m/img/banner^$empty
 
-! ───── 중국 SDK (와일드카드 + 메인에 없는 것) ─────
+! ───── 중국 SDK ─────
 ||*.umeng.com^$empty
 ||*.umengcloud.com^$empty
 ||plbslog.umeng.com^$empty
@@ -2127,7 +1914,7 @@ $removeparam=watch_session
 ||hilltopads.com^$empty
 ||htlbid.com^$empty
 
-! 그 외 광고 네트워크 (메인에 없는 것)
+! 그 외 광고 네트워크
 ||clickfuse.com^$empty
 ||clickfunnels.com^$empty
 ||adsbtrk.com^$empty
@@ -2154,28 +1941,11 @@ $removeparam=watch_session
 /\/(beacon|pixel|telemetry)\.(gif|png|js|php)/$third-party,empty
 /\/__(utm|ga|fbq|gtag)\.gif/$third-party,empty
 
-! ═══════════════════════════════════════════
-! 선택 적용 (주의: 결제·로그인·기능 영향 가능)
-! 필요 시 주석(!) 제거하여 활성화
-! ═══════════════════════════════════════════
-! ||*.threatmetrix.com^$empty
-! ||h.online-metrix.net^$empty
-! ||*.iovation.com^$empty
-! ||mpsnare.iesnare.com^$empty
-! ||*.perimeterx.net^$empty
-! ||*.fingerprint.com^$empty
-! ||api.fpjs.io^$empty
-! ||statsig.anthropic.com^$empty
-! ||analytics.perplexity.ai^$empty
-! ||openai.com/v1/rgstr^$empty
-! ||*.cohere.ai/v1/track^$empty
-
-
-============
 
 ! ═══════════════════════════════════════════
-! 추가
+! [9] Google 개인화 / Windows 위젯 / 신규 분석
 ! ═══════════════════════════════════════════
+
 ! Google 개인화
 ||locationhistoryplacedetails-pa.googleapis.com^$empty
 ||locationhistory-pa.googleapis.com^$empty
@@ -2191,6 +1961,29 @@ $removeparam=watch_session
 ||*.matomo.cloud^$empty
 ||*.plausible.io^$empty
 
-! AI 서비스 텔레메트리 (이미 "선택 적용"에 일부 있음)
+! AI 서비스 텔레메트리
 ||api.openai.com/v1/rgstr^$empty
 ||telemetry.cursor.sh^$empty
+
+
+! ═══════════════════════════════════════════
+! [10] 선택 적용 (주의: 결제·로그인·기능 영향 가능)
+! 필요 시 주석(!) 제거하여 활성화
+! ═══════════════════════════════════════════
+
+! 핑거프린팅 / 봇 탐지 (결제·로그인 영향 가능)
+!||*.threatmetrix.com^$empty
+!||h.online-metrix.net^$empty
+!||*.iovation.com^$empty
+!||mpsnare.iesnare.com^$empty
+!||*.perimeterx.net^$empty
+!||*.fingerprint.com^$empty
+!||*.fingerprintjs.com^$empty
+!||*.fpjs.io^$empty
+!||*.fpcdn.io^$empty
+!||api.fpjs.io^$empty
+
+! AI 서비스 추가 텔레메트리
+!||statsig.anthropic.com^$empty
+!||analytics.perplexity.ai^$empty
+!||*.cohere.ai/v1/track^$empty
