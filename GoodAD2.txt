@@ -1334,6 +1334,10 @@ $cookie=/^__hstc$/            ! HubSpot
 ||stat.sooplive.com^$empty
 ||analysis.sooplive.com^$empty
 ||stat.afreecatv.com^$empty
+! 광고 표시 여부 결정 API
+||st.sooplive.com/api/da_*^$xmlhttprequest,empty
+! 이벤트 수집 (텔레메트리)
+||eventapi.sooplive.com^$empty
 
 ! 광고 비디오
 ||adimg.afreecatv.com/*.mp4^$media,redirect=noopmp4-1s
