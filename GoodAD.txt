@@ -1199,8 +1199,10 @@ ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 !
 ! 웃대 (https://humoruniv.com/)
 ! - 모바일에서만 댓글 상단에 배너보임
-##[href^="https://cache.ggeal.com/board/exp/me_go.html"]
-##.power_place
+!##[href^="https://cache.ggeal.com/board/exp/me_go.html"]
+!##.power_place
+! - 댓글 사이 광고
+##[id*="choo_center" i]
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
