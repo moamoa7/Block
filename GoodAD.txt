@@ -1041,7 +1041,8 @@ fmkorea.com###fm_alert
 ! - 팝업
 ! - - -  - 다른 요소까지 지워짐
 !##[class*="overflow" i]
-etoland.co.kr##.overflow-y-auto
+! - 알림 - 삭제하기 버튼 클릭시 메뉴 안나옴
+!etoland.co.kr##.overflow-y-auto
 ! - 게시물 하단 남는 공간 (모바일)
 ! - - - 오징어랜드 이미지 안보여서 해제
 !etoland.co.kr##div.justify-center.w-full
