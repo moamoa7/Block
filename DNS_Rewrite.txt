@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260512-rev3
+! Version: 20260512-rev4
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -172,7 +172,6 @@
 ||singular.net^
 ||airbridge.io^
 ||braze.com^
-! - 특정 앱(예: 쇼핑몰)이 Braze 푸시 때문에 동작 안 하는 문제가 생기면 그때만 화이트리스트 추가 필요
 ||sdk.iad-01.braze.com^
 ||appboy.com^
 ||leanplum.com^
@@ -323,8 +322,6 @@
 ||channel.io^
 ! - 한국 앱(토스, 당근마켓 등)에서 신규 기능이 보이지 않으면 풀어야 함
 ||hackle.io^
-! - -  SDK 설정 조회는 허용 (기능 플래그 동작)
-@@||sdk-api.hackle.io^
 !
 ! ───── CDP / 태그 매니저 / Cookie Sync ─────
 ||tealiumiq.com^
@@ -500,7 +497,7 @@
 ||client-events.dropbox.com^
 ||client-telemetry.slack.com^
 ! 신생 앱/웹서비스의 기능 플래그용 — 막으면 일부 기능 미표시 가능
-!||statsigapi.net^ 
+!||statsigapi.net^
 ||featuregates.org^
 ||clienttelemetry.webex.com^
 ||telemetry-service.webex.com^
@@ -542,29 +539,163 @@
 ||oai-events.azureedge.net^
 ||statsig.anthropic.com^
 !
-! ───── 바이두 / 중국계 광고·분석 ─────
+! ═══════════════════════════════════════════════════════════
+! 중국계 광고/추적 (한국 사용자 트래픽 발생 도메인 위주)
+! ═══════════════════════════════════════════════════════════
+!
+! ───── 바이두(Baidu) ─────
 ||hm.baidu.com^
 ||pos.baidu.com^
 ||tongji.baidu.com^
 ||cbjs.baidu.com^
 ||eclick.baidu.com^
 ||loc.map.baidu.com^
+||zz.bdstatic.com^
+!
+! ───── Alibaba 계열 (AliExpress / Taobao / 1688) ─────
+||alimama.com^
+||mmstat.com^
+||tanx.com^
+||atanx.alicdn.com^
 ||adash.m.taobao.com^
-||umeng.com^
-||umengcloud.com^
-||log.umsns.com^
-||talkingdata.com^
-||talkingdata.net^
-||getui.com^
-||igexin.com^
+||adashx.m.taobao.com^
+||adashx.ut.taobao.com^
+||adashbc.m.taobao.com^
+||fourier.taobao.com^
+||adash.man.aliyuncs.com^
+||arms-retcode.aliyuncs.com^
+!
+! ───── Tencent 광고/SDK (글로벌 앱·게임에 내장) ─────
+||ad.tencent.com^
+||ads.tencent.com^
+||analytics.tencent.com^
 ||tencentmta.com^
+||gdt.qq.com^
+||adsmind.gdtimg.com^
+||cm.e.qq.com^
+||p.tencentmind.com^
+||pingma.qq.com^
+||pingjs.qq.com^
+||report.qq.com^
+||stat.qq.com^
+||log.qq.com^
+||log.tencent.com^
+||monitor.qq.com^
 ||trace.qq.com^
+||beacon.qq.com^
+||btrace.qq.com^
+||otheve.beacon.qq.com^
 ||oth.eve.mdt.qq.com^
+||ta.qq.com^
+||sdkconfig.ad.qq.com^
+||cfg.imtt.qq.com^
+||log.idqqimg.com^
+||stats.idqqimg.com^
+||tpstelemetry.tencent.com^
+!
+! ───── ByteDance / TikTok / Pangle 글로벌 SDK ─────
+! 한국 모바일 게임·앱에 광고 SDK로 광범위 임베드
 ||analytics.bytedance.com^
 ||log.bytedance.com^
+||mon.bytedance.com^
+||effect.bytedance.com^
 ||mssdk.bytedance.com^
+||monsetting.toutiao.com^
+||ad.toutiao.com^
+||ads.toutiao.com^
+||track.toutiao.com^
+||analytics.toutiao.com^
+||ad.mob.toutiao.com^
+||byteoversea.com^
+||log.byteoversea.com^
+||track.byteoversea.com^
+||metrics.byteoversea.com^
+||xlog.byteoversea.com^
+||ibytedtos.com^
+||log.ibytedtos.com^
+||track.ibytedtos.com^
+||volceapplog.com^
 ||mon.zijieapi.com^
 ||log.snssdk.com^
+! Pangle (TikTok For Business 광고 네트워크)
+! ⚠️ 모바일 게임 보상형 광고가 안 뜨면 풀어야 함
+||pangle.io^
+||sdk.pangle.io^
+||api.pangleglobal.com^
+||pangleglobal.com^
+||pangolin-sdk-toutiao.com^
+||sdk.pangolin-sdk-toutiao.com^
+||pangolin-sdk-toutiao-b.com^
+! 더우인 (중국판 TikTok) 관련
+||log.douyincdn.com^
+||analytics.douyincdn.com^
+||track.douyincdn.com^
+||log.muscdn.com^
+||track.muscdn.com^
+!
+! ───── Pinduoduo / Temu ─────
+||yangkeduo.com^
+||log.yangkeduo.com^
+||monitor.yangkeduo.com^
+||track.yangkeduo.com^
+||pddcdn.com^
+||log.pddcdn.com^
+||track.pddcdn.com^
+||stats.pddcdn.com^
+||pddcloud.com^
+||log.pddcloud.com^
+!
+! ───── 범용 추적 SDK (한국 앱에 자주 내장) ─────
+! ⚠️ umeng 계열은 일부 한국 앱 크래시 가능성 — 문제 시 예외 처리
+||umeng.com^
+||umeng.co^
+||umengcloud.com^
+||umtrack.com^
+||log.umsns.com^
+||cnzz.com^
+||talkingdata.com^
+||talkingdata.net^
+||sdk.open.talkingdata.com^
+||tendcloud.com^
+||growingio.com^
+||growingio.net^
+||sensorsdata.cn^
+||getui.com^
+||igexin.com^
+!
+! ───── 샤오미(Xiaomi) ─────
+||api.ad.xiaomi.com^
+||data.mistat.xiaomi.com^
+||data.mistat.intl.xiaomi.com^
+||tracking.miui.com^
+||tracking.intl.miui.com^
+||sensor-data.ssl.mi.com^
+!
+! ───── 화웨이(Huawei) ─────
+||logbak.hicloud.com^
+||hianalytics.com^
+||metrics.data.hicloud.com^
+||logservice.hicloud.com^
+||logservice1.hicloud.com^
+!
+! ───── UC 브라우저 ─────
+||applog.uc.cn^
+||gjapplog.uc.cn^
+!
+! ───── 레노버(Lenovo) & ZUI ─────
+! 기기 진단 및 추가적인 중국 내수용 업데이트 서버
+||stats.zui.com^
+||api.zui.lenovomm.com^
+||recom.zui.com^
+||sus.lenovomm.com^
+||zui.lenovo.com^
+||icns.zui.lenovomm.com^
+||cnszui.lenovomm.com^
+||dcf.lenovomm.com^
+!
+! ═══════════════════════════════════════════════════════════
+! 얀덱스 / 기타 지역
+! ═══════════════════════════════════════════════════════════
 !
 ! ───── 얀덱스 / 동유럽 광고 ─────
 ||mc.yandex.ru^
@@ -601,30 +732,6 @@
 ||metrics.roku.com^
 ||scribe.logs.roku.com^
 ||cooper.logs.roku.com^
-!
-! ───── 샤오미 / 화웨이 ─────
-||api.ad.xiaomi.com^
-||data.mistat.xiaomi.com^
-||data.mistat.intl.xiaomi.com^
-||tracking.miui.com^
-||tracking.intl.miui.com^
-||sensor-data.ssl.mi.com^
-||logbak.hicloud.com^
-||hianalytics.com^
-||metrics.data.hicloud.com^
-||logservice.hicloud.com^
-||logservice1.hicloud.com^
-!
-! ───── 레노버(Lenovo) & ZUI ─────
-! 기기 진단 및 추가적인 중국 내수용 업데이트 서버
-||stats.zui.com^
-||api.zui.lenovomm.com^
-||recom.zui.com^
-||sus.lenovomm.com^
-||zui.lenovo.com^
-||icns.zui.lenovomm.com^
-||cnszui.lenovomm.com^
-||dcf.lenovomm.com^
 !
 ! ───── 게임 플랫폼 텔레메트리 ─────
 ||telemetry.battle.net^
@@ -775,7 +882,6 @@
 ||tracker.moment.kakao.com^
 ||mkamp.kakao.com^
 ! kamp.kakao.com — 카카오톡 앱에서만 차단 (카카오TV 라이브 영향 회피)
-!||kamp.kakao.com^
 ||kamp.kakao.com^$app=com.kakao.talk
 ! 카카오TV 일반 영상 (스크립트 차단 사용 시)
 ||vst.play.kakao.com^
@@ -816,7 +922,6 @@
 ! usher.ttvnw.net  ← 본 영상 스트림
 ! video-edge-*.ttvnw.net  ← 영상 엣지 서버
 ! video-weaver.*.ttvnw.net  ← HLS 청크
-!
 !
 ! ───── 치지직 (CHZZK) + 네이버 공용 추적/광고 ─────
 ! 광고/추적 도메인은 "네이버 광고" 섹션에서 일괄 차단
@@ -959,7 +1064,6 @@
 ||tg.widerplanet.com^
 ||teralog.techhub.co.kr^
 ||pincrux.com^
-||pangle.io^
 !
 ! ───── 기타 분석 ─────
 ||posthog.com^
@@ -1011,7 +1115,6 @@
 ! fonts.googleapis.com              ← 웹폰트
 ! apis.google.com                   ← Google API 일반 (로그인 위젯 등)
 ! api.individual.githubcopilot.com  ← 코파일럿 사용자 필수
-! ångströ.com                       ← 유튜브 영상 재생 필수
 ! mapi.tmoney.co.kr                 ← 모바일 티머니 결제
 ! urms.usp.sktelecom.com            ← SKT 단말 업데이트/인증
 ! sdk.pushmessage.samsung.com       ← 삼성 기본 앱 알림
