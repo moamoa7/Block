@@ -98,6 +98,18 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 !||jsdelivr.net/npm/disable-devtool
 !
 !
+! - 내용 없는 빈 문단'이나 '공백만 있는 줄바꿈'을 찾아내서 화면에서 지워버리는 아주 섬세한 정리용 필터
+! - - - barter.vg라는 사이트에서는 이 규칙을 절대 실행하지 마라는 뜻
+! - - - 눈에 보이는 빈 줄: 글 작성자가 엔터를 쳐서 <p>&nbsp;</p> 형태로 남은 것 정리
+*,~barter.vg#?#p:contains(/^\xA0$/):not(:contains(/\S/)):not(:has(img))
+!
+!
+! - 빈 문단 제거' 필터의 매우 조심스럽고 안전한 버전입니다. 모든 곳에서 작동하는 게 아니라, "아무런 속성이 없는 순수한 빈 태그"만 골라내어 지우는 방식
+! - 주로 자동화된 툴이나 낡은 게시판 에디터가 본문을 생성할 때, 아무 의미 없이 남기는 찌꺼기 코드(<p></p>)들만 골라 청소하기 위함
+! - 코드상의 빈 줄: 게시판 시스템이 광고를 빼거나 로직 오류로 <p></p>만 남긴 것 정리
+~fandom.com,~sahibinden.com##p:empty:not([class],[id])
+!
+!
 !
 !
 !
@@ -283,10 +295,6 @@ x.com/*/videoads/
 !
 ! tracker라는 이름이 붙은 서버가 WebSocket으로 몰래 나를 실시간 감시하는 것을 막는 규칙
 ||tracker.$websocket
-!
-!
-! 내가 방문하는 사이트들이 몰래 Braze에 내 행동 데이터를 보내서 마케팅 타겟으로 삼는 것을 막는 규칙
-||braze.com^$3p
 !
 !
 !Netflix가 내가 뭘 보고 뭘 클릭하는지 상세하게 기록해서 서버로 보내는 것을 막는 규칙 (시청내역을 막는건 아닌듯)
@@ -550,10 +558,18 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ! 네이버 스토어 (https://smartstore.naver.com/)
 ! - 배너
 ##.ad-container
-! - -  광고 배너 안보이는거 해결 (kr: List-KR)
-||ssl.pstatic.net/tveta/libs/$badfilter
 ! - 해제
 @@||connect.facebook.net/*/fbevents.js$from=smartstore.naver.com
+!
+! - 사용자 클릭 궤적 및 활동 분석 스크립트인 clickcrD.js를 특정 도메인들을 제외하고 모두 차단하라는 설정
+! - - - 네이버의 정적 파일 서버(pstatic.net)에서 불러오는 클릭 기록(Click Cursors/Click Log) 전송용 자바스크립트 파일
+! - - - 통합검색, 스마트스토어, 브랜드스토어, 네이버 항공권 서비스에서는 이 스크립트가 돌아가도록 허용
+||ssl.pstatic.net/static.gn/js/clickcrD.js$domain=~search.naver.com|~smartstore.naver.com|~brand.naver.com|~flight.naver.com
+! - 네이버 메인 배너 제거 / 쇼핑/뉴스 광고 제거 / 광고 스크립트 실행 방지
+! - 핵심 광고 서버(Veta 및 Melona)에서 사용하는 리소스(이미지, 스크립트 등)가 저장된 경로
+! - - - kr: List-KR Classic
+||ssl.pstatic.net/tveta/libs/
+||ssl.pstatic.net/melona/libs/
 !
 !
 ! 네이버 쇼핑 라이브 (https://shoppinglive.naver.com/)
@@ -724,15 +740,12 @@ poong.today##._mainLiveArea_tck4v_535
 ! 치트키 구매하기 툴팁
 chzzk.naver.com##.tooltip
 ! 영상 왼쪽 하단 쇼핑 배너
-##.streamer_shop_banner
+!##.streamer_shop_banner
+##[class*="shop_banner" i]
 ! - - - 예외 - 차단리스트 내용 안나옴
 !my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
 chzzk.naver.com##.pzp-pc__loading-indicator
-! - 해제
-!@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
-!@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
-!@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
 ! - 치지직에서 광고 서버(veta)로부터 오는 데이터 중 광고와 관련된 정보만 골라내서 삭제함으로써, 광고가 아예 시작되지 않도록 만드는 필터
 chzzk.naver.com##+js(json-prune-fetch-response, ads advertiserDomains adDuplicationKeys, '', veta.naver.com/gfp)
 ! - 치지직(Chzzk)에서 생방송 중에 나오는 광고(중간 광고)를 차단하기 위한 규칙
@@ -4934,6 +4947,12 @@ i-boss.co.kr#@#a[class*="_banner"]
 ##.admanager-row
 !
 !
+! https://t.hi098123.com/
+! - 애드가드 차단 무력화 ( kr: List-KR Classic)
+!  -100px : "광고 차단기를 끄라"는 경고창의 요소 자체는 '존재'하게 두되 위치만 옮겨 사이트의 감지 로직을 속임 / 레이아웃 유지
+t.hi098123.com#$#.tabad { top: -100px !important; }
+!
+!
 !
 !
 !
@@ -5053,12 +5072,22 @@ _ads_
 !
 !
 ##[class*="ads" i]:has(video)
+
+
+##[class*='/ad']:has(video)
+
+
+##[class*='ad.']:has(video)
 !
 !
 ##[class*="banner_m" i]
 !
 !
 ##[class^="basic-banner" i]
+!
+!
+! - https://shopping.naver.com/
+^advertisement^
 !
 !
 !
@@ -5075,15 +5104,14 @@ _ads_
 ! - - -  https://glimmory.io/%ED%88%B0%EC%BD%94-%EC%B5%9C%EC%8B%A0%EC%A3%BC%EC%86%8C/
 ! - - - 배너
 ##.random-banners
-
-
+!
+!
+!
 /fingerprint-3.4.1.js^
-/fingerprint.js^
 /fingerprint.js^$domain=~github.com
 /fingerprint.min.js^
 /fingerprint/iife.min.js^
 /fingerprint2.js^
-/fingerprint2.min.js^
 /fingerprint2.min.js^
 /fingerprint3.js^
 /fingerprint3.min.js^
