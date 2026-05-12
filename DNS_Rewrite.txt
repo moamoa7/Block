@@ -265,6 +265,7 @@
 ||instana.io^
 ||dynatrace.com^
 ||appdynamics.com^
+||go-mpulse.net^
 !
 ! ───── 클라우드플레어 RUM ─────
 ||cloudflareinsights.com^
@@ -311,6 +312,7 @@
 ||dotomi.com^
 ||static.zdassets.com^
 ||ekr.zdassets.com^
+||appboycdn.com^
 !
 ! ───── A/B 테스트 / 개인화 ─────
 ||dynamicyield.com^
@@ -318,6 +320,8 @@
 ||kameleoon.com^
 ||abtasty.com^
 ||channel.io^
+! - 한국 앱(토스, 당근마켓 등)에서 신규 기능이 보이지 않으면 풀어야 함
+||hackle.io^
 !
 ! ───── CDP / 태그 매니저 / Cookie Sync ─────
 ||tealiumiq.com^
@@ -341,6 +345,7 @@
 ||eb2.3lift.com^
 ||sync.search.spotxchange.com^
 ||tags.rd.linksynergy.com^
+||tagmanager.toast.com^
 !
 ! ───── CDP / 식별자 그래프 ─────
 ||liadm.com^
@@ -858,6 +863,7 @@
 ||disney.demdex.net^
 ||disneyplus.bn5x.net^
 ||hbomax-analytics.warnermediacdn.com^
+||conviva.com^
 !
 ! ───── 레딧 ─────
 ||alb.reddit.com^
