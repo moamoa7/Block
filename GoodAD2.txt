@@ -1472,6 +1472,16 @@ $cookie=/^__hstc$/            ! HubSpot
 ! ⚠️ 도메인 단위 차단은 DNS_Rewrite.txt 담당
 ! ⚠️ 본 섹션은 경로/와일드카드/특정 엔드포인트만 처리
 
+! ───── Google 로그/분석 경로 빈 응답 처리 ─────
+||google.com/log?$redirect-rule=nooptext
+||google.com/gen_204$redirect-rule=nooptext
+||google.com/pagead/gen_204$redirect-rule=nooptext
+||google.com/async/newtab_promos$redirect-rule=nooptext
+||google.com/_/og/sharebox$redirect-rule=nooptext
+||youtube.com/api/stats/$redirect-rule=nooptext
+||youtube.com/youtubei/v1/log_event$redirect-rule=nooptext
+||youtube.com/ptracking$redirect-rule=nooptext
+
 ! ───── 스트리밍 - 경로 단위 ─────
 ||youtubei.googleapis.com/youtubei/v1/log_event^$empty
 ||youtube.com/api/stats/watchtime^$empty
