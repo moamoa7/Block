@@ -500,7 +500,7 @@ baidu.com###s-hotsearch-wrapper
 !naver.com###search-ai-tab-button:style(display: none !important;)
 !naver.com###search-btn:style(display: block !important;)
 ! 네이버 본인 인증 페이지 일부 안보임 해결
-nid.naver.com#@#[class^="ad"]
+nid.naver.com#@#[class^="ad" i]
 ! - 모바일 간단하게 보기
 ! -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
@@ -591,12 +591,11 @@ map.naver.com##div[class^="AD"][style]
 ! - 팝업
 sooplive.com##.bnrimg_area
 ! - 개인페이지내 팝업
-sooplive.com##[class*="NoticeLayer"]
+sooplive.com##[class*="NoticeLayer" i]
 ! - 메인 모르겠는데 떠 있는거
 sooplive.com###soopi_wrap
 ! - 채팅 위 연관상품
-!sooplive.com##.store_box.box
-sooplive.com##[class*="store_box" i]
+sooplive.com##.store_box.box
 sooplive.com##.floating_btns
 ! - 구독 플러스
 sooplive.com##.subs_plus.seasonal_area
@@ -606,12 +605,12 @@ sooplive.com##.message_player_wrap
 ##.event_tooltip
 ! - 영상 (https://play.sooplive.com)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
-!##[class="buffering"]
-##.buffering
+!##.buffering
+##[class*="buffering" i]
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (List-KR)
 !||static.sooplive.com/asset/service/ad/
 ! -  채팅 광고
-##[class*="chat_banner"]
+##[class*="chat_banner" i]
 !#.chat_banner
 ! - 채팅 상단 배너
 !sooplive.com##.on.chat_banner2
@@ -650,8 +649,8 @@ sooplive.com###FeedLayerToolTip
 sooplive.com##.event_tooltip
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
 !sooplive.com#@#[class*="AD"]
-! ##[class^="ad"] 해제
-point.sooplive.com#@#[class^="ad"]
+! ##[class^="ad" i] 해제
+point.sooplive.com#@#[class^="ad" i]
 ! -무한 버퍼링 해결?  (AdGuard DNS filter 필터 해제)
 ! - -- 출처 : https://gall.dcinside.com/adguard/9010
 !@@||exlogcollector.sooplive.com^
@@ -692,15 +691,13 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! - 해제 목록
-cinety.sooplive.com#@##main_banner
+!cinety.sooplive.com#@##main_banner
 !cinety.sooplive.com#@#a[href]:has(img[src*="banner"])
 !cinety.sooplive.com#@#[class*="_banner"]
-cinety.sooplive.com#@#[id*="banner"]
+!cinety.sooplive.com#@#[id*="banner"]
 !cinety.sooplive.com#@#[id^="banner_"]
-cinety.sooplive.com#@#.banner
-cinety.sooplive.com#@#.banner_list
-! - 차단해제 (Adblock-Rule-Collection-Lite) - 시네티 영상 새창 차단 해제
-@@||sooplive.com/asset/service/common/common_analysis.js
+!cinety.sooplive.com#@#.banner
+!cinety.sooplive.com#@#.banner_list
 !
 !
 ! 풍투데이 (https://poong.today/)
@@ -754,9 +751,9 @@ twitch.tv##.video-player__inactive
 ! WAVVE (https://www.wavve.com/)
 ! - 본인 인증시 필요
 !member.wavve.com#@#.popup
-! - - - ##[class^="ad"] 해제 (성인 인증시 내용 안보임)
-member.wavve.com#@#[class^="ad"]
-pcc.siren24.com#@#[class^="ad"]
+! - - - ##[class^="ad" i] 해제 (성인 인증시 내용 안보임)
+member.wavve.com#@#[class^="ad" i]
+pcc.siren24.com#@#[class^="ad" i]
 !
 !
 ! 다음 (https://www.daum.net/)
@@ -784,9 +781,10 @@ kakaotv.daum.net#@#.ads
 !
 ! 씨네스트 (https://cineaste.co.kr/)
 ! - 메인 배너
-cineaste.co.kr##[class="main-title"]
+cineaste.co.kr##[class="main-title" i]
 ! - 오른쪽 배너
-##.basic-banner
+!##.basic-banner
+##[class*="basic-banner" i]
 !
 !
 ! AAGAG (https://aagag.com/)
@@ -873,9 +871,9 @@ dcinside.com##.stickyunit
 !||wiki.dcinside.com
 !wiki.dcinside.com##*
 ! - 갤주소복사 안나오는거 해결
-gall.dcinside.com#@#[class^="ad"]
+gall.dcinside.com#@#[class^="ad" i]
 ! - 기타
-##[id^="ad_"]
+##[id^="ad_" i]
 gall.dcinside.com##div[class*="banner"]
 ##[data-ad]
 ! - 모바일 디시에서 공지가 지워지는 현상 해결 (출처 : https://gall.dcinside.com/adguard/2348)
@@ -1015,8 +1013,8 @@ fmkorea.com###fm_alert
 !etoland.co.kr###info_recent_list_wrap
 ! - 이미지 복원
 !@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
-! - ##[class^="ad"] 복원 - 하단 사업자번호 등 사라짐
-!etoland.co.kr#@#[class^="ad"]
+! - ##[class^="ad" i] 복원 - 하단 사업자번호 등 사라짐
+!etoland.co.kr#@#[class^="ad" i]
 ! - - - - - - - - 신버젼
 ! - 팝업
 ! - - -  - 다른 요소까지 지워짐
@@ -1128,8 +1126,12 @@ inven.co.kr###invenAppSuggestion
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
+! - 상단 배너
+!##.top_ad
+##[class*="top_ad" i]
 ! - 오른쪽 배너
-##.big_banner
+!##.big_banner
+##[class*="big_banner" i]
 ! - 게시물 하단 배너 / 맨 하단 배너
 ##.left_cont > div[style]
 ! - 댓글 바로 위 텍스트 배너?
@@ -1142,7 +1144,8 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ! - 본문 한줄 광고?(투표?)
 mlbpark.donga.com##.inner_article
 ! - 본문하단 광고
-##.naver_power
+!##.naver_power
+##[class*="naver_power" i]
 ! - 댓글 하단 광고
 mlbpark.donga.com##.naver_place
 ! - 차단 사이트
@@ -1196,7 +1199,7 @@ ddanzi.com###banner_ddanzi_market
 ! - 메인 오른쪽 배너 제외 전체 배너
 ||media.adpnut.com/cgi-bin/PelicanC.dll?impr?pageid=0*&out=iframe
 ! - 전체 배너
-##[class*="add_display"]
+ddanzi.com##[class*="add_display"]
 ! - 게시글 하단 공백 공간 (모바일)
 ddanzi.com##.add_display2
 ! - 이미지 복원
@@ -1214,12 +1217,10 @@ ddanzi.com##.add_display2
 ! 보배드림 (https://www.bobaedream.co.kr/)
 ! - 오늘의 회원 랭킹
 bobaedream.co.kr##.todayRanking
-! - 차단 사이트
-||googletagservices.com^
-! - ##[class^="ad"] 복원 - 하단 사업자 정보 등 회사 정보 사라짐
-bobaedream.co.kr#@#[class^="ad"]
-! - ##[class*="Ad"] 복원 - 게시물 주소 복사란 사라짐
-bobaedream.co.kr#@#[class*="Ad"]
+! - ##[class^="ad" i] 복원 - 하단 사업자 정보 등 회사 정보 사라짐
+bobaedream.co.kr#@#[class^="ad" i]
+! - ##[class*="ad" i] 복원 - 게시물 주소 복사란 사라짐
+bobaedream.co.kr#@#[class*="ad" i]
 !
 !
 ! 오늘의 유머 (https://www.todayhumor.co.kr/)
@@ -1235,13 +1236,16 @@ todayhumor.co.kr##.under_ad_div
 !##[class*="float-banners"] - ##[class*="banner"]:has(img) 로 대체
 ! - 왼쪽 배너 포함 (PC)
 !##.float-banners - ##[class*="banner"]:has(img) 로 대체
-##.float-banners
+!##.float-banners
+##[class*="float-banner" i]
 ! - 팝업 배너
 !##[class="banner-center"] - ##[class*="banner"]:has(img) 로 대체
-##.banner-center
+!##.banner-center
+##[class*="banner-center" i]
 ! -하단 제보 배너
 !##[class="call_banner"] - ##[class*="banner"]:has(img) 로 대체
-##.call_banner
+!##.call_banner
+##[class*="call_banner" i]
 !
 !
 ! 와이고수 (https://ygosu.com/)
@@ -1258,7 +1262,8 @@ ygosu.com##.pull-left.btn-group
 ! 짱공유닷컴 (https://jj0u.com/) - 서비스 종료
 ! - 맨 오른쪽 상단 작은 배너
 !##[class="top-banner"]
-##.top-banner
+!##.top-banner
+##[class*="top-banner" i]
 ! - 메인 상단 배너
 !##[id="banner-link"]
 !###banner-link - 아래 규칙으로 대체
@@ -1271,7 +1276,7 @@ ygosu.com##.pull-left.btn-group
 !###banner - ##[id*="banner"] 로 대체
 ! - 오른쪽 배너
 ! - - - https://www.jjang0u.com/
-##[class*="right-banner"]
+##[class*="right-banner" i]
 !- 게시물 하단 배너 (댓글 위)
 !jjang0u.com##[class*="cut-in-banner2"]
 ! - 모바일 하단 배너
@@ -1404,12 +1409,14 @@ ppomppu.co.kr##.hot-imgBoard
 !ppomppu.co.kr##.ad_container
 ! - 뿜뿌 앱으로 보기 팝업 (모바일)
 ppomppu.co.kr###ask_app_usage_popup
-! - ##[class^="ad"] 복원 - 첨부파일 / 댓글주소복사 기능 등 몇가지 사라짐
-ppomppu.co.kr#@#[class^="ad"]
+! - ##[class^="ad" i] 복원 - 첨부파일 / 댓글주소복사 기능 등 몇가지 사라짐
+ppomppu.co.kr#@#[class^="ad" i]
 ! - 본문 내용 하단 공백 (모바일)
 ##.js-ad_slot
 ! - 사이트 최하단 공백 (모바일)
 ppomppu.co.kr###m_view_bottom_f_1
+! - 보이지 않는대 잡히는거
+!##.videoad
 !
 !
 ! SLR (https://www.slrclub.com/)
@@ -1452,8 +1459,8 @@ clien.net##.active.button_sidemenu
 !clien.net##.view_list
 ! - - - 모바일
 !clien.net##.ViewListArea
-! - ##[class^="ad"] 복원 - 댓글 입력란 사라짐
-clien.net#@#[class^="ad"]
+! - ##[class^="ad" i] 복원 - 댓글 입력란 사라짐
+clien.net#@#[class^="ad" i]
 ! - 게시물 광고 글
 clien.net###hongboInfoList
 ! - 차단 사이트
@@ -2319,7 +2326,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 메인 상단 배너
 yna.co.kr##.header01
 !  - 배너
-##.ads-box
+!##.ads-box
+##[class*="ads-box" i]
 !- 메인 필요없는 부분
 !yna.co.kr##.main-ynalounge01.content03
 ! - 메인 오른쪽 필요없는 부분
@@ -2331,7 +2339,7 @@ yna.co.kr##.header01
 ! - 기사내 배너 (상단.좌.우/기사내/하단)
 ! - -  List-KR에 나중에 등록
 !yna.co.kr##[class^="aside-box"]
-yna.co.kr##[class^="aside"]
+yna.co.kr##[class^="aside" i]
 ! - 대부분의 필요없는 부분까지 삭제할려고 광역으로 대체
 ! - - - 숲 (https://www.sooplive.com/search) 연관검색어 삭제
 ! - - - 클리앙 (https://www.clien.net/) - 로그인 부분까지 삭제되어 하면 안됨
@@ -3179,10 +3187,10 @@ topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
 !||2443march2024.com^
 !
 !
-! 걸스티비 (https://xn--369an15a89c2ov.com/) (https://kor11.grtv-48.com/)
+! 걸스티비 (https://xn--tv-r21im64e.com/) (https://kor11.grtv-48.com/)
 ! - 배너
 !##[class*="banner_list"]
-##.banner_list
+!##.banner_list
 !
 !
 ! 믹스걸 (https://kr13.mix-19.com/) - 주소 자동으로 안바뀜 (주소줄에서)
@@ -3330,8 +3338,8 @@ avdbs.com##.dbs-bnr-wrp
 ! - 이미지 복원
 !- - - ||*.com/img/*
 !@@||avdbs.com/img/*$image
-! - - - ##[class^="ad"] 복원 - 일부 이미지 사라짐
-avdbs.com#@#[class^="ad"]
+! - - - ##[class^="ad" i] 복원 - 일부 이미지 사라짐
+avdbs.com#@#[class^="ad" i]
 ! - 배우찜 제거 안내 팝업?
 ###bnotice-wrap
 ! - - - 뿌연 화면 해결
@@ -3511,7 +3519,7 @@ popjav.in##div.pop--excl
 !
 ! JAVCEP.COM (https://javcep.com/)
 ! - 일부 광고 차단
-##[class*="banner-ad"]
+##[class*="banner-ad" i]
 !
 !
 ! 야동코리아 (https://www.yako05.com/) - 주소 바뀜
@@ -3883,8 +3891,8 @@ cnine.kr#@#[class*="border"]:has(> a[target*="_blank"])
 !1004sweet.com,1004deep.com##div.col-25:nth-of-type(4)
 ! - 커뮤니티/메시지/공지사항 공지 및 배너 광고
 !1004sweet.com,1004deep.com##.swip-ticker
-! - ##[class^="ad"] 해제 - 일부 이미지 안나옴
-1004crop.com,1004sweet.com,1004deep.com,1004dance.com#@#[class^="ad"]
+! - ##[class^="ad" i] 해제 - 일부 이미지 안나옴
+1004crop.com,1004sweet.com,1004deep.com,1004dance.com#@#[class^="ad" i]
 !
 !
 ! 조개파티 (https://jogaeparty139.com/)
@@ -4237,11 +4245,13 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ![$domain=/^porngg\d+.net/]##.banner-layout-box
 !
 !
-! 섹스조아 (https://www.sexzoa52.com/)
+! 섹스조아 (https://www.sexzoa53.xyz/)
 ! - 상단 텍스트 배너
 ! - - - PC
-[$domain=/^www.sexzoa\d+.com/]##h2.mobile-hide
-! - - -  모바일
+![$domain=/^www.sexzoa\d+.com/]##h2.mobile-hide
+[$domain=/^www.sexzoa/]##h2.mobile-hide
+! - - - 모바일
+[$domain=/^www.sexzoa/]###mobile-slogan
 ! - - - - -  광고문의 글자
 ![$domain=/^www.sexzoa\d+.com/]##font
 ! - - - - - 광고 문구
@@ -4249,7 +4259,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ! - 영상 광고
 ||sexzoa*.com/ad.json?
 ! - 영상 옆 텍스트 배너 (모바일은 영상 아래 위치)
-##.videoads
+##[class*="videoad" i]
 !
 !
 ! 밍키넷 (https://mingky13.net/)
@@ -4580,7 +4590,7 @@ noonnu.cc##.lg\:top-8
 !
 ! 먹튀데이 (https://mtday.net/)
 ! - 배너
-###main_banner
+mtday.net###main_banner
 !
 !
 ! 먹튀슈퍼맨 (https://mt-superman.net/)
@@ -4724,8 +4734,8 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 !
 !
 ! 블라인드 (https://www.teamblind.com/)
-! - ##[class^="ad"] 차단 해제 - 상단 제목 날라감
-teamblind.com/#@#[class^="ad"]
+! - ##[class^="ad" i] 차단 해제 - 상단 제목 날라감
+teamblind.com/#@#[class^="ad" i]
 !
 !
 ! https://forum.mobilism.org/
@@ -4736,18 +4746,18 @@ teamblind.com/#@#[class^="ad"]
 ! https://www.daejeonsarangcard.kr/
 ! - 팝업 해제에 따른 뿌연거 해결
 daejeonsarangcard.kr##.popupContainer
-! - ##[class^="ad"] 해제 - 일부 주소 삭제
-daejeonsarangcard.kr#@#[class^="ad"]
+! - ##[class^="ad" i] 해제 - 일부 주소 삭제
+daejeonsarangcard.kr#@#[class^="ad" i]
 !
 !
 ! https://mib19.co.kr/
-! ##[class^="ad"] 해제
-mib19.co.kr#@#[class^="ad"]
+! ##[class^="ad" i] 해제
+mib19.co.kr#@#[class^="ad" i]
 !
 !
 ! https://www.xfree.com/
 !  - 팝업 해제
-xfree.com#@#[class^="ad"]
+xfree.com#@#[class^="ad" i]
 !
 !
 ! 인생도박 (https://dobaklife21.com/) - 주소 수시로 바뀜
@@ -4760,10 +4770,10 @@ xfree.com#@#[class^="ad"]
 !
 ! https://thepinkstuff.co.kr/
 thepinkstuff.co.kr,cafe24.com#@#.ad
-thepinkstuff.co.kr,cafe24.com#@#[class^="ad"]
+thepinkstuff.co.kr,cafe24.com#@#[class^="ad" i]
 !thepinkstuff.co.kr,cafe24.com#@#[id*="banner"]
 !thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
-thepinkstuff.co.kr#@#[class*="banner-ad"]
+thepinkstuff.co.kr#@#[class*="banner-ad" i]
 thepinkstuff.co.kr#@#[data-ez-name]
 !##[class*="smart-banner"]
 !
@@ -4812,7 +4822,7 @@ dblove.net##[ class*="banner-item" i]
 ! 오르비 (https://orbi.kr/)
 ! - 배너 및 상단 빈 공간
 !##div[id*="ads"]
-##[id*="ads" i]
+orbi.kr##[id*="ads" i]
 !##div[id^="ads-"]
 ##[id^="ads-" i]
 !##div[x-data="advertisement"]
@@ -4822,11 +4832,13 @@ dblove.net##[ class*="banner-item" i]
 !#div[style*="/new-banners/"]
 ##[style*="/new-banners/" i]
 ! - 오른쪽 빈 배너?
-##.label-banner
+!##.label-banner
+##[class*="label-banner" i]
 !
 ! BRIC (https://www.ibric.org/)
 ! - 상단 배너
-##.top-banner-box
+!##.top-banner-box
+##[class*="top-banner-box" i]
 !
 !
 ! 아정당 (https://www.ajd.co.kr/)
@@ -4841,21 +4853,25 @@ ajd.co.kr##.active.bottom-floating
 !
 ! 알구몬 (https://www.algumon.com/)
 ! - 오른쪽 배너 공간
-##.right-ad-sidebar
+!##.right-ad-sidebar
+##[class*="ad-sidebar" i]
 ! - 중간 배너 공간
 ! - - -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 algumon.com##div:has([data-tip^='파트너스'], div[style*='height'], ins):is(.card, .deal-2col)
 !
 !
 ! 뉴덕 (https://newduck.net/)
-! - 상단 배너
-newduck.net##.code-content-top
-! - 게시물간 중간 빈 공간
+! - 상단 / 중간 / 왼쪽 하단 배너
+!newduck.net##.code-content-top
+!##.kakao_ad_area
+##[class*="kakao_ad_area" i]
+! - 공지사항 아래 빈공간
 newduck.net##.code-list-top
 ! - 게시물 하단 배너 (댓글 바로 위)
 ##.custom-banner
 ! - 최하단 파워링크
-##.powerlink
+!##.powerlink
+##[class*="powerlink" i]
 !
 !
 ! 이슈야 (https://www.issuya.com/)
@@ -4872,7 +4888,8 @@ issuya.com##body:style(pointer-events: auto !important; overflow: auto !importan
 !
 ! https://dvdprime.com/
 ! - 상단 배너
-###top_banner
+!###top_banner
+##[id="top_banner" i]
 ! - 오른쪽 배너
 dvdprime.com###sidebar_container
 ! - 왼쪽 하단 배너
@@ -4992,11 +5009,11 @@ _ads_
 !
 !
 ! - https://www.yna.co.kr/
-!##[class*="popup-mobile"]
-##[class*="popup-mo" i]
+##[class*="popup-mobile" i]
+!##[class*="popup-mo" i]
 ! - 제외
 ! - 연합뉴스 (https://www.yna.co.kr/) - 기사 댓글보기 클릭시 오른쪽 사이드 안열림
-yna.co.kr#@#[class*="popup-mo" i]
+!yna.co.kr#@#[class*="popup-mo" i]
 !
 !
 ##[class*="popup-event" i]
@@ -5011,7 +5028,7 @@ yna.co.kr#@#[class*="popup-mo" i]
 ##li:has-text(스폰)
 !
 !
-##.banner_top
+##[class*="banner_top" i]
 !
 !
 ##.ad_wrap
@@ -5030,15 +5047,15 @@ yna.co.kr#@#[class*="popup-mo" i]
 !
 !##[class*="ad" i]:has(video)
 ! - 예외 - https://chzzk.naver.com/ - 영상 안보임
-chzzk.naver.com#@#[class*="ad" i]:has(video)
+!chzzk.naver.com#@#[class*="ad" i]:has(video)
 !- 예외 - https://missav.ws/ - 영상 미리보기 안보임
-missav.ws#@#[class*="ad" i]:has(video)
+!missav.ws#@#[class*="ad" i]:has(video)
 !
 !
 ##[class*="ads" i]:has(video)
 !
 !
-##.banner_m
+##[class*="banner_m" i]
 !
 !
 ##[class^="basic-banner" i]
