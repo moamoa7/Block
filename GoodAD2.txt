@@ -76,7 +76,8 @@ $removeparam=cvid
 $removeparam=oicd
 $removeparam=form
 $removeparam=ocid
-$removeparam=ei
+! - 유튜브 영상 무한 로딩
+!$removeparam=ei
 $removeparam=qs
 
 ! ───── Yandex ─────
