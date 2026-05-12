@@ -329,7 +329,8 @@ x.com/*/videoads/
 !*##+js(set-constant, document.body.style.overflow, 'auto')
 !
 ! - 마우스 우클릭/드래그 방지 해제 (remove-attr)
-!*##+js(remove-attr, oncontextmenu) 또는 ##+js(remove-attr, onselectstart)
+!*##+js(remove-attr, oncontextmenu)
+!* ##+js(remove-attr, onselectstart)
 !
 ! - 타이머 광고/대기 시간 건너뛰기 (set-constant)
 !*##+js(set-constant, coolingDown, false)
@@ -596,7 +597,8 @@ sooplive.com##[class*="NoticeLayer" i]
 sooplive.com###soopi_wrap
 ! - 채팅 위 연관상품
 sooplive.com##.store_box.box
-sooplive.com##.floating_btns
+!sooplive.com##.floating_btns
+##[class*="floating" i]
 ! - 구독 플러스
 sooplive.com##.subs_plus.seasonal_area
 ! - 구독 플러스 안내 메시지
@@ -663,7 +665,8 @@ point.sooplive.com#@#[class^="ad" i]
 !##.promotion_banner - ##[class*="promotion" i]로 대체
 ! - shopfreeca banner
 !##[class="shopProduct_banner"]
-##.shopProduct_banner
+!##.shopProduct_banner
+##[class*="product_banner" i]
 ##[id="sub-ceremony-banner"]
 ! - 광고 차단 방어(Anti-Adblock)'를 무력화하기 위한 우회 기술
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
@@ -1390,9 +1393,10 @@ inven.co.kr#@#div.banner
 ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 ! - 오른쪽 따라다니는 배너
 !##[class="floating-banner"]
-##.floating-banner
+!##.floating-banner - ##[class*="floating" i]로 대체
 !##[class="ad-banner"]
-##.ad-banner
+!##.ad-banner
+##[class="ad-banner" i]
 ! - 게시물 위 상단 공간
 ppomppu.co.kr##.main.container > div>[style]
 ! - 오른쪽 배너
@@ -1416,6 +1420,7 @@ ppomppu.co.kr#@#[class^="ad" i]
 ! - 사이트 최하단 공백 (모바일)
 ppomppu.co.kr###m_view_bottom_f_1
 ! - 보이지 않는대 잡히는거
+! - - - 섹스조아 (https://www.sexzoa53.xyz/) - 광고 차단
 !##.videoad
 !
 !
@@ -2481,7 +2486,7 @@ mtn.co.kr##.w_308px
 !
 ! 매일경제 (https://www.mk.co.kr/)
 ! - 회원가입혜택 (오른쪽 하단 따라다니는 배너)
-mk.co.kr###floating_banner_button
+!mk.co.kr###floating_banner_button - ##[class*="floating" i]로 대체
 !
 !
 ! 문화일보 (https://www.munhwa.com/)
@@ -2524,12 +2529,12 @@ www.spojoy.com###TopAdv250
 ! - 기사내 배너
 sports.donga.com##[class*="subcont_ad"]
 sports.donga.com##.view_center
-##[class*="ad_aside"]
+##[class*="ad_aside" i]
 !
 !
 ! 아이즈 IZE (https://www.ize.co.kr/)
 ! - 하단 카카오페이포인트 쌓아보세요 메시지 창 (모바일)
-##.box_floating
+!##.box_floating - ##[class*="floating" i]로 대체
 !
 !
 ! 쿠팡 (https://www.coupang.com/)
@@ -4848,7 +4853,7 @@ orbi.kr##[id*="ads" i]
 ! - 상단 배너 공간
 ajd.co.kr##.on.top-banner-slider
 ! -하단 상담하기 (따라 다니는거)
-ajd.co.kr##.active.bottom-floating
+!ajd.co.kr##.active.bottom-floating - ##[class*="floating" i]로 대체
 !
 !
 ! 알구몬 (https://www.algumon.com/)
@@ -4940,14 +4945,11 @@ i-boss.co.kr#@#a[class*="_banner"]
 !
 !
 ! - 광고 스킵
-##.playerads
+##[class*="playerads" i]
 !
 !
 ! - 배너 공간
-##.header-banners
-!
-!
-*##.ad
+##[class*="header-banners" i]
 !
 !
 ##.ad-pc
@@ -4993,10 +4995,8 @@ _ads_
 -ads.$badfilter
 !
 !
-##.ads
 !
-!
-###ads
+##[id*="ads" i]
 !
 !
 ##[class$="right-ad" i]
