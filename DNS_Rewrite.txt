@@ -172,6 +172,7 @@
 ||singular.net^
 ||airbridge.io^
 ||braze.com^
+! - 특정 앱(예: 쇼핑몰)이 Braze 푸시 때문에 동작 안 하는 문제가 생기면 그때만 화이트리스트 추가 필요
 ||sdk.iad-01.braze.com^
 ||appboy.com^
 ||leanplum.com^
