@@ -785,17 +785,17 @@
 ! video-weaver.*.ttvnw.net  ← HLS 청크
 !
 ! ───── 치지직 (CHZZK) + 네이버 공용 추적/광고 ─────
+! 광고 입찰/송출 (테스트 결과 차단해도 본 영상 재생 정상)
+||veta.naver.com^
 ||log.chzzk.naver.com^
 ||kr-col-ext.nelo.navercorp.com^
 ||nlog.naver.com^
-||siape.veta.naver.com^
-||nam.veta.naver.com^
 ||astralog.naver.com^
 ! 네이버 광고 추천 위젯 (데이블)
 ||dable.io^
 ! ⚠️ 절대 차단 금지
 ! livecloud.pstatic.net  ← 본 영상 CDN
-! ssl.pstatic.net/cmcdn  ← 일부 영상 청크
+! ssl.pstatic.net (루트) ← 일부 영상 청크/UI 리소스
 !
 ! ───── 숲(SOOP) / 구 아프리카TV ─────
 ||log.sooplive.com^
