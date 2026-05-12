@@ -1065,6 +1065,10 @@
 ||teralog.techhub.co.kr^
 ||pincrux.com^
 !
+! ───── 영상 플레이어 추적 ─────
+! JW Player 분석 (영상 재생 영향 없음)
+||jwpltx.com^
+!
 ! ───── 기타 분석 ─────
 ||posthog.com^
 ||plausible.io^
