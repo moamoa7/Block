@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-12 05:15:44 UTC
+! Generated: 2026-05-12 07:39:55 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,101
+! Block Rules: 85,105
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -22322,6 +22322,7 @@
 ||eskwwmqptmmn.com^
 ||esm1.net^
 ||esomniture.com^
+||esoterictools.com^
 ||espartoindicancrutch.cyou^
 ||espayutnluzem.store^
 ||espbrohujtbch.online^
@@ -23364,6 +23365,7 @@
 ||fabledsoul.com^
 ||fabricporridge.com^
 ||fabricww.com^
+||fabulousbooking.com^
 ||facai383.oss-cn-guangzhou.aliyuncs.com^
 ||faceb00k.com.vn^
 ||facebookinbox-omni-onapp.haravan.com^
@@ -24654,6 +24656,7 @@
 ||flystranger.com^
 ||flytechb.com^
 ||fm-analytics-api.pocketfm.com^
+||fm-analytics.cloudbees.io^
 ||fmaiyleoxlfbm.online^
 ||fmazwqtzwcfym.website^
 ||fmcnbmrafxjwq.website^
@@ -49265,6 +49268,7 @@
 ||payclick.it^
 ||paydemic.com^
 ||paydotcom.com^
+||payeddrub.com^
 ||payenfind.cyou^
 ||payersgreking.com^
 ||payingtore.com^
@@ -49430,6 +49434,7 @@
 ||peaiismrozzersdimetry.cyou^
 ||peakclick.com^
 ||peakcounter.dk^
+||peakcreator.com^
 ||peakilygluten.com^
 ||peaktrck.uno^
 ||pealefe.com^
@@ -55462,7 +55467,6 @@
 ||rstdfyerm.icu^
 ||rstil.vionicshoes.com^
 ||rstpgmfbcproe.store^
-||rstprgapipt.com^
 ||rstrix.com^
 ||rsuuc.com^
 ||rsxkamyyjynij.online^

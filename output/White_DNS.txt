@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-12 05:15:44 UTC
+! Generated: 2026-05-12 07:39:55 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,571
+! Exception Rules: 6,573
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -350,6 +350,7 @@
 @@||app.plex.tv^
 @@||app.sephora.com^
 @@||app.traderepublic.com^
+@@||app.trading212.com^
 @@||app2.salesmanago.pl^
 @@||app3.salesmanago.pl^
 @@||app3.takasbank.web.tr^
@@ -2396,6 +2397,7 @@
 @@||ing.com.au^
 @@||ing.de^
 @@||ing.es^
+@@||ing.lu^
 @@||ing.pl^
 @@||ingbank.com.tr^
 @@||ingbank.hu^
