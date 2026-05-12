@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-12 10:19:04 UTC
+! Generated: 2026-05-12 12:22:09 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,573
+! Exception Rules: 6,575
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -1549,6 +1549,7 @@
 @@||elevationsbanking.com^
 @@||elevationscu.com^
 @@||ellisbank.com^
+@@||els-cdn.exponea.com^
 @@||elster.de^
 @@||email-link.adtidy.info^
 @@||email-link.adtidy.org^
@@ -3161,6 +3162,7 @@
 @@||mkto-sj080048.com^
 @@||mkto-sj090132.com^
 @@||mkto-sj100138.com^
+@@||mkto-sj110048.com^
 @@||mkto-sj130243.com^
 @@||mkto-sj140007.com^
 @@||mkto-sj140163.com^
