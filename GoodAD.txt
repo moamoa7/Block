@@ -610,6 +610,9 @@ sooplive.com###soopi_wrap
 sooplive.com##.store_box.box
 !sooplive.com##.floating_btns
 ##[class*="floating" i]
+! - 예외 - https://06.avsee.ru/ - 영상내 틀 깨짐으로 재생불가
+avsee.ru#@#[class*="floating" i]
+
 ! - 구독 플러스
 sooplive.com##.subs_plus.seasonal_area
 ! - 구독 플러스 안내 메시지
@@ -1350,13 +1353,15 @@ namu.wiki##li:has(a > time):not(:has([href*='/raw/'])):upward(2)
 !namu.wiki##div[class]:matches-css(position: sticky)
 !namu.wiki##li:has(a > time):not(:has([href*='/raw/'])):upward(2)
 namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
-! - 실시간 검색어 삭제
+! - 실시간 검색어 삭제 (3개 다 가능하므로 3중 1개만 실행해도 됨)
 ! 1. SVG 글리프 기반 (디자인 리뉴얼 전까지 안정)
 namu.wiki#?#div:has(> div > span > svg > path[d^="M12.2031"])
 ! 2. 구조 기반 (HTML 구조 바뀌기 전까지 안정)
-namu.wiki#?#div.cyq09wvn > div.h84rqJaJ
+!namu.wiki#?#div.cyq09wvn > div.h84rqJaJ
 ! 3. data-v 기반 (빌드 단위로 바뀜, 임시방편)
-namu.wiki##div[data-v-513cdb46]
+!namu.wiki##div[data-v-513cdb46]
+! - 출처 : https://gall.dcinside.com/adguard/9576 - PC는 그대로임
+!namu.wiki##div:has(> form input[type="search"]) > div:has(svg)
 !
 !
 ! 나무뉴스 (https://namu.news/)
