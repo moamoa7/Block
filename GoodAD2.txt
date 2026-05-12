@@ -521,7 +521,6 @@ $removeparam=/^matomo_/
 ||cc-api-data.adobe.io^$removeheader=set-cookie
 
 ! ───── 한국 트래커 ─────
-||siape.veta.naver.com^$removeheader=set-cookie
 ||cc.naver.com^$removeheader=set-cookie
 ||lcs.naver.com^$removeheader=set-cookie
 ||tiara.kakao.com^$removeheader=set-cookie
