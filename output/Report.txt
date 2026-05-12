@@ -1,9 +1,9 @@
 DNS Blocklist Build Report
-Generated: 2026-05-12 01:28:16 UTC
+Generated: 2026-05-12 04:48:08 UTC
 ============================================================
 
 [1] Reference Filters
-[Primary (AdGuard 15.txt)] 163,404 domains
+[Primary (AdGuard 15.txt)] 163,428 domains
 [Secondary (HaGeZi Pro)] 198,544 domains
 [Intersection] 85,070 domains
 
@@ -100,8 +100,8 @@ Generated: 2026-05-12 01:28:16 UTC
     ... and 100 more
 
 [3] Personal Blocklist
-  - Personal Blocklist: 47 domains
-[Personal Block Total] 47 domains
+  - Personal Blocklist: 48 domains
+[Personal Block Total] 48 domains
 
 [4] Personal Whitelist (no filter applied)
   - Personal Whitelist: 13 domains
@@ -109,7 +109,7 @@ Generated: 2026-05-12 01:28:16 UTC
 
 [5] Apply Priority Rules
   Step 1 (base - external whitelist): 85,057
-  Step 2 (+ personal block): 85,098  (forced added: 41)
-  Step 3 (- personal white): 85,098  (whitelist override: 0)
+  Step 2 (+ personal block): 85,099  (forced added: 42)
+  Step 3 (- personal white): 85,099  (whitelist override: 0)
 
-[6] Final Whitelist: 6,574 domains
+[6] Final Whitelist: 6,573 domains
