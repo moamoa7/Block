@@ -776,11 +776,11 @@ $cookie=/^__hstc$/            ! HubSpot
 ||ssl.google-analytics.com/ga.js$script,redirect-rule=google-analytics-ga
 
 ! ───── Google Publisher Tag (GPT) → mock 대체 ─────
-||googletagservices.com/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt
-||googletagservices.com/tag/js/gpt_mobile.js$script,redirect-rule=googletagservices-gpt
-||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt
-||securepubads.g.doubleclick.net/tag/js/gpt_mobile.js$script,redirect-rule=googletagservices-gpt
-||securepubads.g.doubleclick.net/gpt/pubads_impl_*.js$script,redirect-rule=googletagservices-gpt
+||googletagservices.com/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt,domain=~golf.com|~today.line.me|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~eksisozluk.com|~heycar.co.uk|~gizmodo.jp|~dexerto.com|~makorrishon.co.il|~mensjournal.com
+||googletagservices.com/tag/js/gpt_mobile.js$script,redirect-rule=googletagservices-gpt,domain=~golf.com|~today.line.me|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~eksisozluk.com|~heycar.co.uk|~gizmodo.jp|~dexerto.com|~makorrishon.co.il|~mensjournal.com
+||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt,domain=~golf.com|~today.line.me|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~eksisozluk.com|~heycar.co.uk|~gizmodo.jp|~dexerto.com|~makorrishon.co.il|~mensjournal.com
+||securepubads.g.doubleclick.net/tag/js/gpt_mobile.js$script,redirect-rule=googletagservices-gpt,domain=~golf.com|~today.line.me|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~eksisozluk.com|~heycar.co.uk|~gizmodo.jp|~dexerto.com|~makorrishon.co.il|~mensjournal.com
+||securepubads.g.doubleclick.net/gpt/pubads_impl_*.js$script,redirect-rule=googletagservices-gpt,domain=~golf.com|~today.line.me|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~eksisozluk.com|~heycar.co.uk|~gizmodo.jp|~dexerto.com|~makorrishon.co.il|~mensjournal.com
 ||securepubads.g.doubleclick.net/gampad/ads$xmlhttprequest,redirect-rule=nooptext
 ||securepubads.g.doubleclick.net/gampad/live/ads$xmlhttprequest,redirect-rule=nooptext
 
