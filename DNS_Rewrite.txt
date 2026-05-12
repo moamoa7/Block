@@ -2,11 +2,11 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260512
+! Version: 20260512-rev3
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
-!!! AdGuard Home 전용 DNS 차단 필터 ()
+!!! AdGuard Home 전용 DNS 차단 필터
 !!! ═══════════════════════════════════════════════════════════
 !!!
 !!! [동작 방식]
@@ -41,21 +41,16 @@
 ||stats.youtube.com^
 ||clientservices.googleapis.com^
 !
-! ───── Google Firebase / Crashlytics 관련 (이미 포함됨) ─────
+! ───── Google Firebase / Crashlytics 관련 ─────
 ||crashlyticsreports-pa.googleapis.com^
 ||firebaselogging-pa.googleapis.com^
 ||app-measurement.com^
-!
-! ───── 추가하면 좋을 Firebase 관련 ─────
 ||firebase-settings.crashlytics.com^
 ||settings.crashlytics.com^
 ||reports.crashlytics.com^
 ||e.crashlytics.com^
 ||firebaseinstallations.googleapis.com^
-! - WIFI에서 디시인사이드 구동 안됨
-! - 버전 체크 / 서버 상태 확인 등 수행
-! - 광고 차단 리스트에서는 이걸 '분석용(Telemetry)'으로 보고 차단하는 경우가 많지만,
-! - 디시인사이드 같은 국내 앱들은 이 통로가 막히면 "서버 정보를 못 가져오니 실행을 중단
+! - WIFI에서 디시인사이드 구동 안됨 → 차단 해제
 !||firebaseremoteconfig.googleapis.com^
 ||firebaseperformance.googleapis.com^
 ||firebaseinappmessaging.googleapis.com^
@@ -63,7 +58,7 @@
 !
 ! ───── 메타(페이스북) / 인스타그램 트래킹 ─────
 ||facebook.net^
-! - "페이스북으로 로그인" 버튼이 동작하지 않습니다. 해당 기능을 쓰신다면 그 도메인만 예외 처리
+! - "페이스북으로 로그인" 버튼이 동작하지 않습니다. 해당 기능 쓸 경우 예외 처리
 ||connect.facebook.net^
 ||an.facebook.com^
 ||pixel.facebook.com^
@@ -141,7 +136,7 @@
 ||mgid.com^
 ||content-recommendation.net^
 !
-! ───── 광고 영상 SDK 추가 (신규) ─────
+! ───── 광고 영상 SDK ─────
 ||2mdn.net^
 ||innovid.com^
 !
@@ -168,7 +163,10 @@
 ||appodeal.com^
 ||fyber.com^
 ||appsflyer.com^
+||appsflyersdk.com^
 ||adjust.com^
+||adjust.io^
+||app.adjust.io^
 ||branch.io^
 ||kochava.com^
 ||singular.net^
@@ -193,12 +191,8 @@
 ||appflood.com^
 ||domob.cn^
 ||greedygame.com^
-!
-! ───── 추가: 모바일 SDK / 광고 ─────
 ||bugly.qq.com^
 ||android.bugly.qq.com^
-||adjust.io^
-||app.adjust.io^
 ||bulldogcpi.com^
 ||ads.bulldogcpi.com^
 !
@@ -215,6 +209,7 @@
 ||loggly.com^
 ||logs-01.loggly.com^
 ||datadoghq.com^
+||browser-intake-datadoghq.com^
 ||amplitude.com^
 ||api.amplitude.com^
 ||api2.amplitude.com^
@@ -271,7 +266,7 @@
 ||dynatrace.com^
 ||appdynamics.com^
 !
-! ───── 클라우드플레어 RUM (신규) ─────
+! ───── 클라우드플레어 RUM ─────
 ||cloudflareinsights.com^
 ||static.cloudflareinsights.com^
 !
@@ -317,7 +312,7 @@
 ||static.zdassets.com^
 ||ekr.zdassets.com^
 !
-! ───── A/B 테스트 / 개인화 (신규) ─────
+! ───── A/B 테스트 / 개인화 ─────
 ||dynamicyield.com^
 ||monetate.net^
 ||kameleoon.com^
@@ -347,7 +342,7 @@
 ||sync.search.spotxchange.com^
 ||tags.rd.linksynergy.com^
 !
-! ───── CDP / 식별자 그래프 (신규) ─────
+! ───── CDP / 식별자 그래프 ─────
 ||liadm.com^
 ||id5-sync.com^
 ||sharethis.com^
@@ -404,8 +399,11 @@
 ||us-mobile.events.data.microsoft.com^
 ||functional.events.data.microsoft.com^
 ||self.events.data.microsoft.com^
+||events.data.microsoft.com^
 ||vortex-win.data.microsoft.com^
 ||vortex.data.microsoft.com^
+||pipe.aria.microsoft.com^
+||onecollector.cloudapp.net^
 ||telecommand.telemetry.microsoft.com^
 ||oca.telemetry.microsoft.com^
 ||sqm.telemetry.microsoft.com^
@@ -420,9 +418,13 @@
 ||applicationinsights.azure.com^
 ||applicationinsights.io^
 ||fp.msedge.net^
+||js.monitor.azure.com^
+||analysis.appcenter.ms^
+||in.appcenter.ms^
 !
 ! ───── 브라우저 텔레메트리 (Edge/Chrome/Brave 등) ─────
 ||browser.events.data.microsoft.com^
+||browser.events.data.msn.com^
 !||edge.microsoft.com^
 ||p.brave.com^
 ||variations.brave.com^
@@ -431,6 +433,17 @@
 ||incoming.telemetry.mozilla.org^
 ||sitecheck2.opera.com^
 ||desktop.telemetry.opera.com^
+||mig.vivaldi.com^
+||update.vivaldi.com^
+||cv.whale.naver.com^
+||go-updater.brave.com^
+||content-autofill.googleapis.com^
+||suggestqueries.google.com^
+||optimizationguide-pa.googleapis.com^
+||gateway.bingviz.microsoftapp.net^
+||api.msn.com^
+||arc.msn.com^
+||config.edge.skype.com^
 !
 ! ───── Apple 텔레메트리 ─────
 ||metrics.icloud.com^
@@ -453,6 +466,13 @@
 ||locator2.kaspersky-labs.com^
 ||edge.f-secure.com^
 !
+! ───── nProtect & 안랩 등 국내 보안 프로그램 잔재 ─────
+! 업데이트 서버는 가급적 허용 (은행 업무/백신 업데이트)
+! ||update.nprotect.net^
+! ||liveupdate.ahnlab.com^
+||st.ahnlab.com^
+||aosupdate.ahnlab.com^
+!
 ! ───── 자동차 텔레메트리 ─────
 ||telemetry.tesla.com^
 ||logs.tesla.com^
@@ -472,7 +492,7 @@
 ||log.getdropbox.com^
 ||client-events.dropbox.com^
 ||client-telemetry.slack.com^
-! - (요즘 유행하는 신생 앱/웹서비스들이 이 서비스를 '기능 플래그(기능 끄고 켜기)' 용도로 많이 씁니다. 이걸 막으면 특정 앱의 기능이 안 보일 수 있습니다)
+! 신생 앱/웹서비스의 기능 플래그용 — 막으면 일부 기능 미표시 가능
 !||statsigapi.net^ 
 ||featuregates.org^
 ||clienttelemetry.webex.com^
@@ -492,20 +512,47 @@
 ||metrics-api.evernote.com^
 ||telemetry.box.com^
 !
+! ───── 개발/소프트웨어 텔레메트리 추가 ─────
+||telemetry.gradle.com^
+||telemetry.dotnet.microsoft.com^
+||telemetry.npmjs.org^
+||telemetry.docker.com^
+||telemetry.cursor.sh^
+||shavar.services.mozilla.com^
+||location.services.mozilla.com^
+||firebaselogging.googleapis.com^
+||redirector.gvt1.com^
+||collector.github.com^
+!
+! ───── 주변기기 / 게이밍 SW ─────
+||r.logi.com^
+||logi-ghub-telemetry.s3.amazonaws.com^
+||telemetry.razerapi.com^
+||engine-api.steelseries.com^
+!
+! ───── AI 서비스 추적 ─────
+||events.statsigapi.net^
+||oai-events.azureedge.net^
+||statsig.anthropic.com^
+!
 ! ───── 바이두 / 중국계 광고·분석 ─────
 ||hm.baidu.com^
 ||pos.baidu.com^
 ||tongji.baidu.com^
 ||cbjs.baidu.com^
 ||eclick.baidu.com^
+||loc.map.baidu.com^
 ||adash.m.taobao.com^
 ||umeng.com^
 ||umengcloud.com^
+||log.umsns.com^
 ||talkingdata.com^
 ||talkingdata.net^
 ||getui.com^
 ||igexin.com^
 ||tencentmta.com^
+||trace.qq.com^
+||oth.eve.mdt.qq.com^
 ||analytics.bytedance.com^
 ||log.bytedance.com^
 ||mssdk.bytedance.com^
@@ -518,16 +565,21 @@
 ||metrika.yandex.ru^
 ||metrica.yandex.com^
 ||appmetrica.yandex.com^
+||startup.mobile.yandex.net^
 !
 ! ───── 스마트TV / 셋톱박스 ─────
 ||logs.netflix.com^
 ||customerevents.netflix.com^
+||appboot.netflix.com^
+||ichnaea.netflix.com^
 ||samsungads.com^
 ||samsungacr.com^
 ||samsungotn.net^
 ||samsungrm.net^
 ||log-ingestion.samsungacr.com^
 ||sa.samsungrs.com^
+||err.samsung.com^
+||samsung-com.112.2o7.net^
 ||ad.lgsmartad.com^
 ||lgad.line.me^
 ||lgad.cjpowercast.com.akadns.net^
@@ -556,6 +608,17 @@
 ||logservice.hicloud.com^
 ||logservice1.hicloud.com^
 !
+! ───── 레노버(Lenovo) & ZUI ─────
+! 기기 진단 및 추가적인 중국 내수용 업데이트 서버
+||stats.zui.com^
+||api.zui.lenovomm.com^
+||recom.zui.com^
+||sus.lenovomm.com^
+||zui.lenovo.com^
+||icns.zui.lenovomm.com^
+||cnszui.lenovomm.com^
+||dcf.lenovomm.com^
+!
 ! ───── 게임 플랫폼 텔레메트리 ─────
 ||telemetry.battle.net^
 ||logging.battle.net^
@@ -571,6 +634,18 @@
 ||cdp.cloud.unity3d.com^
 ||perf-events.cloud.unity3d.com^
 ||stats.unity3d.com^
+!
+! ───── 구글(Google) 시스템 분석 & 개인화 ─────
+||android-safebrowsing.google.com^
+||feedback-pa.googleapis.com^
+! 음성 인식 미사용 시 차단 가능
+||speech.googleapis.com^
+! 구글 "내 활동(My Activity)" / 웹·앱 활동 기록
+||footprints-pa.googleapis.com^
+! 개인화 스마트 기능 (사용자 맥락 파악)
+||geller-pa.googleapis.com^
+! 구글 동의 메시지
+||fundingchoicesmessages.google.com^
 !
 ! ───── 한국 서비스 (포털/쇼핑/통신/금융/OTT/배달) ─────
 ||log.coupang.com^
@@ -588,9 +663,9 @@
 ||log.naver.com^
 ||cc.naver.com^
 ||lcs.naver.com^
-||siape.veta.naver.com^
+||wcs.naver.net^
+||pcs.naver.com^
 ||nelo2-col.navercorp.com^
-||log.chzzk.naver.com^
 ||stat.daum.net^
 ||stat.kakao.com^
 ||cf.kakao.com^
@@ -603,6 +678,11 @@
 ||display.ad.daum.net^
 ||analytics.kakaocorp.com^
 ||analytics-log.kakao.com^
+||analytics.kakao.com^
+||tracker.kakao.com^
+||stat.talk.kakao.com^
+||log.kakao.com^
+||logger.kakao.com^
 ||displayad.cauly.co.kr^
 ||tg.socdm.com^
 ||log.gmarket.co.kr^
@@ -618,6 +698,7 @@
 ||tracker.idus.com^
 ||logger.ohou.se^
 ||tracker.kurly.com^
+||log.marketkurly.com^
 ||trace.zigbang.com^
 ||analytics.dabangapp.com^
 ||cdp.melon.com^
@@ -635,6 +716,7 @@
 ||tracker.naverpay.com^
 ||tracker.kakaopay.com^
 ||analytics-log.kakaopay.com^
+||log-upload.kakaopay.com^
 ||log.toss.im^
 ||event.baemin.com^
 ||logger.baemin.com^
@@ -647,9 +729,33 @@
 ||logger.socar.kr^
 ||stat.cj.net^
 ||log.lottecard.co.kr^
+||wp.kakaocdn.net^
+||collection.weverse.io^
+||slf.sktswe.net^
+!
+! ───── 카카오 광고 플랫폼 (Adfit / Moment) ─────
+||adfit.kakao.com^
+||sdk.adfit.kakao.com^
+||analytics.adfit.kakao.com^
+||display.ad.kakao.com^
+||display-ad.kakao.com^
+||tracker.moment.kakao.com^
+||mkamp.kakao.com^
+! kamp.kakao.com — 카카오톡 앱에서만 차단 (카카오TV 라이브 영향 회피)
+!||kamp.kakao.com^
+||kamp.kakao.com^$app=com.kakao.talk
+! 카카오TV 일반 영상 (스크립트 차단 사용 시)
+||vst.play.kakao.com^
+||shortformstats.kakao.com^
+! 카카오 비즈메시지 분석
+||bzm-capi.kakao.com^
+||bzm-log.kakao.com^
+!
+! ───── 네이트 광고/콘텐츠 ─────
+||dmc.nate.com^
+||wpde.nate.com^
 !
 ! ───── 디시인사이드 광고 / 추적 ─────
-! 디시 자체 광고 서버 (서브도메인)
 ||ad.dcinside.com^
 ||adv.dcinside.com^
 ||dcad.dcinside.com^
@@ -665,43 +771,33 @@
 ! 전용 스크립트/확장(TwitchAdSolutions, autoHD 등) 병행 필수
 !
 ! ───── Twitch ─────
-! 추적/분석만 차단 가능 (광고 자체는 못 막음)
 ||spade.twitch.tv^
 ||countess.twitch.tv^
-!
+||twitchcdn.net^
+||analytics.twitch.tv^
+||client-event-reporter.twitch.tv^
 ! Twitch 광고 메타데이터 (IMA SDK)
 ||imasdk.googleapis.com^
 ||pubads.g.doubleclick.net^
-!
 ! ⚠️ 절대 차단 금지 (방송 송출 끊김)
 ! usher.ttvnw.net  ← 본 영상 스트림
 ! video-edge-*.ttvnw.net  ← 영상 엣지 서버
 ! video-weaver.*.ttvnw.net  ← HLS 청크
 !
-!! ───── 치지직 (CHZZK) + 네이버 공용 추적/광고 ─────
-! 추적/분석 차단 (치지직 직접 관련)
+! ───── 치지직 (CHZZK) + 네이버 공용 추적/광고 ─────
 ||log.chzzk.naver.com^
-||nelo2-col.navercorp.com^
 ||kr-col-ext.nelo.navercorp.com^
 ||nlog.naver.com^
-!
-! 네이버 공용 분석 (치지직도 사용)
-||lcs.naver.com^
-||cc.naver.com^
-||wcs.naver.net^
 ||siape.veta.naver.com^
 ||nam.veta.naver.com^
 ||astralog.naver.com^
-!
 ! 네이버 광고 추천 위젯 (데이블)
 ||dable.io^
-!
 ! ⚠️ 절대 차단 금지
 ! livecloud.pstatic.net  ← 본 영상 CDN
 ! ssl.pstatic.net/cmcdn  ← 일부 영상 청크
 !
 ! ───── 숲(SOOP) / 구 아프리카TV ─────
-! 추적/분석 차단
 ||log.sooplive.com^
 ||stat.sooplive.com^
 ||stat.afreecatv.com^
@@ -710,13 +806,12 @@
 ||collector2.sooplive.com^
 ||collector3.sooplive.com^
 ||collector4.sooplive.com^
-! - 로그인 처리가 안되는 문제 해결을 위한 주석 처리
+! 로그인 처리 문제로 주석 처리
 !||afevent2.sooplive.com^
 ||laglog.sooplive.com^
 ||exlogcollector.sooplive.com^
 ||eventapi.sooplive.com^
 ||deapi.sooplive.com^
-!
 ! 숲 광고 서버
 ||adv.sooplive.com^
 ||ads.sooplive.com^
@@ -725,223 +820,33 @@
 ||adv.afreecatv.com^
 ||adimg.sooplive.co.kr^
 ||adimg.afreecatv.com^
-!
-! 네이버 추가
-||nlog.naver.com^
-||nam.veta.naver.com^
-||kr-col-ext.nelo.navercorp.com^
-!
-! 모바일 광고 SDK 추가
-||appsflyersdk.com^
-!
-! 기타 텔레메트리
-||cnszui.lenovomm.com^
-! - Lenovo 모토로라/레노버 폰의 시스템 푸시 채널
-||icns.zui.lenovomm.com^
-||js.monitor.azure.com^
-||test-gateway.instagram.com^
-||loc.map.baidu.com^
-!
-!
 ! ⚠️ 절대 차단 금지
 ! play.sooplive.com  ← 본 영상 송출
 ! livestream-manager.sooplive.com
 !
 ! ───── Kick ─────
-! 추적/분석 차단
 ||analytics.kick.com^
 ||events.kick.com^
-!
-! Kick는 Cloudflare CDN을 쓰고 광고가 적은 편이라
-! 차단할 도메인이 거의 없음
-!
 ! ⚠️ 절대 차단 금지
 ! stream.kick.com  ← 본 영상
 ! cdn.kick.com  ← CDN
 !
-! GitHub 텔레메트리
-||collector.github.com^
+! ───── 스트리밍/OTT 추가 ─────
+||pixel.spotify.com^
+||disney.demdex.net^
+||disneyplus.bn5x.net^
+||hbomax-analytics.warnermediacdn.com^
 !
-! 네이버 웨일 브라우저 분석
-||cv.whale.naver.com^
-!
-! Brave 업데이트 (개인 판단)
-||go-updater.brave.com^
-!
-! Chrome 자동완성 추적 (개인 판단)
-||content-autofill.googleapis.com^
-!
-! 구글 검색창에 타이핑할 때 나오는 '연관 검색어' 제안
-||suggestqueries.google.com^
-!
-! Chrome 최적화 가이드 (개인 판단)
-||optimizationguide-pa.googleapis.com^
-!
-! 엣지의 비주얼 검색이나 빙 관련 분석용
-||gateway.bingviz.microsoftapp.net^
-! 엣지 새 탭의 뉴스나 날씨 관련 데이터 (첫 화면의 뉴스 피드가 보기 싫다면 막으세요)
-||api.msn.com^
-!
-! 레딧의 광고 및 분석용 로그를 수집
+! ───── 레딧 ─────
 ||alb.reddit.com^
 !
-! 마이크로소프트의 앱 분석 및 크래시 리포트(로그 수집) 서버
-||in.appcenter.ms^
+! ───── 인스타그램(테스트 게이트웨이) ─────
+||test-gateway.instagram.com^
 !
-! 로지텍 G Hub / 주변기기
-||r.logi.com^
-||logi-ghub-telemetry.s3.amazonaws.com^
-!
-! 레이저 (Razer Synapse)
-||telemetry.razerapi.com^
-!
-! 스틸시리즈 (SteelSeries)
-||engine-api.steelseries.com^
-!
-! OpenAI (ChatGPT) 추적
-||events.statsigapi.net^
-||oai-events.azureedge.net^
-!
-! Anthropic (Claude)
-||statsig.anthropic.com^
-!
-! 애드립 / 카울리 등 국내 모바일 광고 플랫폼
-||adlib.com^
-||cauly.co.kr^
-||mobon.net^
-||tg.widerplanet.com^
-!
-! 추가 쇼핑 트래커
-! 네이버 프리미엄 로그 분석 - 쇼핑몰용
-||wcs.naver.net^
-||log.marketkurly.com^
-!
-! 폰트/아이콘 트래킹
+! ───── 폰트/아이콘 트래킹 ─────
 ||use.fontawesome.com^
 ! - (주의: 웹사이트 폰트가 깨질 수 있음)
 !||fonts.googleapis.com^
-!
-! ───── 레노버(Lenovo) & ZUI 추가 차단 ─────
-! 기기 진단 및 추가적인 중국 내수용 업데이트 서버
-||stats.zui.com^
-||api.zui.lenovomm.com^
-||recom.zui.com^
-||sus.lenovomm.com^
-||zui.lenovo.com^
-||icns.zui.lenovomm.com^
-!
-! ───── nProtect & 안랩 등 국내 보안 프로그램 잔재 ─────
-! 1. 업데이트 서버 (은행 업무/백신 업데이트를 위해 가급적 허용 권장)
-! ||update.nprotect.net^ (<- 가급적 삭제)
-! ||liveupdate.ahnlab.com^ (<- 가급적 삭제)
-!
-! 2. 통계 및 추적 서버 (이건 계속 막아놔도 상관없습니다)
-||st.ahnlab.com^
-! 설치 확인용 로그 서버
-||aosupdate.ahnlab.com^
-!
-! ───── 중국 앱/웹 서비스 공통 추적기 (QQ/Baidu/Xiaomi 등) ─────
-! 다양한 앱에서 공통으로 사용하는 중국발 분석 서버
-||analysis.appcenter.ms^
-||hm.baidu.com^
-||log.umsns.com^
-||trace.qq.com^
-||oth.eve.mdt.qq.com^
-||tracking.miui.com^
-!
-! ───── 국내 서비스 로그 수집기 추가 ─────
-||wp.kakaocdn.net^
-||log-upload.kakaopay.com^
-||pcs.naver.com^
-!
-! ───── 윈도우/엣지 브라우저 불필요 수집 ─────
-! 사용 습관 수집 및 광고 ID 관련
-||browser.events.data.microsoft.com^
-||self.events.data.microsoft.com^
-!
-! ───── 마이크로소프트 & 오피스 모바일 추가 ─────
-! 윈도우/오피스 앱에서 활동 내역 및 사용 습관 수집
-||vortex.data.microsoft.com^
-||vortex-win.data.microsoft.com^
-||events.data.microsoft.com^
-||pipe.aria.microsoft.com^
-! 오피스 365 공통 수집기
-||onecollector.cloudapp.net^
-!
-! ───── 레노버(Lenovo) & ZUI 진단 추가 ─────
-! UEF 외에도 기기 상태 및 사용 통계를 전송하는 서버들
-||stats.zui.com^
-||recom.zui.com^
-||api.zui.lenovomm.com^
-||dcf.lenovomm.com^
-!
-! ───── 구글(Google) 시스템 분석 & 개인화 추가 ─────
-! 기기 분석 및 검색 결과 최적화를 위한 데이터 전송
-||android-safebrowsing.google.com^
-||optimizationguide-pa.googleapis.com^
-||feedback-pa.googleapis.com^
-! 음성 인식 미사용 시 차단 가능
-||speech.googleapis.com^
-!
-! ───── 제조사 공통 텔레메트리 (삼성/기타) ─────
-! 기기 오류 보고 및 익명 사용 데이터 전송
-||err.samsung.com^
-! 어도비 기반 삼성 분석 서버
-||samsung-com.112.2o7.net^
-!
-! — 구글 개인화 데이터 수집 (계정 활동 추적)
-! — 구글 서비스 중 개인화된 스마트 기능(Personalization & Smart Features)과 관련된 서버 (사용자의 맥락을 파악"하는 기능)
-||geller-pa.googleapis.com^
-!
-! ───── 카카오톡 / 카카오 추가 추적 ─────
-||analytics.kakao.com^
-||tracker.kakao.com^
-||stat.talk.kakao.com^
-||log.kakao.com^
-||logger.kakao.com^
-!
-! ───── 카카오 광고 플랫폼 (Adfit / Moment) ─────
-||adfit.kakao.com^
-||sdk.adfit.kakao.com^
-||analytics.adfit.kakao.com^
-||display.ad.kakao.com^
-||display-ad.kakao.com^
-||tracker.moment.kakao.com^
-!
-! ───── 카카오 비즈메시지 분석 (일반 카톡 사용엔 영향 없음) ─────
-||bzm-capi.kakao.com^
-||bzm-log.kakao.com^
-!
-! ───── 차단 OK ─────
-! MSN 광고/콘텐츠 추천
-||arc.msn.com^
-! 구글 동의 메시지
-||fundingchoicesmessages.google.com^
-! 네이트 광고/미디어 추정
-||dmc.nate.com^
-! - 네이트 광고/콘텐츠 추천 서버일 가능성
-||wpde.nate.com^
-!
-! ───── 차단 가능 (카카오 광고 사용 안 하면) ─────
-! 카카오 마케팅 플랫폼
-||mkamp.kakao.com^
-! 카카오 광고 메트릭 -  - 카카오tv 재생 차단 (라이브 방송)
-! -  카카오tv광고차단 스크립트 규칙 사용과 무관
-!||kamp.kakao.com^
-||kamp.kakao.com^$app=com.kakao.talk
-! 카카오 Play 통계 -  - 카카오tv 재생 차단 (일반 영상)
-! -  카카오tv광고차단 스크립트 규칙 사용하면 차단 가능
-||vst.play.kakao.com^
-! 카카오 숏폼 통계
-||shortformstats.kakao.com^
-!
-!
-! - 구글의 "내 활동(My Activity)" / 웹·앱 활동 기록 서버
-||footprints-pa.googleapis.com^
-! - 위버스 앱 내 사용자의 활동 데이터를 수집하는 분석(Analytics) 서버
-||collection.weverse.io^
-! - SK텔레콤(SKT) 관련 서비스의 로그 수집 및 텔레메트리 서버 (기기 정보나 앱 사용 통계 전송)
-||slf.sktswe.net^
 !
 ! ───── 악성 팝업/팝언더 광고 네트워크 ─────
 ||a-mo.net^
@@ -1014,53 +919,24 @@
 ||igaworks.com^
 ||recopick.com^
 ||logger.recopick.com^
-||astralog.naver.com^
 ||enliple.com^
 ||rtbplus.io^
 ||astrid.kakao.com^
-!
-! ───── 스트리밍/OTT 추가 ─────
-||twitchcdn.net^
-||analytics.twitch.tv^
-||client-event-reporter.twitch.tv^
-||appboot.netflix.com^
-||ichnaea.netflix.com^
-||pixel.spotify.com^
-||disney.demdex.net^
-||disneyplus.bn5x.net^
-||hbomax-analytics.warnermediacdn.com^
-!
-! ───── 개발/소프트웨어 텔레메트리 추가 ─────
-||telemetry.gradle.com^
-||telemetry.dotnet.microsoft.com^
-||telemetry.npmjs.org^
-||telemetry.docker.com^
-||telemetry.cursor.sh^
-||shavar.services.mozilla.com^
-||location.services.mozilla.com^
-||browser-intake-datadoghq.com^
-||firebaselogging.googleapis.com^
-||redirector.gvt1.com^
-||config.edge.skype.com^
-||browser.events.data.msn.com^
-||mig.vivaldi.com^
-||update.vivaldi.com^
+||adlib.com^
+||cauly.co.kr^
+||mobon.net^
+||tg.widerplanet.com^
+||teralog.techhub.co.kr^
+||pincrux.com^
+||pangle.io^
 !
 ! ───── 기타 분석 ─────
 ||posthog.com^
 ||plausible.io^
 !
-! - Yandex(러시아 검색엔진)의 AppMetrica 모바일 SDK 엔드포인트
-||startup.mobile.yandex.net^
-! - ByteDance(틱톡 모회사)의 글로벌 모바일 광고 네트워크입니다. TikTok의 광고 SDK
-||pangle.io^
-! - Google Safe Browsing 서비스
-! - - - 사용자가 접속하려는 사이트가 피싱·악성코드·사기 사이트인지 실시간으로 확인하는 보안 인프라
+! ───── 허용 규칙 (화이트리스트) ─────
+! Google Safe Browsing (피싱·악성코드 보호용 필수)
 @@||safebrowsing.googleapis.com^
-! - 명확한 광고 도메인이고, 리워드 앱을 안 쓴다면 막아도 아무 지장 없습니다.
-||pincrux.com^
-!
-!
 !
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
@@ -1074,29 +950,25 @@
 ! ||fpjs.io^
 ! ||hcaptcha.com^
 ! ||recaptcha.net^
-! ||statsig.anthropic.com^
 ! ||analytics.perplexity.ai^
-! T맵(T map)이나 SKT 전용 앱(에이닷, T월드 등)에서 내 현재 위치를 확인하거나 지도를 불러올 때 사용
+! T맵/SKT 전용 앱 위치·지도 사용
 ! ||rf-lbsidcstmap.sktelecom.com^
-! 윈도우의 코파일럿 기능, 엣지 브라우저의 사이드바 AI, 그리고 코파일럿 웹사이트 사용안하면 가능
+! 윈도우 코파일럿 / 엣지 사이드바 AI 미사용 시
 ! ||copilot.microsoft.com^
-! 페이스북이나 인스타그램 앱을 쓰지 않거나, "나는 앱을 켰을 때만 알림을 확인해도 상관없다"면 막으셔도 됩니다
+! 페이스북/인스타 앱 미사용 시
 ! ||edge-mqtt-fallback.facebook.com^
-! — 구글 위치 기록
+! 구글 위치 기록
 ! ||locationhistoryplacedetails-pa.googleapis.com^
 ! ||locationhistory-pa.googleapis.com^
-! — 구글 "내 기기 찾기" 관련 (본인이 안 쓰면 차단 OK)
+! 구글 "내 기기 찾기"
 ! ||spot-pa.googleapis.com^
-! — 윈도우 날씨 위젯 타일
+! 윈도우 날씨 위젯 타일
 ! ||tile-service.weather.microsoft.com^
-! - 브레이브(Brave) 브라우저의 동기화(Sync) 기능을 담당하는 서버
-! - - - 브레이브 사용자: 여러 기기(PC-폰) 간에 즐겨찾기, 비밀번호, 열린 탭을 공유하며 쓴다면 절대 차단하면 안 됩니다.
+! Brave Sync (PC↔폰 동기화 사용 시 절대 차단 금지)
 ! ||sync-v2.brave.com^
 !
 !
-!
-!
-! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능
+! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능 (참고용 주석)
 ! android.apis.google.com           ← Google API 통합 엔드포인트
 ! www.googleapis.com                ← Google API 일반
 ! oauth2.googleapis.com             ← Google 로그인 인증
@@ -1105,16 +977,10 @@
 ! android.googleapis.com            ← 안드로이드 시스템 API
 ! mtalk.google.com                  ← FCM 푸시 알림 (TCP 5228)
 ! gcm-http.googleapis.com           ← FCM 메시징
-! fonts.googleapis.com              ← 웹폰트 (수많은 사이트가 사용)
+! fonts.googleapis.com              ← 웹폰트
 ! apis.google.com                   ← Google API 일반 (로그인 위젯 등)
-! 아래 도메인들은 리라이트(0.0.0.0)에 넣지 마세요!
-! 1. 코파일럿 사용자라면 필수
-! api.individual.githubcopilot.com^
-! 2. 유튜브 영상 재생 필수 서버
-! ångströ.com^
-! 3. 모바일 티머니 앱에서 잔액 조회, 충전, 결제 내역 확인, 그리고 스마트폰 NFC를 이용한 대중교통 결제 시
-! mapi.tmoney.co.kr^
-! 4. SKT 전용 단말기의 소프트웨어 업데이트 확인, 기기 인증, 혹은 T월드 같은 전용 앱의 연동 설정 등을 담당
-! urms.usp.sktelecom.com^
-! 5. 삼성 기본 앱 알림 / 삼성 멤버스 & 이벤트 / 내 디바이스 찾기
-! sdk.pushmessage.samsung.com
+! api.individual.githubcopilot.com  ← 코파일럿 사용자 필수
+! ångströ.com                       ← 유튜브 영상 재생 필수
+! mapi.tmoney.co.kr                 ← 모바일 티머니 결제
+! urms.usp.sktelecom.com            ← SKT 단말 업데이트/인증
+! sdk.pushmessage.samsung.com       ← 삼성 기본 앱 알림
