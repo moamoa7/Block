@@ -2837,7 +2837,7 @@ pedia.watcha.com##.adFixed
 ! - 메인 배너 (다른 페이지에서) - 광역 적용 가능
 !##a[target='_blank'] > img[width='100%'][src*=".gif"]
 !##a[target='_blank'] > img[width='100%'][src*="/imgs/"]
-
+##.title:has(img[src^="/imgs/"])
 !##a[target='_blank'] > img[width='100%'][src*='.gif']
 ! - 오른쪽 상단 배너
 !##[class="main-head"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
@@ -2854,7 +2854,7 @@ pedia.watcha.com##.adFixed
 !topporn.link#@#[target="_blank"]:has([src$=".gif"])
 !topporn.link#@#[target="_blank"]:has([src*=".gif"])
 ! - - - imgs 경로로 지정한 규칙 (List-KR)
-!##.main-box:has(img[src^="/imgs/"])
+##.main-box:has(img[src^="/imgs/"])
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
