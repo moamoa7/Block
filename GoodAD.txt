@@ -1089,12 +1089,12 @@ inven.co.kr##[class="modal-fixed" i]
 inven.co.kr#@#.ad
 ! - 게시물 전체 배너
 !##[src*=".ads/"]
-! -왼쪽 배너
-##[class*="ad-right"]
+! -오른쪽 배너
+##[class*="ad-right" i]
 ! - 예외
 ! - - -  조선일보 (https://www.chosun.com/)
 chosun.com#@#[class*="ad-right" i]
-! -오른쪽 배너
+! -왼쪽 배너
 ##[class*="ad-left" i]
 ! - 예외
 ! - - -  조선일보 (https://www.chosun.com/)
@@ -1590,7 +1590,8 @@ goodgag.net##body:style(pointer-events: auto !important; overflow: auto !importa
 !
 ! 벅스 (https://music.bugs.co.kr/)
 ! - 상단 배너
-music.bugs.co.kr##.topBanner
+!music.bugs.co.kr##.topBanner
+##[class*="topBanner" i]
 !
 !
 ! 넷플릭스 (https://www.netflix.com/)
@@ -2373,23 +2374,24 @@ yna.co.kr##.ynalounge-content01.wide.content03
 !
 ! 조선일보 (https://www.chosun.com/)
 ! - 기사 광고 및 배너
-chosun.com##.box--bg-grey-10
-chosun.com##[class*="size_"]
+!chosun.com##.box--bg-grey-10
+!chosun.com##[class*="size_"]
 !
 !
 ! 동아일보 (https://www.donga.com/)
 ! - 이미지 사라짐 해제
 www.donga.com#@#[class*="ad_"] [style]
 ! - 기사 왼쪽 배너
-##[class*="-ad-container"]
+##[class*="ad-container" i]
 !
 !
 ! 한국경제 (https://www.hankyung.com/)
 ! - 맨 상단 배너
-hankyung.com##.stock-marquee-wrap
+!hankyung.com##.stock-marquee-wrap
 !##.ad-top
 ! - 기사 오른쪽 배너 공간 (잔여물 제거) (EasyList)
-##.aside-ad
+!##.aside-ad
+##[class*="aside-ad" i]
 ! - 메인배너 및 상단 오른쪽 돌아가는 배너
 ! - - - 쿠팡에서 제품 사라짐
 !##[class^="promotion"]
@@ -2398,18 +2400,20 @@ hankyung.com##.stock-marquee-wrap
 ! - 배너 (오른쪽 배너) (List-KR)
 ! - - -  https://3.jamakyadong.me/ 영상 안보임 (광역 규칙 하면 안됨)
 !hankyung.com##div[class*="-ad"]:not(.container):not([style])
+! - 기사 왼쪽 구독 배너
+##[class*="subscribe-banner" i]
 !
 !
 ! 한국일보 (https://www.hankookilbo.com/)
 ! - 상단 배너
 !hankookilbo.com##.end-top-ad-wrap
 ! - 기사 상단 배너
-hankookilbo.com##.rounded-t-lg
+!hankookilbo.com##.rounded-t-lg
 !
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
 ! - 상단 배너
-joongang.co.kr##.topbanner_plus
+!joongang.co.kr##.topbanner_plus - ##[class*="topBanner" i]로 대체
 ! - 상단 배너 (프리미엄)
 joongang.co.kr##.md_hidden.sm_hidden.service
 ! - 중간 배너
@@ -2444,23 +2448,25 @@ ohmynews.com##.newswrap > center
 ! - 모바일 상단 빈공간
 ohmynews.com##body > div
 ! - 모바일 기타
-##[class="ad_box"]
+##[class="ad_box" i]
 !
 !
 ! 경향신문 (https://www.khan.co.kr/)
 ! - 배너 및 배너공간
-khan.co.kr##[class*="banner-"]
+khan.co.kr##[class*="banner-" i]
 ! - 예외 사이트
 ! - - - https://www.joynjoy.com/ - 화면 안보임
-joynjoy.com#@#[class*="banner-"]
+joynjoy.com#@#[class*="banner-" i]
 !
 !
 ! 뉴데일리 (https://www.newdaily.co.kr/)
-##iframe[src*="newdaily"]
+##iframe[src*="newdaily"] i
 !
 !
 ! MTN 머니투데이 (https://mtn.co.kr/)
 ! - 배너
+mtn.co.kr##[src*="banner" i]
+! - 오른쪽 배너
 mtn.co.kr##.w_308px
 !mtn.co.kr##.css-utxpab
 !mtn.co.kr##.d_block
@@ -2473,7 +2479,7 @@ mtn.co.kr##.w_308px
 !
 ! 이데일리 (https://www.edaily.co.kr/)
 ! - 상단 배너
-##.special_area
+edaily.co.kr##.special_area
 ! - 팝업형식 유튜브 배너
 !edaily.co.kr##.show.hover.special_box
 ! - 오른쪽 공간 전부 삭제
@@ -2491,12 +2497,13 @@ mtn.co.kr##.w_308px
 !
 ! 게임조선 (https://gamechosun.co.kr/)
 ! - 상단 배너
-##.top_event
+!##.top_event
+##[class*="top_event" i]
 !
 !
 ! 한국경제TV (https://www.wowtv.co.kr/)
 ! - 상단 배너
-##.box-banner
+##[class*="box-banner" i]
 !
 !
 ! 매일경제 (https://www.mk.co.kr/)
@@ -2520,7 +2527,8 @@ munhwa.com###close-bottom-sticky
 !
 ! https://www.topstarnews.net/
 ! - 배너
-##.ad-view
+!##.ad-view
+##[class*="ad-view" i]
 ! - 차단 사이트
 !||aedi.ai^$3p
 !||piclick.kr^
@@ -2642,8 +2650,10 @@ aliexpress.com##._3KrBP
 ! - - - 게시물내 새상품 광고
 !web.joongna.com##.pb-12
 ! - 광고 삭제
-web.joongna.com##.max-md\:gap-\[60px\]
-web.joongna.com##div.max-md\:gap-3.flex-nowrap
+!web.joongna.com##.max-md\:gap-\[60px\]
+!web.joongna.com##div.max-md\:gap-3.flex-nowrap
+! - 하단 AD 빈 공간
+web.joongna.com##.max-md\:gap-3
 ! - 지금 이 상품 시세 확인하기 안되는거 해결 (List-KR)
 @@||edge-live.joongna.com/api/web-ads/
 !
@@ -2746,7 +2756,7 @@ daangn.com##footer
 ! -  - - - - https://www.sakurajav.com/
 ! -  - - - - https://javhay.net/
 ! - - - - - 동아일보 (https://www.donga.com/) 전체 배너
-##.ad
+!##.ad
 ! - - - 하단 예매하기 버튼 (모바일)
 ! - - - - - 눌러도 예약화면이 안나옴 (왼쪽 상단 석삼자 눌러서 예매하기 클릭할 것)
 !cgv.co.kr##.btnLinkFixed
@@ -2790,7 +2800,7 @@ pedia.watcha.com##.adFixed
 !
 ! 토렌트G (https://ttg-36.com/)
 ! - 상단 배너 공간
-###topbanner_1
+!###topbanner_1 - ##[id*="topbanner" i]로 대체
 ! - 제휴/동맹 안보이게
 ![$domain=/^ttg-\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
 !
@@ -2806,7 +2816,8 @@ pedia.watcha.com##.adFixed
 !||*/img/sponsor/*$image
 ! 배너 공간
 ![$domain=/^ditto-torrent\d+.top/]##.top_banner
-##.top_banner
+!##.top_banner
+##[class*="top_banner" i]
 !
 !
 ! 토렌트 RJ (https://torrentrj199.com/)
@@ -2823,9 +2834,9 @@ pedia.watcha.com##.adFixed
 !
 ! 토렌트파이 (https://go3.xn--sm2bu5zfuhb6a9l.com/) (https://t19.torrentpi150.com/)
 ! - 왼쪽 메뉴 텍스트 배너
-[$domain=/^t\d+.torrentpi150.com/]##.sero1
+![$domain=/^t\d+.torrentpi150.com/]##.sero1
 ! - 상단 배너 공간
-[$domain=/^t\d+.torrentpi150.com/]##.basic-post-gallery
+![$domain=/^t\d+.torrentpi150.com/]##.basic-post-gallery
 ! - 왼쪽 배너
 ![$domain=/^t\d+.torrentpi150.com/]##.sero1 > span
 !
@@ -2855,6 +2866,8 @@ pedia.watcha.com##.adFixed
 !topporn.link#@#[target="_blank"]:has([src*=".gif"])
 ! - - - imgs 경로로 지정한 규칙 (List-KR)
 ##.main-box:has(img[src^="/imgs/"])
+! - 게시물 내 상단 배너
+##[id="at-main"] a[target] img
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
@@ -2863,11 +2876,11 @@ pedia.watcha.com##.adFixed
 !avsee.ru##div.main-box:nth-of-type(1)
 ! - Best Recommend 지우기
 ! - - - 공통
-avsee.ru##.div-title-wrap
+!avsee.ru##.div-title-wrap
 ! - - - PC
-avsee.ru##.nav-justified
+!avsee.ru##.nav-justified
 ! - Mobile
-avsee.ru##.list-category
+!avsee.ru##.list-category
 ! - - - 스크립트의 ui 탭 을 막아서 해제
 avsee.ru#@#.tabs
 ! - 팝업 (새창) 방지
@@ -2940,6 +2953,8 @@ sextb.date##.hidden-md.right.col-3
 !##div:has(> iframe[src*="/widgets/"]):not(:has(*:not(iframe)))
 !##:is(div, section, ins, span, li):has(> iframe[src*="/widgets/" i]):not(:has(> :not(iframe)))
 ##iframe[src*="widget" i]
+! - 예외 - https://www.mtn.co.kr/ - 메인 뉴스 안나옴
+mtn.co.kr#@#iframe[src*="widget" i]
 
 
 !
@@ -3754,7 +3769,7 @@ wavve.com#@#[id*="main-banner" i]
 !
 ! 야동aVMOV (https://avmov.best/)
 ! - 상단 배너
-##.top_banner_grid
+!##.top_banner_grid - ##[class*="top_banner" i]로 대체
 !
 !
 ! AV핫걸 (https://avhotgirl.top/)
@@ -4842,7 +4857,9 @@ noonnu.cc##.is-visible.is-active.justify-center.items-center.flex.splide__slide
 !
 ! 도박랜드 (https://dblove.net/)
 ! - 배너 이미지
-dblove.net##[ class*="banner-item" i]
+!dblove.net##[class*="banner-item" i]
+! - - - 한국경제 기사 왼쪽 작은 배너
+##[class*="banner-item" i]
 !
 !
 ! 오르비 (https://orbi.kr/)
@@ -5102,6 +5119,9 @@ _ads_
 !
 !
 ##[id*="popup_banner" i]
+!
+!
+##[id*="topbanner" i]
 !
 !
 !
