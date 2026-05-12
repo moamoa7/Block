@@ -37,14 +37,6 @@
 @@://www3.doubleclick.net^|$xhr
 !
 !
-! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
-www.google.com##html:style(overflow: visible !important)
-open.spotify.com##html,body:style(overflow: auto !important;)
-! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤/클릭(터치) 등이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
-reddit.com##body:style(pointer-events: auto !important; overflow: auto !important;)
-cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
-!
-!
 !
 !!! 애드가드 스텔스 설정 해제
 ! - -  이게 필요한지 모르겠음 (ublock에도 없는 설정인대 이거 한다고 문제만 생기지)
@@ -325,9 +317,6 @@ x.com/*/videoads/
 !
 ! - 해제
 !
-! - 구글 GPT 스크립트를 광범위하게 차단(및 무해한 코드로 대체)하되, 차단 시 오작동이 발생하는 유명 사이트들만 선별적으로 제외하는 고도로 관리된 필터
-||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect=googletagservices-gpt,domain=~golf.com|~today.line.me|~inmuebles24.com|~inside.com.tw|~investing.com|~olx.com.eg|~eksisozluk.com|~heycar.co.uk|~gizmodo.jp|~dexerto.com|~makorrishon.co.il|~mensjournal.com
-!
 !
 ! - 새창 뜨는거 막음
 !*##+js(prevent-window-open)
@@ -359,8 +348,6 @@ x.com/*/videoads/
 !*##+js(prevent-setTimeout, adblock)
 !*##+js(prevent-setTimeout, detect)
 !*##+js(prevent-setTimeout, snapper)
-!
-!
 !
 !
 !
@@ -432,6 +419,9 @@ gemini.google.com#@#[class*="google" i]
 ##[class*="adsense" i]
 ##[id*="adsense" i]
 !
+! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
+www.google.com##html:style(overflow: visible !important)
+!
 !
 !
 !
@@ -494,6 +484,8 @@ baidu.com###s-hotsearch-wrapper
 ! 스포티파이 (https://open.spotify.com/)
 ! - 차단 사이트
 !||rlcdn.com^
+! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
+open.spotify.com##html,body:style(overflow: auto !important;)
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -574,7 +566,10 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !
 ! 네이버 쇼핑 라이브 (https://shoppinglive.naver.com/)
 ! - 팝업
-!##[class*="popupBanner"]
+##[class*="popupbanner" i]
+##[class*="popup_banner" i]
+! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤/클릭(터치) 등이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
+shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
 ! 네이버 카페 (https://cafe.naver.com/)
@@ -2748,6 +2743,8 @@ daangn.com##footer
 ! - - - 하단 예매하기 버튼 (모바일)
 ! - - - - - 눌러도 예약화면이 안나옴 (왼쪽 상단 석삼자 눌러서 예매하기 클릭할 것)
 !cgv.co.kr##.btnLinkFixed
+! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤/클릭(터치) 등이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
+cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
 ! 왓챠피디아 (https://pedia.watcha.com/)
@@ -3681,11 +3678,11 @@ jamakyadong.me##[class*="g-col"]
 ![$domain=/^jotker\d+.top/],[$domain=/^jbjbgg\d+.top/]##li.gnb_1dli:nth-of-type(7)
 ![$domain=/^yargasm\d+.top/],[$domain=/^darkgg\d+.top/]##li.gnb_1dli:nth-of-type(8)
 ! - 영상 상단 배너 공간
-###main-banner
+!###main-banner
+##[id*="main-banner" i]
 ! -  예외
 ! - - - Wavve (https://www.wavve.com/) - 배너 사라짐
-wavve.com#@##main-banner
-
+wavve.com#@#[id*="main-banner" i]
 !
 !
 ! 야동허브 (https://ydhub11.net/)
@@ -3785,10 +3782,10 @@ wavve.com#@##main-banner
 ! - - - PC
 !##[class*='main_popup']
 !##[class*="popup-pc"]:not(html):not(body):not(article):not(main):not(section)
-##[class*="popup-pc"]
+!##[class*="popup-pc"]
 ! - - - ! 빨간비디오 (https://redvi80.com/)
-##[id*="-popup-"]
 !###desktop-popup-wrapper
+##[class*="popup-item" i]
 ! - - - mobile
 !##.w-80.relative
 !##.relative.w-80
@@ -3819,7 +3816,8 @@ wavve.com#@##main-banner
 ! - 영상 광고 차단
 */data/file/admin_banner/*.mp4
 ! - 팝업 일부
-[$domain=/^xxzone/]###popupBannerModal
+![$domain=/^xxzone/]###popupBannerModal
+##[id*="popupbanner" i]
 !
 !
 ! 오늘의 중계 (today-sports8.com)
@@ -4301,9 +4299,12 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 !@@||mingky*.net/img/*$image
 !
 !
-! 밤가드 (https://bamgad7.com/)
-! - -  상단 배너
-[$domain=/^bamgad\d+.com/]##.new-top.container
+! 밤가드 (https://www.bamgad7.com/) 
+! - 배너
+##[src*="advertise" i]
+! - 상단 배너 공간
+![$domain=/^www.bamgad\d+.com/]##.new-top.container
+[$domain=/^www.bamgad/],[$domain=/^bamgad/]##.new-top.container
 !
 !
 ! - - - 야동파티 (https://ydparty02.net/)
@@ -5088,6 +5089,12 @@ _ads_
 !
 ! - https://shopping.naver.com/
 ^advertisement^
+!
+!
+/advertise^
+!
+!
+##[id*="popup_banner" i]
 !
 !
 !
