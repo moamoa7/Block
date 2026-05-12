@@ -760,6 +760,8 @@
 ||footprints-pa.googleapis.com^
 ! 개인화 스마트 기능 (사용자 맥락 파악)
 ||geller-pa.googleapis.com^
+! 구글 검색 푸시 알림 (Discover/검색 위젯 알림)
+||searchnotifications-pa.googleapis.com^
 ! 구글 동의 메시지
 ||fundingchoicesmessages.google.com^
 !
