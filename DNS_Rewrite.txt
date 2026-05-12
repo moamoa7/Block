@@ -322,6 +322,8 @@
 ||channel.io^
 ! - 한국 앱(토스, 당근마켓 등)에서 신규 기능이 보이지 않으면 풀어야 함
 ||hackle.io^
+! - -  SDK 설정 조회는 허용 (기능 플래그 동작)
+@@||sdk-api.hackle.io^
 !
 ! ───── CDP / 태그 매니저 / Cookie Sync ─────
 ||tealiumiq.com^
