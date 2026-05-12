@@ -66,3 +66,5 @@
 ! ───── 화이트로 잘못 처리된 도메인 ─────
 ||veta.naver.com^
 ||googletagmanager.com^
+||conviva.com^
+||sentry.io^
