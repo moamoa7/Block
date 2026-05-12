@@ -768,11 +768,11 @@ $cookie=/^__hstc$/            ! HubSpot
 ||ssl.google-analytics.com/ga.js^$script,redirect=google-analytics.com/ga.js
 ||ssl.google-analytics.com/analytics.js^$script,redirect=google-analytics.com/analytics.js
 
-! Google Tag Manager
-||googletagmanager.com/gtm.js^$script,redirect=googletagmanager.com/gtm.js
-||googletagmanager.com/gtag/js^$script,redirect=googletagmanager.com/gtag.js
-||googletagservices.com/tag/js/gpt.js^$script,redirect=googletagservices.com/gpt.js
-||googletagservices.com/tag/js/gpt_mobile.js^$script,redirect=googletagservices.com/gpt.js
+! ───── Google 광고/분석 스크립트 → mock 대체 ─────
+||googletagmanager.com/gtm.js$script,redirect-rule=google-analytics,domain=~corsair.com|~olx.*|~simon.com|~bethesda.net|~paddle.com|~linodellefateresort.com
+||googletagmanager.com/gtag/js$script,redirect-rule=google-analytics,domain=~corsair.com|~olx.*|~simon.com|~bethesda.net|~paddle.com|~linodellefateresort.com
+||googletagservices.com/tag/js/gpt.js$script,redirect-rule=googletagservices-gpt
+||googletagservices.com/tag/js/gpt_mobile.js$script,redirect-rule=googletagservices-gpt
 
 ! Google AdSense
 ||googlesyndication.com/adsbygoogle.js^$script,redirect=googlesyndication.com/adsbygoogle.js
