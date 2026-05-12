@@ -26,7 +26,7 @@
 !
 ! Title: Traffic Saver & Privacy Filter
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
-! Version: 20260512
+! Version: 20260512-rev4
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -38,6 +38,10 @@
 ! 섹션 맨 아래 "정규식 일괄 처리"가 utm_*, _hs*, hsa_*, pk_*, mtm_*,
 ! pi_*, elq*, sfmc_*, ml_*, mc_*, mkt_*, pf_rd_*, pd_rd_*, aff_*,
 ! at_*, oly_*, vero_*, _branch_*, stm_*, xtor*, wt_*, matomo_* 등을 모두 잡습니다.
+!
+! ⚠️ rev4 안전성 강화:
+!   - 일반 단어형 파라미터(tag, hash, cid, session_id 등)는 도메인 한정 또는 주석화
+!   - YouTube 영상 무한 로딩 유발 파라미터(ei, t, pp) 주석화
 
 ! ───── Google Analytics / Google Ads ─────
 ! utm_* 는 정규식이 일괄 처리
@@ -53,9 +57,10 @@ $removeparam=gad
 $removeparam=gad_campaignid
 $removeparam=gas
 $removeparam=gclid_field
-$removeparam=srsltid
-$removeparam=opi
-! - 구글 링크 클릭시 리디렉션 알림 해결을 위한 주석 처리 (2개)
+! - 일반 단어형은 Google 도메인 한정
+$removeparam=srsltid,domain=google.com|google.co.kr|google.co.jp|google.co.uk
+$removeparam=opi,domain=google.com|google.co.kr|googleadservices.com
+! - 구글 링크 클릭시 리디렉션 알림 해결을 위한 주석 처리
 !$removeparam=ved
 !$removeparam=usg
 
@@ -72,13 +77,13 @@ $removeparam=action_ref_map
 
 ! ───── Microsoft / Bing ─────
 $removeparam=msclkid
-$removeparam=cvid
-$removeparam=oicd
-$removeparam=form
-$removeparam=ocid
-! - 유튜브 영상 무한 로딩
+$removeparam=cvid,domain=bing.com|cn.bing.com
+$removeparam=oicd,domain=bing.com|cn.bing.com
+$removeparam=form,domain=bing.com|cn.bing.com
+$removeparam=ocid,domain=bing.com|microsoft.com|msn.com
+$removeparam=qs,domain=bing.com|cn.bing.com
+! - 유튜브 영상 무한 로딩 유발 (모든 도메인에서 제거 위험)
 !$removeparam=ei
-$removeparam=qs
 
 ! ───── Yandex ─────
 $removeparam=yclid
@@ -117,8 +122,6 @@ $removeparam=t,domain=twitter.com|x.com
 $removeparam=cn,domain=twitter.com|x.com
 
 ! ───── LinkedIn ─────
-!$removeparam=trk
-!$removeparam=trkCampaign
 $removeparam=li_fat_id
 $removeparam=lipi
 $removeparam=licu
@@ -134,12 +137,10 @@ $removeparam=sclid
 
 ! ───── Pinterest ─────
 $removeparam=epik
-!$removeparam=pp
 
 ! ───── Reddit ─────
 $removeparam=rdt_cid
 $removeparam=share_id
-$removeparam=$share_id
 $removeparam=correlation_id
 
 ! ───── Telegram / 메신저 ─────
@@ -158,25 +159,21 @@ $removeparam=trackingCode
 $removeparam=tracking_code
 $removeparam=clickArea
 $removeparam=lptag
-!$removeparam=referer
 $removeparam=cmp_code
 $removeparam=tcd_code
 
 ! ───── Mailchimp / 이메일 마케팅 ─────
 ! _hs*, hsa_*, mkt_*, mc_*, ml_*, elq*, vero_* 는 정규식이 일괄 처리
 $removeparam=mc_eid
-!$removeparam=mc_cid
 $removeparam=mailing_id
-$removeparam=campaign_id
 $removeparam=email_source
 $removeparam=email_campaign
 $removeparam=ck_subscriber_id
+! - campaign_id 는 일부 사이트 자체 사용. 도메인 한정 적용 권장
+!$removeparam=campaign_id
 
 ! ───── HubSpot ─────
 $removeparam=hsCtaTracking
-
-! ───── Marketo / Pardot / Eloqua ─────
-! pi_* 는 정규식이 일괄 처리
 
 ! ───── Klaviyo ─────
 $removeparam=_kx
@@ -186,10 +183,8 @@ $removeparam=klaviyo_id
 $removeparam=s_kwcid
 $removeparam=ef_id
 $removeparam=icid
-$removeparam=cid
-
-! ───── Salesforce / Marketing Cloud ─────
-! sfmc_* 는 정규식이 일괄 처리
+! - cid 는 너무 일반적 (client/category/channel id). 글로벌 제거 위험.
+!$removeparam=cid
 
 ! ───── Criteo ─────
 $removeparam=cto_pld
@@ -199,8 +194,6 @@ $removeparam=cto_lid
 $removeparam=_pos
 $removeparam=_sid
 $removeparam=_ss
-! - variant 는 쇼핑몰 옵션 선택 깨질 수 있어 주석. 필요 시 도메인 한정으로
-!$removeparam=variant
 
 ! ───── 아마존 ─────
 ! pf_rd_*, pd_rd_* 는 정규식이 일괄 처리
@@ -208,22 +201,24 @@ $removeparam=ascsubtag
 $removeparam=asc_campaign
 $removeparam=asc_refurl
 $removeparam=asc_source
-$removeparam=tag
 $removeparam=linkCode
 $removeparam=linkId
-$removeparam=ref_
-$removeparam=psc
-$removeparam=th
-$removeparam=_encoding
-$removeparam=smid
-$removeparam=spIA
-$removeparam=qid
-$removeparam=sr
+! - 일반 단어형은 Amazon 도메인 한정 (다른 사이트 영향 방지)
+$removeparam=tag,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de|amazon.fr|amazon.it|amazon.es
+$removeparam=ref_,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
+$removeparam=psc,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
+$removeparam=th,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
+$removeparam=_encoding,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
+$removeparam=smid,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
+$removeparam=spIA,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
+$removeparam=qid,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
+$removeparam=sr,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
 
 ! ───── eBay ─────
 $removeparam=_trkparms
 $removeparam=_trksid
-$removeparam=hash
+! - hash 는 SPA 라우팅·인증·결제 등에 사용됨. eBay 도메인 한정 필수
+$removeparam=hash,domain=ebay.com|ebay.co.kr|ebay.co.uk|ebay.de
 $removeparam=mkevt
 $removeparam=mkcid
 $removeparam=mkrid
@@ -243,11 +238,14 @@ $removeparam=afSmartRedirect
 $removeparam=cv
 
 ! ───── 유튜브 ─────
-$removeparam=feature
-$removeparam=kw
-$removeparam=pp
+! - feature 는 임베드 자동재생 영향. 필요 시 활성화
+!$removeparam=feature
+! - si 는 공유 추적 (안전)
 $removeparam=si
+$removeparam=kw
 $removeparam=ab_channel
+! - pp 는 player params (재생 메타데이터). 일부 영상/멤버십/라이브 깨질 수 있음
+!$removeparam=pp
 
 ! ───── 구글 광고 추적 (안전, 전역 적용) ─────
 $removeparam=iu_parts
@@ -304,25 +302,21 @@ $removeparam=SID
 $removeparam=awc
 $removeparam=zanpid
 
-! ───── Matomo / Piwik ─────
-! pk_*, mtm_*, matomo_* 는 정규식이 일괄 처리
-
 ! ───── 기타 일반 추적 ─────
 $removeparam=referrer
 $removeparam=src_source
 $removeparam=trk,domain=linkedin.com
 $removeparam=trkCampaign,domain=linkedin.com
-$removeparam=trackingId
-$removeparam=tracking_id
-$removeparam=tracking_source
 $removeparam=spReportId
 $removeparam=spJobID
 $removeparam=spUserID
 $removeparam=spMailingID
-!$removeparam=source
-!$removeparam=referer
 $removeparam=ref,domain=twitter.com|x.com|github.com|medium.com|reddit.com
 $removeparam=src,domain=twitter.com|x.com|github.com|medium.com
+! - 일반 단어형 (다른 사이트 자체 사용으로 인한 부작용 위험)
+!$removeparam=trackingId
+!$removeparam=tracking_id
+!$removeparam=tracking_source
 
 ! ───── 분석 도구 일반 ─────
 ! at_*, oly_* 는 정규식이 일괄 처리
@@ -333,13 +327,13 @@ $removeparam=ito
 
 ! ───── 라이브 스트리밍 공통 ─────
 $removeparam=stream_id
-$removeparam=session_id
-$removeparam=visitor_id
-$removeparam=device_id
-! - 로그인시 "정상적인 접근이 아닙니다" 오류 (이토랜드 등)
-!$removeparam=client_id
 $removeparam=tracking_session
 $removeparam=watch_session
+! - 일반 단어형 (일부 사이트 인증/세션에 사용 가능 → 글로벌 제거 위험)
+!$removeparam=session_id
+!$removeparam=visitor_id
+!$removeparam=device_id
+!$removeparam=client_id
 
 ! ───── 정규식 일괄 처리 ─────
 $removeparam=/^utm_/
@@ -862,7 +856,8 @@ $cookie=/^__hstc$/            ! HubSpot
 !||platform.twitter.com^$subdocument,redirect=noopframe
 
 ! ───── 폰트/CSS 추적 → 빈 응답 ─────
-||use.fontawesome.com^$css,redirect=noopcss
+! - use.fontawesome.com 은 DNS_Rewrite에서 차단 중. 아래 줄 중복이므로 비활성화
+!||use.fontawesome.com^$css,redirect=noopcss
 ||*/tracking.css$css,redirect=noopcss
 
 ! ───── 오디오 광고 → 빈 MP3 ─────
@@ -939,7 +934,7 @@ $cookie=/^__hstc$/            ! HubSpot
 ||*/impressions$xmlhttprequest,third-party,empty
 
 ! ───── sendBeacon API ─────
-||*$ping,third-party
+*$ping
 ||*/beacon$ping
 ||*/collect$ping
 ||*/track$ping
@@ -977,7 +972,8 @@ $cookie=/^__hstc$/            ! HubSpot
 ! ⚠️ 폰트 차단 시 사이트 폰트 깨질 수 있음
 !||fonts.googleapis.com^$font,third-party
 !||fonts.gstatic.com^$font,third-party
-||use.fontawesome.com^$font,third-party
+! - use.fontawesome.com 은 DNS_Rewrite에서 차단 중. 중복이므로 비활성화
+!||use.fontawesome.com^$font,third-party
 ||use.typekit.net^$font,third-party
 
 ! ───── 스타일시트 추적 ─────
@@ -996,10 +992,6 @@ $cookie=/^__hstc$/            ! HubSpot
 ||outbrain.com^$subdocument,third-party
 ||taboola.com^$subdocument,third-party
 ||facebook.com/plugins/^$subdocument,third-party
-
-! ───── ping 속성 (링크 클릭 추적) ─────
-!*$ping
-*$ping,third-party
 
 ! ───── 큰 분석 스크립트 ─────
 ||static.hotjar.com^$script,third-party
@@ -1284,6 +1276,8 @@ $cookie=/^__hstc$/            ! HubSpot
 ||livecloud.pstatic.net/*/ad/*^$media,redirect=noopmp4-1s
 ||ssl.pstatic.net/cmcdn/ad^$media,redirect=noopmp4-1s
 ||ssl.pstatic.net/cmcdn/ad^$image,redirect=1x1-transparent.gif
+! - 광고 플레이어 SDK 스크립트 (검증됨: 광고 송출 완전 차단)
+||ssl.pstatic.net/tveta/libs/glad/prod/*$script,xmlhttprequest,domain=chzzk.naver.com
 
 ! 추적 파라미터
 ||chzzk.naver.com^$removeparam=track
@@ -1381,19 +1375,22 @@ $cookie=/^__hstc$/            ! HubSpot
 ||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=googletagservices.com/gpt.js
 ||imasdk.googleapis.com/js/sdkloader/ima3_dai.js^$script,redirect=noopjs
 
-! 공유 링크 추적 제거
-||youtube.com^$removeparam=feature
+! 공유 링크 추적 제거 (안전한 것만)
 ||youtube.com^$removeparam=si
-||youtube.com^$removeparam=pp
 ||youtube.com^$removeparam=ab_channel
 ||youtube.com^$removeparam=kw
-! - 일부 임베드 동작에 영향 가능
-||youtube.com^$removeparam=embeds_referring_euri
-||youtube.com^$removeparam=embeds_referring_origin
-||youtube.com^$removeparam=source_ve_path
+! - feature 는 임베드 자동재생 영향 가능
+!||youtube.com^$removeparam=feature
+! - pp (player params) 는 일부 영상/멤버십/라이브 깨질 수 있음
+!||youtube.com^$removeparam=pp
+! - 일부 임베드 동작에 영향 가능 (필요 시 활성화)
+!||youtube.com^$removeparam=embeds_referring_euri
+!||youtube.com^$removeparam=embeds_referring_origin
+!||youtube.com^$removeparam=source_ve_path
 ||youtu.be^$removeparam=si
-||youtu.be^$removeparam=feature
-||youtu.be^$removeparam=t
+! - feature, t 는 타임스탬프 링크 깨짐 → 주석 처리
+!||youtu.be^$removeparam=feature
+!||youtu.be^$removeparam=t
 
 ! 추적 쿠키
 ||youtube.com^$cookie=VISITOR_PRIVACY_METADATA
@@ -1614,7 +1611,8 @@ $cookie=/^__hstc$/            ! HubSpot
 
 ! ───── 디시 광고 정적 리소스 ─────
 ||nstatic.dcinside.com/dc/dcad^$empty
-||nstatic.dcinside.com/dgn/gallery/images/popup^$empty
+! - 공지/이벤트 팝업 이미지가 섞일 수 있어 주석 처리 (정상 팝업 안 보이면 활성화 보류)
+!||nstatic.dcinside.com/dgn/gallery/images/popup^$empty
 ||nstatic.dcinside.com/dc/m/img/banner^$empty
 
 ! ───── 중국 SDK (경로 단위) ─────
@@ -1667,3 +1665,13 @@ $cookie=/^__hstc$/            ! HubSpot
 !||statsig.anthropic.com^$empty
 !||analytics.perplexity.ai^$empty
 !||*.cohere.ai/v1/track^$empty
+
+! 위험 가능한 일반 단어형 파라미터 (필요 시 활성화)
+!$removeparam=cid
+!$removeparam=session_id
+!$removeparam=visitor_id
+!$removeparam=device_id
+!$removeparam=client_id
+!$removeparam=tracking_id
+!$removeparam=tracking_source
+!$removeparam=campaign_id
