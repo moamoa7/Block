@@ -1,5 +1,5 @@
 DNS Blocklist Build Report
-Generated: 2026-05-12 04:58:23 UTC
+Generated: 2026-05-12 05:15:44 UTC
 ============================================================
 
 [1] Reference Filters
@@ -100,8 +100,8 @@ Generated: 2026-05-12 04:58:23 UTC
     ... and 100 more
 
 [3] Personal Blocklist
-  - Personal Blocklist: 49 domains
-[Personal Block Total] 49 domains
+  - Personal Blocklist: 51 domains
+[Personal Block Total] 51 domains
 
 [4] Personal Whitelist (no filter applied)
   - Personal Whitelist: 13 domains
@@ -109,7 +109,7 @@ Generated: 2026-05-12 04:58:23 UTC
 
 [5] Apply Priority Rules
   Step 1 (base - external whitelist): 85,057
-  Step 2 (+ personal block): 85,100  (forced added: 43)
-  Step 3 (- personal white): 85,100  (whitelist override: 0)
+  Step 2 (+ personal block): 85,101  (forced added: 44)
+  Step 3 (- personal white): 85,101  (whitelist override: 0)
 
-[6] Final Whitelist: 6,572 domains
+[6] Final Whitelist: 6,571 domains

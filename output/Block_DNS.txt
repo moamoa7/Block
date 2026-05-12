@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-12 04:58:23 UTC
+! Generated: 2026-05-12 05:15:44 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,100
+! Block Rules: 85,101
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -57807,6 +57807,7 @@
 ||sentry.fidibo.net^
 ||sentry.filmnet.ir^
 ||sentry.hamravesh.com^
+||sentry.io^
 ||sentry.mci.dev^
 ||sentry.mediacdn.vn^
 ||sentry.mielse.com^
