@@ -1089,6 +1089,9 @@
 ! ||spot-pa.googleapis.com^
 ! — 윈도우 날씨 위젯 타일
 ! ||tile-service.weather.microsoft.com^
+! - 브레이브(Brave) 브라우저의 동기화(Sync) 기능을 담당하는 서버
+! - - - 브레이브 사용자: 여러 기기(PC-폰) 간에 즐겨찾기, 비밀번호, 열린 탭을 공유하며 쓴다면 절대 차단하면 안 됩니다.
+! ||sync-v2.brave.com^
 !
 !
 !
