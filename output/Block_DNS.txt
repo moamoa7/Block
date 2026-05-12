@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-12 12:22:09 UTC
+! Generated: 2026-05-12 15:16:06 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,180
+! Block Rules: 85,183
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -11483,6 +11483,7 @@
 ||brisk-cold.pro^
 ||briskchart.com^
 ||briskedge.net^
+||brisknessdebtordismiss.com^
 ||briskstorm.com^
 ||bristlechurch.com^
 ||britageens.com^
@@ -12581,6 +12582,7 @@
 ||carbonfeverthink.com^
 ||carbongarden.net^
 ||carcflma.de^
+||cardboardcrispyrover.com^
 ||cardiganpalmreconcile.com^
 ||cardinal.businessfirstonline.co.uk^
 ||cardinal.genx.be^
@@ -81341,6 +81343,7 @@
 ||wrfpxenkhuekc.site^
 ||wrghobrtgicygv.com^
 ||wrhgivbwofdba.space^
+||wriestunvote.com^
 ||wrigglefinviewed.com^
 ||wringbible.com^
 ||wristample.com^
