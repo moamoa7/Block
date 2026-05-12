@@ -1045,17 +1045,17 @@ etoland.co.kr##.overflow-y-auto
 ! - 게시물 하단 남는 공간 (모바일)
 ! - - - 오징어랜드 이미지 안보여서 해제
 !etoland.co.kr##div.justify-center.w-full
-!etoland.co.kr##.justify-center.w-full.min-h-\[250px\]
+etoland.co.kr##.justify-center.w-full.min-h-\[250px\]
 ! -댓글 하단 빈 공간
-!etoland.co.kr##.justify-center.w-full.min-h-\[280px\]
+etoland.co.kr##.justify-center.w-full.min-h-\[280px\]
 ! Etoland 네이버 광고 차단 (공용)
 !etoland.co.kr##li:has(a[href*="ader.naver.com"])
 !etoland.co.kr##a[href*="ader.naver.com"]
 !||ader.naver.com
 ! Etoland 네이버 광고 차단 (PC)
-!etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
+etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
 ! Etoland 네이버 광고 차단 (모바일)
-!etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
+etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 ! - 애드블럭 감지 해제
 etoland.co.kr#@#[class^="ads" i]
 etoland.co.kr#@#[class^="ad" i]
