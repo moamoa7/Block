@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260512
+! Version: 20260513
 !
 !
 !
@@ -100,6 +100,11 @@
 ! - 주로 자동화된 툴이나 낡은 게시판 에디터가 본문을 생성할 때, 아무 의미 없이 남기는 찌꺼기 코드(<p></p>)들만 골라 청소하기 위함
 ! - 코드상의 빈 줄: 게시판 시스템이 광고를 빼거나 로직 오류로 <p></p>만 남긴 것 정리
 ~fandom.com,~sahibinden.com##p:empty:not([class],[id])
+!
+!
+! - 목록 형태(ul-li)로 되어 있는 링크들 중에서, 주소가 _list.html로 끝나는 '목록 바로가기' 버튼이나 링크를 찾아라"
+! - - - 불필요한 이동 링크를 제거하여 화면을 깔끔하게 정리하려는 의도
+##ul > li > A[href$="_list.html"]
 !
 !
 !
@@ -519,6 +524,9 @@ m.naver.com##script#MM_search_disaster ~*
 ||ntm.pstatic.net/scripts/ntm_*.js$domain=~smartstore.naver.com|~brand.naver.com|~flight.naver.com
 ! - 네이버가 내 브라우저에 심어놓는 고유 식별 쿠키(ba.uuid)를 쓸모없는 값(0)으로 바꿔서, 내 활동이 추적되지 않도록 방어해라
 naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
+! -네이버 검색 결과 하단에 나타나는 '파워링크'나 '비즈사이트' 같은 광고 시스템(AdPost)의 작동 스크립트를 차단하는 설정
+! - - -  kr: List-KR Classic
+||ssl.pstatic.net/adimg3.search/adpost/js/
 !
 !
 ! 네이버 뉴스 (https://news.naver.com/)
@@ -1037,27 +1045,21 @@ etoland.co.kr##.overflow-y-auto
 ! - 게시물 하단 남는 공간 (모바일)
 ! - - - 오징어랜드 이미지 안보여서 해제
 !etoland.co.kr##div.justify-center.w-full
-etoland.co.kr##.justify-center.w-full.min-h-\[250px\]
+!etoland.co.kr##.justify-center.w-full.min-h-\[250px\]
 ! -댓글 하단 빈 공간
-etoland.co.kr##.justify-center.w-full.min-h-\[280px\]
+!etoland.co.kr##.justify-center.w-full.min-h-\[280px\]
 ! Etoland 네이버 광고 차단 (공용)
 !etoland.co.kr##li:has(a[href*="ader.naver.com"])
 !etoland.co.kr##a[href*="ader.naver.com"]
 !||ader.naver.com
 ! Etoland 네이버 광고 차단 (PC)
-etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
+!etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
 ! Etoland 네이버 광고 차단 (모바일)
-etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
+!etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 ! - 애드블럭 감지 해제
 etoland.co.kr#@#[class^="ads" i]
 etoland.co.kr#@#[class^="ad" i]
 @@||doubleclick.net^$domain=etoland.co.kr
-!@@||doubleclick.net^$domain=etoland.co.kr
-!@@$removeparam=biw,domain=etoland.co.kr
-!@@$removeparam=bih,domain=etoland.co.kr
-!@@$removeparam=iu_parts,domain=etoland.co.kr
-!@@$removeparam=correlator,domain=etoland.co.kr
-!@@||doubleclick.net^$xhr,domain=etoland.co.kr
 ! - 팝업 차단
 ! etoland 팝업/팝언더 차단
 etoland.co.kr#%#//scriptlet('prevent-window-open')
@@ -1067,7 +1069,6 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - - - uBlock Origin 문법
 !etoland.co.kr##+js(nowoif)
 !etoland.co.kr##+js(aopr, open)
-!
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -1198,10 +1199,9 @@ ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 !
 !
 ! 웃대 (https://humoruniv.com/)
-! - 모바일에서만 댓글 상단에 배너보임
+! - 모바일 댓글 사이 광고
 !##[href^="https://cache.ggeal.com/board/exp/me_go.html"]
 !##.power_place
-! - 댓글 사이 광고
 ##[id*="choo_center" i]
 !
 !
