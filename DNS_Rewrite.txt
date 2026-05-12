@@ -435,7 +435,6 @@
 ||desktop.telemetry.opera.com^
 ||mig.vivaldi.com^
 ||update.vivaldi.com^
-||cv.whale.naver.com^
 ||go-updater.brave.com^
 ||content-autofill.googleapis.com^
 ||suggestqueries.google.com^
@@ -660,12 +659,6 @@
 ||stat.coupangeats.com^
 ||click.linkprice.com^
 ||logger.linkprice.com^
-||log.naver.com^
-||cc.naver.com^
-||lcs.naver.com^
-||wcs.naver.net^
-||pcs.naver.com^
-||nelo2-col.navercorp.com^
 ||stat.daum.net^
 ||stat.kakao.com^
 ||cf.kakao.com^
@@ -733,6 +726,38 @@
 ||collection.weverse.io^
 ||slf.sktswe.net^
 !
+! ───── 네이버 광고 / 검색 광고 / 추적 ─────
+! 검색 광고 이미지
+||searchad-phinf.pstatic.net^
+! 검색광고 측정/입찰 시스템
+||siape.naver.com^
+! 광고 입찰·송출 (veta 계열, 본 영상 재생 영향 없음 검증됨)
+||veta.naver.com^
+! 디스플레이 광고
+||gfp.naver.com^
+! 광고 클릭 트래킹
+||adcr.naver.com^
+||ader.naver.com^
+! 광고주 관리 (B2B)
+||saedu.naver.com^
+! 네이버 통합 로그/분석
+||log.naver.com^
+||nlog.naver.com^
+||lcs.naver.com^
+||cc.naver.com^
+||wcs.naver.net^
+||pcs.naver.com^
+||astralog.naver.com^
+! NELO 에러·이벤트 수집
+||nelo2-col.navercorp.com^
+||kr-col-ext.nelo.navercorp.com^
+! 치지직 분석
+||log.chzzk.naver.com^
+! 네이버 웨일 브라우저 분석
+||cv.whale.naver.com^
+! 데이블 광고 추천 위젯 (네이버 사용)
+||dable.io^
+!
 ! ───── 카카오 광고 플랫폼 (Adfit / Moment) ─────
 ||adfit.kakao.com^
 ||sdk.adfit.kakao.com^
@@ -784,18 +809,15 @@
 ! video-edge-*.ttvnw.net  ← 영상 엣지 서버
 ! video-weaver.*.ttvnw.net  ← HLS 청크
 !
+!
 ! ───── 치지직 (CHZZK) + 네이버 공용 추적/광고 ─────
-! 광고 입찰/송출 (테스트 결과 차단해도 본 영상 재생 정상)
-||veta.naver.com^
-||log.chzzk.naver.com^
-||kr-col-ext.nelo.navercorp.com^
-||nlog.naver.com^
-||astralog.naver.com^
-! 네이버 광고 추천 위젯 (데이블)
-||dable.io^
+! 광고/추적 도메인은 "네이버 광고" 섹션에서 일괄 차단
+! 관련: veta.naver.com, log.chzzk.naver.com, nlog.naver.com,
+!       kr-col-ext.nelo.navercorp.com, astralog.naver.com, dable.io
 ! ⚠️ 절대 차단 금지
-! livecloud.pstatic.net  ← 본 영상 CDN
-! ssl.pstatic.net (루트) ← 일부 영상 청크/UI 리소스
+!   livecloud.pstatic.net  ← 본 영상 CDN
+!   ssl.pstatic.net (루트) ← 영상 청크/UI 리소스
+!   play.chzzk.naver.com   ← 플레이어 페이지
 !
 ! ───── 숲(SOOP) / 구 아프리카TV ─────
 ||log.sooplive.com^
