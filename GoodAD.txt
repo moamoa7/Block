@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260513
+! Version: 20260514
 !
 !
 !
@@ -2809,9 +2809,9 @@ pedia.watcha.com##.adFixed
 ![$domain=/^ttg-\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
 !
 !
-! 토렌트쓱 (https://ssg1.torrentssg8.com/)
+! 토렌트쓱 (https://ssg2.torrentssg8.com/)
 ! - 배너
-![$domain=/^torrentssg\d+.com/]##.post-img.post
+[$domain=/^ssg\d+\.torrentssg\d+\.com$/]##.post-img
 !
 !
 ! 디토렌트 (https://ditto-torrent18.top/)
@@ -3862,7 +3862,7 @@ jamakyadong.me##[class*="g-col"]
 ##[class*="info-banner" i]
 ! - 오른쪽 배너 공간
 !##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner > .draggable.slick-list
-##[class^="live-stream-banner" i]
+!##[class^="live-stream-banner" i]
 ! - 게시물내 한칸짜리 배너
 ##[src*="event_banner" i]
 !##[src*="event_banner"]
@@ -3870,12 +3870,12 @@ jamakyadong.me##[class*="g-col"]
 ##.sidebar-user-trigger
 !
 !
-! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/)
+! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/) (https://av-korea.com/)
 ! - 상단 배너 공간
-xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
+!xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 !
 !
-! 야동공장 (https://yagong89.com/)
+! 야동공장 (https://yagong91.com/)
 ! - 영상 하단내 배너 테두리
 !##.vjs-bottom-banner.vjs-bottom-banner-container
 ! 팝업 잔쟁이들
@@ -3918,35 +3918,44 @@ cnine.kr#@#[class*="border"]:has(> a[target*="_blank"])
 ![$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(8)
 !
 !
-! 천사티비 (https://1004sweet.com/) (https://1004deep.com/) (https://1004dance.com/) (https://1004crop.com/)
+! 천사티비 (https://1004pk.com/) - 1004다음 영문자 하나 바꾸다보면 많이 나옴
 ! - 배너
 ! - - - https://minkch.com/
-1004crop.com,1004sweet.com,1004deep.com,1004dance.com##.external
+##.external
 ##.no-space
 ! - 영상 상단 텍스트 배너
-1004crop.com,1004sweet.com,1004deep.com,1004dance.com##.da-above
+##.da-above
+! - 약 광고 사이트 차단
+[$domain=/^www.ndowon\d+\.com/]##html
+! - ##[class^="ad" i] 해제 - 이미지 안나옴
+1004pk.com#@#[class^="ad" i]
+! 영상 차단 해제
+play3737.com#@#[class*="floating" i]
 ! - 업소추천 글자
 !1004sweet.com,1004deep.com##li:nth-of-type(3)
 ! - 제휴광고 글자
 !1004sweet.com,1004deep.com##div.col-25:nth-of-type(4)
 ! - 커뮤니티/메시지/공지사항 공지 및 배너 광고
 !1004sweet.com,1004deep.com##.swip-ticker
-! - ##[class^="ad" i] 해제 - 일부 이미지 안나옴
-1004crop.com,1004sweet.com,1004deep.com,1004dance.com#@#[class^="ad" i]
 !
 !
-! 조개파티 (https://jogaeparty139.com/)
+! 조개파티 (https://jogaeparty164.com/)
 ! - 영상 위 배너
 ! - - - 오른쪽 작은 배너
-! - - - - - 토렌트 제이 (https://torrentj165.com/)
-! - - - - - 청양티비 (https://cytv138.com/)
+! - - - - - 토렌트 제이 (https://torrentj165.com/) - 접속불가
+! - - - - - 청양티비 (https://cytv144.com//)
 ![$domain=/^jogaeparty\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^cytv\d+.com/]##[src*="imgbox.com"]
 ! - - - 텔레그램 이미지 전부 다 날리기
 ![$domain=/^jogaeparty\d+.com/]##[href*="t.me"]
-! 영상 아래 배너
+! 영상 아래 배너 및 공간
 ![$domain=/^jogaeparty\d+.com/]##div.view-padding > div.row
+![$domain=/^jogaeparty\d+.com/]##.h40
 ! - 모바일 상단 텍스트 배너
-[$domain=/^jogaeparty\d+.com/]##.at-body > .widget-box > div
+![$domain=/^jogaeparty\d+.com/]##.at-body > .widget-box > div
+! - 영상 차단 해제
+minochinos.com,turbovidhls.com#@#[class*="floating" i]
+! - 토토 차단
+[$domain=/^\d+clf\.com$/]##html
 !
 !
 ! 야동위키 (https://hanyasa.com/)
@@ -4490,20 +4499,24 @@ xn--9l4b15e2td.com##.widget-box
 ![$domain=/^linkpower\d+.com/]##li.off.menu-li:nth-of-type(7)
 !
 !
-! 주소야 (https://jusoya02.com/)
-! - 상단 배너
-[$domain=/^jusoya\d+.com/]###showad-2
-! - 안전사이트 열람 닫기 없애기
-[$domain=/^jusoya\d+.com/]##.w-banner.at-container
+! 주소야 (https://jusoya.com/)
+! - 상단 배너 / 목록 내 비너
+[$domain=/^jusoya/]##[id*="top_banner_widget" i]
+!
+!
+! 18모아 (https://18moa028.com/)
+! - - - 주소 바뀜 주의
+@@||*banner*^$domain=18moa028.com|18moa029.com|18moa030.com
 !
 !
 ! 주소요 (https://jusoyo42.com/)
 ! - 배너
 ! - - -  링크고 (https://lkg3.com/)
-! - - - 토렌트쓱 (https://torrentssg7.com/)
+! - - - 토렌트쓱 (https://ssg2.torrentssg8.com/)
 ! - - - 놀쟈 (https://www.nznami.com/) 영상 하단 배너
-[$domain=/^jusoyo\d+.com/],[$domain=/^lkg\d+.com/],[$domain=/^torrentssg\d+.com/]##.basic-banner-gallery
-##.basic-banner-gallery
+![$domain=/^jusoyo\d+.com/],[$domain=/^lkg\d+.com/],[$domain=/^torrentssg\d+.com/]##.basic-banner-gallery
+!##.basic-banner-gallery
+##[class*="basic-banner-gallery" i]
 !||jusoyo*.com/img/*g
 ! - - -  19가이드닷컴
 ! - - - ||www.19guide*.com/img/*
