@@ -1072,7 +1072,7 @@
 ||teralog.techhub.co.kr^
 ||pincrux.com^
 ||interworksmedia.co.kr^
-||innorame.com^  
+||innorame.com^
 !
 ! ───── 영상 플레이어 추적 ─────
 ! JW Player 분석 (영상 재생 영향 없음)
