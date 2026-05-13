@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-13 02:14:49 UTC
+! Generated: 2026-05-13 05:59:53 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,281
+! Block Rules: 85,284
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -39762,6 +39762,7 @@
 ||longhand.pro^
 ||longingtrees.com^
 ||longjawkedged.cfd^
+||longloops.com^
 ||longlycraping.com^
 ||longtermcity.pro^
 ||longvolume.com^
@@ -43528,6 +43529,7 @@
 ||midgetreckon.com^
 ||midnightbashslightly.com^
 ||midnightlotusgrove.com^
+||midnightmead.com^
 ||midnighttraditionally.com^
 ||midpopedge.com^
 ||midstcabals.com^
@@ -68223,6 +68225,7 @@
 ||steksoagry.net^
 ||stella-nova.click^
 ||stellarduel.com^
+||stemalbian.com^
 ||stemboastfulrattle.com^
 ||stenchrha.shop^
 ||stenexeb.xyz^
