@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260513-rev1
+! Version: 20260513-rev2
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -1071,6 +1071,7 @@
 ||tg.widerplanet.com^
 ||teralog.techhub.co.kr^
 ||pincrux.com^
+||interworksmedia.co.kr^
 !
 ! ───── 영상 플레이어 추적 ─────
 ! JW Player 분석 (영상 재생 영향 없음)
