@@ -678,12 +678,21 @@
 ||hao.lenovo.com.cn^
 !
 ! ⚠️ 보류 (런처/추천/스토어/교육 기능 영향 가능 — 미사용 시 주석 해제)
+!
+! 런처 추천 위젯 — 영상용 환경에서 빈 위젯 보일 수 있음 (취향 차단)
 !||icns.zui.lenovomm.com^
 !||cnszui.lenovomm.com^
+!
+! 앱스토어/OAuth — 중국 내수형에서 앱 설치 경로, 차단 비권장
 !||open.lenovomm.com^
 !||appstore.lenovomm.com^
-!||care.smartedu.lenovo.com^         ← 교육용 태블릿 케어 (일반 가정용 무관)
-!||gateway.xue.lenovomm.com^         ← 중국 학습 플랫폼 게이트웨이
+!
+! 교육/학습 — 영상용 사용자 무관, 차단 안전
+!||care.smartedu.lenovo.com^           ← 활성화
+!||gateway.xue.lenovomm.com^           ← 활성화
+!
+! ⚠️ 보류 (역할 불명확 — 로그 호출 빈도/패턴 확인 후 결정)
+!||ams.lenovomm.cn^                  ← AMS (Application/Ads Management 추정)
 !
 ! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
 !||userlog.lenovomm.com^
