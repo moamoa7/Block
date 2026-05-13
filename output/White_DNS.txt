@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-13 08:43:50 UTC
+! Generated: 2026-05-13 11:21:24 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,575
+! Exception Rules: 6,580
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -2986,6 +2986,7 @@
 @@||mkto-ab060144.com^
 @@||mkto-ab060210.com^
 @@||mkto-ab070017.com^
+@@||mkto-ab070069.com^
 @@||mkto-ab080055.com^
 @@||mkto-ab090057.com^
 @@||mkto-ab100157.com^
@@ -3074,6 +3075,7 @@
 @@||mkto-ab600004.com^
 @@||mkto-ab620024.com^
 @@||mkto-ab620045.com^
+@@||mkto-ab620071.com^
 @@||mkto-ab620126.com^
 @@||mkto-ab620130.com^
 @@||mkto-ab630019.com^
@@ -3100,6 +3102,7 @@
 @@||mkto-abj0022.com^
 @@||mkto-abm0229.com^
 @@||mkto-b0025.com^
+@@||mkto-c0100.com^
 @@||mkto-cs0007.com^
 @@||mkto-d0024.com^
 @@||mkto-d0170.com^
@@ -3211,6 +3214,7 @@
 @@||mkto-sjg0056.com^
 @@||mkto-sjh0084.com^
 @@||mkto-sjp0267.com^
+@@||mkto-sn010116.com^
 @@||mkto-sn060071.com^
 @@||mktoweb.com^
 @@||ml.com^
@@ -5304,6 +5308,7 @@
 @@||suite46.emarsys.net^
 @@||suite47-cf.emarsys.net^
 @@||suite5.emarsys.net^
+@@||suite50.emarsys.net^
 @@||suite52-cf.emarsys.net^
 @@||suite52.emarsys.net^
 @@||suite54-cf.emarsys.net^
