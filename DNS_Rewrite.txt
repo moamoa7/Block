@@ -696,28 +696,53 @@
 ||log.lenovomm.com^
 ||sentry.lenovomm.com^
 !
-! ⚠️ 보류 (런처/추천 기능 영향 가능 — 사용 시 주석 해제)
+! ⚠️ 보류 (런처/추천/스토어 기능 영향 가능 — 미사용 시 주석 해제)
 !||icns.zui.lenovomm.com^
 !||cnszui.lenovomm.com^
 !||open.lenovomm.com^
 !||appstore.lenovomm.com^
 !
-! ❌ 차단 금지 (시스템/업데이트 필수)
-! sus.lenovomm.com / sus.lenovomm.cn  ← 보안 업데이트
-! dcf.lenovomm.com / dcf.lenovomm.cn  ← 기기 설정
-! dcf1.lenovomm.cn
-! api.lenovomm.com / api.lenovomm.cn  ← API
-! api.zui.lenovomm.com               ← ZUI API
-! zui.lenovo.com / zui.cn            ← ZUI 시스템
-! ❌ 차단 금지 — APK/시스템 패키지 배포 서버
-! papk.lenovomm.com
+! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
+!||userlog.lenovomm.com^
+!||applog.lenovomm.com^
+!||crash.lenovomm.com^
+!||analytics.lenovomm.com^
+!
+! ═══════════════════════════════════════════
+! ❌ 차단 금지 — 레노버 시스템 핵심 인프라
+! ═══════════════════════════════════════════
+!
+! OS/펌웨어 업데이트
+! osfsr.lenovomm.com         ← OS 펌웨어/복구 (최우선 금지)
+! suapkg.lenovomm.com        ← 시스템 업데이트 패키지
+! sus.lenovomm.com           ← Software Update Service
+! sus.lenovomm.cn
+!
+! 앱 패키지 배포
+! papk.lenovomm.com          ← APK 패키지
 ! papkg.lenovomm.com
-! suapkg.lenovomm.com       ← 시스템 업데이트
-! uapkg.lenovomm.com        ← 업데이트
+! uapkg.lenovomm.com         ← 업데이트 패키지
 ! apkg.lenovomm.com
 ! apkg1.lenovomm.com
-! ❌❌❌ 절대 차단 금지 — OS 펌웨어/시스템 복구 서버
-! osfsr.lenovomm.com
+!
+! API 게이트웨이 / 시스템 동기화
+! api.lenovomm.com           ← API 게이트웨이
+! api.lenovomm.cn
+! api.zui.lenovomm.com       ← ZUI API
+! dcf.lenovomm.com           ← Device Configuration
+! dcf.lenovomm.cn
+! dcf1.lenovomm.cn
+!
+! 인증/계정/푸시 (추가)
+! account.lenovomm.com       ← 레노버 계정 로그인
+! passport.lenovomm.com      ← 인증
+! push.lenovomm.com          ← 푸시 알림
+! mps.lenovomm.com           ← 메시지 푸시
+! filedownload.lenovomm.com  ← 파일 다운로드
+!
+! ZUI 시스템
+! zui.lenovo.com             ← ZUI 메인
+! zui.cn                     ← ZUI 중국 메인
 !
 ! ═══════════════════════════════════════════════════════════
 ! 얀덱스 / 기타 지역
