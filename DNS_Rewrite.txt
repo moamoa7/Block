@@ -674,12 +674,16 @@
 ||tms.lenovomm.com^
 ||log.lenovomm.com^
 ||sentry.lenovomm.com^
+||sentry-lb.lenovo.com.cn^
+||hao.lenovo.com.cn^
 !
-! ⚠️ 보류 (런처/추천/스토어 기능 영향 가능 — 미사용 시 주석 해제)
+! ⚠️ 보류 (런처/추천/스토어/교육 기능 영향 가능 — 미사용 시 주석 해제)
 !||icns.zui.lenovomm.com^
 !||cnszui.lenovomm.com^
 !||open.lenovomm.com^
 !||appstore.lenovomm.com^
+!||care.smartedu.lenovo.com^         ← 교육용 태블릿 케어 (일반 가정용 무관)
+!||gateway.xue.lenovomm.com^         ← 중국 학습 플랫폼 게이트웨이
 !
 ! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
 !||userlog.lenovomm.com^
@@ -694,20 +698,23 @@
 ! OS/펌웨어 업데이트
 ! osfsr.lenovomm.com             ← OS 펌웨어/복구 (최우선 금지)
 ! suapkg.lenovomm.com            ← 시스템 업데이트 패키지
+! suapk.lenovomm.com             ← 시스템 앱 업데이트 APK
 ! sus.lenovomm.com               ← Software Update Service
 ! sus.lenovomm.cn
 !
-! 앱 패키지 배포
+! 앱 패키지 배포 / 다운로드
 ! papk.lenovomm.com              ← APK 패키지
 ! papkg.lenovomm.com
 ! uapkg.lenovomm.com             ← 업데이트 패키지
 ! apkg.lenovomm.com
 ! apkg1.lenovomm.com
+! dl.lenovomm.com                ← 다운로드 CDN
 !
 ! API 게이트웨이 / 시스템 동기화
 ! api.lenovomm.com               ← API 게이트웨이
 ! api.lenovomm.cn
 ! api.zui.lenovomm.com           ← ZUI API
+! apizui.lenovomm.com            ← ZUI API (동일 계열)
 ! dcf.lenovomm.com               ← Device Configuration
 ! dcf.lenovomm.cn
 ! dcf1.lenovomm.cn
