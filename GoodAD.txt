@@ -3824,16 +3824,24 @@ jamakyadong.me##[class*="g-col"]
 !
 !
 ! 밤포탈 (https://bampt3.com/)
-! - 팝업 뿌연거 해결
+! - 팝업 뿌연거 해결  (PC)
 ! - - - 뉴토끼 (https://ntk01.com/)
-[$domain=/^bampt/],[$domain=/^ntk/]##.popup-overlay
+[$domain=/^bampt/],[$domain=/^ntk/]##[class*="popup-overlay" i]
+! - 팝업 뿌연거 해결  (모바일)
+[$domain=/^bampt/],[$domain=/^ntk/]##[id="popupoverlay" i]
 ! - 상단 배너
 !##.premium-banner
 ##[class*="premium-banner" i]
-! - 영상 목록 사이 / 영상 하단 배너
+##[class*="small-banner" i]
+!  - - - 모바일
+##[class*="premium-ad" i]
+##[class*="small-ad" i]
+! - 영상 목록 사이 배너 (PC)
 ![$domain=/^bampt/]##[class^="video-card infeed-ad"]
 ![$domain=/^bampt/]##a.infeed-ad
 ##[class*="infeed-ad" i]
+! - 영상 목록 사이 / 영상 하단 배너 (모바일)
+##[class*="premium-ad" i]
 !
 !
 ! 야동존 (https://xxzone21.cc/)
