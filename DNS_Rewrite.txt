@@ -716,6 +716,8 @@
 ! uapkg.lenovomm.com        ← 업데이트
 ! apkg.lenovomm.com
 ! apkg1.lenovomm.com
+! ❌❌❌ 절대 차단 금지 — OS 펌웨어/시스템 복구 서버
+! osfsr.lenovomm.com
 !
 ! ═══════════════════════════════════════════════════════════
 ! 얀덱스 / 기타 지역
