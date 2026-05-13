@@ -709,6 +709,13 @@
 ! api.lenovomm.com / api.lenovomm.cn  ← API
 ! api.zui.lenovomm.com               ← ZUI API
 ! zui.lenovo.com / zui.cn            ← ZUI 시스템
+! ❌ 차단 금지 — APK/시스템 패키지 배포 서버
+! papk.lenovomm.com
+! papkg.lenovomm.com
+! suapkg.lenovomm.com       ← 시스템 업데이트
+! uapkg.lenovomm.com        ← 업데이트
+! apkg.lenovomm.com
+! apkg1.lenovomm.com
 !
 ! ═══════════════════════════════════════════════════════════
 ! 얀덱스 / 기타 지역
