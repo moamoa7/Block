@@ -4404,7 +4404,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸 (https://darkgirl8.com/) (https://darkg15.com/)
+! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl8.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://dodogirl3.com/)
 ! - - - 야동닷컴 (https://yadong7.com/)
@@ -4420,6 +4420,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ![$domain=/^yadong\d+.com/]##a[href][target*="blank"]:has(img[src*="admin_banner"])
 !##a[target*="blank"]:has(img[src*="admin_banner"])
 !##img[src*="admin_banner" i]
+##[id*="main-banner" i]
 !
 !
 ! 히토미 (https://hitomi.la/)
@@ -5204,3 +5205,194 @@ _ads_
 
 
 ==================================
+
+
+
+!!! 광역
+
+! - https://06.avsee.ru/
+! - 자브걸 (https://kr27.javgirl.co/)
+! - 티비핫 (https://tvhot.store/)
+##a[target*="blank"] > img[src*=".gif"]
+! - 예외
+i-boss.co.kr#@#a[target*="blank"] > img[src*=".gif"]
+!sooplive.com#@#a[target*="blank"] > img[src*=".gif"]
+
+
+
+특이
+! - - - 만화방 (https://manhwabang.org/)
+manhwabang.org##a[target*="target"] img
+
+
+
+*banner*
+! - 예외
+! - 옥션 (https://www.auction.co.kr/)
+! - 쿠팡 (https://www.coupang.com/)
+! - 네이버스토어 (https://shopping.naver.com/)
+! - G마켓 (https://www.gmarket.co.kr/)
+! - 성심당몰 (https://www.sungsimdangmall.co.kr/)
+! - 와디즈 (https://www.wadiz.kr/)
+! - 네이버 쇼핑라이브 (https://shoppinglive.naver.com/)
+! - 11번가 (https://www.11st.co.kr/)
+! - 톡딜 (https://store.kakao.com/)
+! - 중고나라 (https://web.joongna.com/)
+! - 엑스툰 (https://t2.xtoon365.com/)
+@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|shoppinglive.naver.com|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com
+
+
+
+
+
+!!! - 광역 2
+! - - - 광역으로 사용
+! - - - AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너 / 영상내 큰 배너
+![$domain=/^wfwf\d+.com/]##a[href][target] img[src*="/wp-content/uploads/"]
+!##[id*="imgDiv"] img[src*="/wp-content/uploads/"] 하면 영상 이미지 사라짐
+!##a[href]>img[src*="/wp-content/uploads/"] 하면 오른쪽 상단. 영상내 큰배너. 영상 아래 배너만 선택되어 영상 이미지는 안사라지나 로고가 사라짐
+!##a[href][target] img[src*="/wp-content/uploads/"]
+!  아래 예외 사항들이 생겨 세부적으로 쪼갬
+! - - - AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너
+! - - - 시네마조아 (https://cinemajoa80.com/) - 맨 상단 오른쪽 배너
+! - - - AV핑보걸 (https://pinkbo44.com/) - 맨 상단 오른쪽 배너
+!##[role="banner"] a[href][target] img[src*="/wp-content/uploads/"]
+! - - -  AV조아 (https://avjoa70.com/) - 영상내 큰 배너
+! - - - 시네마조아 (https://cinemajoa80.com/) - 영상내 큰 배너
+!##[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
+! - - -  위 규칙에 해당되지 않는 배너 (위 기재된 규칙대로 했을때 사라지는 배너로 인해 못함에 따라)는 ##.happy-inside-player로 처리
+! - -  AV핑보걸 (https://pinkbo44.com/) - 맨 상단 오른쪽 배너
+! - - - 야통령 (https://xn--5-v10fo35av1l.com/)
+! - - - 조개무비 (https://v15.jogemovie.net/) - 상단 배너 중 1개만 선택됨
+! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/) - 메인 상단 제외 전체 배너
+! - - - 아래 규칙으로 통일
+! - - - AV조아 오른쪽 상단 배너
+! - - - 야통령 오른쪽 상단 배너
+!##a[href] img[src*="/wp-content/uploads/"] 로 하면 다른 영상 이미지도 선택됨. 아래 규칙으로 변경
+##[target]:has(img[src*="/wp-content/uploads/"])
+! - - - 예외
+! - - - - https://tati-log.com/ 기사 하단에 게시글 이미지 지워짐 (그냥 두자)
+! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
+dramaday.me#@#[target]:has(img[src*="/wp-content/uploads/"])
+! - - - https://www.tid-hee.com/ - 이미지 사라짐
+tid-hee.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+! - https://momoiroadult.com/ - 영상 이미지 링크 안보여서 클릭 못함
+! - https://emuokunmaster.com - 영상 이미지 링크 안보여서 클릭 못함
+! - https://alive-video.com - 영상 이미지 링크 안보여서 클릭 못함
+! - https://adult-live.com/ - 영상 이미지 링크 안보여서 클릭 못함
+! - https://of996.com/ - 이미지 안보임
+momoiroadult.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+
+
+
+
+
+
+
+*background*
+! - 예외
+@@||*background$domain=cineaste.co.kr
+
+
+
+
+
+
+
+
+
+
+!!! 특정
+! - - - 이미지가 gif가 아닌 경우에도 사용
+! - - - 도지코믹스 (https://dozi352.com/)
+! - - - 애니위크 (https://aniweek.com/)
+! - - -  https://today-sports7.com/
+! - - - 밍키넷 (https://mingky13.net/)
+! - - - 야툰 (https://yatoon207.com/)
+! - - - 마징가툰 (https://z70.mzgtoon.com/)
+! - - - 애니조아 (https://www.anizoa.net/)
+! - - - 펀비 (https://funbe538.com/)
+! - - - 애니어바웃 (https://aniabout.com/)
+! - - - 해피툰 (https://happytoon01.com/)
+! - - - 머니툰 (https://mtoon125.com/)
+! - - - 비툰 (https://btoon92.com/)
+! - - - 툰브르 (https://b18.toon-bro.xyz/)
+! - - - AV핑크 (https://avpink36.com/)
+! - - - 야모아 (https://yamoa36.site/)
+! - - - 쇼츠야동 (https://ya-world.net/)
+! - - - 야콩넷 (https://yakong5.net/)
+! - - - AV히로미 (https://avhiromi6.com/)
+! - - - 개조아 (https://dogjoa81.net/)
+! - - - 현자타임스 (https://hjtime96.com/)
+! - - - 딸타임 (https://ddaltime172.com/)
+! - - - 소리바다 (https://sorabada94.com/)
+! - - - 색색티비 (https://kr187.mysstv.com/)
+! - - - 야플릭스 (https://live9xxx.net/)
+! - - - 밤오빠 (https://bam444.com/)
+! - - - 야동나라 (https://yadongnala.com/) -영상 없는 듯
+! - - - 토렌트씨 (https://torrentsee287.com/)
+! - - - 토렌트팁 (https://torrenttip177.com/)
+! - - - 토렌트모바일 (https://torrentmobile203.com/)
+! - - - 토렌트썸 (https://torrentsome197.com/)
+! - - - 토렌트봇 (https://torrentbot195.com/)
+! - - - 토렌트밤 (https://torrentbam181.com/)
+! - - - 토렌트티티 (https://torrenttt182.com/)
+! - - - 토렌트좋다 (https://torrentzota135.com/)
+! - - - 토렌트탑 (https://torrenttop156.com/)
+! - - - 토렌트하하 (https://torrenthaha09.com/)
+! - - - 블랙툰 (https://blacktoon371.com/)
+! - - - 후후티비 (https://hoohootv265.xyz/)
+! - - - 티비착 (https://tvchak149.com/)
+! - - - 코티비씨 (https://m60.kotbc2.com/)
+! - - - 9티비 (http://9tv73.com/)
+! - - - 티비다시보자 (https://bozatv110.com/)
+! - - - 방구석TV (https://bontv102.com/)
+! - - - 썸질라 (https://somez3.com/)
+! - - - AV핑유걸 (https://avpingyou19.com/)
+! - - - 혼딸파티 (https://ddparty05.top/)
+! - - - 야동딸퀸 (https://ddalq04.org/)
+! - - - 야동그라운드 (https://yagro48.com/)
+! - - - 토팡 (https://torpang119.com/)
+! - - - 토렌트썰 (http://torrentsir175.com/)
+! - - - 무비킹 (https://mvking4.org/)
+! - - - MISSAV (https://missvod4.com/)
+! - - - 다크걸 (https://darkgirl8.com/)
+! - - - AV쏘걸 (https://kr80.sogirl.so/)
+! - - - 애니24(https://ohli24.net/)
+! - - - 19다모아 (www.19damoa.org/)
+! - - - 콕콕티비 (https://cokcoktv4.com/)
+! - - - 청양티비 (https://cytv144.com/)
+! - - - 토렌트제이 (http://torrentj168.com/)
+! - - - 티비소리 (https://srtv119.com/)
+! - - - 4KJAV (https://kr29.4kjav.co/)
+! - - - 뉴토끼 시즌2 (https://newtoki.biz/)
+! - - - 모두의AV (https://modooav6.com/)
+! - - - 야스닷컴 (https://yasyadong.cc/)
+! - - - 야동파티 (https://ydparty02.net/)
+! - - - 주소골라 (https://jusopick01.com/)
+! - - - 조드 (https://zod.kr/)
+! - - - x툰 (https://t2.xtoon365.com/)
+! - - - 토렌트쑥 (https://ssg2.torrentssg8.com/)
+!##a[href*='http'][target*='blank'] img
+!##a[target*='blank']:has(img)
+[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],newtoki.biz,[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
+zod.kr##a[target*="blank"] img
+[$domain=/^t2.xtoon/]##a[target*="blank"] img
+[$domain=/^ssg\d+\.torrentssg\d+\.com/]##a[target*="blank"] img
+[$domain=/^jogaeparty\d+.com/]##a[target*="blank"] img
+
+
+
+
+
+
+
+
+
+
+
+=================================================
