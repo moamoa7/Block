@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260513-rev2
+! Version: 20260513-rev4
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -393,7 +393,12 @@
 ||dpbolvw.net^
 ||kqzyfj.com^
 !
-! ───── Windows 10/11 시스템 텔레메트리 ─────
+! ═══════════════════════════════════════════
+! 운영체제 / 기기 제조사별 텔레메트리
+! ═══════════════════════════════════════════
+!
+! ───── Microsoft Windows / Office — PC 사용자용 ─────
+! 광고/추적/통계 (시스템 영향 없음)
 ||settings-win.data.microsoft.com^
 ||watson.telemetry.microsoft.com^
 ||survey.watson.microsoft.com^
@@ -429,10 +434,298 @@
 ||analysis.appcenter.ms^
 ||in.appcenter.ms^
 !
+! ⚠️ 보류 (특정 기능 영향 가능 — 미사용 시 주석 해제)
+!||edge.microsoft.com^                   ← Edge 브라우저
+!||copilot.microsoft.com^                ← 코파일럿 AI
+!||cortana.ai^                           ← 코타나
+!||substrate.office.com^                 ← Office 365 텔레메트리
+!||officeclient.microsoft.com^           ← Office 클라이언트 분석
+!||tile-service.weather.microsoft.com^   ← 윈도우 날씨 위젯
+!
+! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
+!||activity.windows.com^                 ← 윈도우 활동 기록
+!||insiderservice.microsoft.com^         ← 인사이더 프로그램
+!
+! ═══════════════════════════════════════════
+! ❌ 차단 금지 — Windows 시스템 핵심 인프라
+! ═══════════════════════════════════════════
+!
+! Windows Update
+! windowsupdate.microsoft.com    ← WU 메인
+! update.microsoft.com           ← 업데이트
+! sls.update.microsoft.com       ← 업데이트 라이선싱
+! fe2.update.microsoft.com       ← 업데이트 프론트엔드
+! ctldl.windowsupdate.com        ← 인증서 신뢰 목록
+!
+! Microsoft 계정 / 인증
+! login.microsoftonline.com      ← MS 계정 로그인
+! login.live.com                 ← Live 계정
+! account.microsoft.com          ← MS 계정
+!
+! 인증서 검증
+! crl.microsoft.com              ← 인증서 폐기 목록
+! ocsp.msocsp.com                ← OCSP
+!
+! 네트워크 연결성
+! www.msftncsi.com               ← NCSI HTTP
+! dns.msftncsi.com               ← NCSI DNS
+! www.msftconnecttest.com        ← 연결 테스트
+!
+! Office 365 (사용 시)
+! outlook.office365.com          ← Outlook
+! graph.microsoft.com            ← MS Graph API
+!
+! OneDrive (사용 시)
+! onedrive.live.com              ← OneDrive 웹
+! d.docs.live.net                ← OneDrive 문서
+!
+! Defender (보안)
+! definitionupdates.microsoft.com ← Defender 정의 업데이트
+! wdcp.microsoft.com             ← Defender 클라우드 보호
+!
+! ───── Apple — 아이폰/아이패드/맥/워치 사용자용 ─────
+! 광고/추적/통계 (시스템 영향 없음)
+||metrics.icloud.com^
+||metrics.mzstatic.com^
+||iadsdk.apple.com^
+||xp.apple.com^
+||supportmetrics.apple.com^
+||applebis.demdex.net^
+||books-analytics-events.apple.com^
+||weather-analytics-events.apple.com^
+||notes-analytics-events.apple.com^
+||stocks-analytics-events.apple.com^
+||books-data.apple.com^
+||metrics.apple.com^
+||stats.itunes.apple.com^
+||radio-meta.itunes.apple.com^
+||static.ips.apple.com^
+||iadworkbench.apple.com^
+!
+! ⚠️ 보류 (특정 기능 영향 가능 — 미사용 시 주석 해제)
+!||smoot.apple.com^                ← Siri 제안/검색 정확도
+!||search.itunes.apple.com^        ← App Store 검색 추적
+!||genius.itunes.apple.com^        ← Apple Music 추천
+!||c.apple.news^                   ← Apple News 추적
+!||news-events.apple.com^          ← News 이벤트
+!
+! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
+!||applesocialgraph-pa.googleapis.com^
+!
+! ═══════════════════════════════════════════
+! ❌ 차단 금지 — Apple 시스템 핵심 인프라
+! ═══════════════════════════════════════════
+!
+! 계정/인증
+! appleid.apple.com              ← Apple ID 로그인
+! idmsa.apple.com                ← Apple ID 인증
+! gsa.apple.com                  ← Apple ID 인증
+! gs.apple.com                   ← Apple 서비스 인증
+! gsas.apple.com                 ← 인증 보안
+! identity.apple.com             ← ID 서비스
+! humb.apple.com                 ← 디바이스 인증
+!
+! 푸시 알림 (APNS)
+! courier.push.apple.com         ← APNS 메인
+! gateway.push.apple.com         ← APNS 게이트웨이
+! init.push.apple.com            ← APNS 초기화
+!
+! iOS/iPadOS/macOS 업데이트
+! mesu.apple.com                 ← 업데이트 메타데이터
+! swcdn.apple.com                ← 소프트웨어 CDN
+! swdist.apple.com               ← 소프트웨어 배포
+! swdownload.apple.com           ← 다운로드
+! swscan.apple.com               ← 업데이트 스캔
+! appldnld.apple.com             ← 다운로드 서버
+! gdmf.apple.com                 ← Apple OS 매니페스트
+!
+! 인증서 검증 (⚠️ 2020 OCSP 사태 — 절대 차단 금지)
+! ocsp.apple.com                 ← OCSP
+! ocsp2.apple.com                ← OCSP 백업
+! crl.apple.com                  ← 인증서 폐기 목록
+! valid.apple.com                ← 인증서 검증
+!
+! iCloud
+! icloud.com                     ← iCloud 메인 (와일드카드 금지)
+! gateway.icloud.com             ← 게이트웨이
+! setup.icloud.com               ← 초기 설정
+! cloudkit.apple.com             ← CloudKit
+! api.apple-cloudkit.com         ← CloudKit API
+! mask.icloud.com                ← Private Relay
+! apple-relay.cloudflare.com     ← Private Relay
+!
+! App Store
+! init.itunes.apple.com          ← 초기화
+! buy.itunes.apple.com           ← 결제
+! ppq.apple.com                  ← 결제 큐
+! itunes.apple.com               ← 메인
+! apps.apple.com                 ← Apple Apps
+!
+! 연결성 / 활성화
+! captive.apple.com              ← Wi-Fi 연결성 테스트
+! albert.apple.com               ← iPhone 활성화
+! deviceenrollment.apple.com     ← MDM 등록
+!
+! Find My (내 아이폰 찾기)
+! fmip.icloud.com                ← Find My iPhone
+! findmy.apple.com               ← Find My
+!
+! Apple Pay
+! smp-device-content.apple.com   ← Apple Pay 디바이스
+! pancake.apple.com              ← 결제 토큰
+!
+! iMessage / FaceTime
+! ess.apple.com                  ← FaceTime/iMessage
+! identity.ess.apple.com         ← 인증
+!
+! ───── 삼성(Samsung) — 갤럭시 폰/태블릿/TV/가전 사용자용 ─────
+! 광고/추적/통계 (시스템 영향 없음)
+! 삼성 광고 / TV ACR
+||samsungads.com^
+||samsungacr.com^
+||samsungotn.net^
+||samsungrm.net^
+||log-ingestion.samsungacr.com^
+||sa.samsungrs.com^
+||err.samsung.com^
+||samsung-com.112.2o7.net^
+! 갤럭시 폰/태블릿 추적
+||samsung-com.tt.omtrdc.net^
+||samsungelectronics.demdex.net^
+||analytics.samsungknox.com^
+||knoxwsm.samsungknox.com^
+||konai.samsungknox.com^
+||bcs.samsungdm.com^
+||gxd.samsung.com^
+!
+! ⚠️ 보류 (특정 기능 영향 가능 — 미사용 시 주석 해제)
+!||bixby-analytics.samsungrs.com^    ← 빅스비 음성 분석
+!||samsungknox.com^                  ← Knox 전체 (개인 사용 시 차단 OK)
+!||rs.samsungrs.com^                 ← 삼성 리워드/광고
+!
+! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
+!||knox-mdm.samsungknox.com^
+!||eu-snip.samsungknox.com^
+!||us-snip.samsungknox.com^
+!||samsungelectronics.sc.omtrdc.net^
+!||samsung.demdex.net^
+!
+! ═══════════════════════════════════════════
+! ❌ 차단 금지 — 갤럭시 시스템 핵심 인프라
+! ═══════════════════════════════════════════
+!
+! 계정/인증
+! account.samsung.com            ← 삼성 계정
+! eu-auth2.samsungosp.com        ← 인증 (EU)
+! chn-auth2.samsungosp.com       ← 인증 (중국)
+! us-auth2.samsungosp.com        ← 인증 (US)
+! samsungosp.com                 ← OSP 메인
+! ospserver.net                  ← OSP 서버
+!
+! 푸시 알림
+! push.samsungosp.com            ← 푸시 메인
+! spp.samsungdm.com              ← Samsung Push Service
+! dpp.samsungdm.com              ← 푸시
+! sdk.pushmessage.samsung.com    ← 삼성 기본 앱 알림
+!
+! 펌웨어/시스템 업데이트
+! fota.samsungdm.com             ← Firmware OTA
+! fota-cloud-dn.samsungdm.com    ← FOTA 클라우드
+! doc.samsungdm.com              ← 디바이스 OTA 컨피그
+!
+! 클라우드 동기화
+! samsungcloud.com               ← 갤럭시 클라우드
+! ck.samsungcloud.com            ← 콘텐츠 키
+! api.samsungcloud.com           ← API
+! samsungcloudsolution.com       ← Smart Switch
+! cdn.samsungcloudsolution.com   ← CDN
+!
+! 갤럭시 스토어
+! samsungapps.com                ← 갤럭시 스토어
+! galaxystore.samsung.com        ← 갤럭시 스토어 (신규)
+! vas.samsungapps.com            ← VAS
+!
+! 결제/지갑/생체인증
+! mpay.samsung.com               ← 삼성페이
+! samsungwallet.com              ← 삼성월렛
+! samsungpass.samsung.com        ← 삼성패스
+!
+! 디바이스 관리
+! samsungdm.com                  ← DM 메인
+! samsungrs.com                  ← 리포팅 서비스
+!
+! 내 폰 찾기
+! findmymobile.samsung.com       ← Find My Mobile
+! chkfindmymobile.samsungdive.com
+!
+! SmartThings (IoT 연결)
+! smartthings.com                ← SmartThings 메인
+! api.smartthings.com            ← API
+! connect.smartthings.com        ← 디바이스 연결
+!
+! ───── 레노버(Lenovo) & ZUI — 태블릿 사용자용 ─────
+! 광고/추적/통계 (시스템 영향 없음)
+||stats.zui.com^
+||stats.zui.cn^
+||recom.zui.com^
+||metrics.lenovo.com^
+||metrics.lenovo.com.cn^
+||lenovo-na-en.122.2o7.net^
+||tms.lenovomm.com^
+||log.lenovomm.com^
+||sentry.lenovomm.com^
+!
+! ⚠️ 보류 (런처/추천/스토어 기능 영향 가능 — 미사용 시 주석 해제)
+!||icns.zui.lenovomm.com^
+!||cnszui.lenovomm.com^
+!||open.lenovomm.com^
+!||appstore.lenovomm.com^
+!
+! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
+!||userlog.lenovomm.com^
+!||applog.lenovomm.com^
+!||crash.lenovomm.com^
+!||analytics.lenovomm.com^
+!
+! ═══════════════════════════════════════════
+! ❌ 차단 금지 — 레노버 시스템 핵심 인프라
+! ═══════════════════════════════════════════
+!
+! OS/펌웨어 업데이트
+! osfsr.lenovomm.com             ← OS 펌웨어/복구 (최우선 금지)
+! suapkg.lenovomm.com            ← 시스템 업데이트 패키지
+! sus.lenovomm.com               ← Software Update Service
+! sus.lenovomm.cn
+!
+! 앱 패키지 배포
+! papk.lenovomm.com              ← APK 패키지
+! papkg.lenovomm.com
+! uapkg.lenovomm.com             ← 업데이트 패키지
+! apkg.lenovomm.com
+! apkg1.lenovomm.com
+!
+! API 게이트웨이 / 시스템 동기화
+! api.lenovomm.com               ← API 게이트웨이
+! api.lenovomm.cn
+! api.zui.lenovomm.com           ← ZUI API
+! dcf.lenovomm.com               ← Device Configuration
+! dcf.lenovomm.cn
+! dcf1.lenovomm.cn
+!
+! 인증/계정/푸시
+! account.lenovomm.com           ← 레노버 계정 로그인
+! passport.lenovomm.com          ← 인증
+! push.lenovomm.com              ← 푸시 알림
+! mps.lenovomm.com               ← 메시지 푸시
+! filedownload.lenovomm.com      ← 파일 다운로드
+!
+! ZUI 시스템
+! zui.lenovo.com                 ← ZUI 메인
+! zui.cn                         ← ZUI 중국 메인
+!
 ! ───── 브라우저 텔레메트리 (Edge/Chrome/Brave 등) ─────
 ||browser.events.data.microsoft.com^
 ||browser.events.data.msn.com^
-!||edge.microsoft.com^
 ||p.brave.com^
 ||variations.brave.com^
 ||star-randsrv.bsg.brave.com^
@@ -450,13 +743,6 @@
 ||api.msn.com^
 ||arc.msn.com^
 ||config.edge.skype.com^
-!
-! ───── Apple 텔레메트리 ─────
-||metrics.icloud.com^
-||metrics.mzstatic.com^
-||iadsdk.apple.com^
-||xp.apple.com^
-||supportmetrics.apple.com^
 !
 ! ───── NVIDIA / 기타 제조사 ─────
 ||telemetry.nvidia.com^
@@ -684,66 +970,6 @@
 ||applog.uc.cn^
 ||gjapplog.uc.cn^
 !
-! ───── 레노버(Lenovo) & ZUI — 태블릿 사용자용 ─────
-! 광고/추적/통계만 선별 차단 (시스템 영향 없음)
-||stats.zui.com^
-||stats.zui.cn^
-||recom.zui.com^
-||metrics.lenovo.com^
-||metrics.lenovo.com.cn^
-||lenovo-na-en.122.2o7.net^
-||tms.lenovomm.com^
-||log.lenovomm.com^
-||sentry.lenovomm.com^
-!
-! ⚠️ 보류 (런처/추천/스토어 기능 영향 가능 — 미사용 시 주석 해제)
-!||icns.zui.lenovomm.com^
-!||cnszui.lenovomm.com^
-!||open.lenovomm.com^
-!||appstore.lenovomm.com^
-!
-! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
-!||userlog.lenovomm.com^
-!||applog.lenovomm.com^
-!||crash.lenovomm.com^
-!||analytics.lenovomm.com^
-!
-! ═══════════════════════════════════════════
-! ❌ 차단 금지 — 레노버 시스템 핵심 인프라
-! ═══════════════════════════════════════════
-!
-! OS/펌웨어 업데이트
-! osfsr.lenovomm.com         ← OS 펌웨어/복구 (최우선 금지)
-! suapkg.lenovomm.com        ← 시스템 업데이트 패키지
-! sus.lenovomm.com           ← Software Update Service
-! sus.lenovomm.cn
-!
-! 앱 패키지 배포
-! papk.lenovomm.com          ← APK 패키지
-! papkg.lenovomm.com
-! uapkg.lenovomm.com         ← 업데이트 패키지
-! apkg.lenovomm.com
-! apkg1.lenovomm.com
-!
-! API 게이트웨이 / 시스템 동기화
-! api.lenovomm.com           ← API 게이트웨이
-! api.lenovomm.cn
-! api.zui.lenovomm.com       ← ZUI API
-! dcf.lenovomm.com           ← Device Configuration
-! dcf.lenovomm.cn
-! dcf1.lenovomm.cn
-!
-! 인증/계정/푸시 (추가)
-! account.lenovomm.com       ← 레노버 계정 로그인
-! passport.lenovomm.com      ← 인증
-! push.lenovomm.com          ← 푸시 알림
-! mps.lenovomm.com           ← 메시지 푸시
-! filedownload.lenovomm.com  ← 파일 다운로드
-!
-! ZUI 시스템
-! zui.lenovo.com             ← ZUI 메인
-! zui.cn                     ← ZUI 중국 메인
-!
 ! ═══════════════════════════════════════════════════════════
 ! 얀덱스 / 기타 지역
 ! ═══════════════════════════════════════════════════════════
@@ -757,18 +983,12 @@
 ||startup.mobile.yandex.net^
 !
 ! ───── 스마트TV / 셋톱박스 ─────
+! Netflix
 ||logs.netflix.com^
 ||customerevents.netflix.com^
 ||appboot.netflix.com^
 ||ichnaea.netflix.com^
-||samsungads.com^
-||samsungacr.com^
-||samsungotn.net^
-||samsungrm.net^
-||log-ingestion.samsungacr.com^
-||sa.samsungrs.com^
-||err.samsung.com^
-||samsung-com.112.2o7.net^
+! LG TV
 ||ad.lgsmartad.com^
 ||lgad.line.me^
 ||lgad.cjpowercast.com.akadns.net^
@@ -777,12 +997,15 @@
 ||smartshare.lgtvsdp.com^
 ||us.ibs.lgappstv.com^
 ||r.lgsmartad.com^
+! Vizio
 ||ads.vizio.com^
 ||tvinteractive.tv^
 ||scfd.inscapedata.com^
+! Roku
 ||metrics.roku.com^
 ||scribe.logs.roku.com^
 ||cooper.logs.roku.com^
+! ※ 삼성 TV 도메인은 "삼성(Samsung)" 섹션으로 통합 이동
 !
 ! ───── 게임 플랫폼 텔레메트리 ─────
 ||telemetry.battle.net^
@@ -1150,8 +1373,6 @@
 ! ||analytics.perplexity.ai^
 ! T맵/SKT 전용 앱 위치·지도 사용
 ! ||rf-lbsidcstmap.sktelecom.com^
-! 윈도우 코파일럿 / 엣지 사이드바 AI 미사용 시
-! ||copilot.microsoft.com^
 ! 페이스북/인스타 앱 미사용 시
 ! ||edge-mqtt-fallback.facebook.com^
 ! 구글 위치 기록
@@ -1159,8 +1380,6 @@
 ! ||locationhistory-pa.googleapis.com^
 ! 구글 "내 기기 찾기"
 ! ||spot-pa.googleapis.com^
-! 윈도우 날씨 위젯 타일
-! ||tile-service.weather.microsoft.com^
 ! Brave Sync (PC↔폰 동기화 사용 시 절대 차단 금지)
 ! ||sync-v2.brave.com^
 !
@@ -1179,4 +1398,3 @@
 ! api.individual.githubcopilot.com  ← 코파일럿 사용자 필수
 ! mapi.tmoney.co.kr                 ← 모바일 티머니 결제
 ! urms.usp.sktelecom.com            ← SKT 단말 업데이트/인증
-! sdk.pushmessage.samsung.com       ← 삼성 기본 앱 알림
