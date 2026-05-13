@@ -4501,7 +4501,7 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 주소야 (https://jusoya.com/)
 ! - 상단 배너 / 목록 내 비너
-[$domain=/^jusoya/]##[id*="top_banner_widget" i]
+[$domain=/^jusoya/]##[class*="w-banner" i]
 !
 !
 ! 18모아 (https://18moa028.com/)
