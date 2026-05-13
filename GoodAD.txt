@@ -2099,16 +2099,6 @@ livegirl.biz##.my-3.px-sm-0.px-3
 [$domain=/^smantv\d+.net/]##.sman_chat_size
 !
 !
-! 와이즈티비 (https://wstv12.com/)
-! - 실시간중계 영상 하단 배너 / 보증업체 리스트
-![$domain=/^wstv\d+.com/]##.mobile_mb20
-!||wstv12.com/data/file/partner/*
-! - - - 킹콩티비 (https://kktv12.com/) 보증업체 글자 지우기
-!![$domain=/^kktv\d+.com/]##[href="/partner/%EC%8A%A4%ED%8F%AC%EC%B8%A0"]
-!![$domain=/^kktv\d+.com/],[$domain=/^wstv\d+.com/]##[href*="/partner/"]
-!##[href*="/partner/"]
-!
-!
 ! 쪽티비 (https://www.jjoktv.com/)
 ! - 보증업체 글자
 !jjoktv.com##.assurance-menu__btn.v-size--default.theme--light.v-btn--text.v-btn.pa-0
@@ -3793,16 +3783,15 @@ jamakyadong.me##[class*="g-col"]
 ! 야동그라운드 (https://yagro48.com/) X
 ! 빨간비디오 (https://redvi80.com/)
 ! 야동도시 (https://yadongred6.org/)
-! 야동공장 (https://yagong89.com/)
+! 야동공장 (https://yagong91.com/)
 ! - 배너 이미지
 !||*/storage/upload/banners/*$image
 ! - 팝업 - 4시간 동안 다시 열람하지 않습니다
-!  - - - 와이즈티비 (https://wstv12.com/) 
-! - - - 블루티비 (https://bluelive77.com/)
 ! - - - PC
-!##[class*='main_popup']
 !##[class*="popup-pc"]:not(html):not(body):not(article):not(main):not(section)
 ##[class*="popup-pc" i]
+! - - - 모바일
+##.w-80.relative
 !
 !
 ! - - - ! 빨간비디오 (https://redvi80.com/)
@@ -3830,15 +3819,12 @@ jamakyadong.me##[class*="g-col"]
 ! - 팝업 뿌연거 해결  (모바일)
 [$domain=/^bampt/],[$domain=/^ntk/]##[id="popupoverlay" i]
 ! - 상단 배너
-!##.premium-banner
 ##[class*="premium-banner" i]
 ##[class*="small-banner" i]
 !  - - - 모바일
 ##[class*="premium-ad" i]
 ##[class*="small-ad" i]
 ! - 영상 목록 사이 배너 (PC)
-![$domain=/^bampt/]##[class^="video-card infeed-ad"]
-![$domain=/^bampt/]##a.infeed-ad
 ##[class*="infeed-ad" i]
 ! - 영상 목록 사이 / 영상 하단 배너 (모바일)
 ##[class*="premium-ad" i]
