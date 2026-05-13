@@ -684,16 +684,31 @@
 ||applog.uc.cn^
 ||gjapplog.uc.cn^
 !
-! ───── 레노버(Lenovo) & ZUI ─────
-! 기기 진단 및 추가적인 중국 내수용 업데이트 서버
+! ───── 레노버(Lenovo) & ZUI — 태블릿 사용자용 ─────
+! 광고/추적/통계만 선별 차단 (시스템 영향 없음)
 ||stats.zui.com^
-||api.zui.lenovomm.com^
+||stats.zui.cn^
 ||recom.zui.com^
-||sus.lenovomm.com^
-||zui.lenovo.com^
-||icns.zui.lenovomm.com^
-||cnszui.lenovomm.com^
-||dcf.lenovomm.com^
+||metrics.lenovo.com^
+||metrics.lenovo.com.cn^
+||lenovo-na-en.122.2o7.net^
+||tms.lenovomm.com^
+||log.lenovomm.com^
+||sentry.lenovomm.com^
+!
+! ⚠️ 보류 (런처/추천 기능 영향 가능 — 사용 시 주석 해제)
+!||icns.zui.lenovomm.com^
+!||cnszui.lenovomm.com^
+!||open.lenovomm.com^
+!||appstore.lenovomm.com^
+!
+! ❌ 차단 금지 (시스템/업데이트 필수)
+! sus.lenovomm.com / sus.lenovomm.cn  ← 보안 업데이트
+! dcf.lenovomm.com / dcf.lenovomm.cn  ← 기기 설정
+! dcf1.lenovomm.cn
+! api.lenovomm.com / api.lenovomm.cn  ← API
+! api.zui.lenovomm.com               ← ZUI API
+! zui.lenovo.com / zui.cn            ← ZUI 시스템
 !
 ! ═══════════════════════════════════════════════════════════
 ! 얀덱스 / 기타 지역
