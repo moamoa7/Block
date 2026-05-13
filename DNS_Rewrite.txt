@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260512-rev4
+! Version: 20260513-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -764,6 +764,7 @@
 ||searchnotifications-pa.googleapis.com^
 ! 구글 동의 메시지
 ||fundingchoicesmessages.google.com^
+||xgapromomanager-pa.googleapis.com^
 !
 ! ───── 한국 서비스 (포털/쇼핑/통신/금융/OTT/배달) ─────
 ||log.coupang.com^
@@ -1047,6 +1048,8 @@
 ||advertserve.com^
 ||adblockanalytics.com^
 ||doubleverify.com^
+||obcanzma.in^
+||xtracloud.net^
 !
 ! ───── 한국 광고/팝업 네트워크 ─────
 ||adcjs.kr^
