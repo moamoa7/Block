@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260513-rev4
+! Version: 20260514-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -693,6 +693,7 @@
 !
 ! ⚠️ 보류 (역할 불명확 — 로그 호출 빈도/패턴 확인 후 결정)
 !||ams.lenovomm.cn^                  ← AMS (Application/Ads Management 추정)
+!||lds.lenovomm.com^                 ← LDS (Location/Log/Data Service 추정)
 !
 ! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
 !||userlog.lenovomm.com^
