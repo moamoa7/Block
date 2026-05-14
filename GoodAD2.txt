@@ -1219,6 +1219,9 @@ $cookie=/^__hstc$/
 ||sooplive.com^$cookie=AbroadChk
 ||sooplive.com^$cookie=AbroadVod
 ||sooplive.com^$removeheader=set-cookie,domain=ads.sooplive.com
+||live.sooplive.com/api/myplus/personalBlockController.php^$xmlhttprequest
+||static.sooplive.com/asset/service/da/AdParameter.js^$script,redirect=noopjs
+||res.sooplive.com/script/player/service-maintenance.js^$script,redirect=noopjs
 
 ! ───────────────────────────────────────────
 ! Kick (킥)
