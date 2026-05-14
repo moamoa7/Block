@@ -286,21 +286,12 @@ x.com/*/videoads/
 !||px-cloud.net/b/s
 !
 !
-! tracker라는 이름이 붙은 서버가 WebSocket으로 몰래 나를 실시간 감시하는 것을 막는 규칙
-||tracker.$websocket
-!
-!
 !Netflix가 내가 뭘 보고 뭘 클릭하는지 상세하게 기록해서 서버로 보내는 것을 막는 규칙 (시청내역을 막는건 아닌듯)
 ||netflix.com/log/
 !
 !
 ! - GitHub(깃허브)이 사용자의 브라우저 성능 및 활동 통계를 수집하는 비공개 경로를 차단하는 규칙
 ||api.github.com/_private/browser/stats$important
-!
-!
-! 자바스크립트 에러가 발생하면 서버로 보내려고 시도하는것을 차단
-!- - - 불필요한 트래픽 감소 / 개인정보 및 추적 방지 / 브라우저 자원 낭비 차단
-!/log_js_error$ping
 !
 !
 ! - OneTrust라는 유명한 쿠키 관리 솔루션이 사용자의 위치를 파악하고 그에 맞는 쿠키 동의 배너(Consent Banner)를 띄우려는 시도를 원천 봉쇄하는 규칙
@@ -350,26 +341,6 @@ x.com/*/videoads/
 !*##+js(prevent-setTimeout, snapper)
 !
 !
-!
-! 3자 ping / websocket 차단
-!||*$ping,websocket,third-party
-! - 3자 websocket 차단 해제
-! - - - 디스코드 (https://discord.com/) 연결시 필요
-! - - - www.amateur.tv 연결해야 실시간 방송이 재생됨
-! - - - player.bunny-frame.online - 해제해야 영상 재생 가능
-! - - - 예외
-!@@||gateway.discord.gg$websocket
-! - - - 일반
-!@@||*$websocket,domain=speedtest.net|gfiber.speedtestcustom.com|www.amateur.tv|www.tving.com
-! - - - 성인
-!@@||*$websocket,domain=chaturbate.com
-! - - - 아프리카 TV 등 그리드 차단
-!||localhost
-! - - - 아프리카 TV 등 그리드 차단 해제 (AdVoid.Full 필터 목록 해제)
-!@@||localhost^$badfilter
-!
-! - https://wonforecast.com/ 환율 가져오기
-!@@||tradingview.com/socket.io/websocket
 !
 ! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
 !##.grecaptcha-badge
@@ -619,7 +590,6 @@ sooplive.com##.store_box.box
 ##[class*="floating" i]
 ! - 예외 - https://06.avsee.ru/ - 영상내 틀 깨짐으로 재생불가
 avsee.ru#@#[class*="floating" i]
-
 ! - 구독 플러스
 sooplive.com##.subs_plus.seasonal_area
 ! - 구독 플러스 안내 메시지
@@ -2904,11 +2874,25 @@ avsee.ru#@#.tabs
 ! - 하단 따라다니는 배너
 ##[class*="slideAnimation" i]
 ! - 일부 영상 재생 차단 방지
+@@||p.jwpcdn.com^$script
+@@||p16-ad-sg.ibyteimg.com^
 @@tiktokcdn.com/obj/$xhr
+nicholasbreakplan.com,fc2stream.tv#@#[class*="floating" i]
+@@*$generichide,from=streamtape.*
 ! - 기타
 ! - - - https://javgg.net/
 ! - - - https://javplayer.org/ (여러 재생 스크림 중에서)
 ##[class*="ad-placement" i]
+!
+!
+! https://javplayer.org/
+! - 일부 영상 재생 차단 방지
+stb.strp2p.com,hgslave.xyz,ryderjet.com#@#[class*="floating" i]
+!
+!
+! https://sextb.net/
+! - 일부 영상 재생 차단 방지
+turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -2978,25 +2962,8 @@ momoiroadult.com##.pc-header
 ! JavGG (https://javgg.net/)
 ! - 상단 배너
 javgg.net##.home_iframead
-! - 팝업 방지
-!||about:blank^$popup
-!||obqj2.com^$popup
-!||madurird.com^$popup
-!||streamhg05032026.shop^$popup
-!||disprovefacilityjolt.com^$popup
-!||barometercorrodingunease.com^$popup
-!||correctdilutetrophy.com^$popup
-!||pure-group.pro^$popup
-! - 차단 사이트
-!||c.adsco.re^
-!||pjzshwrsq.com^
-!||islandjav182.fun^
-!||graveljav128.fun^
-!||normal05032026.shop^
-!||dalyio.com^
-!||earnvids.com^
-!||streamhg05032026.shop^
-!||heardaccumulatebeans.com^
+! - 차단방지
+jav-vids.xyz,javggvideo.xyz,javstreamhg.xyz#@#[class*="floating" i]
 !
 !
 ! Javsubs91 (https://j91.asia/)
@@ -3006,7 +2973,7 @@ javgg.net##.home_iframead
 ||a.magsrv.com/ad-provider.js$redirect-rule=noopjs
 !
 !
-! 7MMTV (https://7tv033.com/)
+! 7MMTV (https://7tv034.com/)
 ! - 유니콘Pro에서는 ST영상 재생 불가
 ! - 상단 배너 공간
 ##.a-d-block
@@ -3014,20 +2981,20 @@ javgg.net##.home_iframead
 ##div.set_height_250
 ! - 기타
 ##.doubleclick
-! - 팝업 방지
-!||stikroltiltoowi.net^$popup
-!||persecutionpunishlegally.com^$popup
-!||doingthinningwizard.com^$popup
-! - 차단 사이트
-!||labadena.com^
-!||tapioni.com^
-!||wpadmngr.com^
+! - 재생 방지
+mmsi02.com,mmvh02.com#@#[class*="floating" i]
 !
 !
 ! https://javgiga.com/
 ! - 팝업(새창) 방지 (uBlock filters – Ads)
 /^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-.\/A-Z_a-z][DHWXm][-.\/A-Z_a-z][59FVZ][-.\/A-Z_a-z][6swyz][-.\/A-Z_a-z][-\/0-9A-Z_a-z][-.\/A-Z_a-z][-\/0-9A-Z_a-z]{22,162}(?:$|\?)/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
-!javgiga.com^$popup
+! - 재생 방지
+embed.streamxx.net#@#[class*="floating" i]
+!
+!
+! https://javct.net/
+! - 재생방지
+trailerhg.xyz,trailerhg.xyz#@#[class*="floating" i]
 !
 !
 ! https://netflav.com/
