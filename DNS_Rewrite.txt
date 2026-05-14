@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260514-rev2
+! Version: 20260515-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -423,11 +423,15 @@
 ||ssw.live.com^
 ||cs.dds.microsoft.com^
 ||cs1.wpc.v0cdn.net^
+! - Application Insights 데이터 수집 (구 도메인)
 ||dc.services.visualstudio.com^
+||dc.applicationinsights.azure.com^
 ||applicationinsights.azure.com^
+||rt.services.visualstudio.com^
 ||applicationinsights.io^
+||breeze.applicationinsights.io^
 ||fp.msedge.net^
-||js.monitor.azure.com^
+||monitor.azure.com^
 ||analysis.appcenter.ms^
 ||in.appcenter.ms^
 !
@@ -1469,6 +1473,11 @@
 ! 일부 환경에서 exlogcollector.sooplive.com 차단 시 입장/버퍼링 지연 발생
 ! 본인은 현재 문제 없음. 동일 증상 추가 보고 시 주석 해제하여 적용
 !@@||exlogcollector.sooplive.com^
+!
+!
+! ⚠️ Stripe Radar 사기 탐지 (디바이스 핑거프린팅)
+! 결제 사용 시 간헐적 실패 가능 - 보류 권장
+!||stripe.network^
 !
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능 (참고용 주석)
