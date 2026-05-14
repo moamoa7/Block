@@ -1198,33 +1198,33 @@ $cookie=/^__hstc$/
 ! 숲 (SOOP / 구 아프리카TV)
 ! ───────────────────────────────────────────
 ||stbbs.afreecatv.com/api/log^$empty
-||static.file.sooplive.co.kr/log^$empty
-||log.sooplive.co.kr/api^$empty
+||static.file.sooplive.com/log^$empty
+||log.sooplive.com/api^$empty
 ||afreecatv.com/api/stat^$empty
-||sooplive.co.kr/api/stat^$empty
+||sooplive.com/api/stat^$empty
 ||st.sooplive.com/api/da_*^$xmlhttprequest,empty
 ||*sooplive*/vast^$xmlhttprequest,redirect=noopvast-2.0
 ||*afreecatv*/vast^$xmlhttprequest,redirect=noopvast-2.0
 ||afreecatv.com/api/v1/ad^$xmlhttprequest,empty
-||sooplive.co.kr/api/v1/ad^$xmlhttprequest,empty
+||sooplive.com/api/v1/ad^$xmlhttprequest,empty
 ||sooplive.com/api/v1/ad^$xmlhttprequest,empty
 ||afreecatv.com^$removeparam=hash
-||sooplive.co.kr^$removeparam=hash
+||sooplive.com^$removeparam=hash
 ||afreecatv.com^$removeparam=stationNo
-||sooplive.co.kr^$removeparam=trackingNo
+||sooplive.com^$removeparam=trackingNo
 ||afreecatv.com^$removeparam=tracking
-||sooplive.co.kr^$removeparam=tracking
+||sooplive.com^$removeparam=tracking
 ||afreecatv.com^$removeparam=ref
-||sooplive.co.kr^$removeparam=ref
+||sooplive.com^$removeparam=ref
 ||afreecatv.com^$removeparam=src
-||sooplive.co.kr^$removeparam=src
+||sooplive.com^$removeparam=src
 ||afreecatv.com^$cookie=_au
 ||afreecatv.com^$cookie=_aupath
 ||afreecatv.com^$cookie=_aupcid
-||sooplive.co.kr^$cookie=_au
-||sooplive.co.kr^$cookie=_aupath
-||sooplive.co.kr^$cookie=_aupcid
-||sooplive.co.kr^$removeheader=set-cookie,domain=ads.sooplive.co.kr
+||sooplive.com^$cookie=_au
+||sooplive.com^$cookie=_aupath
+||sooplive.com^$cookie=_aupcid
+||sooplive.com^$removeheader=set-cookie,domain=ads.sooplive.com
 ||afreecatv.com^$removeheader=set-cookie,domain=ads.afreecatv.com
 ||sooplive.com^$removeheader=set-cookie,domain=adv.sooplive.com
 
@@ -1309,7 +1309,7 @@ $cookie=/^__hstc$/
 @@||play.sooplive.com^$important
 @@||livestream-manager.sooplive.com^$important
 @@||*.afreecatv.com/streaming^$important
-@@||stream.sooplive.co.kr^$important
+@@||stream.sooplive.com^$important
 @@||stream.kick.com^$important
 @@||cdn.kick.com^$important
 @@||*.googlevideo.com^$important
