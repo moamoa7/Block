@@ -1278,6 +1278,7 @@
 ||collector2.sooplive.com^
 ||collector3.sooplive.com^
 ||collector4.sooplive.com^
+||st.sooplive.com
 ! 로그인 처리 문제로 주석 처리
 !||afevent2.sooplive.com^
 ||laglog.sooplive.com^
