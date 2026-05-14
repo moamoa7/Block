@@ -119,6 +119,10 @@
 ||revcontent.com^
 ||zergnet.com^
 ||content-recommendation.net^
+||rallytrck.website^
+||creative.myavlive.com^
+||adxadserv.com^
+||mnaspm.com^
 !
 ! ───── 광고 영상 SDK ─────
 ||2mdn.net^
@@ -1169,6 +1173,9 @@
 ||display-ad.kakao.com^
 ||tracker.moment.kakao.com^
 ||mkamp.kakao.com^
+! ───── Kakao 추적 ─────
+||aem-kakao-collector.onkakao.net^
+||serv.ds.kakao.com^
 ! 카카오TV 일반 영상 (스크립트 차단 사용 시)
 ||vst.play.kakao.com^
 ||shortformstats.kakao.com^
