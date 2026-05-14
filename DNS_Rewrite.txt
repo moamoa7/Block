@@ -1297,6 +1297,14 @@
 ! ⚠️ 절대 차단 금지
 ! play.sooplive.com  ← 본 영상 송출
 ! livestream-manager.sooplive.com
+! colony.sooplive.com         ← BJ 방송국(채널) 백엔드
+! member.sooplive.com         ← 로그인/회원 정보
+! static.file.sooplive.com    ← 정적 파일 (이미지/썸네일)
+! static.sooplive.com         ← 정적 자원 CDN (CSS/JS)
+! login.sooplive.com          ← 로그인 페이지
+! auth.m.sooplive.com         ← 모바일 인증
+! live.sooplive.com           ← 라이브 방송 API
+! vod.sooplive.com (.afreecatv.com) ← 다시보기
 !
 ! ───── Kick ─────
 ||analytics.kick.com^
@@ -1417,6 +1425,14 @@
 !
 ! ───── 테라박스 (Terabox) 광고 ─────
 ||pbfillyintelmedia.com^
+!
+! ───── Stripe ─────
+! 결제 보호 - js/m 핵심 도메인 통과
+! q는 분석용이라 차단 안전
+||q.stripe.com^
+!||js.stripe.com^        ← 보류 (tripe 결제 UI의 핵심)
+!||m.stripe.com^         ← 보류 (Radar 사기 탐지 보조)
+!||m.stripe.network^     ← 보류 (디바이스 핑거프린팅)
 !
 ! ───── 기타 분석 ─────
 ||posthog.com^
