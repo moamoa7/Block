@@ -1387,6 +1387,9 @@
 ! ───── 영상 플레이어 추적 ─────
 ! JW Player 분석 (영상 재생 영향 없음)
 ||jwpltx.com^
+! ⚠️ JW Player – 차단 시 동영상 재생 영향
+! ||jwpcdn.com^              ← 플레이어 CDN, 차단 시 재생 불가
+! ||entitlements.jwplayer.com^ ← DRM/권한 확인, 유료 콘텐츠 영향
 !
 ! ───── 테라박스 (Terabox) 광고 ─────
 ||pbfillyintelmedia.com^
