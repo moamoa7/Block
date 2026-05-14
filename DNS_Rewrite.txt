@@ -1405,6 +1405,9 @@
 ! JW Player 분석 (영상 재생 영향 없음)
 ||jwpltx.com^
 !
+! ───── 테라박스 (Terabox) 광고 ─────
+||pbfillyintelmedia.com^
+!
 ! ───── 기타 분석 ─────
 ||posthog.com^
 ||plausible.io^
