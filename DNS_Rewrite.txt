@@ -1388,10 +1388,6 @@
 ||posthog.com^
 ||plausible.io^
 !
-! ───── 허용 규칙 (화이트리스트) ─────
-! Google Safe Browsing (피싱·악성코드 보호용 필수)
-@@||safebrowsing.googleapis.com^
-!
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
 ! 필요 시 주석(!) 제거하여 활성화
