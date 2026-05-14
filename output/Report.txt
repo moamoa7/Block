@@ -1,9 +1,9 @@
 DNS Blocklist Build Report
-Generated: 2026-05-14 15:01:32 UTC
+Generated: 2026-05-14 17:16:51 UTC
 ============================================================
 
 [1] Reference Filters
-[Primary (AdGuard 15.txt)] 163,953 domains
+[Primary (AdGuard 15.txt)] 163,969 domains
 [Secondary (HaGeZi Pro)] 209,823 domains
 [Intersection] 85,587 domains
 
