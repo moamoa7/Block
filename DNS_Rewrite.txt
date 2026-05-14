@@ -1163,21 +1163,43 @@
 ||ader.naver.com^
 ! 광고주 관리 (B2B)
 ||saedu.naver.com^
-! 네이버 통합 로그/분석
+! ───── 네이버 통합 로그/분석 ─────
 ||log.naver.com^
 ||nlog.naver.com^
 ||lcs.naver.com^
 ||cc.naver.com^
+||siape.veta.naver.com^
 ||wcs.naver.net^
 ||pcs.naver.com^
 ||astralog.naver.com^
-! NELO 에러·이벤트 수집
+!
+! ⚠️ 추가 후보 (로그 호출 확인 후 활성화)
+!||nstat.naver.com^
+!||stat.naver.com^
+!||np.naver.com^
+!||veta.naver.com^                    ← 루트 차단 (다른 광고 서브도메인도 잡힘)
+!
+! ───── NELO 에러·이벤트 수집 ─────
 ||nelo2-col.navercorp.com^
 ||kr-col-ext.nelo.navercorp.com^
-! 치지직 분석
+!
+! ───── 치지직 분석 ─────
 ||log.chzzk.naver.com^
-! 네이버 웨일 브라우저 분석
+!||metric.chzzk.naver.com^
+!||stat.chzzk.naver.com^
+!
+! ───── 네이버 웨일 브라우저 분석 ─────
 ||cv.whale.naver.com^
+||stat.whale.naver.com^
+||log.whale.naver.com^
+||promotion.whale.naver.com^
+!
+! ❌ 차단 금지 (참고용)
+! ||naver.com                            ← 메인 도메인
+! ||nid.naver.com                        ← 로그인
+! ||update.whale.naver.com               ← 웨일 업데이트
+! ||sync.whale.naver.com                 ← 웨일 동기화
+!
 ! 데이블 광고 추천 위젯 (네이버 사용)
 ||dable.io^
 !
