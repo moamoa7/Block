@@ -1239,18 +1239,26 @@
 ! 전용 스크립트/확장(TwitchAdSolutions, autoHD 등) 병행 필수
 !
 ! ───── Twitch ─────
+! [활성 차단 - 광고/추적/통계]
 ||spade.twitch.tv^
 ||countess.twitch.tv^
 ||analytics.twitch.tv^
 ||client-event-reporter.twitch.tv^
+||stats.live-video.net^      ← player.stats.* 포함 모든 stats 하위 차단
+||ads.twitch.tv^             ← edge.ads.* 포함 모든 ads 하위 차단
+!
 ! Twitch 광고 메타데이터 (IMA SDK)
 ||imasdk.googleapis.com^
 ||pubads.g.doubleclick.net^
-! ⚠️ 절대 차단 금지 (방송 송출 끊김)
-! usher.ttvnw.net  ← 본 영상 스트림
+!
+! ⚠️ 절대 차단 금지 (방송 송출/이미지 끊김)
+! usher.ttvnw.net         ← 본 영상 스트림 매니페스트
 ! video-edge-*.ttvnw.net  ← 영상 엣지 서버
-! video-weaver.*.ttvnw.net  ← HLS 청크
-! twitchcdn.net ← 이모트/아바타/박스아트 CDN
+! video-weaver.*.ttvnw.net ← HLS 청크
+! twitchcdn.net           ← 이모트/아바타/박스아트 CDN
+! static-cdn.jtvnw.net    ← 정적 이미지 CDN
+! live-video.net          ← 비디오 인프라 루트
+! ttvnw.net               ← 스트림 인프라 루트
 !
 ! ───── 치지직 (CHZZK) + 네이버 공용 추적/광고 ─────
 ! 광고/추적 도메인은 "네이버 광고" 섹션에서 일괄 차단
