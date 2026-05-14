@@ -1203,7 +1203,7 @@
 ||client-event-reporter.twitch.tv^
 ! player.stats.* 포함 모든 stats 하위 차단
 ||stats.live-video.net^
-! - edge.ads.* 포함 모든 ads 하위 차단
+! edge.ads.* 포함 모든 ads 하위 차단
 ||ads.twitch.tv^
 !
 ! Twitch 광고 메타데이터 (IMA SDK)
