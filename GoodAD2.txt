@@ -30,6 +30,7 @@
 !
 ! Title: Traffic Saver & Privacy Filter
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
+! Homepage: https://github.com/moamoa7/Block
 ! Version: 20260514-rev5
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
