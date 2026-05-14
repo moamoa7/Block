@@ -193,6 +193,10 @@
 ||bulldogcpi.com^
 ||ads.bulldogcpi.com^
 !
+! ───── Branch.io 딥링크/어트리뷰션 ─────
+! 모바일 앱 링크 사용 시 보류, PC 위주면 활성화 (추후 보류 가능)
+||app.link^
+!
 ! ───── 앱 분석 / 크래시 리포팅 / APM ─────
 ||sentry.io^
 ||sentry-cdn.com^
