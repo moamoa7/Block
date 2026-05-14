@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Homepage: https://github.com/moamoa7/Block
+Homepage: https://github.com/moamoa7/Block
 ! Version: 20260514
 !
 !
@@ -312,8 +312,7 @@ x.com/*/videoads/
 /third*cookie/*
 !
 !
-! - 사용자의 활동(클릭, 체류 시간, 페이지 뷰 등)을 추적하기 위해 백그라운드에서 몰래 보내는 '핑(Ping)' 신호를 차단하는 규칙
-*$ping,3p
+!
 !
 !
 ! - 해제
@@ -947,7 +946,7 @@ m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe536.com/) - 이미지 목록 사라짐
+! 펀비 (https://funbe634.com/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -1178,7 +1177,7 @@ mlbpark.donga.com##.naver_place
 !ruliweb.com##.adrr
 ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe536.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe634.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 ruliweb.com##[class*="ad_"][style]
 ! -  상단 메인 배너
@@ -2173,8 +2172,8 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !@@||img.asfsadfimiim.com/img/*$image
 !
 !
-! 툰코 (https://tkor114.com/)
-! 펀비 (https://funbe632.com/)
+! 툰코 (https://tkor116.com/)
+! 펀비 (https://funbe634.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -2184,7 +2183,7 @@ livegirl.biz##.my-3.px-sm-0.px-3
 !||funbe*.com/bann/*$image
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
 !#[class*="mobile-banner"]
-##img[id*="banner"]
+!##img[id*="banner"]
 ! - 토토보증업체 글자
 ![$domain=/^tkor\d+.com/]##.text-center.hidden-xs.navbar-nav.nav > li > [href="https://tkor020.com/토토보증업체"]
 ! - 이미지 복원
@@ -3275,6 +3274,7 @@ topjav.tv##.koukoku_11
 ! - - - 일부 텍스트 링크 지워지는거 해제
 jav.guru#@#[class*="textwidget" i]
 dramaday.me#@#[class*="textwidget" i]
+shittokuadult.net#@#[class*="textwidget" i]
 ! - - - https://kissjav.com/ 영상 차단하는거 해제 (https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 !kissjav.com#@##guard-overlay:remove()
 ! - 팝업 방지
@@ -3495,7 +3495,8 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! https://shittokuadult.net/
 ! - 배너
 !##[id*="Banner"]
-###onlineBanner
+!###onlineBanner
+##[id*="onlinebanner" i]
 !
 !
 ! JavPOP (http://javpop.com/)
@@ -4458,17 +4459,18 @@ pandalive.co.kr##.pointer-events-auto
 pandalive.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
-! 링크판 (https://linkpan71.com/)
+! 링크판 (https://linkpan72.com/)
 ! - 배너 공간
-##.ban1
+[$domain=/^linkpan\d+.com/]##.ban1
 ! - 팝업
 !###layer_pop
 ! - 게시물내 상단 배너 / 모바일 하단 배너
-##[href="https://alspo5.net"]
+!##[href="https://alspo5.net"]
+[$domain=/^linkpan\d+.com/]##.bb1
 ! - 먹튀검증글자 (PC)
-[$domain=/^linkpan\d+.com/]##li.off.menu-li:nth-of-type(6)
+![$domain=/^linkpan\d+.com/]##li.off.menu-li:nth-of-type(6)
 ! - 먹튀검증글자 (모바일)
-[$domain=/^linkpan\d+.com/]##li:nth-of-type(7)
+![$domain=/^linkpan\d+.com/]##li:nth-of-type(7)
 !
 !
 ! 야주소 (https://xn--9l4b15e2td.com/)
@@ -5325,7 +5327,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 야툰 (https://yatoon207.com/)
 ! - - - 마징가툰 (https://z70.mzgtoon.com/)
 ! - - - 애니조아 (https://www.anizoa.net/)
-! - - - 펀비 (https://funbe538.com/)
+! - - - 펀비 (https://funbe634.com/)
 ! - - - 애니어바웃 (https://aniabout.com/)
 ! - - - 해피툰 (https://happytoon01.com/)
 ! - - - 머니툰 (https://mtoon125.com/)
