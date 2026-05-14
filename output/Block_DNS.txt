@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-14 12:20:46 UTC
+! Generated: 2026-05-14 15:01:32 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,622
+! Block Rules: 85,625
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -2579,6 +2579,7 @@
 ||aboutdungeon.com^
 ||aboutpersonify.com^
 ||abouttill.com^
+||aboveaveragefinallycast.com^
 ||aboveaverageguidancecarter.com^
 ||aboveaverageheavenly.com^
 ||abovegumpushuffle.qpon^
@@ -65352,6 +65353,7 @@
 ||sourceactivelydared.com^
 ||sourceauditoriumassure.com^
 ||sourcebridgecelestialcomputing.net^
+||sourcecodeapp.com^
 ||sourcecodeinfo.com^
 ||sourceoak.com^
 ||sourcerealisejeopardy.com^
@@ -65780,6 +65782,7 @@
 ||spookyskate.com^
 ||spookysleet.com^
 ||spookystitch.com^
+||spoonballoon.com^
 ||spoonsilk.com^
 ||spoor-api.ft.com^
 ||spoorassoria.cyou^
