@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260515-rev1
+! Version: 20260515-rev2
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -21,19 +21,10 @@
 !
 ! ───── 구글 광고 / 분석 네트워크 ─────
 ||doubleclick.net^
-||ad.doubleclick.net^
-||stats.g.doubleclick.net^
 ||google-analytics.com^
-||ssl.google-analytics.com^
-||region1.google-analytics.com^
-||region1.analytics.google.com^
 ||analytics.google.com^
 ||googlesyndication.com^
-||pagead2.googlesyndication.com^
-||tpc.googlesyndication.com^
 ||googleadservices.com^
-||www.googleadservices.com^
-||partner.googleadservices.com^
 ||googletagmanager.com^
 ||googletagservices.com^
 ||adservice.google.com^
@@ -45,10 +36,7 @@
 ||crashlyticsreports-pa.googleapis.com^
 ||firebaselogging-pa.googleapis.com^
 ||app-measurement.com^
-||firebase-settings.crashlytics.com^
-||settings.crashlytics.com^
-||reports.crashlytics.com^
-||e.crashlytics.com^
+||crashlytics.com^
 ||firebaseinstallations.googleapis.com^
 ! - WIFI에서 디시인사이드 구동 안됨 → 차단 해제
 !||firebaseremoteconfig.googleapis.com^
@@ -89,7 +77,6 @@
 ||sharethrough.com^
 ||gumgum.com^
 ||sonobi.com^
-||go.sonobi.com^
 ||yieldlab.net^
 ||rfihub.com^
 ||mathtag.com^
@@ -141,20 +128,16 @@
 ||inmobi.com^
 ||mopub.com^
 ||unityads.unity3d.com^
-||config.unityads.unity3d.com^
 ||is.com^
 ||vungle.com^
 ||applovin.com^
-||a.applovin.com^
 ||ironsrc.com^
 ||ironsrc.mobi^
 ||tapjoy.com^
 ||chartboost.com^
-||live.chartboost.com^
 ||adcolony.com^
 ||startapp.com^
 ||flurry.com^
-||data.flurry.com^
 ||smaato.com^
 ||mobfox.com^
 ||appodeal.com^
@@ -163,13 +146,11 @@
 ||appsflyersdk.com^
 ||adjust.com^
 ||adjust.io^
-||app.adjust.io^
 ||branch.io^
 ||kochava.com^
 ||singular.net^
 ||airbridge.io^
 ||braze.com^
-||sdk.iad-01.braze.com^
 ||appboy.com^
 ||leanplum.com^
 ||swrve.com^
@@ -189,9 +170,7 @@
 ||domob.cn^
 ||greedygame.com^
 ||bugly.qq.com^
-||android.bugly.qq.com^
 ||bulldogcpi.com^
-||ads.bulldogcpi.com^
 !
 ! ───── Branch.io 딥링크/어트리뷰션 ─────
 ! 모바일 앱 링크 사용 시 보류, PC 위주면 활성화 (추후 보류 가능)
@@ -203,34 +182,21 @@
 ||bugsnag.com^
 ||fabric.io^
 ||nr-data.net^
-||bam.nr-data.net^
-||bam-cell.nr-data.net^
 ||newrelic.com^
-||js-agent.newrelic.com^
 ||loggly.com^
-||logs-01.loggly.com^
 ||datadoghq.com^
 ||browser-intake-datadoghq.com^
 ||amplitude.com^
-||api.amplitude.com^
-||api2.amplitude.com^
-||cdn.amplitude.com^
 ||mixpanel.com^
 ||mixpanel.org^
-||api.mixpanel.com^
-||api-js.mixpanel.com^
-||cdn.mxpnl.com^
+||mxpnl.com^
 ||mparticle.com^
 ||segment.io^
 ||segment.com^
 ||segment-cdn.com^
-||api.segment.io^
-||cdn.segment.com^
 ||heap.io^
 ||heapanalytics.com^
 ||fullstory.com^
-||rs.fullstory.com^
-||cdn.fullstory.com^
 ||hotjar.com^
 ||hotjar.io^
 ||logrocket.com^
@@ -244,7 +210,6 @@
 ||contentsquare.net^
 ||quantummetric.com^
 ||crazyegg.com^
-||script.crazyegg.com^
 ||statcounter.com^
 ||histats.com^
 ||clicktale.net^
@@ -270,31 +235,23 @@
 !
 ! ───── 클라우드플레어 RUM ─────
 ||cloudflareinsights.com^
-||static.cloudflareinsights.com^
 !
 ! ───── CRM / 인앱 마케팅 / 마케팅 자동화 ─────
 ||iterable.com^
 ||customer.io^
 ||intercom.io^
-||api-iam.intercom.io^
-||nexus-websocket-a.intercom.io^
-||nexus-websocket-b.intercom.io^
 ||drift.com^
 ||helpscout.net^
-||beacon-v2.helpscout.net^
 ||tawk.to^
 ||olark.com^
 ||userpilot.io^
 ||pendo.io^
-||data.pendo.io^
 ||appcues.com^
 ||kissmetrics.com^
 ||kissmetrics.io^
 ||optimizely.com^
-||logx.optimizely.com^
 ||vwo.com^
 ||visualwebsiteoptimizer.com^
-||dev.visualwebsiteoptimizer.com^
 ||hubspot.com^
 ||hs-scripts.com^
 ||hs-analytics.net^
@@ -311,8 +268,7 @@
 ||sailthru.com^
 ||emarsys.net^
 ||dotomi.com^
-||static.zdassets.com^
-||ekr.zdassets.com^
+||zdassets.com^
 ||appboycdn.com^
 !
 ! ───── A/B 테스트 / 개인화 ─────
@@ -332,14 +288,10 @@
 ||krxd.net^
 ||lytics.io^
 ||bluekai.com^
-||tags.bluekai.com^
 ||exelator.com^
-||loadus.exelator.com^
 ||rlcdn.com^
-||idsync.rlcdn.com^
 ||everesttech.net^
 ||eyeota.net^
-||ps.eyeota.net^
 ||adsymptotic.com^
 ||demdex.net^
 ! ※ 위 한 줄로 모든 서브도메인 자동 차단 (기록용)
@@ -352,10 +304,11 @@
 ! - samsung-com.tt.omtrdc.net (삼성 글로벌)
 ! - samsungelectronics.sc.omtrdc.net (삼성전자)
 ||2o7.net^
+! ※ 위 한 줄로 다음 서브도메인 자동 차단 (기록용)
+! - samsung-com.112.2o7.net (삼성)
+! - lenovo-na-en.122.2o7.net (레노버)
 ||match.adsrvr.org^
 ||eb2.3lift.com^
-||sync.search.spotxchange.com^
-||tags.rd.linksynergy.com^
 ||tagmanager.toast.com^
 ||adobedtm.com^
 !
@@ -438,15 +391,12 @@
 ||cs1.wpc.v0cdn.net^
 ! - Application Insights 데이터 수집 (구 도메인)
 ||dc.services.visualstudio.com^
-||dc.applicationinsights.azure.com^
 ||applicationinsights.azure.com^
 ||rt.services.visualstudio.com^
 ||applicationinsights.io^
-||breeze.applicationinsights.io^
 ||fp.msedge.net^
 ||monitor.azure.com^
-||analysis.appcenter.ms^
-||in.appcenter.ms^
+||appcenter.ms^
 !
 ! ⚠️ 보류 (특정 기능 영향 가능 — 미사용 시 주석 해제)
 !||edge.microsoft.com^                   ← Edge 브라우저
@@ -601,7 +551,6 @@
 ||log-ingestion.samsungacr.com^
 ||sa.samsungrs.com^
 ||err.samsung.com^
-||samsung-com.112.2o7.net^
 ! 갤럭시 폰/태블릿 추적
 ||analytics.samsungknox.com^
 ||knoxwsm.samsungknox.com^
@@ -679,7 +628,6 @@
 ||recom.zui.com^
 ||metrics.lenovo.com^
 ||metrics.lenovo.com.cn^
-||lenovo-na-en.122.2o7.net^
 ||tms.lenovomm.com^
 ||log.lenovomm.com^
 ||sentry.lenovomm.com^
@@ -912,7 +860,6 @@
 ||trace.qq.com^
 ||beacon.qq.com^
 ||btrace.qq.com^
-||otheve.beacon.qq.com^
 ||oth.eve.mdt.qq.com^
 ||ta.qq.com^
 ||sdkconfig.ad.qq.com^
@@ -935,43 +882,25 @@
 ||analytics.toutiao.com^
 ||ad.mob.toutiao.com^
 ||byteoversea.com^
-||log.byteoversea.com^
-||track.byteoversea.com^
-||metrics.byteoversea.com^
-||xlog.byteoversea.com^
 ||ibytedtos.com^
-||log.ibytedtos.com^
-||track.ibytedtos.com^
 ||volceapplog.com^
 ||mon.zijieapi.com^
 ||log.snssdk.com^
 ! Pangle (TikTok For Business 광고 네트워크)
 ! ⚠️ 모바일 게임 보상형 광고가 안 뜨면 풀어야 함
 ||pangle.io^
-||sdk.pangle.io^
 ||api.pangleglobal.com^
 ||pangleglobal.com^
 ||pangolin-sdk-toutiao.com^
-||sdk.pangolin-sdk-toutiao.com^
 ||pangolin-sdk-toutiao-b.com^
 ! 더우인 (중국판 TikTok) 관련
-||log.douyincdn.com^
-||analytics.douyincdn.com^
-||track.douyincdn.com^
-||log.muscdn.com^
-||track.muscdn.com^
+||douyincdn.com^
+||muscdn.com^
 !
 ! ───── Pinduoduo / Temu ─────
 ||yangkeduo.com^
-||log.yangkeduo.com^
-||monitor.yangkeduo.com^
-||track.yangkeduo.com^
 ||pddcdn.com^
-||log.pddcdn.com^
-||track.pddcdn.com^
-||stats.pddcdn.com^
 ||pddcloud.com^
-||log.pddcloud.com^
 !
 ! ───── 범용 추적 SDK (한국 앱에 자주 내장) ─────
 ! ⚠️ umeng 계열은 일부 한국 앱 크래시 가능성 — 문제 시 예외 처리
@@ -983,7 +912,6 @@
 ||cnzz.com^
 ||talkingdata.com^
 ||talkingdata.net^
-||sdk.open.talkingdata.com^
 ||tendcloud.com^
 ||growingio.com^
 ||growingio.net^
@@ -1022,7 +950,9 @@
 ||appmetrica.yandex.com^
 ||startup.mobile.yandex.net^
 !
-! ───── 스마트TV / 셋톱박스 ─────! ───── Netflix ─────
+! ───── 스마트TV / 셋톱박스 ─────
+!
+! ───── Netflix ─────
 ! 텔레메트리 / 로그 수집
 ||logs.netflix.com^
 ||customerevents.netflix.com^
@@ -1030,8 +960,7 @@
 ||ichnaea-web.netflix.com^
 ||presentationtracking.netflix.com^
 ||uitracking.netflix.com^
-! ⚠️ 환경별 검증 필요
-! - PC 브라우저는 OK, TV/모바일은 해제 권장 (문제시 해제 필요)
+! ⚠️ 환경별 검증 필요 - PC/모바일 모두 시청 정상 확인됨 (문제 시 해제)
 ||appboot.netflix.com^
 ! 추가 보류 후보
 !||push.prod.netflix.com^      ← 푸시 알림 사용 시 차단 금지
@@ -1189,12 +1118,13 @@
 ||ader.naver.com^
 ! 광고주 관리 (B2B)
 ||saedu.naver.com^
+!
 ! ───── 네이버 통합 로그/분석 ─────
 ||log.naver.com^
 ||nlog.naver.com^
 ||lcs.naver.com^
 ||cc.naver.com^
-!||siape.veta.naver.com^ -  (검색광고 측정/입찰, veta.naver.com 으로 차단됨)
+!||siape.veta.naver.com^   ← 검색광고 측정/입찰 (veta.naver.com 으로 차단됨)
 ||wcs.naver.net^
 ||pcs.naver.com^
 ||astralog.naver.com^
@@ -1239,8 +1169,6 @@
 ||display-ad.kakao.com^
 ||tracker.moment.kakao.com^
 ||mkamp.kakao.com^
-! kamp.kakao.com — 카카오톡 앱에서만 차단 (카카오TV 라이브 영향 회피)
-||kamp.kakao.com^$app=com.kakao.talk
 ! 카카오TV 일반 영상 (스크립트 차단 사용 시)
 ||vst.play.kakao.com^
 ||shortformstats.kakao.com^
@@ -1324,7 +1252,7 @@
 ||adimg.sooplive.co.kr^
 ||adimg.afreecatv.com^
 ! ⚠️ 절대 차단 금지
-! play.sooplive.com  ← 본 영상 송출
+! play.sooplive.com           ← 본 영상 송출
 ! livestream-manager.sooplive.com
 ! colony.sooplive.com         ← BJ 방송국(채널) 백엔드
 ! member.sooplive.com         ← 로그인/회원 정보
@@ -1458,9 +1386,9 @@
 ! 결제 보호 - js/m 핵심 도메인 통과
 ! q는 분석용이라 차단 안전
 ||q.stripe.com^
-!||js.stripe.com^        ← 보류 (tripe 결제 UI의 핵심)
-!||m.stripe.com^         ← 보류 (Radar 사기 탐지 보조)
-!||m.stripe.network^     ← 보류 (디바이스 핑거프린팅)
+!||js.stripe.com^         ← 보류 (Stripe 결제 UI의 핵심)
+!||m.stripe.com^          ← 보류 (Radar 사기 탐지)
+!||stripe.network^        ← 보류 (Radar 디바이스 핑거프린팅, m.stripe.network 포함)
 !
 ! ───── 기타 분석 ─────
 ||posthog.com^
@@ -1492,16 +1420,11 @@
 ! ||sync-v2.brave.com^
 !
 !
-! ───── SOOP 방송 로딩 지연 대응 ─────
+! ───── SOOP 방송 로딩 지연 대응 (보류) ─────
 ! ⚠️ 보류 — SOOP 방송 로딩 지연 보고 (디시 애드가드 갤러리)
 ! 일부 환경에서 exlogcollector.sooplive.com 차단 시 입장/버퍼링 지연 발생
 ! 본인은 현재 문제 없음. 동일 증상 추가 보고 시 주석 해제하여 적용
 !@@||exlogcollector.sooplive.com^
-!
-!
-! ⚠️ Stripe Radar 사기 탐지 (디바이스 핑거프린팅)
-! 결제 사용 시 간헐적 실패 가능 - 보류 권장
-!||stripe.network^
 !
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능 (참고용 주석)
