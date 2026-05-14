@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-Homepage: https://github.com/moamoa7/Block
+! Homepage: https://github.com/moamoa7/Block
 ! Version: 20260514
 !
 !
