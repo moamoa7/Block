@@ -1340,10 +1340,6 @@ $cookie=/^__hstc$/
 ||log-config.samsungdm.com^$empty
 ||lcprd1.samsungcloudsolution.net^$empty
 ||xiaomi.com/log^$empty
-||update.googleapis.com/service/update2^$empty
-||clients2.google.com/cr/report^$empty
-||clients4.google.com/chrome-sync^$empty
-||play.google.com/log^$empty
 ||edge.microsoft.com/edgeupdate/api^$empty
 ||update.vivaldi.com/update_check^$empty
 
@@ -1658,20 +1654,28 @@ $cookie=/^__hstc$/
 ! [15] 브라우저 텔레메트리 강화 (rev5 신규)
 ! ═══════════════════════════════════════════
 
-! ───── Firefox / Mozilla ─────
-||telemetry.mozilla.org^$empty
-||incoming.telemetry.mozilla.org^$empty
-||normandy.cdn.mozilla.net^$empty
-||shavar.services.mozilla.com^$empty
-||location.services.mozilla.com^$empty
+! ───── Chrome / Google ─────
+||clients2.google.com/cr/^$empty
+||update.googleapis.com/service/update2^$empty
+||play.google.com/log^$empty
+! - 동기화 사용 시 주석 유지
+!||clients4.google.com/chrome-sync^$empty
 
 ! ───── Microsoft Edge / Bing ─────
+||edge.microsoft.com/edgeupdate/api^$empty
 ||edge.microsoft.com/abuse^$empty
 ||c.bing.com^$image,redirect=1x1-transparent.gif
 ||www.bing.com/aclk^$empty
 ||www.bing.com/aclick^$empty
 ||r.bing.com^$empty
 ||arc.msn.com/v4/api/selection^$empty
+
+! ───── Firefox / Mozilla ─────
+||telemetry.mozilla.org^$empty
+||incoming.telemetry.mozilla.org^$empty
+||normandy.cdn.mozilla.net^$empty
+||shavar.services.mozilla.com^$empty
+||location.services.mozilla.com^$empty
 
 ! ───── Vivaldi / Opera ─────
 ||vivaldi.net/api/log^$empty
