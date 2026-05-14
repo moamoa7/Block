@@ -28,6 +28,10 @@
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
 ! Version: 20260512-rev4
 !
+! [본 파일에서 다루지 않는 항목]
+! - CMP / 쿠키 동의 배너: AdGuard Annoyances → Cookie Notices 구독으로 처리
+!   (consent.truste.com, cookielaw.org, cookiebot.com, trustarc.com 등)
+!
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
 
