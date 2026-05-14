@@ -31,7 +31,7 @@
 ! Title: Traffic Saver & Privacy Filter
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260514-rev5
+! Version: 20260515-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -1357,6 +1357,9 @@ $cookie=/^__hstc$/
 ||youtube.com/api/stats/$redirect-rule=nooptext
 ||youtube.com/youtubei/v1/log_event$redirect-rule=nooptext
 ||youtube.com/ptracking$redirect-rule=nooptext
+
+! ───── 스트리밍 빈 응답 처리 ─────
+||ljc.coupang.com^$redirect-rule=nooptext
 
 ! ───── 스트리밍 (경로 단위) ─────
 ||youtubei.googleapis.com/youtubei/v1/log_event^$empty
