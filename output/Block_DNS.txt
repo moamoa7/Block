@@ -1,6 +1,6 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-13 23:44:59 UTC
+! Generated: 2026-05-14 01:49:39 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
 ! Block Rules: 85,500
 !
