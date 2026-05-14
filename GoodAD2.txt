@@ -1025,6 +1025,9 @@ $cookie=/^__hstc$/
 ||*/prefetch?*$xmlhttprequest,third-party,empty,domain=doubleclick.net|googlesyndication.com
 ||*/preload?*$xmlhttprequest,third-party,empty,domain=doubleclick.net|googlesyndication.com
 
+! ───── 픽팍 (PikPak) 추적 ─────
+||o4504926511693824.ingest.sentry.io^$empty
+
 
 !///////////////////////////////////////////////
 
