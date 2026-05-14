@@ -1755,3 +1755,9 @@ $cookie=/^__hstc$/
 !$removeparam=tracking_id
 !$removeparam=tracking_source
 !$removeparam=campaign_id
+
+! ───── uBlock 사칭/비공식 사이트 ─────
+! 진짜 공식: https://github.com/gorhill/uBlock (Raymond Hill / gorhill)
+! 아래 두 도메인은 공식과 무관함
+||ublockdns.com^$doc
+||ublockorigin.com^$doc
