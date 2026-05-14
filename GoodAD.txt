@@ -1578,12 +1578,24 @@ goodgag.net##body:style(pointer-events: auto !important; overflow: auto !importa
 !
 !
 ! ZUM (https://zum.com/)
-! -  왼쪽 배너?
-##.ticker-banner
+! - 가운데 위치 빈 공간 (배너)
+!###big_banner
+##[id="big_banner" i]
+! -  왼쪽 배너 (증시)
+!##.ticker-banner
 ! - 오른쪽 배너
-##.shopping_links
+!##.shopping_links
+##[class*="shopping_links" i]
+! - 오른쪽 쿠팡 AD
+zum.com###gnb_link
 ! - 오른쪽 배너 밑 공간
-###right_top
+!###right_top
+zum.com##[id="right_top" i]
+! - 쇼핑
+zum.com##[class*="coupang-shopping" i]
+! - 오른쪽 즐겨찾기
+!##.favorite_site
+##[class*="favorite_site" i]
 ! - 검색 하단 광고
 ##[class*="PowerLinkContainer"]
 ##[class*="PowerShoppingList"]
@@ -3792,6 +3804,8 @@ jamakyadong.me##[class*="g-col"]
 ##[class*="popup-pc" i]
 ! - - - 모바일
 ##.w-80.relative
+! - 상단 빈공간
+##.w-full.mt-1
 !
 !
 ! - - - ! 빨간비디오 (https://redvi80.com/)
@@ -3881,6 +3895,10 @@ jamakyadong.me##[class*="g-col"]
 !kilho.net#@#[class*="border"]:has(> a[href][target*="_blank"])
 ! - - - https://www.cnine.kr/ - 일부 박스내용 사라짐
 cnine.kr#@#[class*="border"]:has(> a[target*="_blank"])
+! - 상단 빈 공간 (PC/모바일 공통)
+!##.justify-start.flex-wrap.flex
+!  - 각 주제별 상단 빈 공간 (PC/모바일 공통)
+##.items-center.justify-start.flex-wrap.flex
 ! - 업소정보 글자
 ![$domain=/^yagong\d+.com/]##div.text-white.text-sm.mx-auto.py-3.px-2.hover\:text-red-600:nth-of-type(2)
 !![$domain=/^yagong\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(1)
@@ -5189,7 +5207,6 @@ _ads_
 
 
 
-
 ==================================
 
 
@@ -5225,7 +5242,10 @@ manhwabang.org##a[target*="target"] img
 ! - 톡딜 (https://store.kakao.com/)
 ! - 중고나라 (https://web.joongna.com/)
 ! - 엑스툰 (https://t2.xtoon365.com/)
-@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|shoppinglive.naver.com|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com
+! - 아이허브 (https://kr.iherb.com/)
+! - ZUM (https://zum.com/)
+! - GS샵 (https://www.gsshop.com/)
+@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|shoppinglive.naver.com|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com
 
 
 
