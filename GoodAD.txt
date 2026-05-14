@@ -3,6 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
+Homepage: https://github.com/moamoa7/Block
 ! Version: 20260514
 !
 !
@@ -417,6 +418,8 @@ gemini.google.com#@#[class*="google" i]
 ##[data-google-av-ad-container]
 ! 구글 광고 차단 (추가)
 /adsense/*
+! - 문단 태그 존재 여부(:not(:has(p)))만 체크해서 본문이 날아가는 걸 방지하는 절충안
+!##[class*="adsense" i]:not(:has(p))
 ##[class*="adsense" i]
 ##[id*="adsense" i]
 !
@@ -585,6 +588,7 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 ! - 배너 빈공간
 ! - - - https://chzzk.naver.com/ - 영상 내 보이지 않는 부분 (무엇인지는 모름)
 ##[class*="advertisement" i]
+
 !
 !
 ! ! 네이버 웹툰 (https://comic.naver.com/index)
