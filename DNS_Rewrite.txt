@@ -1284,6 +1284,8 @@
 ||exlogcollector.sooplive.com^
 ||eventapi.sooplive.com^
 ||deapi.sooplive.com^
+! - HaGeZi Ultimate 미차단이나 본인 환경 재생 정상 확인됨
+||st.sooplive.com^
 ! 숲 광고 서버
 ||adv.sooplive.com^
 ||ads.sooplive.com^
@@ -1292,10 +1294,6 @@
 ||adv.afreecatv.com^
 ||adimg.sooplive.co.kr^
 ||adimg.afreecatv.com^
-! ───── 숲 (SOOP) 보류 도메인 ─────
-! st.sooplive.com - 용도 불명확 (stat/stream/station 가능)
-! HaGeZi Ultimate에서도 차단 안 함 - 신중 권장
-!||st.sooplive.com^
 ! ⚠️ 절대 차단 금지
 ! play.sooplive.com  ← 본 영상 송출
 ! livestream-manager.sooplive.com
