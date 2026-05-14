@@ -912,11 +912,9 @@ $cookie=/^__hstc$/
 ! ───── Ping/Beacon 추적 (전체 차단) ─────
 *$ping
 
-! ───── WebSocket 실시간 추적 ─────
-||*.intercom.io^$websocket
-||nexus-websocket-a.intercom.io^$websocket
-||nexus-websocket-b.intercom.io^$websocket
-||nexus-long-poller.intercom.io^$websocket
+! ───── WebSocket 실시간 추적 (알려진 서비스) ─────
+! 라이브챗 / 세션 리플레이
+||intercom.io^$websocket
 ||drift.com^$websocket
 ||driftt.com^$websocket
 ||tawk.to^$websocket
@@ -929,10 +927,40 @@ $cookie=/^__hstc$/
 ||mouseflow.com^$websocket
 ||smartlook.com^$websocket
 ||clarity.ms^$websocket
+
+! 광고 네트워크
 ||doubleclick.net^$websocket
 ||adnxs.com^$websocket
 ||rubiconproject.com^$websocket
 ||pubmatic.com^$websocket
+
+! 제품 분석 / CDP
+||segment.com^$websocket
+||segment.io^$websocket
+||heap.io^$websocket
+||heapanalytics.com^$websocket
+||amplitude.com^$websocket
+||mixpanel.com^$websocket
+
+! 사용자 온보딩 / 가이드 도구
+||pendo.io^$websocket
+||walkme.com^$websocket
+||appcues.com^$websocket
+||userpilot.io^$websocket
+||userflow.com^$websocket
+
+! ───── WebSocket 추적 (서브도메인 키워드 패턴) ─────
+||tracker.$websocket
+||tracking.$websocket
+||analytics.$websocket
+||telemetry.$websocket
+||metrics.$websocket
+||stats.$websocket
+||log.$websocket
+||logger.$websocket
+||collect.$websocket
+||collector.$websocket
+||beacon.$websocket
 
 ! ───── 폰트 추적 ─────
 !||fonts.googleapis.com^$font,third-party
