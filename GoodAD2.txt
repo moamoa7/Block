@@ -1197,31 +1197,39 @@ $cookie=/^__hstc$/
 ! ───────────────────────────────────────────
 ! 숲 (SOOP / 구 아프리카TV)
 ! ───────────────────────────────────────────
+! ── 로그/통계 경로 ──
 ||stbbs.sooplive.com/api/log^$empty
 ||static.file.sooplive.com/log^$empty
 ||log.sooplive.com/api^$empty
 ||sooplive.com/api/stat^$empty
 ||st.sooplive.com/api/da_*^$xmlhttprequest,empty
+!
+! ── 광고 ──
 ||*sooplive*/vast^$xmlhttprequest,redirect=noopvast-2.0
 ||static.sooplive.com/asset/service/da/AdParameter.js^$script,redirect=noopjs
 ||sooplive.com/api/v1/ad^$xmlhttprequest,empty
+||ads.sooplive.com^$removeheader=set-cookie
+!
+! ── 추적 파라미터 ──
 ||sooplive.com^$removeparam=hash
 ||sooplive.com^$removeparam=stationNo
 ||sooplive.com^$removeparam=trackingNo
 ||sooplive.com^$removeparam=tracking
 ||sooplive.com^$removeparam=ref
 ||sooplive.com^$removeparam=src
+!
+! ── 추적 쿠키 ──
 ||sooplive.com^$cookie=_au
 ||sooplive.com^$cookie=_ausa
 ||sooplive.com^$cookie=_au3rd
 ||sooplive.com^$cookie=_aupath
 ||sooplive.com^$cookie=_aupcid
-||sooplive.com^$cookie=AbroadChk
-||sooplive.com^$cookie=AbroadVod
-||sooplive.com^$removeheader=set-cookie,domain=ads.sooplive.com
-||live.sooplive.com/api/myplus/personalBlockController.php^$xmlhttprequest
-||static.sooplive.com/asset/service/da/AdParameter.js^$script,redirect=noopjs
-||res.sooplive.com/script/player/service-maintenance.js^$script,redirect=noopjs
+!
+! ⚠️ 보류 — 차단 시 부작용 가능, 본인 환경 무관 시 유지
+||sooplive.com^$cookie=AbroadChk       ← 해외 접속 체크
+||sooplive.com^$cookie=AbroadVod       ← 해외 VOD 체크
+||live.sooplive.com/api/myplus/personalBlockController.php^$xmlhttprequest  ← 사용자 차단 관리
+||res.sooplive.com/script/player/service-maintenance.js^$script,redirect=noopjs  ← 점검 안내
 
 ! ───────────────────────────────────────────
 ! Kick (킥)
