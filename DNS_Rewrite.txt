@@ -338,6 +338,11 @@
 ||ps.eyeota.net^
 ||adsymptotic.com^
 ||demdex.net^
+! ※ 위 한 줄로 모든 서브도메인 자동 차단 (기록용)
+! - applebis.demdex.net          (Apple)
+! - samsungelectronics.demdex.net (삼성전자)
+! - samsung.demdex.net           (삼성 글로벌)
+! - disney.demdex.net            (디즈니)
 ||omtrdc.net^
 ! 참고: 아래는 루트 차단으로 자동 포함됨 (기록용)
 ! - samsung-com.tt.omtrdc.net (삼성 글로벌)
@@ -495,7 +500,6 @@
 ||iadsdk.apple.com^
 ||xp.apple.com^
 ||supportmetrics.apple.com^
-||applebis.demdex.net^
 ||books-analytics-events.apple.com^
 ||weather-analytics-events.apple.com^
 ||notes-analytics-events.apple.com^
@@ -595,7 +599,6 @@
 ||err.samsung.com^
 ||samsung-com.112.2o7.net^
 ! 갤럭시 폰/태블릿 추적
-||samsungelectronics.demdex.net^
 ||analytics.samsungknox.com^
 ||knoxwsm.samsungknox.com^
 ||konai.samsungknox.com^
@@ -611,7 +614,6 @@
 !||knox-mdm.samsungknox.com^
 !||eu-snip.samsungknox.com^
 !||us-snip.samsungknox.com^
-!||samsung.demdex.net^
 !
 ! ═══════════════════════════════════════════
 ! ❌ 차단 금지 — 갤럭시 시스템 핵심 인프라
@@ -1321,7 +1323,6 @@
 !
 ! ───── 스트리밍/OTT 추가 ─────
 ||pixel.spotify.com^
-||disney.demdex.net^
 ||disneyplus.bn5x.net^
 ||hbomax-analytics.warnermediacdn.com^
 ||conviva.com^
