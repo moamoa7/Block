@@ -1360,6 +1360,9 @@
 ||tg.widerplanet.com^
 ||teralog.techhub.co.kr^
 ||pincrux.com^
+! ⚠️ 앱테크 적립 서비스 사용 시 예외
+@@||nsl.pincrux.com^
+@@||api.pincrux.com^
 ||interworksmedia.co.kr^
 ||innorame.com^
 !
