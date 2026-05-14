@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260514-rev1
+! Version: 20260514-rev2
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -760,6 +760,20 @@
 ||api.msn.com^
 ||arc.msn.com^
 ||config.edge.skype.com^
+!
+! ───── 구글 Safe Browsing (오탐 다수, 사용 안 함) ─────
+||safebrowsing.googleapis.com^
+||safebrowsing.google.com^
+||sb-ssl.google.com^
+||safebrowsing-cache.google.com^
+! ------------------------------
+! 대안 차단 리스트 (구독 권장)
+! - HaGeZi Threat Intelligence Feeds
+!   https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.txt
+! - URLhaus malware
+!   https://urlhaus.abuse.ch/downloads/hostfile/
+! - Phishing Army
+!   https://phishing.army/download/phishing_army_blocklist.txt
 !
 ! ───── NVIDIA / 기타 제조사 ─────
 ||telemetry.nvidia.com^
