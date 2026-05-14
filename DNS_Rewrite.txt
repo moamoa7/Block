@@ -339,12 +339,16 @@
 ||adsymptotic.com^
 ||demdex.net^
 ||omtrdc.net^
+! 참고: 아래는 루트 차단으로 자동 포함됨 (기록용)
+! - samsung-com.tt.omtrdc.net (삼성 글로벌)
+! - samsungelectronics.sc.omtrdc.net (삼성전자)
 ||2o7.net^
 ||match.adsrvr.org^
 ||eb2.3lift.com^
 ||sync.search.spotxchange.com^
 ||tags.rd.linksynergy.com^
 ||tagmanager.toast.com^
+||adobedtm.com^
 !
 ! ───── CDP / 식별자 그래프 ─────
 ||liadm.com^
@@ -591,7 +595,6 @@
 ||err.samsung.com^
 ||samsung-com.112.2o7.net^
 ! 갤럭시 폰/태블릿 추적
-||samsung-com.tt.omtrdc.net^
 ||samsungelectronics.demdex.net^
 ||analytics.samsungknox.com^
 ||knoxwsm.samsungknox.com^
@@ -608,7 +611,6 @@
 !||knox-mdm.samsungknox.com^
 !||eu-snip.samsungknox.com^
 !||us-snip.samsungknox.com^
-!||samsungelectronics.sc.omtrdc.net^
 !||samsung.demdex.net^
 !
 ! ═══════════════════════════════════════════
