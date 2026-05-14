@@ -1718,6 +1718,12 @@ $cookie=/^__hstc$/
 ||updates.opera.com/log^$empty
 ||sitecheck2.opera.com^$empty
 
+! ───── JW Player 광고만 차단 (플레이어 자체는 유지) ─────
+||jwplayer.com/*/advertising^
+||jwpcdn.com/*/vast^$xmlhttprequest,redirect=noopvast-2.0
+||jwplayer.com/*/ads^
+||jwpcdn.com/*/ads^$script,redirect=noopjs
+
 
 ! ═══════════════════════════════════════════
 ! [16] 선택 적용 (주의: 결제·로그인·기능 영향 가능)
