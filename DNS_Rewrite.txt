@@ -1241,7 +1241,6 @@
 ! ───── Twitch ─────
 ||spade.twitch.tv^
 ||countess.twitch.tv^
-||twitchcdn.net^
 ||analytics.twitch.tv^
 ||client-event-reporter.twitch.tv^
 ! Twitch 광고 메타데이터 (IMA SDK)
@@ -1251,6 +1250,7 @@
 ! usher.ttvnw.net  ← 본 영상 스트림
 ! video-edge-*.ttvnw.net  ← 영상 엣지 서버
 ! video-weaver.*.ttvnw.net  ← HLS 청크
+! twitchcdn.net ← 이모트/아바타/박스아트 CDN
 !
 ! ───── 치지직 (CHZZK) + 네이버 공용 추적/광고 ─────
 ! 광고/추적 도메인은 "네이버 광고" 섹션에서 일괄 차단
