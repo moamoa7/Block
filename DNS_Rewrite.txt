@@ -1022,12 +1022,27 @@
 ||appmetrica.yandex.com^
 ||startup.mobile.yandex.net^
 !
-! ───── 스마트TV / 셋톱박스 ─────
-! Netflix
+! ───── 스마트TV / 셋톱박스 ─────! ───── Netflix ─────
+! 텔레메트리 / 로그 수집
 ||logs.netflix.com^
 ||customerevents.netflix.com^
-||appboot.netflix.com^
 ||ichnaea.netflix.com^
+||ichnaea-web.netflix.com^
+||presentationtracking.netflix.com^
+||uitracking.netflix.com^
+! ⚠️ 환경별 검증 필요
+! - PC 브라우저는 OK, TV/모바일은 해제 권장 (문제시 해제 필요)
+||appboot.netflix.com^
+! 추가 보류 후보
+!||push.prod.netflix.com^      ← 푸시 알림 사용 시 차단 금지
+! ❌ 차단 금지 (참고)
+! nflxvideo.net          - 영상 스트리밍 CDN
+! nflximg.com, nflximg.net - 이미지 CDN (썸네일/포스터)
+! nflxext.com, nflxso.net - 정적 자원
+! nrdp.nccp.netflix.com   - 디바이스 인증
+! secure.netflix.com      - 결제/계정
+! www.netflix.com         - 메인 사이트
+!
 ! LG TV
 ||ad.lgsmartad.com^
 ||lgad.line.me^
