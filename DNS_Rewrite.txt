@@ -77,8 +77,6 @@
 ||scorecardresearch.com^
 ||quantserve.com^
 ||quantcount.com^
-||taboola.com^
-||outbrain.com^
 ||adsrvr.org^
 ||rubiconproject.com^
 ||pubmatic.com^
@@ -133,7 +131,6 @@
 ||tribalfusion.com^
 ||revcontent.com^
 ||zergnet.com^
-||mgid.com^
 ||content-recommendation.net^
 !
 ! ───── 광고 영상 SDK ─────
@@ -1168,7 +1165,7 @@
 ||nlog.naver.com^
 ||lcs.naver.com^
 ||cc.naver.com^
-||siape.veta.naver.com^
+!||siape.veta.naver.com^ -  (검색광고 측정/입찰, veta.naver.com 으로 차단됨)
 ||wcs.naver.net^
 ||pcs.naver.com^
 ||astralog.naver.com^
@@ -1177,7 +1174,6 @@
 !||nstat.naver.com^
 !||stat.naver.com^
 !||np.naver.com^
-!||veta.naver.com^                    ← 루트 차단 (다른 광고 서브도메인도 잡힘)
 !
 ! ───── NELO 에러·이벤트 수집 ─────
 ||nelo2-col.navercorp.com^
@@ -1200,8 +1196,11 @@
 ! ||update.whale.naver.com               ← 웨일 업데이트
 ! ||sync.whale.naver.com                 ← 웨일 동기화
 !
-! 데이블 광고 추천 위젯 (네이버 사용)
+! ───── 콘텐츠 추천 위젯 (Outbrain/Taboola/Dable 등) ─────
+||outbrain.com^
+||taboola.com^
 ||dable.io^
+||mgid.com^
 !
 ! ───── 카카오 광고 플랫폼 (Adfit / Moment) ─────
 ||adfit.kakao.com^
