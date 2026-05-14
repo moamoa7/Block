@@ -1084,6 +1084,8 @@
 ||click.coupang.com^
 ||event.coupang.com^
 ||analyticslog.coupang.com^
+! - ljc.coupang.com^ 이상 생기면 차단 해제할 것
+||ljc.coupang.com^
 ||stat.coupangeats.com^
 ||click.linkprice.com^
 ||logger.linkprice.com^
