@@ -909,11 +909,8 @@ $cookie=/^__hstc$/
 ||*/impression$xmlhttprequest,third-party,empty
 ||*/impressions$xmlhttprequest,third-party,empty
 
-! ───── sendBeacon API ─────
+! ───── Ping/Beacon 추적 (전체 차단) ─────
 *$ping
-||*/beacon$ping
-||*/collect$ping
-||*/track$ping
 
 ! ───── WebSocket 실시간 추적 ─────
 ||*.intercom.io^$websocket
