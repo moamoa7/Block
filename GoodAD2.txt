@@ -1197,36 +1197,28 @@ $cookie=/^__hstc$/
 ! ───────────────────────────────────────────
 ! 숲 (SOOP / 구 아프리카TV)
 ! ───────────────────────────────────────────
-||stbbs.afreecatv.com/api/log^$empty
+||stbbs.sooplive.com/api/log^$empty
 ||static.file.sooplive.com/log^$empty
 ||log.sooplive.com/api^$empty
-||afreecatv.com/api/stat^$empty
 ||sooplive.com/api/stat^$empty
 ||st.sooplive.com/api/da_*^$xmlhttprequest,empty
 ||*sooplive*/vast^$xmlhttprequest,redirect=noopvast-2.0
-||*afreecatv*/vast^$xmlhttprequest,redirect=noopvast-2.0
-||afreecatv.com/api/v1/ad^$xmlhttprequest,empty
+||static.sooplive.com/asset/service/da/AdParameter.js^$script,redirect=noopjs
 ||sooplive.com/api/v1/ad^$xmlhttprequest,empty
-||sooplive.com/api/v1/ad^$xmlhttprequest,empty
-||afreecatv.com^$removeparam=hash
 ||sooplive.com^$removeparam=hash
-||afreecatv.com^$removeparam=stationNo
+||sooplive.com^$removeparam=stationNo
 ||sooplive.com^$removeparam=trackingNo
-||afreecatv.com^$removeparam=tracking
 ||sooplive.com^$removeparam=tracking
-||afreecatv.com^$removeparam=ref
 ||sooplive.com^$removeparam=ref
-||afreecatv.com^$removeparam=src
 ||sooplive.com^$removeparam=src
-||afreecatv.com^$cookie=_au
-||afreecatv.com^$cookie=_aupath
-||afreecatv.com^$cookie=_aupcid
 ||sooplive.com^$cookie=_au
+||sooplive.com^$cookie=_ausa
+||sooplive.com^$cookie=_au3rd
 ||sooplive.com^$cookie=_aupath
 ||sooplive.com^$cookie=_aupcid
+||sooplive.com^$cookie=AbroadChk
+||sooplive.com^$cookie=AbroadVod
 ||sooplive.com^$removeheader=set-cookie,domain=ads.sooplive.com
-||afreecatv.com^$removeheader=set-cookie,domain=ads.afreecatv.com
-||sooplive.com^$removeheader=set-cookie,domain=adv.sooplive.com
 
 ! ───────────────────────────────────────────
 ! Kick (킥)
