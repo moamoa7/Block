@@ -1253,8 +1253,8 @@
 ||exlogcollector.sooplive.com^
 ||eventapi.sooplive.com^
 ||deapi.sooplive.com^
-! - HaGeZi Ultimate 미차단이나 본인 환경 재생 정상 확인됨
-||st.sooplive.com^
+! 차단시 별풍선 선물 못함
+!||st.sooplive.com^
 ! 숲 광고 서버
 ||adv.sooplive.com^
 ||ads.sooplive.com^
