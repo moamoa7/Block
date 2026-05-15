@@ -560,7 +560,7 @@
 ||konai.samsungknox.com^
 ||bcs.samsungdm.com^
 ||gxd.samsung.com^
-! ───── 삼성 텔레메트리/광고
+! 삼성 텔레메트리/광고
 ||ers.samsungcloud.com^
 ||samsungrs.com^
 ||samsungdm.com^
