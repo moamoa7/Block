@@ -1383,6 +1383,7 @@
 ||contentsfeed.com^
 ||innity.net^
 ||wtg-ads.com^
+||adpnut.com^
 ! ⚠️ 앱테크 적립 서비스 사용 시 예외
 @@||nsl.pincrux.com^
 @@||api.pincrux.com^
