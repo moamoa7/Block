@@ -2290,10 +2290,13 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 !
 ! 뉴토끼 (https://sbxh1.com/)
+! - 상단 배너 및 개별 목록 배너 전체
+##[aria-label='배너 광고']
 ! - 상단 배너
 ! - - - 배너가 있는 이미지
-||i.toonflix.app/board_uploads*
-[$domain=/^sbxh/]##.banner-row
+||i.toonflix.app/board_uploads/*
+! - - - 배너가 없어 사라지지 않는 배너 공간 -  kr: List-KR Classic 과 규칙이 거의 동일해서 주석처리
+![$domain=/^sbxh/]##.banner-row
 
 !
 !
@@ -3829,7 +3832,7 @@ wavve.com#@#[id*="main-banner" i]
 !
 !
 ! 밤포탈 (https://bampt3.com/)
-! - 팝업 뿌연거 해결  (PC)
+! - 팝업 및 뿌연거 해결  (PC)
 ! - - - 뉴토끼 (https://sbxh1.com/)
 [$domain=/^bampt/],[$domain=/^sbxh/]##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
@@ -5198,9 +5201,6 @@ _ads_
 !
 !
 /events?
-!
-!
-##[aria-label='배너 광고']
 !
 !
 ##[data-ad-client]
