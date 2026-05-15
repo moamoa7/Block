@@ -1258,7 +1258,8 @@
 ! 숲 광고 서버
 ||adv.sooplive.com^
 ||ads.sooplive.com^
-||adballoon.sooplive.com^
+! 애드벌룬 안나오는거 해결 (다른 리스트에서 차단하고 있어서 화이트리스트 처리)
+@@||adballoon.sooplive.com^
 ||adv.sooplive.co.kr^
 ||adv.afreecatv.com^
 ||adimg.sooplive.co.kr^
