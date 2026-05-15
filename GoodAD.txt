@@ -347,6 +347,16 @@ x.com/*/videoads/
 ##[class*="grecaptcha-badge" i]
 !
 !
+! 카카오TV (https://tv.kakao.com/)
+! - 광고 차단 해제
+tv.kakao.com#@#[id*="ads" i]
+tv.kakao.com#@#[class^="ads" i]
+tv.kakao.com#@#[class^="ad" i]
+! - 카카오TV 광고 차단 우회
+! - - - ||vst.play.kakao.com^ 차단해도 가능
+!tv.kakao.com#%#//scriptlet('set-constant', 'kakao.tv.adManager', 'noopFunc')
+!
+!
 ! 카카오톡 (앱)
 ! - 숏폼 안보이게 (필요시) - 카카오tv 재생 막힘
 !||kamp.kakao.com^ - 앱에서만 막는 방법으로 하면 카카오TV 재생 가능
@@ -355,9 +365,6 @@ x.com/*/videoads/
 !  -- -||thumb.kakaocdn.net^$app=com.kakao.talk   ← 빼는 게 안전
 ! - 숏폼 안보이게 (필요시) - 아래 규칙은 안해도 됨
 !||shortformstats.kakao.com^$app=com.kakao.talk
-! - 카카오TV 광고 차단 우회
-! - - - ||vst.play.kakao.com^ 차단해도 가능
-tv.kakao.com#%#//scriptlet('set-constant', 'kakao.tv.adManager', 'noopFunc')
 !
 !
 !
@@ -381,8 +388,6 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - 예외
 ! - - - https://gemini.google.com/ - 본문 안보임
 gemini.google.com#@#[class*="google" i]
-
-
 ##[id*="google" i]
 ##[id*="adsbygoogle" i]
 ##[data-google-av-ad-container]
@@ -392,8 +397,6 @@ gemini.google.com#@#[class*="google" i]
 !##[class*="adsense" i]:not(:has(p))
 ##[class*="adsense" i]
 ##[id*="adsense" i]
-!
-!
 !
 !
 !
@@ -5278,7 +5281,8 @@ manhwabang.org##a[target*="target"] img
 ! - 숲 (https://www.sooplive.com/)
 ! - 시네티 (https://cinety.sooplive.com/)
 ! - 숲토어 (https://sooptore.sooplive.com/)
-@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|shoppinglive.naver.com|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com|sooplive.com|cinety.sooplive.com|sooptore.sooplive.com
+! - 카카오TV (https://tv.kakao.com/)
+@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|shoppinglive.naver.com|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com|sooplive.com|cinety.sooplive.com|sooptore.sooplive.com|tv.kakao.com
 
 
 
@@ -5434,3 +5438,4 @@ zod.kr##a[target*="blank"] img
 
 
 =================================================
+
