@@ -5180,7 +5180,8 @@ _ads_
 ###player-container > div:nth-child(2)
 !
 !
-##[class*="player-wrap"]
+! - supjav.com - 영상 안나옴
+!##[class*="player-wrap"]
 !
 !
 ##[class*="player-container"]
