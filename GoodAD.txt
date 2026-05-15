@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 Homepage: https://github.com/moamoa7/Block
-! Version: 20260514
+! Version: 20260515
 !
 !
 !
@@ -375,7 +375,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-slot]
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
 ! YousLis 무력화
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
-||*adsbygoogle.js
+*adsbygoogle.js*
 !##[class*="google-ad"] - ##[class*="google"] 로 대체
 ##[class*="google" i]
 ! - 예외
@@ -392,9 +392,6 @@ gemini.google.com#@#[class*="google" i]
 !##[class*="adsense" i]:not(:has(p))
 ##[class*="adsense" i]
 ##[id*="adsense" i]
-!
-! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
-www.google.com##html:style(overflow: visible !important)
 !
 !
 !
@@ -588,8 +585,6 @@ sooplive.com###soopi_wrap
 sooplive.com##.store_box.box
 !sooplive.com##.floating_btns
 ##[class*="floating" i]
-! - 예외 - https://06.avsee.ru/ - 영상내 틀 깨짐으로 재생불가
-avsee.ru#@#[class*="floating" i]
 ! - 구독 플러스
 sooplive.com##.subs_plus.seasonal_area
 ! - 구독 플러스 안내 메시지
@@ -2276,10 +2271,10 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ![$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
 !
 !
-! 뉴토끼/마나토끼/북토끼 (https://t.me/s/newtoki5) (https://newtoki468.com/) (https://manatoki468.net/) (https://booktoki468.com/)
-! - 로고 복원
-!@@||newtoki*.com/img/logo-full_newtoki.png
-!@@||booktoki*.com/img/logo-full_book.png
+! 뉴토끼 (https://sbxh1.com/)
+! - 상단 배너
+[$domain=/^sbxh/]##.banner-row
+
 !
 !
 ! 무료툰 (https://foc94.com/)
@@ -2866,6 +2861,8 @@ avsee.ru#@#.tabs
 !avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - https://j91.asia/
 /^https:\/\/[0-9a-z]{6,12}\.in(?:\/[a-z]{2,10}){1,3}$/$script,third-party,match-case
+! - 영상 재생 방지
+avsee.ru#@#[class*="floating" i]
 !
 !
 ! supjav (https://supjav.com/)
@@ -3680,7 +3677,7 @@ jamakyadong.me##[class*="g-col"]
 !##[id*="main-banner" i]
 ! -  예외
 ! - - - Wavve (https://www.wavve.com/) - 배너 사라짐
-!wavve.com#@#[id*="main-banner" i]
+wavve.com#@#[id*="main-banner" i]
 !
 !
 ! 야동허브 (https://ydhub11.net/)
@@ -3808,10 +3805,10 @@ jamakyadong.me##[class*="g-col"]
 !
 ! 밤포탈 (https://bampt3.com/)
 ! - 팝업 뿌연거 해결  (PC)
-! - - - 뉴토끼 (https://ntk01.com/)
-[$domain=/^bampt/],[$domain=/^ntk/]##[class*="popup-overlay" i]
+! - - - 뉴토끼 (https://sbxh1.com/)
+[$domain=/^bampt/],[$domain=/^sbxh/]##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
-[$domain=/^bampt/],[$domain=/^ntk/]##[id="popupoverlay" i]
+[$domain=/^bampt/],[$domain=/^sbxh/]##[id="popupoverlay" i]
 ! - 상단 배너
 ##[class*="premium-banner" i]
 ##[class*="small-banner" i]
@@ -4713,6 +4710,12 @@ mypikpak.com##.coupon-top-banner
 mypikpak.com##.operation-container
 ! - 확장프로그램 설치 안내 팝업
 mypikpak.com##div.el-overlay:nth-of-type(23)
+! - 사용자의 활동을 추적하고 데이터를 수집하는 분석 및 트래킹 도구들을 차단
+! - - - PikPak 사이트를 이용할 때 내 클릭 기록, 마우스 움직임, 이용 습관 등이 서버로 전송되는 것을 원천 봉쇄
+||mypikpak.com/scripts/track.js
+||mypikpak.com/scripts/clarity.js
+||mypikpak.com/scripts/adjust.min.js
+mypikpak.com##+js(set-cookie, allow_analysis, false)
 !
 !
 ! 제타 (https://zeta-ai.io)
@@ -5047,6 +5050,9 @@ ad-script.
 /adbanner
 !
 !
+/ads
+!
+!
 /ads-
 !
 !
@@ -5063,6 +5069,15 @@ _ads_
 !
 !
 -ads.$badfilter
+!
+!
+*ads.js
+!
+!
+/banner-ad/*
+!
+!
+/videoad/*
 !
 !
 !
@@ -5156,6 +5171,125 @@ _ads_
 ##[href*="/ads/" i]
 !
 !
+/_xa/ads
+!
+!
+/events?
+!
+!
+###player-container > div:nth-child(2)
+!
+!
+##[class*="player-wrap"]
+!
+!
+##[class*="player-container"]
+!
+!
+##[class*="video-ads"]
+!
+!
+##[class*="promo-video"]
+!
+!
+##[class*="spotlight"]
+!
+!
+##[class*="sticky-video"]
+!
+!
+##[class*="fixed-player"]
+!
+!
+##[class*="video-overlay"]
+!
+!
+##[id*="player-layer"]
+!
+!
+##[class*="pop-up"]
+!
+!
+! - trand.co.kr - 팝업시 창 안보임 및 새창 띄우는 아이콘 사라짐
+!##[class*="modal-content"]
+!##[class*="modal"]
+!
+!
+##[class*="video-player-target"]
+!
+!
+##[id*="player-wrapper"] 
+!
+!
+##[class*="video-overlay-anchor"]
+!
+!
+##[class*="vjs-control-bar"]
+!
+!
+##[class*="outstream"] 
+
+##[class*="side-scroll"]
+
+##[class*="fly-out"]
+
+##[class*="bottom-anchor"]
+
+##[id*="blocking"]
+
+##[class*="interstitial"]
+
+##[class*="shimmer"]
+
+
+
+! 불필요한 분석 및 데이터 수집 방해 요소 제거
+##[class*="heartbeat"]
+##[id*="metadata-collector"]
+
+! 영상 로딩 중 CPU를 잡아먹는 애니메이션 효과 제거
+##[class*="loading-spinner-overlay"]
+##[class*="animated-background"]
+
+! 영상 클릭 방해 및 리다이렉트용 투명 레이어
+##[class*="trap-layer"]
+##[class*="prevent-click"]
+
+
+1. 트래커 및 분석 스크립트 차단 (가장 효과적)
+!: 영상 재생 중 데이터를 전송하는 통계 모듈입니다.
+##[class*="telemetry"]
+! : 분석용 스크립트가 붙는 레이어입니다.
+##[class*="analytics"]
+! : 사용자 행동 추적용 요소입니다.
+##[id*="tracker"]
+! : 로그 수집용 클래스입니다.
+##[class*="logger"]
+
+2. '보이지 않는' 투명 레이어 제거
+!: 영상을 클릭했을 때 광고 페이지로 리다이렉트시키기 위해 영상 위에 투명하게 깔아둔 invisible 혹은 overlay 요소를 제거하면, 브라우저가 연산해야 할 레이어 층이 줄어듭니다.
+! : 클릭을 유도하기 위해 씌운 투명 막입니다.
+##[class*="click-trap"]
+! : 투명 속성이 부여된 불필요한 오버레이입니다.
+##[class*="transparent"]
+! : 영상보다 상단에 위치해 클릭을 가로채려는 요소들을 타겟팅합니다.
+##[style*="z-index: 9999"]
+
+3. 로딩 속도를 올리는 "고급 속성 선택자" 규칙
+! 클래스명 외에도 HTML의 특정 속성을 이용해 '무거운 기능'을 미리 차단할 수 있습니다.
+! 자동 재생 방어 및 대역폭 절약:
+!  : 자동으로 재생되며 미리 데이터를 잡아먹는 비디오 태그를 타겟팅합니다. (단, 직접 재생할 때는 풀어줘야 함)
+##video[autoplay]
+! 무거운 배경 효과 제거:
+!  : 영상 주변에 번짐 효과(Blur)를 주어 CPU 점유율을 높이는 디자인 요소를 제거합니다. backdrop-filter 같은 효과가 들어간 클래스를 지우면 저사양 PC에서 재생이 훨씬 부드러워집니다.
+##[class*="blur"]
+! 미리보기(Preview) 이미지 제거:
+ : 마우스를 올렸을 때 미리보기 영상을 계속 로딩하는 기능을 막아 불필요한 데이터 소모를 줄입니다.
+##[class*="thumbnail-preview"]
+!
+!
+!
+!
 !
 !
 !
@@ -5226,7 +5360,10 @@ manhwabang.org##a[target*="target"] img
 ! - 아이허브 (https://kr.iherb.com/)
 ! - ZUM (https://zum.com/)
 ! - GS샵 (https://www.gsshop.com/)
-@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|shoppinglive.naver.com|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com
+! - 쿠팡플레이 (https://www.coupangplay.com/)
+! - 웨이브 (https://www.wavve.com/)
+! - 티빙 (https://www.tving.com/)
+@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|shoppinglive.naver.com|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com
 
 
 
@@ -5356,7 +5493,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 토렌트제이 (http://torrentj168.com/)
 ! - - - 티비소리 (https://srtv119.com/)
 ! - - - 4KJAV (https://kr29.4kjav.co/)
-! - - - 뉴토끼 시즌2 (https://newtoki.biz/)
 ! - - - 모두의AV (https://modooav6.com/)
 ! - - - 야스닷컴 (https://yasyadong.cc/)
 ! - - - 야동파티 (https://ydparty02.net/)
@@ -5366,7 +5502,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 토렌트쑥 (https://ssg2.torrentssg8.com/)
 !##a[href*='http'][target*='blank'] img
 !##a[target*='blank']:has(img)
-[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],newtoki.biz,[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
+[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],[$domain=/^hoohootv\d+.xyz/],[$domain=/^tvchak\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
 zod.kr##a[target*="blank"] img
 [$domain=/^t2.xtoon/]##a[target*="blank"] img
 [$domain=/^ssg\d+\.torrentssg\d+\.com/]##a[target*="blank"] img
