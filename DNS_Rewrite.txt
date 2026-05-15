@@ -627,14 +627,22 @@
 !
 ! ───── 레노버(Lenovo) & ZUI — 태블릿 사용자용 ─────
 ! 광고/추적/통계 (시스템 영향 없음)
-||stats.zui.com^
-||stats.zui.cn^
-||recom.zui.com^
-||metrics.lenovo.com^
-||metrics.lenovo.com.cn^
-||tms.lenovomm.com^
-||log.lenovomm.com^
-||sentry.lenovomm.com^
+! 로그내역에 없어 주석 표시
+!||stats.zui.com^
+! 로그내역에 없어 주석 표시
+!||stats.zui.cn^
+! 로그내역에 없어 주석 표시
+!||recom.zui.com^
+! 로그내역에 없어 주석 표시
+!||metrics.lenovo.com^
+! 로그내역에 없어 주석 표시
+!||metrics.lenovo.com.cn^
+! 로그내역에 없어 주석 표시
+!||tms.lenovomm.com^
+! 로그내역에 없어 주석 표시
+!||log.lenovomm.com^
+! 로그내역에 없어 주석 표시
+!||sentry.lenovomm.com^
 ||sentry-lb.lenovo.com.cn^
 ||hao.lenovo.com.cn^
 !
@@ -645,22 +653,26 @@
 ||cnszui.lenovomm.com^
 !
 ! 앱스토어/OAuth — 중국 내수형에서 앱 설치 경로, 차단 비권장
-||open.lenovomm.com^
-||appstore.lenovomm.com^
+! 로그내역에 없어 주석 표시
+!||open.lenovomm.com^
+!||appstore.lenovomm.com^
 !
 ! 교육/학습 — 영상용 사용자 무관, 차단 안전
-||care.smartedu.lenovo.com^           ← 활성화
-||gateway.xue.lenovomm.com^           ← 활성화
+||care.smartedu.lenovo.com^
+||gateway.xue.lenovomm.com^
 !
 ! ⚠️ 보류 (역할 불명확 — 로그 호출 빈도/패턴 확인 후 결정)
-||ams.lenovomm.cn^                  ← AMS (Application/Ads Management 추정)
-||lds.lenovomm.com^                 ← LDS (Location/Log/Data Service 추정)
+! AMS (Application/Ads Management 추정)
+||ams.lenovomm.cn^
+! LDS (Location/Log/Data Service 추정)
+||lds.lenovomm.com^
 !
 ! ⚠️ 추가 후보 (AdGuard Home 로그에서 호출 확인 후 활성화)
-||userlog.lenovomm.com^
-||applog.lenovomm.com^
-||crash.lenovomm.com^
-||analytics.lenovomm.com^
+! 로그내역에 없어 주석 표시
+!||userlog.lenovomm.com^
+!||applog.lenovomm.com^
+!||crash.lenovomm.com^
+!||analytics.lenovomm.com^
 !
 ! ═══════════════════════════════════════════
 ! ❌ 차단 금지 — 레노버 시스템 핵심 인프라
@@ -674,12 +686,15 @@
 ! sus.lenovomm.cn
 !
 ! 앱 패키지 배포 / 다운로드
-! papk.lenovomm.com              ← APK 패키지
-! papkg.lenovomm.com
-! uapkg.lenovomm.com             ← 업데이트 패키지
-! apkg.lenovomm.com
-! apkg1.lenovomm.com
-! dl.lenovomm.com                ← 다운로드 CDN
+! APK 패키지
+||papk.lenovomm.com^
+||papkg.lenovomm.com^
+! 업데이트 패키지
+||uapkg.lenovomm.com^
+||apkg.lenovomm.com^
+||apkg1.lenovomm.com^
+! 다운로드 CDN
+||dl.lenovomm.com^
 !
 ! API 게이트웨이 / 시스템 동기화
 ! api.lenovomm.com               ← API 게이트웨이
