@@ -45,17 +45,41 @@
 ||firebasedynamiclinks.googleapis.com^
 !
 ! ───── 메타(페이스북) / 인스타그램 트래킹 ─────
+!
+! Facebook 루트 광고/추적 도메인
 ||facebook.net^
-! - "페이스북으로 로그인" 버튼이 동작하지 않습니다. 해당 기능 쓸 경우 예외 처리
-||connect.facebook.net^
+! ※ "페이스북으로 로그인" 사용 시 다음 줄 주석 처리 후 connect만 예외
+! @@||connect.facebook.net^$domain=로그인사용사이트.com
+!
 ||an.facebook.com^
 ||pixel.facebook.com^
-||graph.facebook.com^
-||b-graph.facebook.com^
-||edge-mqtt.facebook.com^
 ||analytics.facebook.com^
 ||business.facebook.com^
 ||atdmt.com^
+!
+! ⚠️ Graph API (앱 인증·SSO 영향 가능)
+!||graph.facebook.com^
+!||b-graph.facebook.com^
+!
+! ⚠️ Messenger/DM (사용 시 보류)
+||edge-mqtt.facebook.com^
+||edge-chat.facebook.com^
+!
+! ───── Instagram 전용 ─────
+||test-gateway.instagram.com^
+!
+! 로그 미발견 (필요 시 주석 해제)
+!||graph.instagram.com^
+!||b-graph.instagram.com^
+!||logging.instagram.com^
+!||analytics.instagram.com^
+!
+! ═══════════════════════════════════════════
+! ❌ 차단 금지 (참고용)
+! ═══════════════════════════════════════════
+! instagram.com, www.instagram.com, i.instagram.com  ← 메인/API
+! *.cdninstagram.com, fbcdn.net                       ← 미디어 CDN
+! www.facebook.com (메인 사용 시)
 !
 ! ───── 아마존 / 일반 광고 네트워크 / RTB ─────
 ||amazon-adsystem.com^
@@ -1307,9 +1331,6 @@
 !
 ! ───── 레딧 ─────
 ||alb.reddit.com^
-!
-! ───── 인스타그램(테스트 게이트웨이) ─────
-||test-gateway.instagram.com^
 !
 ! ───── 폰트/아이콘 트래킹 ─────
 ||use.fontawesome.com^
