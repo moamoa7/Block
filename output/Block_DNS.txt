@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-15 19:00:28 UTC
+! Generated: 2026-05-15 20:36:35 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,968
+! Block Rules: 85,977
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -9606,6 +9606,7 @@
 ||barilliance.net^
 ||barinvent.net^
 ||barium.cheezdev.com^
+||barkequilibrium.com^
 ||barlo.xyz^
 ||barnabaslinger.com^
 ||barnacle.big-in-japan.com^
@@ -22578,6 +22579,7 @@
 ||esturecarnies.com^
 ||esupmlqll.com^
 ||esusaryproced.com^
+||esutamed.com^
 ||esveabkwjvkcj.space^
 ||esvpnjdntgr.com^
 ||esvunifeyiqhk.website^
@@ -32178,6 +32180,7 @@
 ||heiw99ovji.com^
 ||heixidor.com^
 ||hekowutus.com^
+||helcoiduncity.com^
 ||heldsadness.com^
 ||helenuskolushtermon.cfd^
 ||heleric.com^
@@ -33988,6 +33991,7 @@
 ||igloohq.com^
 ||ignateignatepredominanteatable.com^
 ||ignateignatetame.com^
+||ignatiapaler.com^
 ||ignita.xyz^
 ||igniterads.com^
 ||ignobleinternational.com^
@@ -47776,6 +47780,7 @@
 ||offfurreton.com^
 ||offgridcrops.com^
 ||officecornsoftware.com^
+||officeklafter.com^
 ||officerpersonalimmersed.com^
 ||official-importance.pro^
 ||official-permit.com^
@@ -54970,6 +54975,7 @@
 ||rentorshal.com^
 ||rentpenny.com^
 ||rentracks.jp^
+||reoahghrlfuy.com^
 ||reopenshelly.cfd^
 ||reople.co.kr^
 ||reorganizeglaze.com^
@@ -65481,6 +65487,7 @@
 ||somehowbandore.com^
 ||somehowluxuriousreader.com^
 ||somentibrot.com^
+||somepossibility.com^
 ||somethingprecursorfairfax.com^
 ||somethingrealisticzero.com^
 ||sometimecheerlessauditorium.com^
@@ -69457,6 +69464,7 @@
 ||super.cat898.com^
 ||super.kdnet.net^
 ||superbcup.pro^
+||superbjudgment.com^
 ||superboosty.com^
 ||superchichair.com^
 ||superclix.de^
@@ -72031,6 +72039,7 @@
 ||tiptailmannie.com^
 ||tiptoedimports.cfd^
 ||tiptoeskilldetectives.com^
+||tipulauser.com^
 ||tipulidburling.com^
 ||tiq.hagebau.at^
 ||tiq.hagebau.de^
