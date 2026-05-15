@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-15 11:08:37 UTC
+! Generated: 2026-05-15 13:10:12 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,920
+! Block Rules: 85,926
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -25087,6 +25087,7 @@
 ||forkedclient.pro^
 ||forkinane.com^
 ||forkstrictly.com^
+||forkypectousdingly.cfd^
 ||forleitspikes.cfd^
 ||forlumineoner.com^
 ||formalhood.com^
@@ -32750,6 +32751,7 @@
 ||hockeydoorrejoined.com^
 ||hockeyhavoc.com^
 ||hoctor-pharity.xyz^
+||hoddyfrison.qpon^
 ||hodfctkolgrjw.space^
 ||hodnjqyavomuj.site^
 ||hodor-collect.arabam.com^
@@ -33881,6 +33883,7 @@
 ||iekfxxkrpjock.space^
 ||ieladhfhoiclv.online^
 ||ieliryzgkzlam.website^
+||iemejujvztwsmi.com^
 ||iemiq.com^
 ||iemtz.admsport.com^
 ||ientent.stre4mplay.one^
@@ -40283,6 +40286,7 @@
 ||lqudxquypbsvl.online^
 ||lqvz7e4xa.com^
 ||lqxzx.com^
+||lqyrjzgaeajjf.online^
 ||lqzoyqvbjkzqm.top^
 ||lqzwpvmxyxfap.space^
 ||lr-in-prod.com^
@@ -47968,6 +47972,7 @@
 ||okcfdzfqcdemc.website^
 ||okdcrqtemifgo.online^
 ||okdigital.me^
+||okebeehwanpqt.site^
 ||okeeblr.com^
 ||okeezyxflelvs.website^
 ||okgtvpyukjcelwq.com^
@@ -52288,6 +52293,7 @@
 ||pssbweji.com^
 ||psshqlfxthaza.online^
 ||psslbjewrblbw.website^
+||psstentice.com^
 ||pssyjxliwunax.website^
 ||pstats.com^
 ||pstciayvpsmhj.site^
