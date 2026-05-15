@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260515-rev2
+! Version: 20260515-rev3
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -173,7 +173,6 @@
 ||appflood.com^
 ||domob.cn^
 ||greedygame.com^
-||bugly.qq.com^
 ||bulldogcpi.com^
 !
 ! ───── Branch.io 딥링크/어트리뷰션 ─────
@@ -834,18 +833,27 @@
 ||oai-events.azureedge.net^
 ||statsig.anthropic.com^
 !
+!
+! ═══════════════════════════════════════════════════════════
+! 중국 대형 IT 기업 (한국 환경 불필요) 
+! ═══════════════════════════════════════════════════════════
+||qq.com^
+||baidu.com^
+||baidustatic.com^
+||bdstatic.com^
+||bdimg.com^
+||bdtjrm.com^
+||tencent.com^
+||tencent-cloud.com^
+||tencent-cloud.net^
+||qpic.cn^
+||gtimg.com^
+||gtimg.cn^
+||tenpay.com^
+!
 ! ═══════════════════════════════════════════════════════════
 ! 중국계 광고/추적 (한국 사용자 트래픽 발생 도메인 위주)
 ! ═══════════════════════════════════════════════════════════
-!
-! ───── 바이두(Baidu) ─────
-||hm.baidu.com^
-||pos.baidu.com^
-||tongji.baidu.com^
-||cbjs.baidu.com^
-||eclick.baidu.com^
-||loc.map.baidu.com^
-||zz.bdstatic.com^
 !
 ! ───── Alibaba 계열 (AliExpress / Taobao / 1688) ─────
 ||alimama.com^
@@ -861,31 +869,11 @@
 ||arms-retcode.aliyuncs.com^
 !
 ! ───── Tencent 광고/SDK (글로벌 앱·게임에 내장) ─────
-||ad.tencent.com^
-||ads.tencent.com^
-||analytics.tencent.com^
 ||tencentmta.com^
-||gdt.qq.com^
 ||adsmind.gdtimg.com^
-||cm.e.qq.com^
 ||p.tencentmind.com^
-||pingma.qq.com^
-||pingjs.qq.com^
-||report.qq.com^
-||stat.qq.com^
-||log.qq.com^
-||log.tencent.com^
-||monitor.qq.com^
-||trace.qq.com^
-||beacon.qq.com^
-||btrace.qq.com^
-||oth.eve.mdt.qq.com^
-||ta.qq.com^
-||sdkconfig.ad.qq.com^
-||cfg.imtt.qq.com^
 ||log.idqqimg.com^
 ||stats.idqqimg.com^
-||tpstelemetry.tencent.com^
 !
 ! ───── ByteDance / TikTok / Pangle 글로벌 SDK ─────
 ! 한국 모바일 게임·앱에 광고 SDK로 광범위 임베드
