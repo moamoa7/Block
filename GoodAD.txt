@@ -3042,7 +3042,7 @@ javgg.net##.home_iframead
 !
 ! https://www.pornhub.com/
 ! - 광고
-!##[class^="videos"] - 쏘걸 (https://kr80.sogirl.so/) - 영상 아미지 안나옴
+!##[class^="videos"] - 쏘걸 (https://kr86.sogirl.so/) - 영상 아미지 안나옴
 !
 !
 ! https://www.xnxx.com/
@@ -3053,8 +3053,8 @@ javgg.net##.home_iframead
 ##[class*="-ad-" i] img
 !
 !
-! 쏘걸 (https://kr1.4kjav.co/) (https://kr79.sogirl.so/)
-! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/)
+! 쏘걸 (https://kr1.4kjav.co/) (https://kr86.sogirl.so/)
+! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) - 없어짐
 ! - 입장시 18세 물어보는 팝업
 ###dclm_modal_content
 ###dclm_modal_screen
@@ -3062,7 +3062,6 @@ javgg.net##.home_iframead
 !##[class="ad_banner"]
 !##.ad_banner
 !##[class*="ad_banner" i]
-
 ! - - - 예외
 ! - - - 클리앙 (https://www.clien.net/) - 검색어 입력란 지워짐
 clien.net#@#.ad_banner
@@ -3089,6 +3088,7 @@ clien.net#@#.ad_banner
 ##.happy-header-mobile
 ! - 상단 배너
 !##[class="header-advertising"]
+##[class*="advertising" i]
 ! - 전체 배너 (젤 오른쪽 상단 작은 배너 / 젤 하단 배너 제외]
 !##[class^="textwidget" i] img
 !##[class*="widget" i][class^="textwidget" i] img
@@ -3117,16 +3117,11 @@ clien.net#@#.ad_banner
 @@||hcdn1.maxsocdn.net^$from=sogirl.so
 !
 !
-! 쏘걸.net (https://www.xn--av-t21i858e.net/)
+! 쏘걸.net (https://www.xn--av-t21i858e.net/) - 없어진듯
 ! - 배너 이미지
 !##img[src*="static.wixstatic.com/media"]
 ! - 배너 공간
-xn--av-t21i858e.net##.wixui-section.comp-m7wvsc3o.Oqnisf
-!
-!
-! 헬카이브 (https://hellkaiv.net/)
-! - 오른쪽 배너
-hellkaiv.net##.nimpfile
+!xn--av-t21i858e.net##.wixui-section.comp-m7wvsc3o.Oqnisf
 !
 !
 ! TK Tubo (https://tktube.com/)
@@ -3138,21 +3133,21 @@ tktube.com##.top
 !
 !
 !
-! AV핑크 (https://avpink36.com/)
+! AV핑크 (https://avpink36.com/) - 없어짐
 ! - 배너 이미지
 !##.fg-image
 ! - 영상 시청시 검은화면 나오면서 소리만 나옴 - media 차단해제 (List-KR)
-@@||ttse.b-cdn.net^
+!@@||ttse.b-cdn.net^
 !
 !
-! 탑걸 (https://kr39.topgirl.co)
+! 탑걸 (https://kr41.topgirl.co/)
 ! 자브걸 (https://kr24.javgirl.co/)
 ! - 상단 맨 오른쪽 작은 배너
 !##[id="header_banner"]
 !###header_banner
 ! - 영상내 광고
-! - - - 아브티비 (https://kr2.avtv.co/)
-! - - - 딸플릭스 (https://kr4.ddal.xyz/) - 같은 비디오라 막으면 안됨
+! - - - 아브티비 (https://kr2.avtv.co/) - 없어진듯
+! - - - 딸플릭스 (https://kr11.ddal.xyz/) - 같은 비디오라 막으면 안됨
 ||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
 ! - - - 자브걸 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
 !||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
@@ -3983,7 +3978,7 @@ hanyasa.com##.gofollow
 !
 ! 야부리존 (https://yaburi63.com/)
 ! - 팝업  잔상 없애기 (모바일)
-! - - -  광역규칙으로 하면 AV탑걸 이미지가 안보임 (https://kr40.topgirl.co/)
+! - - -  광역규칙으로 하면 AV탑걸 이미지가 안보임 (https://kr41.topgirl.co/)
 [$domain=/^yaburi\d+.com/]##div.centered
 ! - 상단 배너
 ![$domain=/^yaburi\d+.com/]##.sm\:grid-cols-4.border.w-full.px-1.gap-x-1.grid-cols-2.grid
@@ -4241,7 +4236,7 @@ jusogall.com###banner-container
 ###h_tag_link
 !
 !
-! 딸플릭스 (https://kr3.ddal.xyz/)
+! 딸플릭스 (https://kr11.ddal.xyz/)
 ! - 배너 이미지
 !||*net/banners/*$image
 !
@@ -5408,7 +5403,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 무비킹 (https://mvking4.org/)
 ! - - - MISSAV (https://missvod4.com/)
 ! - - - 다크걸 (https://darkgirl8.com/)
-! - - - AV쏘걸 (https://kr80.sogirl.so/)
+! - - - AV쏘걸 (https://kr86.sogirl.so/)
 ! - - - 애니24(https://ohli24.net/)
 ! - - - 19다모아 (www.19damoa.org/)
 ! - - - 콕콕티비 (https://cokcoktv4.com/)
