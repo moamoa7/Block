@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260515-rev3
+! Version: 20260516-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -560,6 +560,14 @@
 ||konai.samsungknox.com^
 ||bcs.samsungdm.com^
 ||gxd.samsung.com^
+! ───── 삼성 텔레메트리/광고
+||ers.samsungcloud.com^
+||samsungrs.com^
+||samsungdm.com^
+||log.samsungacr.com^
+||smetrics.samsung.com^
+! 결제 관련 (사용 시 보류) - 로그내역도 없으며 안전을 위해 보류
+!||samsungcheckout.com^
 !
 ! ⚠️ 보류 (특정 기능 영향 가능 — 미사용 시 주석 해제)
 !||bixby-analytics.samsungrs.com^    ← 빅스비 음성 분석
@@ -598,8 +606,16 @@
 ! samsungcloud.com               ← 갤럭시 클라우드
 ! ck.samsungcloud.com            ← 콘텐츠 키
 ! api.samsungcloud.com           ← API
+! play.samsungcloud.com
 ! samsungcloudsolution.com       ← Smart Switch
 ! cdn.samsungcloudsolution.com   ← CDN
+!
+! 브라우저 인프라
+! *.internet.apps.samsung.com (config/download/update)
+!
+! 콘텐츠 CDN
+! cdn.samsungcloud.com
+! doc.samsungcloud.com 
 !
 ! 갤럭시 스토어
 ! samsungapps.com                ← 갤럭시 스토어
