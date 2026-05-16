@@ -403,9 +403,6 @@ sooplive.com##.adballoon_icon
 !sooplive.com#@#[class*="AD"]
 ! ##[class^="ad" i] 해제
 point.sooplive.com#@#[class^="ad" i]
-! -무한 버퍼링 해결?  (AdGuard DNS filter 필터 해제)
-! - -- 출처 : https://gall.dcinside.com/adguard/9010
-!@@||exlogcollector.sooplive.com^
 ! - 19금 다시보기 시청시 로그인 하라고 나오는거 해결 (애드가드만 해당)
 ! - - -  출처 : https://gall.dcinside.com/adguard/9365 댓글
 !sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
@@ -437,10 +434,15 @@ point.sooplive.com#@#[class^="ad" i]
 ! - - - SOOP VOD 시청 시 서버로부터 받아오는 영상 상세 데이터 중, '애드벌룬' 광고와 관련된 항목만 골라내서 삭제하라
 ! - - -  kr: List-KR Classic
 vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/a/view')
-! - 애드벌룬 선물 조건 (일부 차단 리스트 차단으로 해제 필요) - DNS 서버 확인 필요
-@@||adballoon.sooplive.com^
+! - 애드벌룬 선물 조건 (일부 차단 리스트 차단으로 해제 필요)
+! - - - DNS 서버 확인 필요 후 등록 필요
+||adballoon.sooplive.com^^$badfilter
 ! - 애드벌룬 아이콘 안보이는거 해결
 play.sooplive.com#@#[class^="ad" i]
+! -무한 버퍼링 문제?  (AdGuard DNS filter 필터 해제) - 내 환경에서는 그런일이 일어난적이 없어서 일단 보류
+! - -- 출처 : https://gall.dcinside.com/adguard/9010
+! - - - DNS 서버 확인 필요 후 등록 필요
+!||exlogcollector.sooplive.com^$badfilter
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
