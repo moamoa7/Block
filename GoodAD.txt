@@ -5300,7 +5300,7 @@ manhwabang.org##a[target*="target"] img
 ! - 시네티 (https://cinety.sooplive.com/)
 ! - 숲토어 (https://sooptore.sooplive.com/)
 ! - 카카오TV (https://tv.kakao.com/)
-@@||*banner*$image,css,script,xhr,domain=auction.co.kr|coupang.com|shopping.naver.com|shoppinglive.naver.com|smartstore.naver.com|brand.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com|sooplive.com|cinety.sooplive.com|sooptore.sooplive.com|tv.kakao.com
+@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|shoppinglive.naver.com|smartstore.naver.com|brand.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com|sooplive.com|cinety.sooplive.com|sooptore.sooplive.com|tv.kakao.com
 
 
 
