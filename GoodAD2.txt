@@ -1291,10 +1291,14 @@ $cookie=/^__hstc$/
 ||sooplive.com^$cookie=_aupcid
 !
 ! ⚠️ 보류 — 차단 시 부작용 가능, 본인 환경 무관 시 유지
-||sooplive.com^$cookie=AbroadChk       ← 해외 접속 체크
-||sooplive.com^$cookie=AbroadVod       ← 해외 VOD 체크
-||live.sooplive.com/api/myplus/personalBlockController.php^$xmlhttprequest  ← 사용자 차단 관리
-||res.sooplive.com/script/player/service-maintenance.js^$script,redirect=noopjs  ← 점검 안내
+! 해외 접속 체크
+||sooplive.com^$cookie=AbroadChk
+! 해외 VOD 체크
+||sooplive.com^$cookie=AbroadVod
+! 사용자 차단 관리
+||live.sooplive.com/api/myplus/personalBlockController.php^$xmlhttprequest
+! 점검 안내
+||res.sooplive.com/script/player/service-maintenance.js^$script,redirect=noopjs
 
 ! ───────────────────────────────────────────
 ! Kick (킥)
