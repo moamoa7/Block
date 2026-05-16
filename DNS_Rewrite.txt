@@ -1291,7 +1291,8 @@
 ! 로그인 처리 문제로 주석 처리
 !||afevent2.sooplive.com^
 ||laglog.sooplive.com^
-||exlogcollector.sooplive.com^
+! 숲 버퍼링 이슈로 배드필터 처리
+||exlogcollector.sooplive.com^$badfilter
 ||eventapi.sooplive.com^
 ||deapi.sooplive.com^
 ! 차단시 별풍선 선물 못함
@@ -1299,8 +1300,8 @@
 ! 숲 광고 서버
 ||adv.sooplive.com^
 ||ads.sooplive.com^
-! 애드벌룬 안나오는거 해결 (다른 리스트에서 차단하고 있어서 화이트리스트 처리)
-@@||adballoon.sooplive.com^
+! 애드벌룬 안나오는거 해결 (다른 리스트에서 차단하고 있어서 배드필터 처리)
+||adballoon.sooplive.com^$badfilter
 ||adv.sooplive.co.kr^
 ||adv.afreecatv.com^
 ||adimg.sooplive.co.kr^
