@@ -1918,9 +1918,6 @@ x.com/*/videoads/
 ublockdns.com##html
 ublockorigin.com##html
 
-! ───── 기타 ─────
-@@||github.com^$removeparam
-
 ! ───── 인증/세션 토큰 보호 (removeparam 예외) ─────
-@@/^https?:\/\/([a-z0-9-]+\.)*?(cloudflare\.com|prismic\.io|tangerine\.ca|gitlab\.com)/$removeparam
+@@/^https?:\/\/([a-z0-9-]+\.)*?(cloudflare\.com|prismic\.io|tangerine\.ca|gitlab\.com|github\.com)/$removeparam
 @@/^https?:\/\/(docs|accounts)\.google(\.[a-z]{2,}){1,}/$removeparam
