@@ -700,12 +700,10 @@ poong.today##._mainLiveArea_tck4v_535
 !
 !
 ! 치지직 (https://chzzk.naver.com/)
-! - 상단 배너
-!chzzk.naver.com##.top_banner_container__Nk\+98
-! -- 로그인 팝업 차단되서 해제
-!##.popup_modal__hRwfq.popup_container__Aqx-3
-! - 첫 구매 이벤트 중 알림
-!chzzk.naver.com##.toolbar_tooltip__\+upC-
+! - 광고 차단 프로그램을 사용 중이신가요? 팝업
+##[class*="popup_modal" i]
+! - 팝업 차단으로 인한 스크롤 차단 해제
+chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! 치트키 구매하기 툴팁
 chzzk.naver.com##.tooltip
 ! 영상 왼쪽 하단 쇼핑 배너
@@ -715,6 +713,8 @@ chzzk.naver.com##.tooltip
 !my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
 chzzk.naver.com##.pzp-pc__loading-indicator
+! - 재생 중 광고 차단
+*/ad?*
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -5057,9 +5057,6 @@ dschool.co.kr##[id*="lean_overlay" i]
 !
 !
 ##.ad-pc
-!
-!
-/ad?
 !
 !
 
