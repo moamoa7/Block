@@ -107,12 +107,9 @@ $removeparam=action_ref_map
 ||cdninstagram.com^$removeparam=ccb
 ||cdninstagram.com^$removeparam=_nc_sid
 ! Instagram 웹 추가 추적 차단
-||www.instagram.com/api/v1/web/logging^
-||www.instagram.com/logging/falco^
 ||instagram.com/ajax/bz^
-!||cdninstagram.com^$removeparam=_nc_ohc
-!||cdninstagram.com^$removeparam=_nc_oc
-!||cdninstagram.com^$removeparam=_nc_ht
+! EasyPrivacy에서 이미 처리됨 (중복 회피)
+!||instagram.com/ajax/qm/?
 ! 클라이언트 이벤트 로깅 경로 차단
 ||graph.instagram.com/logging_client_events
 
