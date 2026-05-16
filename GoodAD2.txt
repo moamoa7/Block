@@ -31,7 +31,7 @@
 ! Title: Traffic Saver & Privacy Filter
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260516-rev2
+! Version: 20260517-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -1925,4 +1925,6 @@ ublockorigin.com##html
 ! - prismic.io    : CMS 프리뷰 토큰
 ! - tangerine.ca  : 은행 세션 토큰
 ! - gitlab.com    : OAuth 콜백(code, state), MR 필터
+! - accounts.google.com : 구글 로그인
 @@/^https?:\/\/([a-z0-9-]+\.)*?(cloudflare\.com|prismic\.io|tangerine\.ca|gitlab\.com)/$removeparam
+@@/^https?:\/\/(docs|accounts)\.google(\.[a-z]{2,}){1,}/$removeparam
