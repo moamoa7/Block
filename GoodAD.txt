@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 Homepage: https://github.com/moamoa7/Block
-! Version: 20260516
+! Version: 20260517
 !
 !
 !
@@ -4966,15 +4966,6 @@ _ads_
 !
 !
 ##li:has-text(스폰)
-!
-!
-##[class*="ads" i]:has(video)
-!
-!
-##[class*='/ad']:has(video)
-!
-!
-##[class*='ad.']:has(video)
 !
 !
 ! - https://shopping.naver.com/
