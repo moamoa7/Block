@@ -31,7 +31,7 @@
 ! Title: Traffic Saver & Privacy Filter
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260516-rev1
+! Version: 20260516-rev2
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -1917,3 +1917,12 @@ x.com/*/videoads/
 ||ublockorigin.com^$doc
 ublockdns.com##html
 ublockorigin.com##html
+
+! ───── 인증/세션 토큰 보호 (removeparam 예외) ─────
+! 아래 도메인은 URL 파라미터를 인증·세션·OAuth 토큰으로 사용하므로
+! removeparam 규칙에서 제외 (잘리면 로그인/세션 깨짐)
+! - cloudflare.com : Turnstile 챌린지, Workers 세션
+! - prismic.io    : CMS 프리뷰 토큰
+! - tangerine.ca  : 은행 세션 토큰
+! - gitlab.com    : OAuth 콜백(code, state), MR 필터
+@@/^https?:\/\/([a-z0-9-]+\.)*?(cloudflare\.com|prismic\.io|tangerine\.ca|gitlab\.com)/$removeparam
