@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Homepage: https://github.com/moamoa7/Block
+Homepage: https://github.com/moamoa7/Block
 ! Version: 20260516
 !
 !
@@ -523,8 +523,6 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 ! 네이버 스토어 (https://smartstore.naver.com/)
 ! - 배너
 ##.ad-container
-! - 해제
-@@||connect.facebook.net/*/fbevents.js$from=smartstore.naver.com
 !
 ! - 사용자 클릭 궤적 및 활동 분석 스크립트인 clickcrD.js를 특정 도메인들을 제외하고 모두 차단하라는 설정
 ! - - - 네이버의 정적 파일 서버(pstatic.net)에서 불러오는 클릭 기록(Click Cursors/Click Log) 전송용 자바스크립트 파일
@@ -2656,6 +2654,11 @@ aliexpress.com##._3KrBP
 web.joongna.com##.max-md\:gap-3
 ! - 지금 이 상품 시세 확인하기 안되는거 해결 (List-KR)
 @@||edge-live.joongna.com/api/web-ads/
+!
+!
+! 성삼당몰 (https://www.sungsimdangmall.co.kr/)
+! - 팝업
+##[class*="popup-area" i]
 !
 !
 ! 바나나몰 (www.bananamall.co.kr)
@@ -5032,6 +5035,14 @@ liteapks.com###ad-unit-1
 getmodsapk.com##.m-2.items-center
 !
 !
+! https://dschool.co.kr/
+! - 팝업
+!###modal-banner
+dschool.co.kr##[id="modal-banner" i]
+! - 팝업 제거 후 뿌연 화면 해결
+dschool.co.kr##[id*="lean_overlay" i]
+!
+!
 !
 !
 !
@@ -5179,6 +5190,7 @@ _ads_
 !
 ! - https://shopping.naver.com/
 ^advertisement^
+!*advertise*
 !
 !
 ##[id*="popup_banner" i]
@@ -5263,14 +5275,17 @@ manhwabang.org##a[target*="target"] img
 
 
 *banner*
+
 ! - 예외
 ! - 옥션 (https://www.auction.co.kr/)
 ! - 쿠팡 (https://www.coupang.com/)
 ! - 네이버스토어 (https://shopping.naver.com/)
+!- 네이버쇼핑라이브 (https://shoppinglive.naver.com/)
+! - 스마트스토어 (https://smartstore.naver.com/)
+! - 브랜드스토어 (https://brand.naver.com)
 ! - G마켓 (https://www.gmarket.co.kr/)
 ! - 성심당몰 (https://www.sungsimdangmall.co.kr/)
 ! - 와디즈 (https://www.wadiz.kr/)
-! - 네이버 쇼핑라이브 (https://shoppinglive.naver.com/)
 ! - 11번가 (https://www.11st.co.kr/)
 ! - 톡딜 (https://store.kakao.com/)
 ! - 중고나라 (https://web.joongna.com/)
@@ -5285,8 +5300,7 @@ manhwabang.org##a[target*="target"] img
 ! - 시네티 (https://cinety.sooplive.com/)
 ! - 숲토어 (https://sooptore.sooplive.com/)
 ! - 카카오TV (https://tv.kakao.com/)
-@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|shoppinglive.naver.com|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com|sooplive.com|cinety.sooplive.com|sooptore.sooplive.com|tv.kakao.com
-
+@@||*banner*$image,css,script,xhr,domain=auction.co.kr|coupang.com|shopping.naver.com|shoppinglive.naver.com|smartstore.naver.com|brand.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com|sooplive.com|cinety.sooplive.com|sooptore.sooplive.com|tv.kakao.com
 
 
 
@@ -5444,23 +5458,24 @@ zod.kr##a[target*="blank"] img
 
 ! ((테스트 중인 것들)) - 현재 이상없음
 
-stats.*
-stat.*
-action.*
-logger.*
-tag.*
-tms.*
-tracker.*
-tracking.*
-insight.*
-analytics.*
-analysis.*
+*stats.*
+*stat.*
+*action.*
+*logger.*
+*tag.*
+*tms.*
+*tracker.*
+*tracking.*
+*insight.*
+*analytics.*
+*analysis.*
 
-event.*
-event?*
+*event.*
+@@*event.$css
+*event?*
 
-status.*
+*status.*
+@@*status.*$image
 
-! - 삭제
-!/service/*
 
+=================================================
