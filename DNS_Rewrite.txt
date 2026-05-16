@@ -1291,8 +1291,8 @@
 ! 로그인 처리 문제로 주석 처리
 !||afevent2.sooplive.com^
 ||laglog.sooplive.com^
-! 숲 버퍼링 이슈로 배드필터 처리
-||exlogcollector.sooplive.com^$badfilter
+! 숲 버퍼링 이슈? - 내 환경에서는 그런일이 일어난적이 없어서 일단 보류
+||exlogcollector.sooplive.com^
 ||eventapi.sooplive.com^
 ||deapi.sooplive.com^
 ! 차단시 별풍선 선물 못함
