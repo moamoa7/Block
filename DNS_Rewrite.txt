@@ -1162,7 +1162,8 @@
 ||gfp.naver.com^
 ! 광고 클릭 트래킹
 ||adcr.naver.com^
-||ader.naver.com^
+! - 네이버 스토어에서 상품 클릭시 이동시 필요
+!||ader.naver.com^
 ! 광고주 관리 (B2B)
 ||saedu.naver.com^
 !
