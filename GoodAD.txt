@@ -2144,12 +2144,27 @@ www.donga.com#@#[class*="ad_"] [style]
 !
 !
 ! 한국경제 (https://www.hankyung.com/)
-! - 맨 상단 배너
-!hankyung.com##.stock-marquee-wrap
-!##.ad-top
+! - 상단/중간/하단 배너
+##.ad-inner
+! - 맨 상단 배너 / 기사 상단 배너
+##.ad-top
 ! - 기사 오른쪽 배너 공간 (잔여물 제거) (EasyList)
 !##.aside-ad
 ##[class*="aside-ad" i]
+! - 메인 하단 배너
+##.ad-bottom
+! - 기사 상단/본문 배너
+##.ad-box
+! - 기사 배너 라벨
+##.ad-label
+! - 기사 배너 라벨 제외 모든 배너
+##.ad-wrap:not(#google_ads_iframe_checktag)
+! - 기사 모든 베너 (라벨 포함)
+##.ad_area
+! - 기사 오른쪽 빈 공간
+##.ad_common
+! - 기사 오른쪽 빈 공간 (좀 더 많이 선택)
+##.aside-ad
 ! - 메인배너 및 상단 오른쪽 돌아가는 배너
 ! - - - 쿠팡에서 제품 사라짐
 !##[class^="promotion"]
@@ -2160,6 +2175,10 @@ www.donga.com#@#[class*="ad_"] [style]
 !hankyung.com##div[class*="-ad"]:not(.container):not([style])
 ! - 기사 왼쪽 구독 배너
 ##[class*="subscribe-banner" i]
+! - 일부 오류 해제
+@@/ad.$domain=hankyung.com
+@@*banner*$domain=hankyung.com
+hankyung.com#@#[class*="top-banner" i]
 !
 !
 ! 한국일보 (https://www.hankookilbo.com/)
@@ -2171,21 +2190,40 @@ www.donga.com#@#[class*="ad_"] [style]
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
 ! - 상단 배너
-!joongang.co.kr##.topbanner_plus - ##[class*="topBanner" i]로 대체
+joongang.co.kr##.topbanner_plus
 ! - 상단 배너 (프리미엄)
 joongang.co.kr##.md_hidden.sm_hidden.service
 ! - 중간 배너
-joongang.co.kr##.house_banner
+joongang.co.kr##.house_banner:not(.goto-app-btn)
+joongang.co.kr##.sm_hidden.md_hidden.ad_wrap
+##.ad_wide
+! - 오른쪽 배너
+##.ad_wrap
 ! - 기사 오른쪽 플러스 아이콘
 joongang.co.kr##.ico_shortcut_plus
 ! - 기사 스크롤시 하단에서 나오는 안내문구
-joongang.co.kr##.snackbar
+joongang.co.kr###topicSnackbar
 ! - 영상 플레이어
 !joongang.co.kr##.player_area
 ! - 많이 본 기사
 !joongang.co.kr##.widget--v.ad_sm_hidden.chain_wrap
 ! - 추천 기사
 !joongang.co.kr##.contents_issue_sticky.contents > .row > .col_lg3
+!
+!
+! 일간스포츠 (https://isplus.com/)
+! - 가운대 배너
+##.center_banner
+! - 기사 하단 배너
+isplus.com##div.section_inner:nth-of-type(7)
+! - 모바일 기사 중간 배너
+isplus.com###contentAD3
+!
+!
+! 동아사이언스 (https://www.dongascience.com/)
+! - 기사내 배너
+dongascience.com###article_body > [href]
+dongascience.com##.block
 !
 !
 ! 오마이뉴스 (https://www.ohmynews.com/)
@@ -2266,7 +2304,23 @@ edaily.co.kr##.special_area
 !
 ! 매일경제 (https://www.mk.co.kr/)
 ! - 회원가입혜택 (오른쪽 하단 따라다니는 배너)
-mk.co.kr###floating_banner_button
+! - - - PC
+mk.co.kr##.my_agent
+! - - - 모바일
+mk.co.kr##.my_agent2
+! - 기사 상단 배너
+###TC_billboard_X_container
+! - 기타
+##.ad-slot:not(.adsbox):not(.adsbygoogle)
+! - 오류 해결
+mk.co.kr#@#[id*="ads" i]
+!
+!
+! 한겨레 (https://www.hani.co.kr/)
+! 배너
+##[class*="basead" i]
+! - 기사 하단 따라다니는 배너
+##[class*="imagebanner" i]
 !
 !
 ! 문화일보 (https://www.munhwa.com/)
@@ -4829,6 +4883,7 @@ dschool.co.kr##[id*="lean_overlay" i]
 !
 !
 /ad.
+@@/ad.$css
 !
 !
 /ad/*$frame
@@ -4867,6 +4922,7 @@ _ads_
 @@_ads_$domain=platinmods.com
 !
 !
+! https://www.hankyung.com/
 *ads.js
 !
 !
@@ -4907,9 +4963,6 @@ _ads_
 !
 !
 ##li:has-text(스폰)
-!
-!
-##.ad_wrap
 !
 !
 ##[class*="ads" i]:has(video)
