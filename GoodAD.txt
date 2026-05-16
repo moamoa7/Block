@@ -2216,8 +2216,11 @@ joongang.co.kr###topicSnackbar
 ##.center_banner
 ! - 기사 하단 배너
 isplus.com##div.section_inner:nth-of-type(7)
-! - 모바일 기사 중간 배너
+! - 기사 중간 배너
+! - - - PC
 isplus.com###contentAD3
+! - - - 모바일
+isplus.com##div.realtalk_add.mt_40:nth-of-type(1)
 !
 !
 ! 동아사이언스 (https://www.dongascience.com/)
