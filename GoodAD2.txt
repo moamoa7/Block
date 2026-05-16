@@ -1782,6 +1782,64 @@ $cookie=/^__hstc$/
 ||jwplayer.com/*/ads^
 ||jwpcdn.com/*/ads^$script,redirect=noopjs
 
+! ───── Google / YouTube 추적 차단 ─────
+*$removeparam=gtm
+||play.google.com/log?
+||google.*/pagead/
+||google.*/pagead/lvz?
+||youtube.com/pagead/
+||www.youtube.com/ptracking?
+
+! ───── TikTok 추적 차단 ─────
+||tiktok.com/web/report^
+||tiktok.com/aweme/*/report
+||tiktok.com/api/*/web-cookie-privacy
+||tiktok.com/tiktok/popup/dispatch/
+||tiktok.com/whale/
+||tiktok.com/ttwid/check/
+
+! ───── X(Twitter) 추적 차단 ─────
+||x.com/1.1/jot
+||x.com/i/csp_report
+x.com/*/videoads/
+
+! ───── 이메일 추적 파라미터 (Drip/Klaviyo) ─────
+*$removeparam=/^__s=[A-Za-z0-9]{6,}/
+
+! ───── Microsoft 추적 파라미터 ─────
+*$removeparam=msclkid
+
+! ───── Azure Application Insights 텔레메트리 ─────
+||applicationinsights.azure.com^$domain=~azure.net
+
+! ───── LogRocket/Sentry 클라이언트 등록 ─────
+/v1/rgstr?k=client-
+
+! ───── ChatGPT 텔레메트리 ─────
+||chatgpt.com/ces/v1/t$xhr,redirect-rule=noopjson
+||chatgpt.com/ces/v1/p|$xhr,redirect-rule=noopjson
+
+! ───── Datadog RUM 텔레메트리 ─────
+||browser-intake-*-datadoghq.com^
+
+! ───── Anthropic / Claude 분석 ─────
+||a-cdn.anthropic.com/analytics.js/*/analytics.min.js
+||claude.ai/api/event_logging/
+
+! ───── PerimeterX (⚠️ 일부 사이트 접속 차단 가능) ─────
+! PerimeterX 차단 후 평소 가는 사이트가 갑자기 "접속 차단" 또는 무한 로딩 → px-cloud.net 줄 주석 처리
+||px-cloud.net/api/v2/collector
+||px-cloud.net/b/s
+
+! ───── Netflix 로그 ─────
+||netflix.com/log/
+
+! ───── GitHub 비공개 텔레메트리 ─────
+||api.github.com/_private/browser/stats
+
+! ───── OneTrust 쿠키 동의 위치 확인 ─────
+||geolocation.onetrust.com/cookieconsentpub/*/geo/location$xmlhttprequest,redirect-rule=noopjson
+
 
 ! ═══════════════════════════════════════════
 ! [16] 선택 적용 (주의: 결제·로그인·기능 영향 가능)
