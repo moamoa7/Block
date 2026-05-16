@@ -1837,6 +1837,9 @@ x.com/*/videoads/
 ! ───── OneTrust 쿠키 동의 위치 확인 ─────
 ||geolocation.onetrust.com/cookieconsentpub/*/geo/location$xmlhttprequest,redirect-rule=noopjson
 
+! WebSocket 연결은 removeparam 예외 (토큰·세션 보호)
+@@|wss://$removeparam
+
 
 ! ═══════════════════════════════════════════
 ! [16] 선택 적용 (주의: 결제·로그인·기능 영향 가능)
