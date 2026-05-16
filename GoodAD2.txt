@@ -100,7 +100,7 @@ $removeparam=action_object_map
 $removeparam=action_type_map
 $removeparam=action_ref_map
 
-! ───── Instagramg ─────
+! ───── Instagram ─────
 ! ⚠️ 모바일 앱에는 효과 없음 (앱은 시스템 네트워크 직접 사용)
 ! URL 추적 파라미터 제거
 ||cdninstagram.com^$removeparam=efg
@@ -110,9 +110,9 @@ $removeparam=action_ref_map
 ||www.instagram.com/api/v1/web/logging^
 ||www.instagram.com/logging/falco^
 ||instagram.com/ajax/bz^
-||cdninstagram.com^$removeparam=_nc_ohc
-||cdninstagram.com^$removeparam=_nc_oc
-||cdninstagram.com^$removeparam=_nc_ht
+!||cdninstagram.com^$removeparam=_nc_ohc
+!||cdninstagram.com^$removeparam=_nc_oc
+!||cdninstagram.com^$removeparam=_nc_ht
 ! 클라이언트 이벤트 로깅 경로 차단
 ||graph.instagram.com/logging_client_events
 
