@@ -702,6 +702,7 @@ poong.today##._mainLiveArea_tck4v_535
 ! 치지직 (https://chzzk.naver.com/)
 ! - 광고 차단 프로그램을 사용 중이신가요? 팝업
 ##[class*="popup_modal" i]
+!##p.live_information_video_text__zg-Xa:nth-of-type(1)
 ! - 팝업 차단으로 인한 스크롤 차단 해제
 chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! 치트키 구매하기 툴팁
@@ -713,8 +714,6 @@ chzzk.naver.com##.tooltip
 !my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
 chzzk.naver.com##.pzp-pc__loading-indicator
-! - 재생 중 광고 차단
-*/ad?*
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -2868,7 +2867,7 @@ pedia.watcha.com##.adFixed
 ! - - - imgs 경로로 지정한 규칙 (List-KR)
 ##.main-box:has(img[src^="/imgs/"])
 ! - 게시물 내 상단 배너
-##[id="at-main"] a[target] img
+##[id="at-main"] a[target] img[width="100%"]
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
@@ -5044,6 +5043,8 @@ dschool.co.kr##[id*="lean_overlay" i]
 !
 !
 !
+! = = = = = = = = = = = = = = = = = = = = = = = = =
+!
 !
 ! ((기타))
 !
@@ -5059,7 +5060,9 @@ dschool.co.kr##[id*="lean_overlay" i]
 ##.ad-pc
 !
 !
-
+*/ad?*
+!
+!
 /ad.
 !
 !
@@ -5097,9 +5100,6 @@ _ads_
 ! - 예외
 ! - - - https://platinmods.com/ - 사이트 틀 깨짐
 @@_ads_$domain=platinmods.com
-!
-!
--ads.$badfilter
 !
 !
 *ads.js
@@ -5147,51 +5147,23 @@ _ads_
 ##.ad_wrap
 !
 !
-!##[class*="ad_" i]
-! - 예외
-! - 더쿠 (https://theqoo.net/) - 본문 다 날라감
-!theqoo.net#@#[class*="ad_" i]
-! - 클리앙 - 댓글 날라감
-!clien.net#@#[class*="ad_" i]
-!
-!
-#a[href*="adclick"]
-!
-!
-!##[class*="ad" i]:has(video)
-! - 예외 - https://chzzk.naver.com/ - 영상 안보임
-!chzzk.naver.com#@#[class*="ad" i]:has(video)
-!- 예외 - https://missav.ws/ - 영상 미리보기 안보임
-!missav.ws#@#[class*="ad" i]:has(video)
-!
-!
 ##[class*="ads" i]:has(video)
-
-
+!
+!
 ##[class*='/ad']:has(video)
-
-
+!
+!
 ##[class*='ad.']:has(video)
-!
-!
-!##[class*="banner_m" i]
-!
-!
-!##[class^="basic-banner" i]
 !
 !
 ! - https://shopping.naver.com/
 ^advertisement^
-!*advertise*
 !
 !
 ##[id*="popup_banner" i]
 !
 !
 ##[id*="topbanner" i]
-!
-!
-##img[src*="/ad/" i]
 !
 !
 ##[href*="/ad/" i]
@@ -5203,7 +5175,8 @@ _ads_
 /_xa/ads
 !
 !
-/events?
+*event?*
+*events?*
 !
 !
 ##[data-ad-client]
@@ -5435,39 +5408,6 @@ zod.kr##a[target*="blank"] img
 [$domain=/^ssg\d+\.torrentssg\d+\.com/]##a[target*="blank"] img
 [$domain=/^jogaeparty\d+.com/]##a[target*="blank"] img
 
-
-
-
-
-
-
-
-
-
-
-=================================================
-
-
-! ((테스트 중인 것들)) - 현재 이상없음
-
-*stats.*
-*stat.*
-*action.*
-*logger.*
-*tag.*
-*tms.*
-*tracker.*
-*tracking.*
-*insight.*
-*analytics.*
-*analysis.*
-
-*event.*
-@@*event.$css
-*event?*
-
-*status.*
-@@*status.*$image,xhr
 
 
 =================================================
