@@ -31,7 +31,7 @@
 ! Title: Traffic Saver & Privacy Filter
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260515-rev1
+! Version: 20260516-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -46,6 +46,30 @@
 ! 정규식 일괄 처리: utm_*, _hs*, hsa_*, pk_*, mtm_*, pi_*, elq*, sfmc_*,
 ! ml_*, mc_*, mkt_*, pf_rd_*, pd_rd_*, aff_*, at_*, oly_*, vero_*,
 ! _branch_*, stm_*, xtor*, wt_*, matomo_*
+
+! ───── 광범위 추적 파라미터 제거 (높은 효과) ─────
+*$removeparam=fbclid
+*$removeparam=gclid
+*$removeparam=msclkid
+*$removeparam=ttclid
+*$removeparam=__hs
+*$removeparam=_hsenc
+*$removeparam=_hsmi
+*$removeparam=mc_cid
+*$removeparam=mc_eid
+
+! ───── UTM 계열 (선택) ─────
+! 사이트 분석 도구의 트래픽 출처 식별을 막음
+*$removeparam=utm_source
+*$removeparam=utm_medium
+*$removeparam=utm_campaign
+*$removeparam=utm_term
+*$removeparam=utm_content
+
+! ───── 한국 서비스 ─────
+*$removeparam=n_query
+*$removeparam=n_rank
+*$removeparam=NaPm
 
 ! ───── Google Analytics / Google Ads ─────
 $removeparam=_ga
@@ -75,6 +99,22 @@ $removeparam=fbadid
 $removeparam=action_object_map
 $removeparam=action_type_map
 $removeparam=action_ref_map
+
+! ───── Instagramg ─────
+! ⚠️ 모바일 앱에는 효과 없음 (앱은 시스템 네트워크 직접 사용)
+! URL 추적 파라미터 제거
+||cdninstagram.com^$removeparam=efg
+||cdninstagram.com^$removeparam=ccb
+||cdninstagram.com^$removeparam=_nc_sid
+! Instagram 웹 추가 추적 차단
+||www.instagram.com/api/v1/web/logging^
+||www.instagram.com/logging/falco^
+||instagram.com/ajax/bz^
+||cdninstagram.com^$removeparam=_nc_ohc
+||cdninstagram.com^$removeparam=_nc_oc
+||cdninstagram.com^$removeparam=_nc_ht
+! 클라이언트 이벤트 로깅 경로 차단
+||graph.instagram.com/logging_client_events
 
 ! ───── Microsoft / Bing ─────
 $removeparam=msclkid
