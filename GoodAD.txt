@@ -715,11 +715,6 @@ chzzk.naver.com##.tooltip
 !my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
 chzzk.naver.com##.pzp-pc__loading-indicator
-! - 치지직에서 광고 서버(veta)로부터 오는 데이터 중 광고와 관련된 정보만 골라내서 삭제함으로써, 광고가 아예 시작되지 않도록 만드는 필터
-chzzk.naver.com##+js(json-prune-fetch-response, ads advertiserDomains adDuplicationKeys, '', veta.naver.com/gfp)
-! - 치지직(Chzzk)에서 생방송 중에 나오는 광고(중간 광고)를 차단하기 위한 규칙
-||api.chzzk.naver.com/ad-polling/*/lives/*/ad
-||api.chzzk.naver.com/service/*/ad/display-status
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -5475,7 +5470,7 @@ zod.kr##a[target*="blank"] img
 *event?*
 
 *status.*
-@@*status.*$image
+@@*status.*$image,xhr
 
 
 =================================================
