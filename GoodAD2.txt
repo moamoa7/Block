@@ -1260,18 +1260,18 @@ $cookie=/^__hstc$/
 ! 치지직(chzzk) 광고 차단
 ! ═══════════════════════════════════════════
 ! VAST/GLAD/VETA 광고 요청 허용 (스크립트릿이 응답 변조)
-@@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
-@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
-@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
-@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
-@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
+!@@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
+!@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
+!@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
+!@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
+!@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
 ! 광고 함수 호출 차단 (Proxy)
-chzzk.naver.com#%#"use strict"; window.Function.prototype.apply = new Proxy(window.Function.prototype.apply, { apply(Target, ThisArg, Args) { let FunctionContext = ThisArg.toString(); if (FunctionContext.includes('veta') && FunctionContext.includes('http') && FunctionContext.includes('/gfp/') && FunctionContext.includes('().mark((')) { return Reflect.apply(Target, async () => false, []); } return Reflect.apply(Target, ThisArg, Args); } });
+!chzzk.naver.com#%#"use strict"; window.Function.prototype.apply = new Proxy(window.Function.prototype.apply, { apply(Target, ThisArg, Args) { let FunctionContext = ThisArg.toString(); if (FunctionContext.includes('veta') && FunctionContext.includes('http') && FunctionContext.includes('/gfp/') && FunctionContext.includes('().mark((')) { return Reflect.apply(Target, async () => false, []); } return Reflect.apply(Target, ThisArg, Args); } });
 ! 광고 JSON 응답에서 ads 필드 제거
-chzzk.naver.com#%#//scriptlet('json-prune-fetch-response', 'ads advertiserDomains adDuplicationKeys', '', 'veta.naver.com/gfp')
+!chzzk.naver.com#%#//scriptlet('json-prune-fetch-response', 'ads advertiserDomains adDuplicationKeys', '', 'veta.naver.com/gfp')
 ! 광고 폴링 API 차단
 ||api.chzzk.naver.com/ad-polling/*/lives/*/ad
-||api.chzzk.naver.com/service/*/ad/display-status
+!||api.chzzk.naver.com/service/*/ad/display-status
 
 ! ───────────────────────────────────────────
 ! 숲 (SOOP / 구 아프리카TV)
