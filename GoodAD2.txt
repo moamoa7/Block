@@ -1918,13 +1918,9 @@ x.com/*/videoads/
 ublockdns.com##html
 ublockorigin.com##html
 
+! ───── 기타 ─────
+@@||github.com^$removeparam
+
 ! ───── 인증/세션 토큰 보호 (removeparam 예외) ─────
-! 아래 도메인은 URL 파라미터를 인증·세션·OAuth 토큰으로 사용하므로
-! removeparam 규칙에서 제외 (잘리면 로그인/세션 깨짐)
-! - cloudflare.com : Turnstile 챌린지, Workers 세션
-! - prismic.io    : CMS 프리뷰 토큰
-! - tangerine.ca  : 은행 세션 토큰
-! - gitlab.com    : OAuth 콜백(code, state), MR 필터
-! - accounts.google.com : 구글 로그인
 @@/^https?:\/\/([a-z0-9-]+\.)*?(cloudflare\.com|prismic\.io|tangerine\.ca|gitlab\.com)/$removeparam
 @@/^https?:\/\/(docs|accounts)\.google(\.[a-z]{2,}){1,}/$removeparam
