@@ -29,16 +29,6 @@ Homepage: https://github.com/moamoa7/Block
 !
 !
 !
-! - 다른 필터 규칙들이 URL에서 추적용 쿼리 파라미터를 제거하려 할 때, WebSocket 연결에는 그 파라미터 제거를 하지 않도록 예외 처리
-! - WebSocket 연결은 실시간 통신(채팅, 알림, 게임 등)에 사용되는데, 쿼리 파라미터를 함부로 제거하면 연결이 끊기거나 서비스가 정상 작동하지 않을 수 있기 때문
-@@|wss://$removeparam
-!
-!
-! - 광고는 막되, 사이트가 고장 나지 않도록 꼭 필요한 요청은 예외로 풀어주는 규칙
-@@://www3.doubleclick.net^|$xhr
-!
-!
-!
 !!! 애드가드 스텔스 설정 해제
 ! - -  이게 필요한지 모르겠음 (ublock에도 없는 설정인대 이거 한다고 문제만 생기지)
 ! - -  일부 페이지 접속 오류 발생
@@ -116,227 +106,6 @@ Homepage: https://github.com/moamoa7/Block
 !
 !
 !
-!  / / / / /  차단 / / / / / 
-!
-!
-!
-!
-!
-! - 내가 어떤 광고를 타고 왔는지 Google이 알 수 없게 흔적을 지우는 규칙
-*$removeparam=gtm
-! - 주로 온라인 카지노, 베팅 사이트, 제휴 마케팅(Affiliate) 플랫폼에서 사용하는 추적 코드 (URL 클린업)
-! - - - 어떤 파트너 광고를 통해 사용자가 유입되었는지, 어떤 캠페인을 통해 들어왔는지 서버에 기록하는 역할
-!*$removeparam=btag
-! - 구글 애널리틱스(GA) 등에서 사용자가 어떤 경로(검색, 정기 뉴스레터, SNS 등)를 통해 들어왔는지 분석하는걸 차단하는 규칙
-! - - - 이 필터를 사용하면 브라우저가 위 주소를 인식할 때 뒤의 ?utm_... 부분을 자동으로 깎아내어 깔끔한 주소로 접속하게 만들어 줍니다.
-!*$removeparam=utm_medium
-!*$removeparam=utm_source
-!- 구글이 이 파라미터를 통해 사용자가 어떤 검색 경로로 들어왔는지, 어떤 최적화 환경에서 페이지를 보고 있는지 분석하는 것을 차단  (URL 클린업)
-!*$removeparam=usqp
-! - 사이트에 내장된 구글 서비스가 사용자의 상호작용 데이터를 구글 클라우드로 보내는 것을 막습니다.
-!||google.com/ccm/
-! - 나를 따라다니는 스토커 같은 '맞춤형 광고'의 연결 고리를 끊어버립니다.
-!/rmkt/collect/*
-! - Google 로그인 페이지에서 세션 식별 및 추적 용도로 사용되는 것을 막는 규칙
-||accounts.google.com^$document,removeparam=dsh
-! - Google의 로깅/추적 요청을 빈 텍스트로 리다이렉트해서 사용자 행동 추적을 차단하는 규칙
-!||google.com/log?$redirect-rule=nooptext
-! - 사용자의 활동 로그나 상태 정보를 아주 가볍게 수집할 때 사용하는 통로를 차단하는 규칙
-! - - - 프라이버시 강화 / 유튜브 트래킹 방지 / 백그라운드 통신 차단
-!||google.com/gen_204?
-! - 유튜브(웹 및 앱) 내에서의 행동을 정밀하게 추적하는 '전용 빨대' 차단 (시청 기록 및 알고리즘 방해 / 광고 통계 무력화 / 백그라운드 통신 차단)
-!||youtube.com/youtubei/v1/log_event?
-! - 사용자의 행동 정보(어떤 버튼을 눌렀는지, 얼마나 머물렀는지 등)가 구글로 넘어가는 것을 막아 프라이버시를 보호
-!/collect?v=
-! - 광고를 보고 실제로 물건을 샀는지(전환)"를 확인하려는 행위를 차단 (광고 성과 추적 차단 / 리타겟팅 방지 / 프라이버시 보호)
-!||google.com/pagead/1p-conversion/
-! - 구글 플레이 스토어뿐만 아니라, 유튜브, 구글 검색, 안드로이드 시스템 서비스 등 수많은 구글 관련 앱들이 사용자 행동/기기 정보/이벤트 로그등의 원격 측정(Telemetry) 차단 / 배터리 및 데이터 절약 (백그라운드 차단) / 프라이버시 강화
-||play.google.com/log?
-! - 구글 광고 시스템의 핵심 통로인 'PageAd' 서비스를 차단하는 규칙하는 규칙
-! - - - 웹사이트 내 구글 광고: 티스토리, 뉴스 기사, 커뮤니티 게시판 등에 붙어 있는 사각형 형태의 구글 광고들이 로딩되지 않게 막습니다
-! - - - 광고 스크립트 실행: 광고를 불러오고 사용자 데이터를 수집하는 자바스크립트 파일(adsbygoogle.js 등)의 실행을 시작 단계에서 차단합니다
-! - -  추적용 요청: 광고를 실제로 보여주지 않더라도, 사용자가 어떤 페이지를 보고 있는지 구글 광고 서버에 알리는 신호(Ping)들을 차단합니다
-||google.*/pagead/
-||google.com*/pagead
-||google.*/pagead/lvz?
-||youtube.com/pagead/
-! - 유튜브의 '조회수 및 시청 지속 시간 추적(Pingback)' 시스템을 차단 (시청 데이터 보고 차단 / 알고리즘 차단 / 트래킹 서버 부하 감소)
-||www.youtube.com/ptracking?
-! - 구글(Google)을 포함한 많은 웹 서비스들이 사용자의 '연결 상태'를 확인하거나, 아주 작은 데이터를 몰래 보낼 때 사용하는 트릭을 차단하는 규칙
-! - - - 웹사이트들은 사용자를 추적하고 싶지만, 대놓고 데이터를 보내면 브라우저 보안 정책에 걸릴 수 있습니다. 이때 사용하는 고전적이고 영리한 방법
-! - - - 화면에 보이지 않는 투명 픽셀을 이용한 '비콘(Beacon)' 형태의 데이터 수집을 원천 봉쇄
-! - - - 구글 웹사이트나 크롬 관련 기능들이 백그라운드에서 수시로 "연결 확인용"으로 쏘는 불필요한 신호를 차단 (트래픽 및 리소스 절약)
-!/generate_204?$image
-!
-!
-! - HubSpot 서버가 내 유입 경로를 구체적으로 파악하지 못하게 방해하여 개인정보 보호 및 URL 클린업
-! -- -  인스타
-!*$removeparam=__hs
-! - 인스타그램(Instagram)의 이미지나 영상 서버(CDN) 주소에 붙는 복잡한 내부 추적 및 제어 파라미터를 제거하는 규칙 (URL 클린업)
-!||cdninstagram.com^$removeparam=efg
-!||cdninstagram.com^$removeparam=ccb
-!||cdninstagram.com^$removeparam=_nc_sid
-! - 스타그램이 사용자의 세세한 행동 데이터를 실시간으로 수집하여 서버로 전송하는 '이벤트 로그 송신' 경로를 차단하는 설정
-! - - - 사용자가 피드를 어디까지 내렸는지.특정 사진이나 릴스를 몇 초 동안 보고 있었는지.어떤 메뉴를 눌렀고, 어떤 프로필을 방문했는지.기기 정보.특정 광고나 게시물이 사용자의 화면에 실제로 표시되었는지 확인
-!||graph.instagram.com/logging_client_events
-! - 인스타그램이 사용자의 브라우저에서 발생하는 방대한 양의 분석 데이터와 메트릭을 일괄적으로 묶어서 보낼 때 사용하는 경로를 차단하는규칙
-! - - -  특정 광고가 화면에 몇 초 동안 머물렀는지, 사용자가 그 광고를 보고 어떤 반응을 보였는지 등
-! - - - 웹사이트가 현재 얼마나 많은 메모리를 쓰고 있는지, 자바스크립트가 지연되고 있지는 않은지 등의 기술적 상태
-!||instagram.com/ajax/bz
-! - __s라는 특정 패턴의 추적 파라미터를 삭제하라는 매우 정교한 규칙 (이메일 마케팅 솔루션인 Drip에서 사용자의 유입을 식별할때 사용)
-!*$removeparam=/^__s=[A-Za-z0-9]{6\,}/,domain=~univis.uni-erlangen.de|~univis.uni-bamberg.de|~univis.uni-luebeck.de|~univis.uni-kiel.de|~univis.th-koeln.de
-!
-!
-! - 페이스북 사이트 내부뿐만 아니라, 페이스북 픽셀이 심어진 전 세계 수만 개의 외부 사이트에서 발생하는 다음과 같은 추적을 막습니다.
-! - - - 내가 어떤 쇼핑몰에서 어떤 옷을 봤는지, 뉴스 사이트에서 어떤 기사를 읽었는지 페이스북이 실시간으로 수집하는 것을 차단
-! - - - "장바구니 담기", "결제 완료" 같은 구체적인 액션이 페이스북 광고 시스템에 보고되는 것을 방지
-! - - - 외부 사이트에서의 활동을 바탕으로 페이스북이나 인스타그램 앱 내에서 "방금 본 그 상품" 광고가 뜨게 만드는 연결 고리를 끊습니다.
-!||facebook.com/tr?
-! - 페이스북 외부의 수많은 쇼핑몰이나 뉴스 사이트에 심어져서 사용자가 "구매"를 했는지, "장바구니"에 담았는지 등의 이벤트(Events)를 추적을 차단하는 규칙
-!/fbevents.js
-!
-!
-! - 틱톡(TikTok) 웹 버전이 사용자의 활동 내역이나 오류 발생 상황을 틱톡 서버로 보낼 때 사용하는 '리포트(보고)' 경로를 차단하는 규칙
-! - - -  어떤 영상을 끝까지 봤는지, 어떤 해시태그를 클릭했는지, 소리는 켰는지 껐는지 등의 상세 로그
-! - - - 웹 페이지 로딩 속도, 영상 버퍼링 횟수, 자바스크립트 실행 시 발생하는 오류 보고
-! - - - 광고 영상이 화면에 노출되었는지(Impression), 사용자가 해당 광고에 반응했는지에 대한 보고서
-! - - - 사용자가 봇(Bot)인지 실제 사람인지 판별하기 위해 브라우저 환경 정보를 수집하는 로그
-||tiktok.com/web/report^
-! - 틱톡(TikTok)의 핵심 서비스인 '아웨메(Aweme)'와 관련된 모든 활동 보고(Report)를 차단하는 규칙 ('동영상 시청'에 더 특화된 추적)
-! - - - 사용자가 어떤 영상을 몇 초간 봤는지, 중간에 넘겼는지, 끝까지 시청(Completion)했는지에 대한 데이터.
-! - - -특정 영상을 보고 '좋아요'를 누르지 않았더라도, 오래 머물렀다면 이를 기록하여 비슷한 영상을 추천하는 데 사용되는 로그
-! - - - 영상이 재생되는 동안 버퍼링이 얼마나 발생했는지, 화질은 어떠했는지 등 기술적 리포트
-! - -  피드 사이에 섞인 광고 영상이 사용자에게 실제로 노출되었는지 확인하는 로그.
-||tiktok.com/aweme/*/report
-! -이 규칙은 틱톡(TikTok) 웹사이트가 사용자의 브라우저에서 쿠키 및 개인정보 보호 설정 상태를 확인하거나 강제하려는 API 통신을 차단
-! - - - 서버가 "이 사용자가 쿠키 수집에 동의했는가?"를 확인하려는 시도를 막습니다.
-! - - - 사용자가 설정한 개인정보 보호 옵션을 틱톡 서버와 동기화하는 과정을 차단하여, 틱톡이 내 브라우저 상태를 파악하는 것을 방해
-||tiktok.com/api/*/web-cookie-privacy
-! - 틱톡(TikTok) 웹사이트에서 사용자에게 특정 팝업창을 띄우기 위해 호출하는 '팝업 관리자' 경로를 차단하는 규칙
-! - - - 앱 다운로드 유도 / 로그인 유도 / 마케팅/이벤트 배너 / 설문 조사 등의 팝업
-||tiktok.com/tiktok/popup/dispatch/
-! - 이 규칙은 틱톡(TikTok)의 고성능 데이터 분석 및 실험 플랫폼인 'Whale(웨일)' 관련 통신을 차단하는 규칙
-! - - -  사용자를 특정 그룹(A팀, B팀)으로 나누어 서로 다른 UI나 기능을 보여주고 반응을 살피는 실험 데이터 전송을 막습니다.
-! - - - 마우스 커서의 움직임, 특정 요소에 머문 시간, 화면 전환 속도 등 아주 디테일한 사용자 경험(UX) 데이터를 수집하는 행위를 차단
-! - - - 페이지의 렌더링 성능이나 네트워크 지연 시간 등을 보고하는 로그를 차단
-||tiktok.com/whale/
-! - 틱톡(TikTok)이 사용자의 기기 식별자(TTWID)를 확인하고 검증하는 요청을 차단
-! - - - 틱톡 서버가 내 브라우저를 '특정 개인'으로 인식하고 분류하려는 시도를 막습니다.
-! - - - 로그인하지 않은 상태에서 시청한 기록을 나중에 로그인했을 때 해당 계정과 연결(Bridge)하려는 행위를 방해
-! - - - 틱톡 외부(광고나 임베디드 영상 등)에서 수집된 데이터와 현재 브라우저의 활동을 ttwid를 통해 하나로 묶는 과정을 차단
-!||tiktok.com/ttwid/check/
-!
-!
-! - X에서 발생하는 모든 종류의 사용자 행동 로그 전송을 차단하는 규칙
-! - - - 어떤 트윗이 화면에 스쳐 지나갔는지, 광고가 실제로 사용자에게 보여졌는지 기록합니다.
-! - - - 어떤 버튼을 눌렀고, 누구의 프로필을 클릭했는지 등의 상세 로그
-! - - - 페이지 로딩 시간, 자바스크립트 실행 상태 등 기술적 지표
-||x.com/1.1/jot
-! - 내가 어느 사이트를 거쳐서 왔는지(Referrer)를 추적하는 스크립트 파일의 실행을 차단하는 규칙
-! - - -  사용자가 특정 링크를 타고 X에 접속했거나, 혹은 X 내부에 심어진 외부 서비스 링크를 클릭했을 때 "유입 경로"를 분석하는 자바스크립트 파일
-/referrer.js
-! - X(구 트위터)가 웹사이트 보안 정책을 점검할 때 사용하는 '보안 정책 위반 보고(CSP Report)' 경로를 차단하는 규칙
-! - --  "사용자가 어떤 요소를 차단하고 있는지", "어떤 광고 차단 확장 프로그램을 쓰는지"를 역으로 알아낼 수 있습니다
-!||x.com/i/csp_report
-! - X 웹사이트가 사용자의 활동 정보(페이지에서 수행한 활동(스크롤, 클릭, 체류 시간 등))를 정리하여 서버로 보내는 데이터 파일 자체를 차단
-!||x.com^*/log.json
-! - 타임라인 사이사이에 끼어드는 스폰서 동영상 광고, 혹은 영상 시청 전후에 나오는 광고 데이터를 처리
-x.com/*/videoads/
-!
-!
-! - 마이크로소프트(MS)의 검색 광고 서비스인 Bing Ads에서 사용하는 클릭 식별자
-!*$removeparam=msclkid
-! - 웹사이트 운영자가 내 브라우저에서 발생하는 에러 로그나 이용 패턴을 수집하여 MS 서버로 보내는 것을 막습니다.
-||applicationinsights.azure.com^$domain=~azure.net
-!
-!
-! - ChatGPT 내부에서 사용되는 클라이언트 등록(Register) 및 상태 보고 엔드포인트
-/v1/rgstr?k=client-
-! - 사용자의 브라우저 세션 정보나 기기 식별값이 OpenAI 서버로 등록되는 것을 방지
-!/v1/rgstr?k=client-$xhr,redirect-rule=noopjson
-! - 사용자가 질문을 입력할 때의 속도, 마우스 움직임, UI 상호작용 등 미세한 활동 데이터를 수집
-||chatgpt.com/ces/v1/t
-! - 실시간 행동 분석 로그 전송을 차단
-||chatgpt.com/ces/v1/t$xhr,redirect-rule=noopjson
-! - 페이지 로딩 성능, API 응답 시간 등 기술적인 지표를 보고
-||chatgpt.com/ces/v1/p|
-! - 성능 측정이라는 명목으로 수집되는 브라우저 환경 정보를 차단
-||chatgpt.com/ces/v1/p|$xhr,redirect-rule=noopjson
-!
-!
-! - 웹사이트 운영자가 외부 서비스를 빌려 내 브라우저 활동을 상세히 들여다보는 것을 방지
-! - -- 많은 웹사이트(Claude 포함)가 자사 사이트의 성능을 측정하고 오류를 추적하기 위해 Datadog을 사용합니다. 사용자의 브라우저에서 발생하는 에러, 페이지 로딩 속도, 클릭 이벤트 등을 Datadog 서버로 보냅니다.
-||browser-intake-*-datadoghq.com^
-! -분석용 스크립트가 브라우저에 로드되는 것 자체를 막아, 추적 기능이 시작조차 되지 않게 만듭니다.
-! - - - Claude.ai 사이트에 접속했을 때 실행되는 분석 엔진입니다. 사용자가 어떤 메뉴를 누르는지, 얼마나 머무는지 등을 측정하는 핵심 '스파이 스크립트' 역할을 합니다.
-||a-cdn.anthropic.com/analytics.js/*/analytics.min.js
-! - Claude를 사용하면서 발생하는 세세한 행동 데이터가 서버로 전송되는 것을 차단
-! - - - Claude 서비스 내에서 발생하는 각종 이벤트(활동) 로그 전송 API
-||claude.ai/api/event_logging/
-!
-!
-! - PerimeterX는 "봇 탐지"라는 명목하에 사용자를 식별할 수 있는 아주 미세한 정보(Fingerprinting)를 수집
-! - - - 메인 데이터 수집기(Collector) - 사용자가 웹사이트에 접속하면 브라우저의 환경 정보(화면 해상도, 폰트 목록, 배터리 상태, 마우스 움직임 패턴 등)를 싹 긁어모음
-||px-cloud.net/api/v2/collector
-! - - -  사용자가 페이지에 머무는 동안 주기적으로 "여전히 활성 상태인가?"를 확인하거나, 아주 작은 단위의 행동 변화를 서버에 알릴 때 사용
-!||px-cloud.net/b/s
-!
-!
-!Netflix가 내가 뭘 보고 뭘 클릭하는지 상세하게 기록해서 서버로 보내는 것을 막는 규칙 (시청내역을 막는건 아닌듯)
-||netflix.com/log/
-!
-!
-! - GitHub(깃허브)이 사용자의 브라우저 성능 및 활동 통계를 수집하는 비공개 경로를 차단하는 규칙
-||api.github.com/_private/browser/stats$important
-!
-!
-! - OneTrust라는 유명한 쿠키 관리 솔루션이 사용자의 위치를 파악하고 그에 맞는 쿠키 동의 배너(Consent Banner)를 띄우려는 시도를 원천 봉쇄하는 규칙
-||geolocation.onetrust.com/cookieconsentpub/*/geo/location$xmlhttprequest,redirect-rule=noopjson
-!
-!
-! - 서드 파티 쿠키(Third-party Cookie)와 관련된 통신이나 스크립트를 차단
-! - - - 여러 사이트를 돌아다니는 내 행적을 추적하는 과정을 원천 봉쇄
-/third*cookie/*
-!
-!
-!
-!
-!
-! - 해제
-!
-!
-! - 새창 뜨는거 막음
-!*##+js(prevent-window-open)
-!cloudflare.com#@#+js(prevent-window-open)
-!
-! - 스크롤 막힘 해제 (set-constant)
-!*##+js(set-constant, document.body.style.overflow, 'auto')
-!
-! - 마우스 우클릭/드래그 방지 해제 (remove-attr)
-!*##+js(remove-attr, oncontextmenu)
-!* ##+js(remove-attr, onselectstart)
-!
-! - 타이머 광고/대기 시간 건너뛰기 (set-constant)
-!*##+js(set-constant, coolingDown, false)
-!
-! - 안 지워지는 오버레이 제거 (remove-class)
-!##+js(remove-class, blur, body)
-!
-! - 가짜 클릭 유도 방지 (prevent-event-propagation)
-!##+js(prevent-event-propagation, click)
-!
-!
-! - 악명 높은 팝업 광고 네트워크를 무력화할 때 사용
-!*##+js(abort-current-script, document.querySelectorAll, popMagic)
-!*##+js(abort-current-script, document.querySelectorAll, AdMagic)
-!*##+js(abort-current-script, document.querySelectorAll, popunder)
-!
-! - 타이머를 작동시키지 말고 무시해라
-!*##+js(prevent-setTimeout, adblock)
-!*##+js(prevent-setTimeout, detect)
-!*##+js(prevent-setTimeout, snapper)
-!
-!
 !
 ! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
 !##.grecaptcha-badge
@@ -361,9 +130,6 @@ tv.kakao.com#@#[class^="ad" i]
 !  -- -||thumb.kakaocdn.net^$app=com.kakao.talk   ← 빼는 게 안전
 ! - 숏폼 안보이게 (필요시) - 아래 규칙은 안해도 됨
 !||shortformstats.kakao.com^$app=com.kakao.talk
-!
-!
-!
 !
 !
 ! 구글 광고 차단
@@ -2845,10 +2611,10 @@ pedia.watcha.com##.adFixed
 ! - 메인 배너
 !##[class="title"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
 !##[class="title"]:has(a[target*="blank"] img[src*=".gif"])
+!##.title:has(img[src^="/imgs/"])
 ! - 메인 배너 (다른 페이지에서) - 광역 적용 가능
-!##a[target='_blank'] > img[width='100%'][src*=".gif"]
-!##a[target='_blank'] > img[width='100%'][src*="/imgs/"]
-##.title:has(img[src^="/imgs/"])
+!##a[href][target="_blank"] > img[width="100%"][src$=".gif"]
+!##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
 !##a[target='_blank'] > img[width='100%'][src*='.gif']
 ! - 오른쪽 상단 배너
 !##[class="main-head"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
@@ -2865,15 +2631,14 @@ pedia.watcha.com##.adFixed
 !topporn.link#@#[target="_blank"]:has([src$=".gif"])
 !topporn.link#@#[target="_blank"]:has([src*=".gif"])
 ! - - - imgs 경로로 지정한 규칙 (List-KR)
-##.main-box:has(img[src^="/imgs/"])
+!##.main-box:has(img[src^="/imgs/"])
 ! - 게시물 내 상단 배너
-##[id="at-main"] a[target] img[width="100%"]
+!##[id="at-main"] a[target] img[width="100%"]
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 위 스크립트 실행 후 남는 배너 이미지 공간
-!avsee.ru##[class="title"]
-!avsee.ru##.title
-!avsee.ru##div.main-box:nth-of-type(1)
+avsee.ru##[class="title"]
+avsee.ru##div.main-box:nth-of-type(1)
 ! - Best Recommend 지우기
 ! - - - 공통
 !avsee.ru##.div-title-wrap
@@ -5224,12 +4989,15 @@ _ads_
 !!! 광역
 
 ! - https://06.avsee.ru/
+##a[href][target="_blank"] > img[width="100%"][src$=".gif"]
+##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
+
+
 ! - 자브걸 (https://kr27.javgirl.co/)
 ! - 티비핫 (https://tvhot.store/)
 ##a[target*="blank"] > img[src*=".gif"]
 ! - 예외
 i-boss.co.kr#@#a[target*="blank"] > img[src*=".gif"]
-!sooplive.com#@#a[target*="blank"] > img[src*=".gif"]
 
 
 
