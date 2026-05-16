@@ -1173,7 +1173,9 @@
 ||lcs.naver.com^
 ||cc.naver.com^
 !||siape.veta.naver.com^   ← 검색광고 측정/입찰 (veta.naver.com 으로 차단됨)
-||wcs.naver.net^
+! 네이버스토어의 보안확인 페이지 보이는거 해결
+! - - - 타 차단 리스트에서의 블럭처리 해결하기위해 화이트리스트 처리
+@@||wcs.naver.net^
 ||pcs.naver.com^
 ||astralog.naver.com^
 !
