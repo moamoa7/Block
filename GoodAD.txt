@@ -253,7 +253,7 @@ m.naver.com##script#MM_search_disaster ~*
 ! - - - 스마트스토어, 브랜드스토어, 네이버 항공권 등 결제나 예약이 이루어지는 도메인에서는 차단하지 말라
 ||ntm.pstatic.net/scripts/ntm_$domain=naver.com
 ||ntm.pstatic.net/scripts/ntm_*.js$domain=~smartstore.naver.com|~brand.naver.com|~flight.naver.com
-! - 네이버가 내 브라우저에 심어놓는 고유 식별 쿠키(ba.uuid)를 쓸모없는 값(0)으로 바꿔서, 내 활동이 추적되지 않도록 방어해라
+! - 네이버가 내 브라우저에 심어놓는 고유 식별티빙(ba.uuid)를 쓸모없는 값(0)으로 바꿔서, 내 활동이 추적되지 않도록 방어해라
 naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
 ! -네이버 검색 결과 하단에 나타나는 '파워링크'나 '비즈사이트' 같은 광고 시스템(AdPost)의 작동 스크립트를 차단하는 설정
 ! - - -  kr: List-KR Classic
@@ -1417,7 +1417,7 @@ poooo.ml#@#.ad
 ! - 이전회차/다음회차 따라다니는 버튼
 [$domain=/^tvwiki\d+\.net$/]##.bo_v_nb_sticky.bo_v_nb
 ! - 시청기록 / 맨위로 따라다니는 버튼
-##[class^="floating" i]
+[$domain=/^tvwiki\d+\.net$/]##.floating-side-btns
 !
 !
 ! 티비착 (https://tvchak.org/ (https://tvchak.live/)
