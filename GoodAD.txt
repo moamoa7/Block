@@ -113,10 +113,6 @@ Homepage: https://github.com/moamoa7/Block
 !
 !
 ! 카카오TV (https://tv.kakao.com/)
-! - 광고 차단 해제
-tv.kakao.com#@#[id*="ads" i]
-tv.kakao.com#@#[class^="ads" i]
-!tv.kakao.com#@#[class^="ad" i]
 ! - 카카오TV 광고 차단 우회
 ! - - - ||vst.play.kakao.com^ 차단해도 가능
 !tv.kakao.com#%#//scriptlet('set-constant', 'kakao.tv.adManager', 'noopFunc')
@@ -518,12 +514,7 @@ daum.net##.cafe-banner
 !
 ! 다음 스포츠 (https://sports.daum.net/)
 ! - 영상 안나옴 해결
-!kakaotv.daum.net#@#[class^="ad" i]
-kakaotv.daum.net#@#[class^="ads" i]
 kakaotv.daum.net#@#.ads
-!sports.daum.net#@#[class^="ad" i]
-!sports.daum.net#@#[class^="ads" i]
-!sports.daum.net#@#.ads
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -644,8 +635,7 @@ m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
 !##.adsbygoogle
 ##[class*="adsbygoogle" i]
-!##[id*="google_ads"] - ##[id*="google"] 로 대체
-##[class^="ads" i]
+##[id*="google_ads"]
 ! - - - 파워 링크
 !##[class*="ad_"] [style]
 ! - - - 예외
@@ -778,8 +768,6 @@ etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has
 ! Etoland 네이버 광고 차단 (모바일)
 etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 ! - 애드블럭 감지 해제
-etoland.co.kr#@#[class^="ads" i]
-!etoland.co.kr#@#[class^="ad" i]
 @@||doubleclick.net^$domain=etoland.co.kr
 ! - 팝업 차단
 ! etoland 팝업/팝언더 차단
@@ -1182,7 +1170,6 @@ ppomppu.co.kr##tr.baseNotice:has-text(AD)
 ! - - - 다모앙 (상단 배너 / 게시글 하단 배너 / 댓글 위 배너 / 왼쪽 배너 / 댓글 아래 배너 / 맨 하단 배너 )
 ! - - - https://www.avdbs.com/ 19금 표시도 지움
 ! - 맨 오른쪽 상단 배너 / 중간 배너 / 하단 배너
-! - - - ##[class*="ads"] 와 이 사이트에서는 겹치지만 ad만 사용되는 사이트가 많아서 그냥 둠 (ad를 예외로 해야할 경우도 있으니 유의)
 slrclub.com##div[class^="ad"]
 !##.ad
 ! - 왼쪽 배너
@@ -2270,8 +2257,6 @@ mk.co.kr##.my_agent2
 ###TC_billboard_X_container
 ! - 기타
 ##.ad-slot:not(.adsbox):not(.adsbygoogle)
-! - 오류 해결
-mk.co.kr#@#[id*="ads" i]
 !
 !
 ! 한겨레 (https://www.hani.co.kr/)
@@ -4900,10 +4885,6 @@ _ads_
 !
 !
 /videoad/*
-!
-!
-!
-##[id*="ads" i]
 !
 !
 ##[class$="right-ad" i]
