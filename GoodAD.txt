@@ -1403,9 +1403,9 @@ poooo.ml#@#.ad
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 ! -  -- PC
-##.pc-only.full
+[$domain=/^tvwiki\d+\.net$/]##.pc-only.full
 ! -  -- 모바일
-##.mobile-only.full
+[$domain=/^tvwiki\d+\.net$/]##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
 ###viewCover
 ! - 기타 (일부 필터 차단 해제)
@@ -1415,7 +1415,7 @@ poooo.ml#@#.ad
 ! - - - https://ko.javfc2.live/
 ##[class="iframe-loading" i]
 ! - 이전회차/다음회차 따라다니는 버튼
-[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.bo_v_nb_sticky.bo_v_nb
+[$domain=/^tvwiki\d+\.net$/]##.bo_v_nb_sticky.bo_v_nb
 ! - 시청기록 / 맨위로 따라다니는 버튼
 ##[class^="floating" i]
 !
