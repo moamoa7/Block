@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-17 05:36:31 UTC
+! Generated: 2026-05-17 08:03:21 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,718
+! Block Rules: 85,719
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -36652,6 +36652,7 @@
 ||junior-satisfaction.com^
 ||junior48.com^
 ||juniorfirm.com^
+||juniorregister.com^
 ||juniorsatisfaction.pro^
 ||junkiebeepconfusion.com^
 ||junkingpissed.com^
