@@ -1436,9 +1436,9 @@ tvhot.store##.object-cover
 ![$domain=/^tvmon\d+.site/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
 ##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
-![$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]###viewCover
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]###viewCover
 ![$domain=/^tvmon\d+.site/],[$domain=/^tvmon\d+.org/]###viewCover
-###viewCover
+!###viewCover
 ! - 이전화/다음화 버튼 없애기 (모바일 - 티비위키)
 ![$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.bo_v_nb
 ! - 위로 바로 가는 버튼
@@ -1463,6 +1463,10 @@ tvhot.store##.object-cover
 !tv.naver.com#@#[class*="iframe"]
 ! - - -https://hometax.go.kr/ - 화면 안보임
 !hometax.go.kr#@#[class*="iframe"]
+! - 이전회차/다음회차 따라다니는 버튼
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.bo_v_nb_sticky.bo_v_nb
+! - 시청기록 / 맨위로 따라다니는 버튼
+##[class^="floating" i]
 !
 !
 ! 티비착 (https://tvchak.org/ (https://tvchak.live/)
@@ -1501,10 +1505,9 @@ tvhot.store##.object-cover
 [$domain=/^www.nnuutv\d+.tv/]###comp-lhh974mf2
 !
 !
-! 티비위키 (https://tv61.wiki/)
 ! 콕콕티비 (https://cokcoktv4.com/)
 ! - 배너
-![$domain=/^tv\d+.wiki/],[$domain=/^cokcoktv\d+.com/]##.custom_banner_wrap
+![$domain=/^cokcoktv\d+.com/]##.custom_banner_wrap
 !
 !
 ! 무비킹 (https://mvking4.org/)
