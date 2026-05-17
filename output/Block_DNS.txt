@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-17 01:44:36 UTC
+! Generated: 2026-05-17 05:36:31 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,715
+! Block Rules: 85,718
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -8177,6 +8177,7 @@
 ||arrivespeck.com^
 ||arrivingserpentoutbalance.com^
 ||arrnaught.com^
+||arrogancedanderuntruth.com^
 ||arrondihaycockdurity.cyou^
 ||arrxjyxtl.com^
 ||arsenylasearch.com^
@@ -19914,6 +19915,7 @@
 ||dollarthrill.com^
 ||dollishreman.com^
 ||dollphoin.site^
+||dollshuttlebirthday.com^
 ||dollylarkjeweller.com^
 ||dollyspreadingbeer.com^
 ||dolmanshamelt.cfd^
@@ -20522,6 +20524,7 @@
 ||ducosignory.cyou^
 ||ductilevoider.com^
 ||dudderyvetusty.cyou^
+||dudgeonideo.com^
 ||dudleyrevolutioninconsistent.com^
 ||dudphalmtokf.com^
 ||dudragonitean.com^
