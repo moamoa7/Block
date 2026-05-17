@@ -4831,11 +4831,13 @@ dschool.co.kr##[id*="lean_overlay" i]
 !
 !
 */ad/*
+@@*/ad/*$domain=avsee.ru
 */AD/*
 !
 !
 ! https://ygosu.com/ 광고 게시물 삭제
-##[src*="/ad/" i]
+~avsee.ru##[src*="/ad/" i]
+
 !
 !
 /ad/*$frame
@@ -4987,10 +4989,7 @@ _ads_
 
 ! - 자브걸 (https://kr27.javgirl.co/)
 ! - 티비핫 (https://tvhot.store/)
-##a[target*="blank"] > img[src*=".gif"]
-! - 예외
-i-boss.co.kr#@#a[target*="blank"] > img[src*=".gif"]
-
+i-boss.co.kr,~avsee.ru##a[target*="blank"] > img[src*=".gif"]
 
 
 특이
