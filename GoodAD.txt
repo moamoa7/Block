@@ -1172,9 +1172,8 @@ ppomppu.co.kr#@#[class^="ad" i]
 ##.js-ad_slot
 ! - 사이트 최하단 공백 (모바일)
 ppomppu.co.kr###m_view_bottom_f_1
-! - 보이지 않는대 잡히는거
-! - - - 섹스조아 (https://www.sexzoa53.xyz/) - 광고 차단
-!##.videoad
+! - 포럼내 AD 공지글 삭제
+ppomppu.co.kr##tr.baseNotice:has-text(AD)
 !
 !
 ! SLR (https://www.slrclub.com/)
@@ -4915,6 +4914,9 @@ ad-script.
 /ads-
 !
 !
+-ads.
+!
+!
 /ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -4993,10 +4995,10 @@ _ads_
 *events?*
 !
 !
-##[data-ad-client]
-!
-!
-##[data-ad-slot]
+##[class*="videoad" i]
+##[id*="videoad" i]
+##[class*="video-ad" i]
+##[id*="video-ad" i]
 !
 !
 !
