@@ -1270,8 +1270,10 @@ $cookie=/^__hstc$/
 ! 광고 JSON 응답에서 ads 필드 제거
 !chzzk.naver.com#%#//scriptlet('json-prune-fetch-response', 'ads advertiserDomains adDuplicationKeys', '', 'veta.naver.com/gfp')
 ! 광고 폴링 API 차단
+! ✅ 재생 중 광고 폴링 차단
 ||api.chzzk.naver.com/ad-polling/*/lives/*/ad
-!||api.chzzk.naver.com/service/*/ad/display-status
+! ✅ 광고 표시 상태 동기화 차단 (보조)
+||api.chzzk.naver.com/service/*/ad/display-status
 
 ! ───────────────────────────────────────────
 ! 숲 (SOOP / 구 아프리카TV)
