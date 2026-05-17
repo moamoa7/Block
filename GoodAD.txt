@@ -116,7 +116,7 @@ Homepage: https://github.com/moamoa7/Block
 ! - 광고 차단 해제
 tv.kakao.com#@#[id*="ads" i]
 tv.kakao.com#@#[class^="ads" i]
-tv.kakao.com#@#[class^="ad" i]
+!tv.kakao.com#@#[class^="ad" i]
 ! - 카카오TV 광고 차단 우회
 ! - - - ||vst.play.kakao.com^ 차단해도 가능
 !tv.kakao.com#%#//scriptlet('set-constant', 'kakao.tv.adManager', 'noopFunc')
@@ -237,7 +237,7 @@ open.spotify.com##html,body:style(overflow: auto !important;)
 !naver.com###search-ai-tab-button:style(display: none !important;)
 !naver.com###search-btn:style(display: block !important;)
 ! 네이버 본인 인증 페이지 일부 안보임 해결
-nid.naver.com#@#[class^="ad" i]
+!nid.naver.com#@#[class^="ad" i]
 ! - 모바일 간단하게 보기
 ! -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
@@ -402,7 +402,7 @@ sooplive.com##.adballoon_icon
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
 !sooplive.com#@#[class*="AD"]
 ! ##[class^="ad" i] 해제
-point.sooplive.com#@#[class^="ad" i]
+!point.sooplive.com#@#[class^="ad" i]
 ! - 19금 다시보기 시청시 로그인 하라고 나오는거 해결 (애드가드만 해당)
 ! - - -  출처 : https://gall.dcinside.com/adguard/9365 댓글
 !sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
@@ -438,7 +438,7 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 ! - - - DNS 서버 확인 필요 후 등록 필요
 ||adballoon.sooplive.com^^$badfilter
 ! - 애드벌룬 아이콘 안보이는거 해결
-play.sooplive.com#@#[class^="ad" i]
+!play.sooplive.com#@#[class^="ad" i]
 ! -무한 버퍼링 문제?  (AdGuard DNS filter 필터 해제) - 내 환경에서는 그런일이 일어난적이 없어서 일단 보류
 ! - -- 출처 : https://gall.dcinside.com/adguard/9010
 ! - - - DNS 서버 확인 필요 후 등록 필요
@@ -499,8 +499,8 @@ twitch.tv##.video-player__inactive
 ! - 본인 인증시 필요
 !member.wavve.com#@#.popup
 ! - - - ##[class^="ad" i] 해제 (성인 인증시 내용 안보임)
-member.wavve.com#@#[class^="ad" i]
-pcc.siren24.com#@#[class^="ad" i]
+!member.wavve.com#@#[class^="ad" i]
+!pcc.siren24.com#@#[class^="ad" i]
 !
 !
 ! 다음 (https://www.daum.net/)
@@ -518,7 +518,7 @@ daum.net##.cafe-banner
 !
 ! 다음 스포츠 (https://sports.daum.net/)
 ! - 영상 안나옴 해결
-kakaotv.daum.net#@#[class^="ad" i]
+!kakaotv.daum.net#@#[class^="ad" i]
 kakaotv.daum.net#@#[class^="ads" i]
 kakaotv.daum.net#@#.ads
 !sports.daum.net#@#[class^="ad" i]
@@ -618,7 +618,7 @@ dcinside.com##.stickyunit
 !||wiki.dcinside.com
 !wiki.dcinside.com##*
 ! - 갤주소복사 안나오는거 해결
-gall.dcinside.com#@#[class^="ad" i]
+!gall.dcinside.com#@#[class^="ad" i]
 ! - 기타
 ##[id^="ad_" i]
 gall.dcinside.com##div[class*="banner" i]
@@ -784,7 +784,7 @@ etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has
 etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 ! - 애드블럭 감지 해제
 etoland.co.kr#@#[class^="ads" i]
-etoland.co.kr#@#[class^="ad" i]
+!etoland.co.kr#@#[class^="ad" i]
 @@||doubleclick.net^$domain=etoland.co.kr
 ! - 팝업 차단
 ! etoland 팝업/팝언더 차단
@@ -960,7 +960,7 @@ ddanzi.com##.add_display2
 ! - 오늘의 회원 랭킹
 bobaedream.co.kr##.todayRanking
 ! - ##[class^="ad" i] 복원 - 하단 사업자 정보 등 회사 정보 사라짐
-bobaedream.co.kr#@#[class^="ad" i]
+!bobaedream.co.kr#@#[class^="ad" i]
 ! - ##[class*="ad" i] 복원 - 게시물 주소 복사란 사라짐
 bobaedream.co.kr#@#[class*="ad" i]
 !
@@ -1104,6 +1104,11 @@ namu.wiki#?#div:has(> div > span > svg > path[d^="M12.2031"])
 !namu.wiki##div:has(> form input[type="search"]) > div:has(svg)
 !
 !
+! 모두의 후방 (https://data.pureugong.com/)
+! - 모바일 하단 배너?
+data.pureugong.com##[data-test-id="beehiiv-embed"]
+!
+!
 ! 나무뉴스 (https://namu.news/)
 ! - 오른쪽 배너 공간
 namu.news###main-sidebar-strip
@@ -1167,7 +1172,7 @@ ppomppu.co.kr##.hot-imgBoard
 ! - 뿜뿌 앱으로 보기 팝업 (모바일)
 ppomppu.co.kr###ask_app_usage_popup
 ! - ##[class^="ad" i] 복원 - 첨부파일 / 댓글주소복사 기능 등 몇가지 사라짐
-ppomppu.co.kr#@#[class^="ad" i]
+!ppomppu.co.kr#@#[class^="ad" i]
 ! - 본문 내용 하단 공백 (모바일)
 ##.js-ad_slot
 ! - 사이트 최하단 공백 (모바일)
@@ -1184,7 +1189,7 @@ ppomppu.co.kr##tr.baseNotice:has-text(AD)
 ! - - - https://www.avdbs.com/ 19금 표시도 지움
 ! - 맨 오른쪽 상단 배너 / 중간 배너 / 하단 배너
 ! - - - ##[class*="ads"] 와 이 사이트에서는 겹치지만 ad만 사용되는 사이트가 많아서 그냥 둠 (ad를 예외로 해야할 경우도 있으니 유의)
-##[class^="ad" i]
+slrclub.com##div[class^="ad"]
 !##.ad
 ! - 왼쪽 배너
 ###ad1[style^="position:"]
@@ -1217,7 +1222,7 @@ clien.net##.active.button_sidemenu
 ! - - - 모바일
 !clien.net##.ViewListArea
 ! - ##[class^="ad" i] 복원 - 댓글 입력란 사라짐
-clien.net#@#[class^="ad" i]
+!clien.net#@#[class^="ad" i]
 ! - 게시물 광고 글
 clien.net###hongboInfoList
 ! - 차단 사이트
@@ -1388,6 +1393,8 @@ poooo.ml#@#.ad
 !
 !
 ! 티비위키 (https://tvwiki22.net/) / 티비몬 (https://tvmon.site/) / 티비핫 (https://tvhot.store/)
+! - 팝업 제거
+##[id*="modal-overlay" i]
 ! - 티비위키 배너 이미지 -  kr: List-KR Classic 정규식이 잇어 패스
 !||cdn*.site/data/banner/*
 ! - 티비몬 배너 이미지 -  kr: List-KR Classic 정규식이 잇어 패스
@@ -3148,7 +3155,7 @@ javtiful.com##.front-feature-placement-side
 !- - - ||*.com/img/*
 !@@||avdbs.com/img/*$image
 ! - - - ##[class^="ad" i] 복원 - 일부 이미지 사라짐
-avdbs.com#@#[class^="ad" i]
+!avdbs.com#@#[class^="ad" i]
 ! - 배우찜 제거 안내 팝업?
 !avdbs.com###bnotice-wrap
 ! - - - 뿌연 화면 해결
@@ -3615,9 +3622,9 @@ wavve.com#@#[id*="main-banner" i]
 ! 밤포탈 (https://bampt3.com/)
 ! - 팝업 및 뿌연거 해결  (PC)
 ! - - - 뉴토끼 (https://sbxh1.com/)
-[$domain=/^bampt/],[$domain=/^sbxh/]##[class*="popup-overlay" i]
+##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
-[$domain=/^bampt/],[$domain=/^sbxh/]##[id="popupoverlay" i]
+##[id="popupoverlay" i]
 ! - 상단 배너
 ##[class*="premium-banner" i]
 ##[class*="small-banner" i]
@@ -3726,7 +3733,7 @@ cnine.kr#@#[class*="border"]:has(> a[target*="_blank"])
 ! - 약 광고 사이트 차단
 [$domain=/^www.ndowon\d+\.com/]##html
 ! - ##[class^="ad" i] 해제 - 이미지 안나옴
-1004pk.com#@#[class^="ad" i]
+!1004pk.com#@#[class^="ad" i]
 ! 영상 차단 해제
 !play3737.com#@#[class*="floating" i]
 ! - 업소추천 글자
@@ -4600,7 +4607,7 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 !
 ! 블라인드 (https://www.teamblind.com/)
 ! - ##[class^="ad" i] 차단 해제 - 상단 제목 날라감
-teamblind.com/#@#[class^="ad" i]
+!teamblind.com/#@#[class^="ad" i]
 !
 !
 ! https://forum.mobilism.org/
@@ -4612,17 +4619,17 @@ teamblind.com/#@#[class^="ad" i]
 ! - 팝업 해제에 따른 뿌연거 해결
 daejeonsarangcard.kr##.popupContainer
 ! - ##[class^="ad" i] 해제 - 일부 주소 삭제
-daejeonsarangcard.kr#@#[class^="ad" i]
+!daejeonsarangcard.kr#@#[class^="ad" i]
 !
 !
 ! https://mib19.co.kr/
 ! ##[class^="ad" i] 해제
-mib19.co.kr#@#[class^="ad" i]
+!mib19.co.kr#@#[class^="ad" i]
 !
 !
 ! https://www.xfree.com/
 !  - 팝업 해제
-xfree.com#@#[class^="ad" i]
+!xfree.com#@#[class^="ad" i]
 !
 !
 ! 인생도박 (https://dobaklife21.com/) - 주소 수시로 바뀜
@@ -4634,8 +4641,8 @@ xfree.com#@#[class^="ad" i]
 !
 !
 ! https://thepinkstuff.co.kr/
-thepinkstuff.co.kr,cafe24.com#@#.ad
-thepinkstuff.co.kr,cafe24.com#@#[class^="ad" i]
+!thepinkstuff.co.kr,cafe24.com#@#.ad
+!thepinkstuff.co.kr,cafe24.com#@#[class^="ad" i]
 !thepinkstuff.co.kr,cafe24.com#@#[id*="banner"]
 !thepinkstuff.co.kr,cafe24.com#@#[class*="_banner"]
 thepinkstuff.co.kr#@#[class*="banner-ad" i]
