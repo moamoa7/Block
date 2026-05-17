@@ -1401,8 +1401,8 @@ poooo.ml#@#.ad
 !##[class="banner2"]
 !##.banner2
 !##[id="bannerList" i]
-! - 배너 공백 없애기
-!##[class*="row-banner" i]
+! - 상단 배너 공간 없애기
+##[class*="row-banner" i]
 ! - - - 배너 공간 없애기
 ! - - - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
 !##[class="object-cover"] - 광역으로 사용시 타 사이트 이미지 사라짐 (예 : https://yagong85.com/)
