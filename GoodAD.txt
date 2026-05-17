@@ -1401,19 +1401,11 @@ poooo.ml#@#.ad
 !||tvmon.*/data/banner/*
 ! - 티비핫 배너 이미지 -  kr: List-KR Classic 정규식이 잇어 패스
 !||tvhot.*/data/banner/*
-! - 상단 배너
-! - - - 티비위키 / 티비몬 / 티비핫
-!##[target="_blank"]:has([src*="/data/banner/"])
-!##[target="_blank"]:has([src*="/banner/"])
-!##[class="banner2"]
-!##.banner2
+! - 상단 배너 공간
+! -  - 티비위키
 ##[id="bannerList" i]
-! - 상단 배너 공간 없애기
+! -  - 티비몬
 ##[class*="row-banner" i]
-! - - - 배너 공간 없애기
-! - - - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
-!##[class="object-cover"] - 광역으로 사용시 타 사이트 이미지 사라짐 (예 : https://yagong85.com/)
-!tvhot.store##.object-cover
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 ! -  -- PC
