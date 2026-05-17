@@ -1402,67 +1402,26 @@ poooo.ml#@#.ad
 !##.banner2
 !##[id="bannerList" i]
 ! - 배너 공백 없애기
-![$domain=/^tvwiki\d+.com/]###bannerList
-!###bannerList
-! - - - 아래 출처대로 바꿔도 동일
-! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-![$domain=/^tvwiki\d+.com/],[$domain=/^tvmon\d+.org/]##[src*='/AD/']
-!||.com/AD/*
-!||.org/AD/*
-! - - - 티비몬
-!##[class="row-banner"]
-!##.row-banner
-!##[class^="row-banner" i]
-##[class*="row-banner" i]
-![$domain=/^tvmon\d+.org/]###banner-row-1
+!##[class*="row-banner" i]
 ! - - - 배너 공간 없애기
-!tvmon.site##:matches-path(/^\/(movie|drama|kor_movie|ent|sisa|world|ott_ent|ani_movie|animation|old_ent|old_drama)\/?$/) #content_wrap:style(margin-top: -875px !important; padding-top: 0 !important;)
-! - - - 티비핫 (주소 바뀌므로 나중에 수동으로 수정해야 함)
 ! - - - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
-!##[class="object-cover"]
-!##.object-cover - 광역으로 사용시 타 사이트 이미지 사라짐 (예 : https://yagong85.com/)
-tvhot.store##.object-cover
+!##[class="object-cover"] - 광역으로 사용시 타 사이트 이미지 사라짐 (예 : https://yagong85.com/)
+!tvhot.store##.object-cover
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
-!##[class="full pc-only"]
-!##[class="full mobile-only"]
-![$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.layer-footer
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
-!##[class^="full pc-only"]:not(html):not(body):not(article)
-![$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.pc-only.full
-![$domain=/^tvmon\d+.site/],[$domain=/^tvmon\d+.org/]##.pc-only.full
-##.pc-only.full
-!##[class^="full mobile-only2"]:not(html):not(body):not(article)
-![$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.mobile-only.full
-![$domain=/^tvmon\d+.site/],[$domain=/^tvmon\d+.org/]##.mobile-only.full
-##.mobile-only.full
+! -  -- PC
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.pc-only.full
+! -  -- 모바일
+[$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
 [$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]###viewCover
-![$domain=/^tvmon\d+.site/],[$domain=/^tvmon\d+.org/]###viewCover
 !###viewCover
-! - 이전화/다음화 버튼 없애기 (모바일 - 티비위키)
-![$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.bo_v_nb
-! - 위로 바로 가는 버튼
-! - - - 태블릿(모바일)에서 세로 감상시 전체화면 클릭시 그 위치에 있어서 없앰
-! - - - - - 티비위키
-![$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]###top_btn.sticky_top_btn.top_btn
-! - - - - - 티비몬
-![$domain=/^tvmon\d+.site/],[$domain=/^tvmon\d+.org/]###top_btn.sticky_top_btn.top_btn_sticky
-! 아바타 아이콘 복구
-!@@tvwiki*.com/img/*$image
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
 ! - 로딩 동그라마
 !##.iframe-loading-spinner - ##[class="iframe-loading"]로 대체
 ! - - - https://ko.javfc2.live/
-!##[class*="iframe"]
 ##[class="iframe-loading" i]
-! - 로딩 텍스트
-!##.iframe-loading-text - ##[class="iframe-loading"]로 대체
-! - 예외
-! - - - https://tv.naver.com/ - 클립 영상 안나옴
-!tv.naver.com#@#[class*="iframe"]
-! - - -https://hometax.go.kr/ - 화면 안보임
-!hometax.go.kr#@#[class*="iframe"]
 ! - 이전회차/다음회차 따라다니는 버튼
 [$domain=/^tvwiki\d+.net/],[$domain=/^tvwiki\d+.com/]##.bo_v_nb_sticky.bo_v_nb
 ! - 시청기록 / 맨위로 따라다니는 버튼
@@ -4891,6 +4850,13 @@ dschool.co.kr##[id*="lean_overlay" i]
 !
 /ad.
 @@/ad.$css
+!
+!
+*/ad/*
+*/AD/*
+!
+!
+##[src*="/ad/" i]
 !
 !
 /ad/*$frame
