@@ -2465,6 +2465,8 @@ c.appstory.co.kr###modalPreventExit
 !
 !
 !!! 다나와 (https://danawa.com/)
+! - 오른쪽 빈 배너 / 상단 텍스트
+danawa.com##.main-top__right
 ! 상단 배너 보이게
 ! - - -  List-KR 해제
 !danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-middlebnr
