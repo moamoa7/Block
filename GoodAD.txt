@@ -422,10 +422,10 @@ sooplive.com##.adballoon_icon
 ||live.sooplive.com/api/get_ad.php
 ! - - - SOOP(아프리카TV)이 자체 서버에 복사해둔 구글 애널리틱스(GA) 스크립트를 차단하는 규칙
 ! - - - SOOP이 광고 차단기를 피하려고 자기네 서버에 숨겨놓은 구글 추적 스크립트까지 찾아내서 확실히 막아라 (추적 무력화 / 프라이버시 강화)
-||sooplive.com/js/google.analytics.js
+!||sooplive.com/js/google.analytics.js
 ! - - - SOOP(아프리카TV)의 각종 사용자 활동 로그를 수집하는 API를 차단하는 규칙
 ! - - - SOOP 게시판 환경에서 발생하는 사용자의 모든 행동 기록(Log) 전송을 원천 차단하라 (행동 추적 방지 / 불필요한 통신 차단 / 광고 지표 무력화)
-||stbbs.sooplive.com/api/*_log.php
+!||stbbs.sooplive.com/api/*_log.php
 ! - - - SOOP(아프리카TV)의 VOD(다시보기) 페이지에서 '애드벌룬' 관련 데이터를 제거하기 위한 고도의 자바스크립트 주입 필터
 ! - - - SOOP VOD 시청 시 서버로부터 받아오는 영상 상세 데이터 중, '애드벌룬' 광고와 관련된 항목만 골라내서 삭제하라
 ! - - -  kr: List-KR Classic
