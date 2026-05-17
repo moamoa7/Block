@@ -1407,7 +1407,7 @@ poooo.ml#@#.ad
 !##[target="_blank"]:has([src*="/banner/"])
 !##[class="banner2"]
 !##.banner2
-!##[id="bannerList" i]
+##[id="bannerList" i]
 ! - 상단 배너 공간 없애기
 ##[class*="row-banner" i]
 ! - - - 배너 공간 없애기
