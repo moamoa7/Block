@@ -146,11 +146,11 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
 mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
 *adsbygoogle.js*
 !##[class*="google-ad"] - ##[class*="google"] 로 대체
-##[class*="google" i]
+!##[class*="google" i]
 ! - 예외
 ! - - - https://gemini.google.com/ - 본문 안보임
-gemini.google.com#@#[class*="google" i]
-##[id*="google" i]
+!gemini.google.com#@#[class*="google" i]
+!##[id*="google" i]
 ##[id*="adsbygoogle" i]
 ##[data-google-av-ad-container]
 ! 구글 광고 차단 (추가)
@@ -617,12 +617,7 @@ dcinside.com##.stickyunit
 !h5.dcinside.com##*
 !||wiki.dcinside.com
 !wiki.dcinside.com##*
-! - 갤주소복사 안나오는거 해결
-!gall.dcinside.com#@#[class^="ad" i]
-! - 기타
-##[id^="ad_" i]
 gall.dcinside.com##div[class*="banner" i]
-##[data-ad]
 ! - 모바일 디시에서 공지가 지워지는 현상 해결 (출처 : https://gall.dcinside.com/adguard/2348)
 m.dcinside.com#@##notice_list > li
 m.dcinside.com###notice_list > li:not(:has(.ntc-line-orange))
@@ -996,6 +991,8 @@ fomos.kr#@#.board_view .related_area:style(height: 300px !important;)
 !
 !
 ! 와이고수 (https://ygosu.com/)
+! - 배너
+ygosu.com##.ygosu_banner
 ! - 모바일
 ! - - - 게시글 하단 SNS 공유하기 아이콘 크기 모바일과 안맞아 없앰
 ygosu.com###sns_bar
@@ -1045,10 +1042,10 @@ ygosu.com##.pull-left.btn-group
 !##.banner
 ! - - - 예외
 ! - - - 롤 인벤 (https://lol.inven.co.kr/) : 경기일정 보이게 하려고 해제
-lol.inven.co.kr#@#[class^="banner" i]
+!lol.inven.co.kr#@#[class^="banner" i]
 ![$domain=/^nolgoga\d+.com/]#@#.banner
 ! - - - 다운로드 하는 부분이 안보임
-dailyuploads.net#@#[class^="banner" i]
+!dailyuploads.net#@#[class^="banner" i]
 ! - - - i-boss.co.kr - 배너 안보임
 !i-boss.co.kr#@#[class^="banner" i]
 ! - 왼쪽 상단 배너 공간
@@ -1056,11 +1053,8 @@ dailyuploads.net#@#[class^="banner" i]
 !
 !
 ! 안스티즈 (https://www.instiz.net/)
-! - 게시판 및 중고장터 사이 공백 (EasyList)
-instiz.net##.imgad
-! - 배너
-instiz.net##div[style]:has(> [id^='sense'])
-instiz.net##[id*="sense"]
+! - 게시물 상단 배너
+instiz.net##.view_top
 !
 !
 ! 유머픽 (https://humorpick.com/)
@@ -4785,8 +4779,8 @@ theporndude.com##.drawer-opener
 ! - 상단 배너
 ###topAd
 ! - 배너 복원 (List-KR)
-i-boss.co.kr#@#a[class*="_banner"]
-###topAd
+!i-boss.co.kr#@#a[class*="_banner"]
+!i-boss.co.kr#@#[class*="sponsor" i]
 !
 !
 ! 투디갤 (https://tdgall.com/)
@@ -4855,6 +4849,7 @@ dschool.co.kr##[id*="lean_overlay" i]
 */AD/*
 !
 !
+! https://ygosu.com/ 광고 게시물 삭제
 ##[src*="/ad/" i]
 !
 !
