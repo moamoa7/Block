@@ -2593,13 +2593,9 @@ pedia.watcha.com##.adFixed
 ![$domain=/^torrenthaha\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
 !
 !
-! 토렌트파이 (https://go3.xn--sm2bu5zfuhb6a9l.com/) (https://t19.torrentpi150.com/)
+! 토렌트파이 (https://go3.xn--sm2bu5zfuhb6a9l.com/) (https://t72.torrentpi150.com/)
 ! - 왼쪽 메뉴 텍스트 배너
-![$domain=/^t\d+.torrentpi150.com/]##.sero1
-! - 상단 배너 공간
-![$domain=/^t\d+.torrentpi150.com/]##.basic-post-gallery
-! - 왼쪽 배너
-![$domain=/^t\d+.torrentpi150.com/]##.sero1 > span
+/torrentpi[0-9]+\.com/##.sero1
 !
 !
 ! AVseeTV (https://06.avsee.ru/)
