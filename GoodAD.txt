@@ -3692,6 +3692,11 @@ jusogall.com#@#[class*="rainbow-text" i]
 ! - - - 여기여 (https://www.yugiyu.com/) - 카지노/토토 링크 지워진거라 그냥 둘 것
 !
 !
+! 빠른주소4 (https://xn--4-3k1fr9j3xd8tm.com/)
+! - 배너
+[$domain=/^xn--\d+-3k1fr9j3xd8tm.com/]##[class*="pic_" i]
+!
+!
 ! 주소갤러리 (https://jusogall.com/)
 ! - 배너 이미지
 ||jusogall.com/data/banner_*
@@ -4050,7 +4055,7 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 주소타운 (https://www.jusotw.com/)
 ! - 상단 배너 (링크 없이 만들어진 배너)
-www.jusotw.com##.wixui-section.comp-lt8phbbp.Oqnisf
+##[target] img[sizes="294px"]
 !
 !
 ! 주소주라 (https://www.jusojula.com/)
