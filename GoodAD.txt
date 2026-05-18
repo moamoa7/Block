@@ -1304,6 +1304,13 @@ goodgag.net##.inventoryAd
 goodgag.net##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
+! https://hungryapp.co.kr/
+! - 상단 빈 공간
+hungryapp.co.kr##.bannersww
+! - 팝업 차단으로 인한 스크롤 차단 해제
+hungryapp.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
+!
+!
 ! ZUM (https://zum.com/)
 ! - 가운데 위치 빈 공간 (배너)
 !###big_banner
