@@ -156,7 +156,13 @@
 ||inmobi.com^
 ||mopub.com^
 ||unityads.unity3d.com^
-||is.com^
+! 너무 광범위, 충돌 위험 (현재 로그내역이 없기도 해서 주석 처리) (이하 아래 4개 도메인은 예시일뿐 적용하라는것이 아님)
+! ||is.com^
+! - IronSource SDK
+!||sdk.is.com^
+!||init.is.com^
+!||logs.is.com^
+!||outcome-arpc.is.com^
 ||vungle.com^
 ||applovin.com^
 ||ironsrc.com^
