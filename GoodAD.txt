@@ -4830,7 +4830,9 @@ modded-1.com#@#[class*="ad-container" i]
 !
 ! https://ygosu.com/ 광고 게시물 삭제
 ~avsee.ru##[src*="/ad/" i]
-
+!
+!
+##[src*="/ads/" i]
 !
 !
 /ad/*$frame
@@ -4848,13 +4850,16 @@ ad-script.
 ^ad|
 !
 !
-/adbanner
+*/adbanner*
 !
 !
-/ads
+*/ads*
 !
 !
-/ads-
+*/ads/*
+!
+!
+*/ads-*
 !
 !
 /ads/*
@@ -4863,20 +4868,19 @@ ad-script.
 !@@ad-img.gmarket.com/ADS/*
 !
 !
-_ads_
+*_ads_*
 ! - 예외
 ! - - - https://platinmods.com/ - 사이트 틀 깨짐
-@@_ads_$domain=platinmods.com
+@@*_ads_*$domain=platinmods.com
 !
 !
-! https://www.hankyung.com/
-*ads.js
+!*ads.*
 !
 !
-/banner-ad/*
+*/banner-ad/*
 !
 !
-/videoad/*
+*/videoad/*
 !
 !
 ##[class$="right-ad" i]
