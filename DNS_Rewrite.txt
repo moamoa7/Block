@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260517-rev1
+! Version: 20260518-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -1460,6 +1460,15 @@
 ! ───── 기타 분석 ─────
 ||posthog.com^
 ||plausible.io^
+!
+
+! ───── Helium 브라우저 ─────
+! 업데이트 체크 (브라우저 시작 시) - 유지 권장
+!||update.helium.app^
+!
+! 1시간 간격 백엔드 호출 (텔레메트리 의심) - 차단 권장
+||services.helium.imput.net^
+
 !
 !
 ! ───── 선택 적용 (주의: 결제·로그인·기능 영향 가능) ─────
