@@ -676,80 +676,6 @@ fmkorea.com###fm_alert
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
-! -팝업
-!etoland.co.kr###main_popup
-! - 로그인 팝업
-!etoland.co.kr###login_popup
-! - 왼쪽. 오른쪽. 가운데 HIT인기/최신글
-!etoland.co.kr##[class$="_ad"]
-! - - - 가운데 HIT인기/최신글 사라짐으로 해제 (List-KR)
-!etoland.co.kr#@#div[class$="_ad"]
-! - 오른쪽 따라다니는 메뉴
-!etoland.co.kr##.main_right_ad
-! - 왼쪽 따라다니는 메뉴
-!etoland.co.kr##.main_left_ad
-! - 이토랜드 로고 옆 작은 배너 / 출석체크 배너 - 일부 게시판에서 이미지 안보임 발생 (해제 해야함)
-! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-! - - -- 이미지 안나오는 예시 : https://etoland.co.kr/link.php?n=11063617
-!etoland.co.kr#@#[src*="/data/daumeditor"]
-! - 왼쪽 통합검색 바로 아래 배너
-! - - - 티비착 (https://tvchak148.com/) 영상란 배너
-!etoland.co.kr##.banner-box
-! - 오늘의 HIT 아래 상담실 등 배너
-!etoland.co.kr###consult_list
-! - 무료충전소
-!etoland.co.kr##.reward_v2
-! - 최신 댓글
-!etoland.co.kr###main_latest_comment
-! - 왼쪽 비밀 상점
-!etoland.co.kr##.secret_aside_box
-! - 알뜰 공간
-!etoland.co.kr##.market.menu_wrapper
-!##.sponsor
-! - 오른쪽 상단 텍스트 배너
-!etoland.co.kr##.v2_top_menu_right
-! - 포인트 승부 예측
-!etoland.co.kr##.box.sports-bet-section
-! - 승부 예측
-!etoland.co.kr##.box.main-sports
-! - 회원 랭킹
-!etoland.co.kr##section.box:nth-of-type(7)
-! - 각 게시판 배너
-!||www.etoland.co.kr/data/daumeditor10/*$image
-! - 게시물 상단 비밀상점 배너
-!##[href^="https://etoland.co.kr/pages/short.php"]
-!##[href^="https://www.etoland.co.kr/pages/short.php"]
-! - 게시물 상단 배너 공간 (모바일) - 게시물내 이미지를 지울수 있어 해제
-!etoland.co.kr##div:nth-of-type(5) > div:nth-of-type(3)
-! - 이토랜드 광고 게시물 배너
-!||*/img/market/ajd/ajd_banner*$image
-! - 게시물 내 하단 배너
-!www.etoland.co.kr##.etoad_under_goods
-! - 게시물 내 하단 배너 (모바일)
-!www.etoland.co.kr###under_goodbtn_ad
-! - 포인트 충전소 이미지 복원 (List-KR 무력화)
-!@@||www.etoland.co.kr/data/file0207/point1/
-! - 모바일 게시물 하단 광고 배너 (3칸짜리)
-!etoland.co.kr###underGoodBtn_freeRecharge
-! - 게시물 글 상단 비밀상점 광고글 (PC)
-!etoland.co.kr##.ad_list.hit_item
-! - 게시물 글 내 이토 광고글 (PC)
-!etoland.co.kr##li.ad_list
-! - 게시물 글 상단 비밀상점 광고글 (모바일)
-!etoland.co.kr##.view_content_top_ad_v1
-! - 게시물 내 댓글 광고글 (모바일)
-!etoland.co.kr##.comment_wrap.comment_extra_wrap.mw_basic_comment_content
-! - 최신글 (NEW) 감추기
-! - - - PC
-!etoland.co.kr##.freebbs_latest_list_section
-! - - - 모바일
-!etoland.co.kr###latest_m_main
-! - 실시간 정보 게시판 감추기 (모바일)
-!etoland.co.kr###info_recent_list_wrap
-! - 이미지 복원
-!@@||blogger.googleusercontent.com/img/*$image,domain=etoland.co.kr
-! - ##[class^="ad" i] 복원 - 하단 사업자번호 등 사라짐
-!etoland.co.kr#@#[class^="ad" i]
 ! - - - - - - - - 신버젼
 ! - 팝업
 ! - - -  - 다른 요소까지 지워짐
@@ -771,6 +697,9 @@ etoland.co.kr##.justify-center.w-full.min-h-\[280px\]
 etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
 ! Etoland 네이버 광고 차단 (모바일)
 etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
+! - 게시물내 광고글
+!etoland.co.kr##li:has(img[src*="/ad"])
+##li:has(img[src*="/ad"])
 ! - 애드블럭 감지 해제
 @@||doubleclick.net^$domain=etoland.co.kr
 ! - 팝업 차단
