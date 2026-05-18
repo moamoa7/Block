@@ -1399,6 +1399,7 @@
 ||adblockanalytics.com^
 ||doubleverify.com^
 ||obcanzma.in^
+! - 본인이 GPS 정확도/속도에 만족하면 유지, 불편 체감 시 해제
 ||xtracloud.net^
 !
 ! ───── 한국 광고/팝업 네트워크 ─────
