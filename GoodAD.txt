@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 Homepage: https://github.com/moamoa7/Block
-! Version: 20260518
+! Version: 20260519
 !
 !
 !
@@ -1586,11 +1586,9 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !||bigwin.livenst.com/static/upload/*
 ! - 채팅박스
 ! - - - VIP TV (https://viptv24.com/)
-! - - - 쿨티비 (https://www.cool111.com)
-! - - - 굿라이브티비 (https://gltv88.com/)
-! - - - 블랙티비 (https://blacktv88.com/)
+! - - - 굿라이브티비 (https://gltv77.com/)
+! - - - 블랙티비 (https://blacktv24.com/)
 ! - - - 배트맨티비 (https://bmtv24.com/)
-! - - - 놀고가닷컴 (https://nolgoga365.com/)
 !##u-chat
 ! - 예외
 ! - --  https://poooo.ml/ - ㅡ채팅창 내 배너(채팅방 배너) 안보임 해결
@@ -1605,11 +1603,9 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !###left_chat
 !
 !
-! 쿨티비 (https://www.cool111.com/)
-! 굿라이브티비 (https://gltv88.com/)
-! 블랙티비 (https://blacktv88.com/)
-! 놀고가닷컴 (https://nolgoga365.com/)
-! 주소월드 (https://wdwd10.com/)
+! 굿라이브티비 (https://gltv77.com/)
+! 블랙티비 (https://blacktv24.com/)
+! 주소월드 (https://wdwd11.com/)
 ! - 팝업
 !###hd_pop
 ! - - - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
@@ -2670,20 +2666,20 @@ tktube.com##.top
 !
 !
 ! 탑걸 (https://kr41.topgirl.co/)
-! 자브걸 (https://kr24.javgirl.co/)
-! - 상단 맨 오른쪽 작은 배너
-!##[id="header_banner"]
-!###header_banner
+! 자브걸 (https://kr27.javgirl.co/)
+! - 배너
+! - - - 딸플릭스 (https://kr12.ddal.xyz/) 
+##.ad_banner
 ! - 영상내 광고
 ! - - - 아브티비 (https://kr2.avtv.co/) - 없어진듯
-! - - - 딸플릭스 (https://kr11.ddal.xyz/) - 같은 비디오라 막으면 안됨
+! - - - 딸플릭스 (https://kr12.ddal.xyz/) - 같은 비디오라 막으면 안됨
 ||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
 ! - - - 자브걸 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
 !||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
 ! - - - - - 경로로 달라지는 부분이 있어 변경
 ||*/js/videojs.hotkeys.min.js$important
 ! - 영상 하단 텍스트 배너
-topgirl.co,javgirl.co,ddal.xyz##.ban_shuffle.pb-2.px-0.mx-auto.text-center.col
+topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !
 !
 ! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo43.com/) / AV러브걸 (https://avlove27.com/) / XX조아 (https://xxjoa45.com/) / 야통령 (https://xn--4-v10fo35av1l.com/)
@@ -3687,7 +3683,7 @@ sexygirl.cc##div.overflow-auto
 ![$domain=/^evian\d+.com/]##div.section:nth-of-type(2)
 ![$domain=/^evian\d+.com/]##div.section:nth-of-type(3)
 ! - 성인주소모음  등 텍스르 링크 없애기
-! - - - 주소월드 (https://wdwd8.com/)
+! - - - 주소월드 (https://wdwd11.com/)
 !##.rainbow-text
 ##[class*="rainbow-text" i]
 ! - - - 예외
@@ -3754,11 +3750,6 @@ jusogall.com###banner-container
 !##.banners-container
 ! - 영상 하단 텍스트
 ###h_tag_link
-!
-!
-! 딸플릭스 (https://kr11.ddal.xyz/)
-! - 배너 이미지
-!||*net/banners/*$image
 !
 !
 ! 일구핫 (https://01.19hot.net/)
@@ -4013,26 +4004,13 @@ xn--9l4b15e2td.com##.widget-box
 ##.wixui-gallery
 !
 !
-! 여기여 (https://www.yugiyu.com/)
+! 여기여 (https://www.yugiyu.com/) (https://ygy003.com/) - 서로 다른 여기여 지만 같은 사이트
 ! - 팝업
 ##.popup_wrap
+! - - - 모바일 겸용
+##[class*="popup_1" i]
 ! - 배너
 ##.banner_top_box
-! - 검증 삭제
-!yugiyu.com##div.main_link.f9_box01:nth-of-type(6)
-! - 카지노 삭제
-!yugiyu.com##div.main_link.f9_box01:nth-of-type(8)
-! - 토토 삭제
-!yugiyu.com##div.main_link.f9_box01:nth-of-type(9)
-! - 오피 삭제
-!##div.main_link.f9_box01:nth-of-type(12)
-!
-!
-! 주소파워 (https://linkpower27.com/)
-! - 스폰서AD 글자
-![$domain=/^linkpower\d+.com/]##div.w-row.row:nth-of-type(2)
-! - 먹튀검증 글자
-![$domain=/^linkpower\d+.com/]##li.off.menu-li:nth-of-type(7)
 !
 !
 ! 주소야 (https://jusoya.com/)
