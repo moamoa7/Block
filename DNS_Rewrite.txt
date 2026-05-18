@@ -1177,8 +1177,10 @@
 ||log.naver.com^
 ||nlog.naver.com^
 ||lcs.naver.com^
-||cc.naver.com^
-!||siape.veta.naver.com^   ← 검색광고 측정/입찰 (veta.naver.com 으로 차단됨)
+! - 미 로그인시 네이버 쇼핑 로그인시 필요
+!||cc.naver.com^
+! 검색광고 측정/입찰 (veta.naver.com 상위 도메인으로 차단됨)
+!||siape.veta.naver.com^
 ||wcs.naver.net^
 ||pcs.naver.com^
 ||astralog.naver.com^
