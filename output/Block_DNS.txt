@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-18 14:03:40 UTC
+! Generated: 2026-05-18 17:14:28 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,560
+! Block Rules: 85,563
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -17161,6 +17161,7 @@
 ||d2dc2sk4vkh2xn.cloudfront.net^
 ||d2dkurdav21mkk.cloudfront.net^
 ||d2dq2ahtl5zl1z.cloudfront.net^
+||d2dxy39sqorbhv.cloudfront.net^
 ||d2dyjetg3tc2wn.cloudfront.net^
 ||d2dzy45qo641nc.cloudfront.net^
 ||d2e0sxz09bo7k2.cloudfront.net^
@@ -23696,6 +23697,7 @@
 ||fbcdn2.com^
 ||fbdata-edt.com^
 ||fbdjpebrvocxf.website^
+||fbdwowgjjskjy.website^
 ||fbebz.comfrt.com^
 ||fbetlixgee.eu^
 ||fbfejxqozbxrc.site^
@@ -81074,6 +81076,7 @@
 ||wingedphoto.com^
 ||wingerswetchet.cfd^
 ||wingohvuktotg.site^
+||wingsmob.com^
 ||wingssecrecyfailed.com^
 ||wingsshaggy.com^
 ||winitout.com^
