@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v32.0.7)
+// @name         Video_Control (v33.0.0)
 // @namespace    https://github.com/moamoa7
-// @version      32.0.7
-// @description  v32.0.7: cosmetic filter 회피 (호스트 인라인 style 최소화)
+// @version      33.0.0
+// @description  v33.0.0: 10밴드 EQ + Adaptive Auto-EQ + Auto-Clip 보호 + VAD 옵션 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,7 +33,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '32.0.7';
+  const VSC_VERSION = '33.0.0';
   const DEBUG = false;
 
   const log = {
@@ -98,30 +98,10 @@
     detail: {
       none: { label: 'OFF' },
       off:  { label: 'AUTO' },
-      S:  {
-        sharpAdd:    IS_MOBILE ? 8  : 5,
-        sharp2Add:   IS_MOBILE ? 4  : 2,
-        clarityAdd:  IS_MOBILE ? 3  : 2,
-        label: '1단'
-      },
-      M:  {
-        sharpAdd:    IS_MOBILE ? 16 : 10,
-        sharp2Add:   IS_MOBILE ? 9  : 5,
-        clarityAdd:  IS_MOBILE ? 7  : 4,
-        label: '2단'
-      },
-      L:  {
-        sharpAdd:    IS_MOBILE ? 25 : 16,
-        sharp2Add:   IS_MOBILE ? 14 : 8,
-        clarityAdd:  IS_MOBILE ? 10 : 5,
-        label: '3단'
-      },
-      XL: {
-        sharpAdd:    IS_MOBILE ? 34 : 22,
-        sharp2Add:   IS_MOBILE ? 19 : 10,
-        clarityAdd:  IS_MOBILE ? 14 : 7,
-        label: '4단'
-      },
+      S:  { sharpAdd: IS_MOBILE ? 8 : 5, sharp2Add: IS_MOBILE ? 4 : 2, clarityAdd: IS_MOBILE ? 3 : 2, label: '1단' },
+      M:  { sharpAdd: IS_MOBILE ? 16 : 10, sharp2Add: IS_MOBILE ? 9 : 5, clarityAdd: IS_MOBILE ? 7 : 4, label: '2단' },
+      L:  { sharpAdd: IS_MOBILE ? 25 : 16, sharp2Add: IS_MOBILE ? 14 : 8, clarityAdd: IS_MOBILE ? 10 : 5, label: '3단' },
+      XL: { sharpAdd: IS_MOBILE ? 34 : 22, sharp2Add: IS_MOBILE ? 19 : 10, clarityAdd: IS_MOBILE ? 14 : 7, label: '4단' },
     }
   });
 
@@ -174,9 +154,61 @@
     { n: '복구', v: [100, 0, 10,  0,  0,  0,  0, 10,  20] },
   ];
 
+  // ★ 10밴드 EQ 정의 (31Hz ~ 16kHz)
+  const EQ_BANDS = [
+    { label: '31', frequency: 31, q: 1.1, from: 22, to: 44 },
+    { label: '62', frequency: 62, q: 1.1, from: 44, to: 88 },
+    { label: '125', frequency: 125, q: 1.1, from: 88, to: 177 },
+    { label: '250', frequency: 250, q: 1.1, from: 177, to: 354 },
+    { label: '500', frequency: 500, q: 1.1, from: 354, to: 707 },
+    { label: '1K', frequency: 1000, q: 1.1, from: 707, to: 1414 },
+    { label: '2K', frequency: 2000, q: 1.1, from: 1414, to: 2828 },
+    { label: '4K', frequency: 4000, q: 1.1, from: 2828, to: 5657 },
+    { label: '8K', frequency: 8000, q: 1.1, from: 5657, to: 11314 },
+    { label: '16K', frequency: 16000, q: 1.1, from: 11314, to: 20000 },
+  ];
+
+  // ★ 톤 프리셋 (10밴드)
+  const TONE_PRESETS = {
+    flat: { label: 'OFF', maxAutoDb: 0, curve: [0,0,0,0,0,0,0,0,0,0] },
+    clearFull: { label: '클리어&풀', maxAutoDb: 3.2, curve: [-2.4, -1.8, -1.0, -0.4, 0.1, 0.5, 1.2, 1.0, 0.35, -0.2] },
+    clarity: { label: '대화선명', maxAutoDb: 3.8, curve: [-3.5, -3.0, -2.0, -0.8, 0.2, 0.8, 1.9, 1.6, 0.5, -0.6] },
+    backgroundDown: { label: '배경음↓', maxAutoDb: 4.8, curve: [-5.5, -5.0, -4.0, -2.6, -1.1, 0.2, 1.4, 1.0, -0.4, -1.2] },
+    bassClean: { label: '베이스정리', maxAutoDb: 4.0, curve: [-4.8, -4.0, -2.5, -1.1, -0.2, 0.15, 0.45, 0.3, -0.1, -0.35] },
+    night: { label: '야간', maxAutoDb: 3.6, curve: [-5.0, -4.4, -3.0, -1.5, -0.4, 0.0, 0.4, -0.2, -1.2, -2.4] },
+    loudness: { label: '라우드', maxAutoDb: 3.0, curve: [1.3, 1.0, 0.45, -0.15, -0.2, 0.1, 0.7, 0.8, 0.7, 0.4] },
+    warm: { label: '따뜻', maxAutoDb: 3.0, curve: [-1.5, -0.8, 0.3, 1.0, 0.8, 0.3, -0.3, -1.0, -1.8, -2.4] },
+    bright: { label: '밝게', maxAutoDb: 3.4, curve: [-2.8, -2.4, -1.6, -0.8, 0.0, 0.6, 1.2, 1.8, 2.0, 1.2] },
+  };
+
+  // ★ Auto-EQ 강도
+  const AUTO_EQ_MODES = {
+    off: { label: 'OFF', amount: 0, speed: 1 },
+    subtle: { label: '약', amount: 0.55, speed: 0.85 },
+    normal: { label: '중', amount: 0.8, speed: 1.1 },
+    strong: { label: '강', amount: 1.1, speed: 1.3 },
+  };
+
+  // ★ Auto-Clip 보호 모드
+  const AUTO_CLIP_MODES = {
+    off: { label: 'OFF', step: 0, max: 0, recover: 0, near: 0.965, clip: 0.985 },
+    normal: { label: '보통', step: 3, max: 12, recover: 0.012, near: 0.955, clip: 0.982 },
+    strong: { label: '강', step: 6, max: 24, recover: 0.008, near: 0.93, clip: 0.975 },
+  };
+
   const DEFAULTS = {
     video: { presetS: 'off', manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, manualPreGain: 100 },
-    audio: { enabled: false, strength: 50, surroundWidth: 0, clarity: 0, boost: 100 },
+    audio: {
+      enabled: false,
+      strength: 50,
+      surroundWidth: 0,
+      boost: 100,
+      tonePreset: 'flat',
+      autoEqMode: 'off',
+      vadEnabled: false,
+      autoClipMode: 'normal',
+      manualEq: [0,0,0,0,0,0,0,0,0,0]
+    },
     playback: { rate: 1.0, enabled: false },
     radio: { enabled: false },
     app: { active: true, uiVisible: false }
@@ -192,7 +224,12 @@
     V_MAN_PREGAIN: 'video.manualPreGain',
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
     A_SURROUND: 'audio.surroundWidth',
-    A_CLARITY: 'audio.clarity', A_BOOST: 'audio.boost',
+    A_BOOST: 'audio.boost',
+    A_TONE: 'audio.tonePreset',
+    A_AUTOEQ: 'audio.autoEqMode',
+    A_VAD: 'audio.vadEnabled',
+    A_AUTOCLIP: 'audio.autoClipMode',
+    A_MAN_EQ: 'audio.manualEq',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled',
     RADIO_EN: 'radio.enabled'
   };
@@ -696,11 +733,16 @@
     let ctx = null;
     let splitter = null, merger = null;
     let delayL = null, delayR = null, crossGainLR = null, crossGainRL = null, dryGainL = null, dryGainR = null;
-    let eqLow = null, eqMid = null, eqHigh = null;
+    let eqFilters = [];                         // ★ 10밴드 EQ
+    let eqAnalyser = null;                      // ★ Auto-EQ용 스펙트럼 분석
+    let voiceFilter = null, voiceAnalyser = null; // ★ VAD용
+    let outputAnalyser = null;                  // ★ Auto-Clip용
+    let eqData = null, voiceData = null, outputData = null;
     let routeGain = null;
     let comp = null, limiter = null, makeupGain = null;
     let compBypass = null;
     let boostGain = null;
+    let autoClipGain = null;                    // ★ Auto-Clip 감쇄용
     let masterOut = null;
     let fullDryPath = null;
     let currentSrc = null, targetVideo = null;
@@ -710,6 +752,14 @@
     const streamMap = new WeakMap();
     let bypassMode = false;
     let generation = 0;
+
+    // ★ Auto-EQ / Auto-Clip 상태
+    const eqGains = EQ_BANDS.map(() => 0);
+    let autoClipReduction = 0; // 0 ~ AUTO_CLIP_MODES.max
+    let lastAutoClipAt = 0;
+    let lastVoiceAt = 0;
+    let analysisRaf = 0;
+    let bandIndicesCache = null;
 
     const mesConnectedVideos = new WeakSet();
 
@@ -732,7 +782,24 @@
       return true;
     }
 
-    const isAnyAudioActive = () => store.get(P.A_EN) || Number(store.get(P.A_SURROUND)) > 0 || Number(store.get(P.A_CLARITY)) > 0 || Number(store.get(P.A_BOOST)) !== 100;
+    function hasManualEqAdjustment() {
+      const me = store.get(P.A_MAN_EQ);
+      if (!Array.isArray(me)) return false;
+      for (const v of me) if (Math.abs(Number(v) || 0) > 0.05) return true;
+      return false;
+    }
+
+    const isAnyAudioActive = () => {
+      if (store.get(P.A_EN)) return true;
+      if (Number(store.get(P.A_SURROUND)) > 0) return true;
+      if (Number(store.get(P.A_BOOST)) !== 100) return true;
+      const tone = store.get(P.A_TONE);
+      if (tone && tone !== 'flat') return true;
+      const ae = store.get(P.A_AUTOEQ);
+      if (ae && ae !== 'off') return true;
+      if (hasManualEqAdjustment()) return true;
+      return false;
+    };
 
     function initCtx() {
       if (ctx) return true;
@@ -753,11 +820,20 @@
       delayL.connect(crossGainLR); delayR.connect(crossGainRL);
       crossGainLR.connect(merger, 0, 1); crossGainRL.connect(merger, 0, 0);
 
-      eqLow = ctx.createBiquadFilter(); eqLow.type = 'lowshelf'; eqLow.frequency.value = 200; eqLow.gain.value = 0;
-      eqMid = ctx.createBiquadFilter(); eqMid.type = 'peaking'; eqMid.frequency.value = 2500; eqMid.Q.value = 1.2; eqMid.gain.value = 0;
-      eqHigh = ctx.createBiquadFilter(); eqHigh.type = 'highshelf'; eqHigh.frequency.value = 8000; eqHigh.gain.value = 0;
+      // ★ 10밴드 EQ 체인
+      eqFilters = EQ_BANDS.map((band) => {
+        const f = ctx.createBiquadFilter();
+        f.type = 'peaking';
+        f.frequency.value = band.frequency;
+        f.Q.value = band.q;
+        f.gain.value = 0;
+        return f;
+      });
+      // 체인 연결: merger → eq0 → eq1 → ... → eq9 → routeGain
+      let node = merger;
+      for (const f of eqFilters) { node.connect(f); node = f; }
       routeGain = ctx.createGain(); routeGain.gain.value = 1;
-      merger.connect(eqLow); eqLow.connect(eqMid); eqMid.connect(eqHigh); eqHigh.connect(routeGain);
+      node.connect(routeGain);
 
       comp = ctx.createDynamicsCompressor();
       makeupGain = ctx.createGain(); makeupGain.gain.value = 1;
@@ -765,17 +841,50 @@
       limiter.threshold.value = -3.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.15; limiter.knee.value = 2;
       compBypass = ctx.createGain(); compBypass.gain.value = 1;
       boostGain = ctx.createGain(); boostGain.gain.value = 1;
+      autoClipGain = ctx.createGain(); autoClipGain.gain.value = 1;
       masterOut = ctx.createGain(); masterOut.gain.value = 1;
+
       comp.connect(makeupGain); makeupGain.connect(limiter); limiter.connect(boostGain);
-      compBypass.connect(boostGain); boostGain.connect(masterOut); masterOut.connect(ctx.destination);
+      compBypass.connect(boostGain);
+      boostGain.connect(autoClipGain);
+      autoClipGain.connect(masterOut);
+
+      // ★ output analyser: 마스터 직전에서 peak 측정
+      outputAnalyser = ctx.createAnalyser();
+      outputAnalyser.fftSize = 1024;
+      outputAnalyser.smoothingTimeConstant = 0.35;
+      masterOut.connect(outputAnalyser);
+      outputAnalyser.connect(ctx.destination);
+      outputData = new Uint8Array(outputAnalyser.fftSize);
+
+      // ★ EQ analyser (Auto-EQ용): merger 후 한 번 분기
+      eqAnalyser = ctx.createAnalyser();
+      eqAnalyser.fftSize = 4096;
+      eqAnalyser.smoothingTimeConstant = 0.82;
+      merger.connect(eqAnalyser);
+      eqData = new Uint8Array(eqAnalyser.frequencyBinCount);
+
+      // ★ Voice analyser (VAD용): merger 후 bandpass
+      voiceFilter = ctx.createBiquadFilter();
+      voiceFilter.type = 'bandpass';
+      voiceFilter.frequency.value = 1450;
+      voiceFilter.Q.value = 0.85;
+      voiceAnalyser = ctx.createAnalyser();
+      voiceAnalyser.fftSize = 2048;
+      voiceAnalyser.smoothingTimeConstant = 0.65;
+      merger.connect(voiceFilter);
+      voiceFilter.connect(voiceAnalyser);
+      voiceData = new Uint8Array(voiceAnalyser.fftSize);
+
       fullDryPath = ctx.createGain(); fullDryPath.gain.value = 1; fullDryPath.connect(ctx.destination);
 
       applyStrength(Number(store.get(P.A_STR) ?? 50));
       applySurroundWidth(Number(store.get(P.A_SURROUND)) || 0);
-      applyClarity(Number(store.get(P.A_CLARITY)) || 0);
       applyBoost(Number(store.get(P.A_BOOST)) ?? 100);
+      applyEqStatic();
       updateMasterGain();
       routeCompressor();
+      startAnalysisLoop();
       return true;
     }
 
@@ -802,19 +911,191 @@
       catch (_) { crossGainLR.gain.value = crossLevel; crossGainRL.gain.value = crossLevel; dryGainL.gain.value = dry; dryGainR.gain.value = dry; delayL.delayTime.value = 0.005 + w * 0.015; delayR.delayTime.value = 0.008 + w * 0.020; }
     }
 
-    function applyClarity(clarity) {
-      if (!ctx || !eqLow) return;
-      const c = CLAMP(clarity, 0, 100) / 100;
-      try { eqLow.gain.setTargetAtTime(-4 * c, ctx.currentTime, 0.05); eqMid.gain.setTargetAtTime(6 * c, ctx.currentTime, 0.05); eqHigh.gain.setTargetAtTime(3 * c, ctx.currentTime, 0.05); }
-      catch (_) { eqLow.gain.value = -4 * c; eqMid.gain.value = 6 * c; eqHigh.gain.value = 3 * c; }
-      updateMasterGain();
-    }
-
     function applyBoost(boostPercent) {
       if (!ctx || !boostGain) return;
       const gain = CLAMP(boostPercent, 100, 300) / 100;
       try { boostGain.gain.setTargetAtTime(gain, ctx.currentTime, 0.05); } catch (_) { boostGain.gain.value = gain; }
       updateMasterGain();
+    }
+
+    // ★ Manual EQ + Tone preset 기본 적용 (Auto-EQ off일 때)
+    function applyEqStatic() {
+      if (!ctx || !eqFilters.length) return;
+      const manualEq = store.get(P.A_MAN_EQ);
+      const toneKey = store.get(P.A_TONE) || 'flat';
+      const tone = TONE_PRESETS[toneKey] || TONE_PRESETS.flat;
+      const autoEqOn = (store.get(P.A_AUTOEQ) || 'off') !== 'off';
+      const enabled = store.get(P.A_EN) ||
+                      Number(store.get(P.A_SURROUND)) > 0 ||
+                      Number(store.get(P.A_BOOST)) !== 100 ||
+                      toneKey !== 'flat' ||
+                      autoEqOn ||
+                      hasManualEqAdjustment();
+
+      for (let i = 0; i < eqFilters.length; i++) {
+        const manual = Array.isArray(manualEq) ? Number(manualEq[i]) || 0 : 0;
+        // Auto-EQ off & tone preset만: manual + tone curve (절반 강도)
+        let target;
+        if (!enabled) target = 0;
+        else if (!autoEqOn) {
+          target = manual + (tone.curve[i] * 0.5); // tone preset은 절반 강도로 베이스
+        } else {
+          target = manual; // Auto-EQ가 켜져 있으면 analysis loop가 처리
+        }
+        eqGains[i] = target;
+        try { eqFilters[i].gain.setTargetAtTime(target, ctx.currentTime, 0.05); }
+        catch (_) { eqFilters[i].gain.value = target; }
+      }
+    }
+
+    function getBandIndices() {
+      if (!eqAnalyser) return null;
+      const sr = ctx.sampleRate;
+      if (bandIndicesCache && bandIndicesCache.sampleRate === sr) return bandIndicesCache.indices;
+      const nyquist = sr / 2;
+      const length = eqAnalyser.frequencyBinCount;
+      const indices = EQ_BANDS.map((band) => ({
+        start: Math.max(0, Math.floor((band.from / nyquist) * length)),
+        end: Math.min(length - 1, Math.ceil((band.to / nyquist) * length)),
+      }));
+      bandIndicesCache = { sampleRate: sr, indices };
+      return indices;
+    }
+
+    function readRms(analyser, data) {
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      const len = data.length;
+      for (let i = 0; i < len; i++) {
+        const sample = (data[i] - 128) / 128;
+        sum += sample * sample;
+      }
+      return Math.sqrt(sum / len);
+    }
+
+    function readPeak(analyser, data) {
+      analyser.getByteTimeDomainData(data);
+      let peak = 0;
+      const len = data.length;
+      for (let i = 0; i < len; i++) {
+        const s = (data[i] - 128) / 128;
+        const a = s < 0 ? -s : s;
+        if (a > peak) peak = a;
+      }
+      return peak;
+    }
+
+    // ★ Adaptive Auto-EQ + VAD + Auto-Clip 통합 분석 루프
+    function startAnalysisLoop() {
+      if (analysisRaf) cancelAnimationFrame(analysisRaf);
+      const SILENCE_FLOOR = 0.0045;
+      const EQ_SPEED = 0.045;
+
+      const tick = () => {
+        if (!ctx || ctx.state === 'closed') { analysisRaf = 0; return; }
+        if (!isAnyAudioActive() || !currentRouteIsProcessed) {
+          // 비활성: gain 0으로 천천히 복귀
+          for (let i = 0; i < eqFilters.length; i++) {
+            eqGains[i] += (0 - eqGains[i]) * 0.05;
+            try { eqFilters[i].gain.setTargetAtTime(eqGains[i], ctx.currentTime, 0.08); } catch (_) {}
+          }
+          // Auto-Clip도 복귀
+          if (autoClipReduction > 0) {
+            autoClipReduction = Math.max(0, autoClipReduction - 0.05);
+            updateAutoClipGain();
+          }
+          analysisRaf = requestAnimationFrame(tick);
+          return;
+        }
+
+        const now = performance.now();
+
+        // ── VAD (옵션) ──
+        const vadOn = !!store.get(P.A_VAD);
+        let voiceActive = true;
+        if (vadOn && voiceAnalyser) {
+          const voiceRms = readRms(voiceAnalyser, voiceData);
+          voiceActive = voiceRms > SILENCE_FLOOR;
+          if (voiceActive) lastVoiceAt = now;
+          else if (now - lastVoiceAt > 900) voiceActive = false;
+        }
+
+        // ── Auto-EQ ──
+        const toneKey = store.get(P.A_TONE) || 'flat';
+        const tone = TONE_PRESETS[toneKey] || TONE_PRESETS.flat;
+        const autoEqKey = store.get(P.A_AUTOEQ) || 'off';
+        const autoEq = AUTO_EQ_MODES[autoEqKey] || AUTO_EQ_MODES.off;
+        const manualEq = store.get(P.A_MAN_EQ) || [];
+
+        let targetGains;
+        if (autoEq.amount > 0 && tone.maxAutoDb > 0 && (!vadOn || voiceActive)) {
+          // adaptive 모드
+          eqAnalyser.getByteFrequencyData(eqData);
+          const indices = getBandIndices();
+          const bandDb = indices.map((idx) => {
+            let sum = 0, count = 0;
+            for (let i = idx.start; i <= idx.end; i++) { sum += eqData[i] / 255; count++; }
+            const avg = Math.max(0.0001, sum / Math.max(1, count));
+            return 20 * Math.log10(avg);
+          });
+          // speech center: 1k/2k/4k 평균
+          const speechCenter = (bandDb[5] + bandDb[6] + bandDb[7]) / 3;
+          targetGains = bandDb.map((db, i) => {
+            const relDb = db - speechCenter;
+            const correction = tone.curve[i] - relDb;
+            const autoGain = CLAMP(
+              correction * autoEq.amount,
+              -tone.maxAutoDb * autoEq.amount,
+              tone.maxAutoDb * autoEq.amount
+            );
+            const manual = Number(manualEq[i]) || 0;
+            return CLAMP(manual + autoGain, -9, 9);
+          });
+        } else {
+          // static 모드: manual + tone curve(절반 강도)
+          targetGains = EQ_BANDS.map((_, i) => {
+            const manual = Number(manualEq[i]) || 0;
+            return CLAMP(manual + tone.curve[i] * 0.5, -9, 9);
+          });
+        }
+
+        for (let i = 0; i < eqFilters.length; i++) {
+          eqGains[i] += (targetGains[i] - eqGains[i]) * EQ_SPEED * autoEq.speed;
+          try { eqFilters[i].gain.setTargetAtTime(eqGains[i], ctx.currentTime, 0.08); } catch (_) {}
+        }
+
+        // ── Auto-Clip 보호 ──
+        const acKey = store.get(P.A_AUTOCLIP) || 'normal';
+        const acMode = AUTO_CLIP_MODES[acKey] || AUTO_CLIP_MODES.normal;
+        if (acMode.step > 0 && outputAnalyser) {
+          const peak = readPeak(outputAnalyser, outputData);
+          const isClipping = peak >= acMode.clip;
+          const nearClip = peak >= acMode.near;
+          if ((isClipping || nearClip) && now - lastAutoClipAt > 280) {
+            autoClipReduction = CLAMP(autoClipReduction + acMode.step, 0, acMode.max);
+            lastAutoClipAt = now;
+            updateAutoClipGain();
+          } else if (!nearClip && now - lastAutoClipAt > 1200 && autoClipReduction > 0) {
+            autoClipReduction = Math.max(0, autoClipReduction - acMode.recover);
+            updateAutoClipGain();
+          }
+        } else if (autoClipReduction > 0) {
+          autoClipReduction = Math.max(0, autoClipReduction - 0.05);
+          updateAutoClipGain();
+        }
+
+        analysisRaf = requestAnimationFrame(tick);
+      };
+      analysisRaf = requestAnimationFrame(tick);
+    }
+
+    function updateAutoClipGain() {
+      if (!autoClipGain || !ctx) return;
+      // autoClipReduction (0~max%) → gain 0.7~1.0
+      const reductionRatio = autoClipReduction / 100;
+      const gain = CLAMP(1 - reductionRatio, 0.4, 1.0);
+      try { autoClipGain.gain.setTargetAtTime(gain, ctx.currentTime, 0.05); }
+      catch (_) { autoClipGain.gain.value = gain; }
     }
 
     function updateMasterGain() {
@@ -826,10 +1107,6 @@
           const excess = (s - 0.5) * 2;
           totalGainDb += excess * 6;
         }
-      }
-      const clarity = CLAMP(Number(store.get(P.A_CLARITY) ?? 0), 0, 100) / 100;
-      if (clarity > 0.5) {
-        totalGainDb += (clarity - 0.5) * 2 * 4;
       }
       const boostRatio = CLAMP(Number(store.get(P.A_BOOST) ?? 100), 100, 300) / 100;
       if (boostRatio > 1.5) {
@@ -947,7 +1224,7 @@
     }
 
     function updateMix() {
-      if (!ctx || bypassMode) return; routeCompressor(); updateMasterGain();
+      if (!ctx || bypassMode) return; routeCompressor(); updateMasterGain(); applyEqStatic();
       if (currentSrc) {
         const wantProcessed = isAnyAudioActive();
         if (wantProcessed === currentRouteIsProcessed) return;
@@ -1039,7 +1316,15 @@
       if (!document.hidden && ctx?.state === 'suspended') { ctx.resume().then(() => { if (ctx.state === 'running') return; setTimeout(() => { if (ctx?.state === 'suspended') ctx.resume().catch(() => {}); }, 120); }).catch(() => {}); }
     }, { passive: true });
 
-    return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode, applyStrength, applySurroundWidth, applyClarity, applyBoost, routeCompressor, onVideoLoadstart, updateMasterGain };
+    return {
+      setTarget, update: updateMix,
+      hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode,
+      applyStrength, applySurroundWidth, applyBoost,
+      applyEqStatic,
+      routeCompressor, onVideoLoadstart, updateMasterGain,
+      getAutoClipReduction: () => autoClipReduction,
+      getEqGains: () => eqGains.slice(),
+    };
   }
 
   function createFilters() {
@@ -1077,9 +1362,7 @@
     }
 
     function buildSvg(root) {
-      // SVG는 inline style을 사용하지 않고 SVG 속성만 사용 (cosmetic filter 회피)
       const svg = h('svg', { ns: 'svg', width: '0', height: '0', 'aria-hidden': 'true', focusable: 'false' });
-      // SVG의 시각적 숨김은 width/height=0으로 처리
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
@@ -1256,7 +1539,6 @@
     };
   }
 
-  // ★ OSD를 Shadow DOM으로 감싸 cosmetic filter 회피
   function createOSD() {
     let host = null, shadow = null, el = null, timerId = 0;
 
@@ -1268,7 +1550,6 @@
         host = document.createElement('div');
         host.id = 'vsc-osd-host';
         host.setAttribute('data-vsc-ui', '1');
-        // 호스트 인라인 style은 비워둠 (cosmetic filter 회피)
         shadow = host.attachShadow({ mode: 'closed' });
         const style = document.createElement('style');
         style.textContent = `
@@ -1335,7 +1616,6 @@
         : `${m}:${String(s).padStart(2,'0')}`;
     }
 
-    // ★ 라디오 오버레이를 Shadow DOM으로 감싸 cosmetic filter 회피
     function createOverlay(video) {
       if (overlays.has(video)) return overlays.get(video);
       const container = video.parentElement;
@@ -1344,8 +1624,6 @@
       const host = document.createElement('div');
       host.setAttribute('data-vsc-ui', '1');
       host.setAttribute('data-vsc-radio', '1');
-      // 호스트 인라인 style 최소화: 위치 잡기에 꼭 필요한 것만 별도 클래스로 처리하기 어렵기 때문에
-      // 호스트 자체는 비워두고 부모 위에 absolute로 띄우기 위해 클래스로 처리
       const shadow = host.attachShadow({ mode: 'closed' });
 
       const style = document.createElement('style');
@@ -1361,81 +1639,30 @@
           pointer-events: none !important;
         }
         .ovl {
-          width: 100%;
-          height: 100%;
+          width: 100%; height: 100%;
           background: linear-gradient(135deg, rgba(8,8,16,0.97) 0%, rgba(12,12,24,0.98) 50%, rgba(8,8,16,0.97) 100%);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 16px;
-          font-family: system-ui, sans-serif;
-          opacity: 0;
-          transition: opacity 0.4s ease;
+          display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+          font-family: system-ui, sans-serif; opacity: 0; transition: opacity 0.4s ease;
         }
         .ovl.show { opacity: 1; }
-        .icon-wrap {
-          position: relative;
-          width: 64px;
-          height: 64px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .pulse {
-          position: absolute;
-          width: 64px;
-          height: 64px;
-          border-radius: 50%;
-          border: 2px solid rgba(0,229,255,0.3);
-          animation: vsc-radio-pulse 2s ease-in-out infinite;
-        }
-        @keyframes vsc-radio-pulse {
-          0% { transform: scale(1); opacity: 0.6; }
-          50% { transform: scale(1.4); opacity: 0; }
-          100% { transform: scale(1); opacity: 0; }
-        }
-        .icon {
-          position: relative;
-          z-index: 1;
-          display: flex;
-        }
-        .label {
-          font-size: 14px;
-          font-weight: 700;
-          letter-spacing: 3px;
-          color: rgba(0,229,255,0.8);
-          text-transform: uppercase;
-        }
-        .time {
-          font-family: 'SF Mono', monospace;
-          font-size: 18px;
-          color: rgba(255,255,255,0.5);
-          font-variant-numeric: tabular-nums;
-        }
-        .hint {
-          font-size: 11px;
-          color: rgba(255,255,255,0.25);
-        }
-        .warn {
-          font-size: 11px;
-          color: rgba(255,190,70,0.8);
-          margin-top: 4px;
-          display: none;
-        }
+        .icon-wrap { position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
+        .pulse { position: absolute; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(0,229,255,0.3); animation: vsc-radio-pulse 2s ease-in-out infinite; }
+        @keyframes vsc-radio-pulse { 0% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.4); opacity: 0; } 100% { transform: scale(1); opacity: 0; } }
+        .icon { position: relative; z-index: 1; display: flex; }
+        .label { font-size: 14px; font-weight: 700; letter-spacing: 3px; color: rgba(0,229,255,0.8); text-transform: uppercase; }
+        .time { font-family: 'SF Mono', monospace; font-size: 18px; color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums; }
+        .hint { font-size: 11px; color: rgba(255,255,255,0.25); }
+        .warn { font-size: 11px; color: rgba(255,190,70,0.8); margin-top: 4px; display: none; }
         .warn.show { display: block; }
       `;
       shadow.appendChild(style);
 
       const ovl = document.createElement('div');
       ovl.className = 'ovl';
-
       const iconWrap = document.createElement('div');
       iconWrap.className = 'icon-wrap';
-
       const pulse = document.createElement('div');
       pulse.className = 'pulse';
-
       const icon = document.createElement('div');
       icon.className = 'icon';
       icon.appendChild(
@@ -1447,33 +1674,25 @@
           h('path', { ns: 'svg', d: 'M4.93 19.07a10 10 0 0 1 0-14.14' })
         )
       );
-
       iconWrap.append(pulse, icon);
-
       const label = document.createElement('div');
       label.className = 'label';
       label.textContent = 'RADIO MODE';
-
       const timeEl = document.createElement('div');
       timeEl.className = 'time';
       timeEl.textContent = '--:-- / --:--';
-
       const hint = document.createElement('div');
       hint.className = 'hint';
       hint.textContent = '영상 화면만 검게 표시';
-
       const audioWarn = document.createElement('div');
       audioWarn.className = 'warn';
-
       ovl.append(iconWrap, label, timeEl, hint, audioWarn);
       shadow.appendChild(ovl);
 
       const pos = getComputedStyle(container).position;
       if (pos === 'static') container.style.position = 'relative';
-
       container.appendChild(host);
       requestAnimationFrame(() => { ovl.classList.add('show'); });
-
       const data = { host, ovl, timeEl, audioWarn };
       overlays.set(video, data);
       return data;
@@ -1496,19 +1715,14 @@
     function showAudioWarning(video, msg) {
       const data = overlays.get(video);
       if (!data) return;
-      if (msg) {
-        data.audioWarn.textContent = msg;
-        data.audioWarn.classList.add('show');
-      } else {
-        data.audioWarn.classList.remove('show');
-      }
+      if (msg) { data.audioWarn.textContent = msg; data.audioWarn.classList.add('show'); }
+      else { data.audioWarn.classList.remove('show'); }
     }
 
     function hideVideo(video) {
       video.style.setProperty('opacity', '0', 'important');
       video.style.setProperty('pointer-events', 'none', 'important');
     }
-
     function showVideo(video) {
       video.style.removeProperty('opacity');
       video.style.removeProperty('pointer-events');
@@ -1522,13 +1736,9 @@
       Registry.pauseAllRvfc();
       createOverlay(video);
       updateTime(video);
-
       if (video.dataset.vscAudioCorsFail === "1" || video.dataset.vscMesFail === "1") {
         showAudioWarning(video, '⚠ 오디오 연결 실패 — 원본 오디오 출력 중');
-      } else {
-        showAudioWarning(video, null);
-      }
-
+      } else { showAudioWarning(video, null); }
       if (timeUpdateHandler) clearInterval(timeUpdateHandler);
       timeUpdateHandler = setInterval(() => {
         const v = __internal._activeVideo;
@@ -1536,19 +1746,14 @@
           updateTime(v);
           if (v.dataset.vscAudioCorsFail === "1" || v.dataset.vscMesFail === "1") {
             showAudioWarning(v, '⚠ 오디오 연결 실패 — 원본 오디오 출력 중');
-          } else {
-            showAudioWarning(v, null);
-          }
+          } else { showAudioWarning(v, null); }
         }
       }, 1000);
     }
 
     function disengage(video) {
       if (timeUpdateHandler) { clearInterval(timeUpdateHandler); timeUpdateHandler = null; }
-      if (video) {
-        showVideo(video);
-        removeOverlay(video);
-      }
+      if (video) { showVideo(video); removeOverlay(video); }
       for (const v of Registry.videos) {
         if (overlays.has(v)) removeOverlay(v);
         showVideo(v);
@@ -1571,10 +1776,7 @@
 
     function onTargetChange(newVideo, oldVideo) {
       if (!active) return;
-      if (oldVideo) {
-        showVideo(oldVideo);
-        removeOverlay(oldVideo);
-      }
+      if (oldVideo) { showVideo(oldVideo); removeOverlay(oldVideo); }
       if (newVideo) engage(newVideo);
     }
 
@@ -1597,7 +1799,6 @@
     };
     const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생', settings: '저장' };
 
-    // ★ :host 규칙에서 position/z-index/pointer-events를 모두 처리 (호스트 인라인 style 키워드 회피)
     const HOST_CSS = `
     :host {
       all: initial !important;
@@ -1612,15 +1813,8 @@
       height: 0 !important;
       isolation: isolate;
     }
-    :host(.vsc-fs) {
-      right: 0 !important;
-      bottom: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-    }
-    :host(.vsc-hidden) {
-      display: none !important;
-    }
+    :host(.vsc-fs) { right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100% !important; }
+    :host(.vsc-hidden) { display: none !important; }
     `;
 
     const CSS_VARS = `
@@ -1680,6 +1874,8 @@
     .section-label { font-size: 11px; opacity: 0.5; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; padding: 6px 0 2px; }
     .preset-grid { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
     .preset-grid .fine-btn { flex: 0 0 calc(20% - 3.2px); min-width: 0; text-align: center; justify-content: center; display: inline-flex; align-items: center; padding: 4px 2px; font-size: 10px; }
+    .tone-grid { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
+    .tone-grid .fine-btn { flex: 0 0 calc(33.333% - 2.7px); min-width: 0; padding: 6px 2px; font-size: 10px; }
     .hint { font-size: 10px; opacity: 0.5; padding: 4px 0; text-align: left; line-height: 1.5; }
     .hint.warn { opacity: 0.7; color: var(--vsc-amber); }
     .pg-row { display: flex; gap: 3px; padding: 4px 0; flex-wrap: wrap; justify-content: center; }
@@ -1709,6 +1905,16 @@
     .save-card .save-btn.danger { border-color:rgba(255,100,100,0.2); color:rgba(255,100,100,0.7); }
     .save-card .save-btn.danger:hover { background:rgba(255,100,100,0.1); border-color:rgba(255,100,100,0.4); color:rgba(255,100,100,0.9); }
     .save-status { font-family:var(--vsc-font-mono); font-size:11px; padding:8px 12px; border-radius:var(--vsc-radius-sm); background:rgba(0,229,255,0.04); border:1px solid rgba(0,229,255,0.1); color:rgba(0,229,255,0.7); margin:6px 0; line-height:1.5; white-space:pre-line; }
+    .eq-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; padding: 8px 0; background: rgba(255,255,255,0.02); border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255,255,255,0.04); margin: 4px 0; }
+    .eq-band { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9px; color: rgba(255,255,255,0.5); }
+    .eq-band-label { font-family: var(--vsc-font-mono); }
+    .eq-band input[type=range] { -webkit-appearance: slider-vertical; appearance: slider-vertical; writing-mode: bt-lr; width: 18px; height: 100px; max-width: none; padding: 0; cursor: ns-resize; }
+    .eq-band-val { font-family: var(--vsc-font-mono); font-size: 9px; color: var(--vsc-neon); min-height: 12px; }
+    .eq-controls { display: flex; gap: 6px; justify-content: space-between; padding: 4px 0; align-items: center; }
+    .eq-controls .section-label { padding: 0; }
+    .clip-indicator { display: inline-block; padding: 2px 6px; font-size: 10px; font-family: var(--vsc-font-mono); border-radius: var(--vsc-radius-pill); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); margin-left: 6px; }
+    .clip-indicator.active { background: rgba(255,100,100,0.18); color: rgba(255,150,150,0.95); animation: clip-pulse 0.8s ease-in-out infinite; }
+    @keyframes clip-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
@@ -1730,7 +1936,6 @@
       }
       if (_lastIsFs !== isFs) {
         _lastIsFs = isFs;
-        // ★ 인라인 style 대신 클래스로 fs 모드 토글
         quickBarHost.classList.toggle('vsc-fs', isFs);
         if (panelHost) panelHost.classList.toggle('vsc-fs', isFs);
       }
@@ -1919,18 +2124,112 @@
 
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
 
+    // ★ 톤 프리셋 그리드 (오디오)
+    function buildAudioToneGrid() {
+      const wrap = h('div', {});
+      const grid = h('div', { class: 'tone-grid' });
+      const buttons = Object.entries(TONE_PRESETS).map(([key, p]) => {
+        const btn = h('button', { class: 'fine-btn', 'data-tone': key }, p.label);
+        btn.addEventListener('click', () => { Store.set(P.A_TONE, key); });
+        grid.appendChild(btn);
+        return { key, btn };
+      });
+      const sync = () => {
+        const cur = Store.get(P.A_TONE) || 'flat';
+        for (const { key, btn } of buttons) btn.classList.toggle('active', key === cur);
+      };
+      tabFns.push(sync); sync();
+      wrap.appendChild(grid);
+      return wrap;
+    }
+
+    // ★ 10밴드 EQ 슬라이더
+    function buildEqSliders() {
+      const wrap = h('div', {});
+      const headerRow = h('div', { class: 'eq-controls' });
+      headerRow.append(
+        h('div', { class: 'section-label' }, '10밴드 EQ (-9 ~ +9 dB)'),
+        h('button', { class: 'fine-btn' }, 'RESET')
+      );
+      headerRow.lastChild.addEventListener('click', () => {
+        Store.set(P.A_MAN_EQ, EQ_BANDS.map(() => 0));
+      });
+      wrap.appendChild(headerRow);
+
+      const grid = h('div', { class: 'eq-grid' });
+      const bandInputs = [];
+      EQ_BANDS.forEach((band, i) => {
+        const col = h('div', { class: 'eq-band' });
+        const lbl = h('div', { class: 'eq-band-label' }, band.label);
+        const inp = h('input', { type: 'range', min: '-9', max: '9', step: '0.1', value: '0' });
+        const val = h('div', { class: 'eq-band-val' }, '0');
+        inp.addEventListener('input', () => {
+          const v = parseFloat(inp.value);
+          const cur = Store.get(P.A_MAN_EQ) || EQ_BANDS.map(() => 0);
+          const next = cur.slice();
+          next[i] = v;
+          Store.set(P.A_MAN_EQ, next);
+          val.textContent = (Math.round(v * 10) / 10).toString();
+        });
+        col.append(lbl, inp, val);
+        grid.appendChild(col);
+        bandInputs.push({ inp, val });
+      });
+      wrap.appendChild(grid);
+
+      const sync = () => {
+        const autoEqOn = (Store.get(P.A_AUTOEQ) || 'off') !== 'off';
+        // Auto-EQ가 켜져 있으면 실제 적용중인 EQ gain을 표시(읽기 전용 분위기)
+        const liveGains = autoEqOn ? Audio.getEqGains() : null;
+        const manual = Store.get(P.A_MAN_EQ) || EQ_BANDS.map(() => 0);
+        for (let i = 0; i < bandInputs.length; i++) {
+          const { inp, val } = bandInputs[i];
+          const displayVal = liveGains ? liveGains[i] : (Number(manual[i]) || 0);
+          if (document.activeElement !== inp) {
+            inp.value = String(Number(manual[i]) || 0);
+          }
+          val.textContent = (Math.round(displayVal * 10) / 10).toString();
+          val.style.opacity = liveGains ? '0.6' : '1';
+        }
+      };
+      tabFns.push(sync); sync();
+      return wrap;
+    }
+
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
+      const clipBadge = h('span', { class: 'clip-indicator' }, '0%');
+      const wrap = h('div', {}, el, clipBadge);
       const update = () => {
-        const enabled = Store.get(P.A_EN); const surround = Number(Store.get(P.A_SURROUND)) > 0; const clarity = Number(Store.get(P.A_CLARITY)) > 0; const boost = Number(Store.get(P.A_BOOST)) !== 100;
+        const enabled = Store.get(P.A_EN); const surround = Number(Store.get(P.A_SURROUND)) > 0; const boost = Number(Store.get(P.A_BOOST)) !== 100;
+        const tone = (Store.get(P.A_TONE) || 'flat') !== 'flat';
+        const autoEq = (Store.get(P.A_AUTOEQ) || 'off') !== 'off';
         const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
         if (!Audio.hasCtx()) { el.textContent = '상태: 대기'; }
-        else if (!enabled && !surround && !clarity && !boost) { el.textContent = '상태: 비활성 (오디오 처리 OFF)'; }
-        else if (hooked && !bypassed) { const parts = []; if (enabled) parts.push('평준화'); if (surround) parts.push('공간감'); if (clarity) parts.push('선명도'); if (boost) parts.push('부스트'); el.textContent = `상태: 활성 (${parts.join(' + ')} 처리 중)`; }
+        else if (!enabled && !surround && !boost && !tone && !autoEq) { el.textContent = '상태: 비활성 (오디오 처리 OFF)'; }
+        else if (hooked && !bypassed) {
+          const parts = [];
+          if (enabled) parts.push('평준화');
+          if (surround) parts.push('공간감');
+          if (tone) parts.push('톤');
+          if (autoEq) parts.push('AutoEQ');
+          if (boost) parts.push('부스트');
+          el.textContent = `상태: 활성 (${parts.join(' + ')})`;
+        }
         else if (bypassed) { el.textContent = '상태: 바이패스 (원본 출력)'; }
         else { el.textContent = '상태: 준비 (연결 대기)'; }
+
+        const acr = Audio.getAutoClipReduction();
+        if (acr > 0.5) {
+          clipBadge.classList.add('active');
+          clipBadge.textContent = `CLIP -${Math.round(acr)}%`;
+        } else {
+          clipBadge.classList.remove('active');
+          clipBadge.textContent = 'OK';
+        }
       };
-      tabFns.push(update); return el;
+      tabFns.push(update);
+      return wrap;
     }
 
     function buildSettingsTab() {
@@ -2046,19 +2345,24 @@
         { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
         { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
         { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [{ v: 0, l: 'OFF' }, { v: 20, l: '20%' }, { v: 40, l: '40%' }, { v: 60, l: '60%' }, { v: 80, l: '80%' }, { v: 100, l: '100%' }] },
-        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
+        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다.' },
+        { type: 'sep' },
+        { type: 'sectionLabel', text: '톤 프리셋 (10밴드)' },
+        { type: 'widget', build: buildAudioToneGrid },
+        { type: 'chips', label: 'Auto-EQ (적응형 보정)', path: P.A_AUTOEQ, items: Object.entries(AUTO_EQ_MODES).map(([k, v]) => ({ v: k, l: v.label })) },
+        { type: 'hint', text: 'Auto-EQ는 실시간 스펙트럼을 분석해 목표 톤 커브로 자동 보정합니다.' },
+        { type: 'toggle', label: '음성 감지(VAD) — 대사 중심', path: P.A_VAD },
+        { type: 'hint', text: 'ON: 음성이 있을 때만 강하게 보정. 일반 영상에서는 OFF 권장.' },
+        { type: 'widget', build: buildEqSliders },
         { type: 'sep' },
         { type: 'sectionLabel', text: '공간감 (헤드폰/이어폰)' },
         { type: 'chips', label: '공간감', path: P.A_SURROUND, items: [{ v: 0, l: 'OFF' }, { v: 20, l: '20' }, { v: 40, l: '40' }, { v: 60, l: '60' }, { v: 80, l: '80' }, { v: 100, l: '100' }] },
-        { type: 'hint', text: '헤드폰/이어폰 착용 시 효과적입니다. 스피커 출력 시에는 OFF를 권장합니다.' },
-        { type: 'sep' },
-        { type: 'sectionLabel', text: '대화 선명도' },
-        { type: 'chips', label: '대화 선명도', path: P.A_CLARITY, items: [{ v: 0, l: 'OFF' }, { v: 20, l: '20' }, { v: 40, l: '40' }, { v: 60, l: '60' }, { v: 80, l: '80' }, { v: 100, l: '100' }] },
-        { type: 'hint', text: '대사가 잘 안 들릴 때 올려보세요. 저음을 줄이고 대화 주파수(2.5kHz)를 강조합니다.' },
+        { type: 'hint', text: '헤드폰/이어폰 시 효과적. 스피커는 OFF 권장.' },
         { type: 'sep' },
         { type: 'sectionLabel', text: '볼륨 부스트' },
         { type: 'chips', label: '볼륨 부스트', path: P.A_BOOST, items: [{ v: 100, l: '100%' }, { v: 150, l: '150%' }, { v: 200, l: '200%' }, { v: 250, l: '250%' }, { v: 300, l: '300%' }] },
-        { type: 'hint', text: '소리가 너무 작은 영상에서 볼륨을 100% 이상으로 증폭합니다. 리미터가 클리핑을 방지합니다.' },
+        { type: 'chips', label: 'Auto-Clip 보호', path: P.A_AUTOCLIP, items: Object.entries(AUTO_CLIP_MODES).map(([k, v]) => ({ v: k, l: v.label })) },
+        { type: 'hint', text: '출력 peak 감지 시 자동으로 게인을 깎아 클리핑을 방지합니다.' },
         { type: 'sep' },
         { type: 'widget', build: buildAudioStatus },
       ],
@@ -2088,73 +2392,20 @@
       }
     }
 
-    // ★ 퀵바 호스트도 인라인 style 제거, :host CSS로 처리
     const QBAR_EXTRA_CSS = `
-    .qbar {
-      pointer-events: none;
-      position: fixed !important;
-      top: 50% !important;
-      right: var(--vsc-qbar-right) !important;
-      transform: translateY(-50%) !important;
-      display: flex !important;
-      align-items: center !important;
-      z-index: 2147483647 !important;
-    }
-    .qbar .qb-main {
-      pointer-events: auto;
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      background: var(--vsc-glass);
-      border: 1px solid rgba(255,255,255,0.08);
-      opacity: ${IS_MOBILE ? '0' : '0.1'};
-      transition: all 0.3s var(--vsc-ease-out);
-      box-shadow: var(--vsc-shadow-fab);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      backdrop-filter: blur(16px) saturate(180%);
-      -webkit-tap-highlight-color: transparent;
-    }
+    .qbar { pointer-events: none; position: fixed !important; top: 50% !important; right: var(--vsc-qbar-right) !important; transform: translateY(-50%) !important; display: flex !important; align-items: center !important; z-index: 2147483647 !important; }
+    .qbar .qb-main { pointer-events: auto; width: 46px; height: 46px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255,255,255,0.08); opacity: ${IS_MOBILE ? '0' : '0.1'}; transition: all 0.3s var(--vsc-ease-out); box-shadow: var(--vsc-shadow-fab); display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(16px) saturate(180%); -webkit-tap-highlight-color: transparent; }
     @media (hover: hover) and (pointer: fine) {
-      .qbar:hover .qb-main {
-        opacity: 1;
-        transform: scale(1.08);
-        border-color: var(--vsc-neon-border);
-        box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow);
-      }
+      .qbar:hover .qb-main { opacity: 1; transform: scale(1.08); border-color: var(--vsc-neon-border); box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow); }
       .qbar:hover .qb-main svg { stroke: var(--vsc-neon) !important; }
     }
-    .qbar .qb-main.touch-reveal {
-      opacity: 0.85 !important;
-      border-color: var(--vsc-neon-border);
-      box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow);
-    }
+    .qbar .qb-main.touch-reveal { opacity: 0.85 !important; border-color: var(--vsc-neon-border); box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow); }
     .qbar .qb-main.touch-reveal svg { stroke: var(--vsc-neon) !important; }
-    .qbar svg {
-      width: 22px;
-      height: 22px;
-      fill: none;
-      stroke: #fff !important;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      display: block !important;
-      pointer-events: none !important;
-    }
-    .qbar .qb-main.radio-active {
-      opacity: 0.9;
-      border-color: rgba(0,229,255,0.4);
-      animation: qb-radio-blink 2s ease-in-out infinite;
-    }
-    @keyframes qb-radio-blink {
-      0%, 100% { box-shadow: var(--vsc-shadow-fab), 0 0 8px rgba(0,229,255,0.2); }
-      50% { box-shadow: var(--vsc-shadow-fab), 0 0 20px rgba(0,229,255,0.5); }
-    }
+    .qbar svg { width: 22px; height: 22px; fill: none; stroke: #fff !important; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block !important; pointer-events: none !important; }
+    .qbar .qb-main.radio-active { opacity: 0.9; border-color: rgba(0,229,255,0.4); animation: qb-radio-blink 2s ease-in-out infinite; }
+    @keyframes qb-radio-blink { 0%, 100% { box-shadow: var(--vsc-shadow-fab), 0 0 8px rgba(0,229,255,0.2); } 50% { box-shadow: var(--vsc-shadow-fab), 0 0 20px rgba(0,229,255,0.5); } }
     `;
 
-    // ★ 패널 추가 CSS (인라인 style 제거를 위한 보조 클래스)
     const PANEL_EXTRA_CSS = `
     .hdr-close { margin-left: auto; }
     .chip-label { font-size: 11px; opacity: 0.6; display: block; margin-bottom: 3px; }
@@ -2176,7 +2427,6 @@
 
     function buildQuickBar() {
       if (quickBarHost) return;
-      // ★ 인라인 style 완전 제거. 클래스만 사용
       quickBarHost = document.createElement('div');
       quickBarHost.setAttribute('data-vsc-ui', '1');
       quickBarHost.id = 'vsc-gear-host';
@@ -2216,7 +2466,6 @@
 
     function buildPanel() {
       if (panelHost) return;
-      // ★ 인라인 style 완전 제거
       panelHost = document.createElement('div');
       panelHost.setAttribute('data-vsc-ui', '1');
       panelHost.id = 'vsc-host';
@@ -2299,8 +2548,12 @@
     Store.sub(P.A_EN, () => { Audio.update(); });
     Store.sub(P.A_STR, (v) => { Audio.applyStrength(Number(v) ?? 50); });
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
-    Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
+    Store.sub(P.A_TONE, () => { Audio.applyEqStatic(); Audio.update(); });
+    Store.sub(P.A_AUTOEQ, () => { Audio.applyEqStatic(); Audio.update(); });
+    Store.sub(P.A_VAD, () => { /* analysis loop가 매 프레임 읽음 */ });
+    Store.sub(P.A_AUTOCLIP, () => { /* analysis loop가 읽음 */ });
+    Store.sub(P.A_MAN_EQ, () => { Audio.applyEqStatic(); });
 
     Store.sub(P.RADIO_EN, (on) => {
       Radio.setActive(on);
@@ -2332,7 +2585,7 @@
       }
 
       if (target) {
-        if (prevTarget && prevTarget !== target && prevTarget.isConnected && Store.get(P.PB_EN)) { try { prevTarget.playbackRate = 1.0; } catch (_) {} }
+                if (prevTarget && prevTarget !== target && prevTarget.isConnected && Store.get(P.PB_EN)) { try { prevTarget.playbackRate = 1.0; } catch (_) {} }
         Audio.setTarget(target);
         if (Store.get(P.PB_EN)) {
           const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5);
