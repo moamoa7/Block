@@ -1769,7 +1769,9 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ![$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
 !
 !
-! 뉴토끼 (https://sbxh1.com/)
+! 뉴토끼 (https://sbxh2.com/)
+! - 팝업
+[$domain=/^sbxh\d+.com/]##.pop-mod-overlay
 ! - 상단 배너 및 개별 목록 배너 전체
 ##[aria-label='배너 광고']
 ! - 상단 배너
