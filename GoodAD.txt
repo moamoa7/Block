@@ -4055,7 +4055,7 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 주소타운 (https://www.jusotw.com/)
 ! - 상단 배너 (링크 없이 만들어진 배너)
-##[target] img[sizes="294px"]
+jusotw.com###comp-m56ecem7
 !
 !
 ! 주소주라 (https://www.jusojula.com/)
