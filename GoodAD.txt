@@ -903,7 +903,7 @@ ruliweb.com##div[class^="nbp_container"]
 ! - - - 맨 밑 하단 게시글 광고 배너 (모바일)
 ruliweb.com##.fixed_layer1
 ! - - - 맨밑 하단 파란색 배너 (모바일)
-ruliweb.com##div.ad_go_wrapper
+ruliweb.com##[class*="ad_go_wrapper" i]
 ! - 이미지 복원
 !@@||ruliweb.com/img/$image
 ! 게시물 댓글 파워링크 제거
