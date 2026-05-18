@@ -31,7 +31,7 @@
 ! Title: Traffic Saver & Privacy Filter
 ! Description: 트래픽 절감 + 추적 차단 (AdGuard 전용)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260518-rev1
+! Version: 20260518-rev2 (보수적 정리)
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -42,10 +42,6 @@
 ! ═══════════════════════════════════════════
 ! [1] URL 추적 파라미터 제거 ($removeparam)
 ! ═══════════════════════════════════════════
-! (rev4와 동일 — 변경사항 없음)
-! 정규식 일괄 처리: utm_*, _hs*, hsa_*, pk_*, mtm_*, pi_*, elq*, sfmc_*,
-! ml_*, mc_*, mkt_*, pf_rd_*, pd_rd_*, aff_*, at_*, oly_*, vero_*,
-! _branch_*, stm_*, xtor*, wt_*, matomo_*
 
 ! ───── 광범위 추적 파라미터 제거 (높은 효과) ─────
 *$removeparam=fbclid
@@ -58,8 +54,7 @@
 *$removeparam=mc_cid
 *$removeparam=mc_eid
 
-! ───── UTM 계열 (선택) ─────
-! 사이트 분석 도구의 트래픽 출처 식별을 막음
+! ───── UTM 계열 ─────
 *$removeparam=utm_source
 *$removeparam=utm_medium
 *$removeparam=utm_campaign
@@ -74,7 +69,6 @@
 ! ───── Google Analytics / Google Ads ─────
 $removeparam=_ga
 $removeparam=_gl
-$removeparam=gclid
 $removeparam=gclsrc
 $removeparam=gbraid
 $removeparam=wbraid
@@ -90,7 +84,6 @@ $removeparam=opi,domain=google.com|google.co.kr|googleadservices.com
 !$removeparam=usg
 
 ! ───── Facebook / Meta ─────
-$removeparam=fbclid
 $removeparam=fb_action_ids
 $removeparam=fb_action_types
 $removeparam=fb_source
@@ -102,25 +95,18 @@ $removeparam=action_ref_map
 
 ! ───── Instagram ─────
 ! ⚠️ 모바일 앱에는 효과 없음 (앱은 시스템 네트워크 직접 사용)
-! URL 추적 파라미터 제거
 ||cdninstagram.com^$removeparam=efg
 ||cdninstagram.com^$removeparam=ccb
 ||cdninstagram.com^$removeparam=_nc_sid
-! Instagram 웹 추가 추적 차단
 ||instagram.com/ajax/bz^
-! EasyPrivacy에서 이미 처리됨 (중복 회피)
-!||instagram.com/ajax/qm/?
-! 클라이언트 이벤트 로깅 경로 차단
 ||graph.instagram.com/logging_client_events
 
 ! ───── Microsoft / Bing ─────
-$removeparam=msclkid
 $removeparam=cvid,domain=bing.com|cn.bing.com
 $removeparam=oicd,domain=bing.com|cn.bing.com
 $removeparam=form,domain=bing.com|cn.bing.com
 $removeparam=ocid,domain=bing.com|microsoft.com|msn.com
 $removeparam=qs,domain=bing.com|cn.bing.com
-!$removeparam=ei
 
 ! ───── Yandex ─────
 $removeparam=yclid
@@ -142,7 +128,6 @@ $removeparam=igshid
 $removeparam=igsh
 $removeparam=ig_rid
 $removeparam=ig_mid
-$removeparam=ttclid
 $removeparam=tt_medium
 $removeparam=tt_content
 $removeparam=_t,domain=tiktok.com|vt.tiktok.com
@@ -179,7 +164,6 @@ $removeparam=tgWebAppStartParam
 $removeparam=tgWebAppPlatform
 
 ! ───── 한국 서비스 ─────
-$removeparam=NaPm
 $removeparam=nv_mid
 $removeparam=ssc
 $removeparam=qvt
@@ -193,7 +177,6 @@ $removeparam=cmp_code
 $removeparam=tcd_code
 
 ! ───── 이메일 마케팅 / CRM ─────
-$removeparam=mc_eid
 $removeparam=mailing_id
 $removeparam=email_source
 $removeparam=email_campaign
@@ -253,10 +236,10 @@ $removeparam=afSmartRedirect
 $removeparam=cv
 
 ! ───── 유튜브 ─────
-!$removeparam=feature
 $removeparam=si
 $removeparam=kw
 $removeparam=ab_channel
+!$removeparam=feature
 !$removeparam=pp
 
 ! ───── 구글 광고 추적 ─────
@@ -275,8 +258,9 @@ $removeparam=ad_position
 $removeparam=ad_format
 $removeparam=ad_type
 
-! ───── DS 시리즈 (정규식) ─────
-$removeparam=/^ds_/
+! ───── DS 시리즈 (보수적 처리 - 주석으로 보존) ─────
+! 광범위 정규식 - 일부 사이트에서 ds_lang, ds_session 등 정상 사용 가능
+!$removeparam=/^ds_/
 
 ! ───── 일반 단어형 (도메인 한정) ─────
 $removeparam=source,domain=google.com|google.co.kr|google.co.jp|google.co.uk|googleadservices.com|doubleclick.net
@@ -377,7 +361,6 @@ $removeparam=/^matomo_/
 ! ═══════════════════════════════════════════
 ! ⚠️ DNS_Rewrite.txt가 도메인을 NXDOMAIN으로 막으므로
 !    헤더 제거 룰은 DNS에서 누락된 (또는 화이트리스트된) 도메인에만 유효.
-!    중복이지만 안전망 차원에서 유지합니다.
 
 ! ───── 구글 광고/분석 ─────
 ||doubleclick.net^$removeheader=set-cookie
@@ -914,8 +897,9 @@ $cookie=/^__hstc$/
 ||*$image,third-party,domain=adsrvr.org|3lift.com|smartadserver.com|casalemedia.com
 ||*$image,third-party,domain=cauly.co.kr|widerplanet.com|mobon.net
 
-! ───── Ping/Beacon 추적 (전체 차단) ─────
-*$ping
+! ───── Ping/Beacon 추적 (보수적 처리 - 주석으로 보존) ─────
+! ⚠️ 일부 사이트의 클릭 동작에 영향 가능 - 클릭 이상 발생 시 첫 의심
+!*$ping
 
 ! ───── WebSocket 실시간 추적 (알려진 서비스) ─────
 ! 라이브챗 / 세션 리플레이
@@ -1064,9 +1048,8 @@ $cookie=/^__hstc$/
 
 
 ! ═══════════════════════════════════════════
-! [6] 보조 옵션 사용 예시
+! [6] 보조 옵션 사용 예시 (참고용 주석)
 ! ═══════════════════════════════════════════
-! (rev4와 동일 — 변경사항 없음)
 
 ! ───────────────────────────────────────────
 ! $denyallow - 차단하되 특정 도메인은 예외
@@ -1152,6 +1135,7 @@ $cookie=/^__hstc$/
 ! @@||google-analytics.com^$domain=mywork-site.com
 ! @@||facebook.com^$domain=facebook.com|messenger.com
 
+
 !///////////////////////////////////////////////
 
 
@@ -1160,7 +1144,6 @@ $cookie=/^__hstc$/
 ! ═══════════════════════════════════════════
 ! ⚠️ 라이브 스트리밍은 본 영상과 광고가 같은 도메인 사용
 ! ⚠️ DNS 차단 불가 → 경로/파라미터/리소스 타입 단위로 정밀 차단
-! ⚠️ 도메인 단위 추적기는 DNS_Rewrite.txt에서 처리
 
 ! ───────────────────────────────────────────
 ! Twitch (트위치)
@@ -1225,20 +1208,18 @@ $cookie=/^__hstc$/
 ||chzzk.naver.com^$removeheader=x-trace-id
 
 ! ═══════════════════════════════════════════
-! 치지직(chzzk) 광고 차단
+! 치지직(chzzk) 광고 차단 - 핵심 1줄
 ! ═══════════════════════════════════════════
-! VAST/GLAD/VETA 광고 요청 허용 (스크립트릿이 응답 변조)
+! 보류용 (필요 시 활성화):
 !@@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
 !@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
 !@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
 !@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
 !@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
-! 광고 함수 호출 차단 (Proxy)
 !chzzk.naver.com#%#"use strict"; window.Function.prototype.apply = new Proxy(window.Function.prototype.apply, { apply(Target, ThisArg, Args) { let FunctionContext = ThisArg.toString(); if (FunctionContext.includes('veta') && FunctionContext.includes('http') && FunctionContext.includes('/gfp/') && FunctionContext.includes('().mark((')) { return Reflect.apply(Target, async () => false, []); } return Reflect.apply(Target, ThisArg, Args); } });
-! 광고 JSON 응답에서 ads 필드 제거
 !chzzk.naver.com#%#//scriptlet('json-prune-fetch-response', 'ads advertiserDomains adDuplicationKeys', '', 'veta.naver.com/gfp')
-! 광고 폴링 API 차단
-! ✅ 재생 중 광고 폴링 차단
+
+! ✅ 재생 중 광고 폴링 차단 (핵심)
 ||api.chzzk.naver.com/ad-polling/*/lives/*/ad
 ! ✅ 광고 표시 상태 동기화 차단 (보조)
 ||api.chzzk.naver.com/service/*/ad/display-status
@@ -1252,13 +1233,13 @@ $cookie=/^__hstc$/
 ||log.sooplive.com/api^$empty
 ||sooplive.com/api/stat^$empty
 ||st.sooplive.com/api/da_*^$xmlhttprequest,empty
-!
+
 ! ── 광고 ──
 ||*sooplive*/vast^$xmlhttprequest,redirect=noopvast-2.0
 ||static.sooplive.com/asset/service/da/AdParameter.js^$script,redirect=noopjs
 ||sooplive.com/api/v1/ad^$xmlhttprequest,empty
 ||ads.sooplive.com^$removeheader=set-cookie
-!
+
 ! ── 추적 파라미터 ──
 ||sooplive.com^$removeparam=hash
 ||sooplive.com^$removeparam=stationNo
@@ -1266,23 +1247,19 @@ $cookie=/^__hstc$/
 ||sooplive.com^$removeparam=tracking
 ||sooplive.com^$removeparam=ref
 ||sooplive.com^$removeparam=src
-!
+
 ! ── 추적 쿠키 ──
 ||sooplive.com^$cookie=_au
 ||sooplive.com^$cookie=_ausa
 ||sooplive.com^$cookie=_au3rd
 ||sooplive.com^$cookie=_aupath
 ||sooplive.com^$cookie=_aupcid
-!
-! ⚠️ 보류 — 차단 시 부작용 가능, 본인 환경 무관 시 유지
-! 해외 접속 체크
-||sooplive.com^$cookie=AbroadChk
-! 해외 VOD 체크
-||sooplive.com^$cookie=AbroadVod
-! 사용자 차단 관리
-||live.sooplive.com/api/myplus/personalBlockController.php^$xmlhttprequest
-! 점검 안내
-||res.sooplive.com/script/player/service-maintenance.js^$script,redirect=noopjs
+
+! ⚠️ 보류 - 차단 시 부작용 가능 (주석 유지)
+!||sooplive.com^$cookie=AbroadChk
+!||sooplive.com^$cookie=AbroadVod
+!||live.sooplive.com/api/myplus/personalBlockController.php^$xmlhttprequest
+!||res.sooplive.com/script/player/service-maintenance.js^$script,redirect=noopjs
 
 ! ───────────────────────────────────────────
 ! Kick (킥)
@@ -1378,7 +1355,8 @@ $cookie=/^__hstc$/
 
 ! ───── Google 로그/분석 경로 빈 응답 처리 ─────
 ||google.com/log?$redirect-rule=nooptext
-||google.com/gen_204$redirect-rule=nooptext
+! ⚠️ gen_204는 일부 Google 서비스 클릭 피드백에 영향 가능 - 보수적 주석
+!||google.com/gen_204$redirect-rule=nooptext
 ||google.com/pagead/gen_204$redirect-rule=nooptext
 ||google.com/async/newtab_promos$redirect-rule=nooptext
 ||google.com/_/og/sharebox$redirect-rule=nooptext
@@ -1544,10 +1522,8 @@ $cookie=/^__hstc$/
 
 
 ! ═══════════════════════════════════════════
-! [10] 한국 서비스 추가 추적 (rev5 신규)
+! [10] 한국 서비스 추가 추적
 ! ═══════════════════════════════════════════
-! ⚠️ DNS_Rewrite.txt에 도메인 단위로 차단되지 않은 경로만 추가
-! ⚠️ 본 기능(검색·결제·로그인)에 영향 없도록 추적 엔드포인트만 차단
 
 ! ───── 이커머스 ─────
 ||analytics.gmarket.co.kr^$empty
@@ -1573,14 +1549,13 @@ $cookie=/^__hstc$/
 
 
 ! ═══════════════════════════════════════════
-! [11] 안티 애드블록 우회 (rev5 신규)
+! [11] 안티 애드블록 우회
 ! ═══════════════════════════════════════════
 ! ⚠️ "광고 차단을 꺼주세요" 모달·감지 스크립트 차단
-! ⚠️ 사이트별 부작용 가능 — 문제 발생 시 화이트리스트 추가
 
-! ───── 알려진 안티-애드블록 스크립트 ─────
-*.fuckadblock.js$script,redirect=noopjs
-*.blockadblock.js$script,redirect=noopjs
+! ───── 알려진 안티-애드블록 스크립트 (문법 수정) ─────
+/fuckadblock.js$script,redirect=noopjs
+/blockadblock.js$script,redirect=noopjs
 ||adblock-detector.com^$script,redirect=noopjs
 ||adblockanalytics.com^$script,redirect=noopjs
 ||detectadblock.com^$script,redirect=noopjs
@@ -1596,8 +1571,7 @@ $cookie=/^__hstc$/
 ||*/antiblock.js$script,redirect=noopjs
 ||*/ads-blocker-check.js$script,redirect=noopjs
 
-! ───── 스크립트릿으로 감지 변수 강제 false ─────
-! 사이트별로 활성화 (전역 적용 시 부작용 가능)
+! ───── 스크립트릿으로 감지 변수 강제 false (사이트별 적용) ─────
 ! example.com#%#//scriptlet('set-constant', 'adblockDetected', 'false')
 ! example.com#%#//scriptlet('set-constant', 'canRunAds', 'true')
 ! example.com#%#//scriptlet('set-constant', 'AdBlockDetected', 'false')
@@ -1607,7 +1581,7 @@ $cookie=/^__hstc$/
 
 
 ! ═══════════════════════════════════════════
-! [12] 푸시 알림 / 뉴스레터 팝업 (rev5 신규)
+! [12] 푸시 알림 / 뉴스레터 팝업
 ! ═══════════════════════════════════════════
 
 ! ───── 푸시 알림 권한 요청 SDK ─────
@@ -1655,21 +1629,18 @@ $cookie=/^__hstc$/
 
 
 ! ═══════════════════════════════════════════
-! [13] AI / LLM 텔레메트리 (rev5 신규)
+! [13] AI / LLM 텔레메트리
 ! ═══════════════════════════════════════════
-! ⚠️ AI 서비스 SDK가 사용자 행동을 학습 데이터로 수집
-! ⚠️ 본 기능에 영향 없는 텔레메트리 엔드포인트만 차단
 
 ! ───── AI 서비스 텔레메트리 (경로 단위) ─────
 ||openai.com/sdk/telemetry^$empty
 ||sdk.openai.com^$xmlhttprequest,empty
-||api.openai.com/v1/rgstr^$empty
 ||statsig.com^$xmlhttprequest,empty
 ||*.statsig.com^$xmlhttprequest,empty
 ||featureassets.org^$xmlhttprequest,empty
 ||telemetry.dev.gitpod.io^$empty
 
-! ───── Feature Flag / A/B 테스트 SDK (AI 서비스 활용) ─────
+! ───── Feature Flag / A/B 테스트 SDK ─────
 ||clientstream.launchdarkly.com^$xmlhttprequest,empty
 ||events.launchdarkly.com^$xmlhttprequest,empty
 ||sdk.split.io^$xmlhttprequest,empty
@@ -1678,15 +1649,13 @@ $cookie=/^__hstc$/
 ||cdn.unleash.run^$script,third-party
 
 ! ───── AI 크롤러 감지 회피 (역방향, 선택) ─────
-! 본인 사이트 운영 시 활용. 일반 사용자는 무관.
 !||gptbot.openai.com^$empty
 !||user-agents.anthropic.com^$empty
 
 
 ! ═══════════════════════════════════════════
-! [14] 모바일 광고 SDK 보강 (rev5 신규)
+! [14] 모바일 광고 SDK 보강
 ! ═══════════════════════════════════════════
-! ⚠️ 도메인 단위는 DNS_Rewrite.txt에서, 경로/SDK 스크립트만 여기서 처리
 
 ! ───── Adjust ─────
 ||cdn.adjust.com^$script,third-party
@@ -1695,7 +1664,8 @@ $cookie=/^__hstc$/
 ! ───── Unity Ads ─────
 ||sdk.iad-*.unityads.unity3d.com^$xmlhttprequest,empty
 ||config.uca.cloud.unity3d.com^$empty
-||thirdparty.unity3d.com^$empty
+! ⚠️ Unity 게임 일부 기능 영향 가능 - 보수적 주석
+!||thirdparty.unity3d.com^$empty
 
 ! ───── Branch ─────
 ||api.branch.io/v1/install^$empty
@@ -1714,22 +1684,23 @@ $cookie=/^__hstc$/
 
 
 ! ═══════════════════════════════════════════
-! [15] 브라우저 텔레메트리 강화 (rev5 신규)
+! [15] 브라우저 텔레메트리 강화
 ! ═══════════════════════════════════════════
 
 ! ───── Chrome / Google ─────
 ||clients2.google.com/cr/^$empty
 ||update.googleapis.com/service/update2^$empty
 ||play.google.com/log^$empty
-! - 동기화 사용 시 주석 유지
+! 동기화 사용 시 주석 유지
 !||clients4.google.com/chrome-sync^$empty
 
 ! ───── Microsoft Edge / Bing ─────
 ||edge.microsoft.com/edgeupdate/api^$empty
 ||edge.microsoft.com/abuse^$empty
 ||c.bing.com^$image,redirect=1x1-transparent.gif
-||www.bing.com/aclk^$empty
-||www.bing.com/aclick^$empty
+! ⚠️ Bing 검색 결과 클릭 리다이렉트 - Bing 사용자는 주석
+!||www.bing.com/aclk^$empty
+!||www.bing.com/aclick^$empty
 ||r.bing.com^$empty
 ||arc.msn.com/v4/api/selection^$empty
 
@@ -1738,7 +1709,8 @@ $cookie=/^__hstc$/
 ||incoming.telemetry.mozilla.org^$empty
 ||normandy.cdn.mozilla.net^$empty
 ||shavar.services.mozilla.com^$empty
-||location.services.mozilla.com^$empty
+! ⚠️ Firefox 위치 기반 서비스 영향 - 보수적 주석
+!||location.services.mozilla.com^$empty
 
 ! ───── Vivaldi / Opera ─────
 ||vivaldi.net/api/log^$empty
@@ -1770,21 +1742,21 @@ $cookie=/^__hstc$/
 
 ! ───── X(Twitter) 추적 차단 ─────
 ||x.com/1.1/jot
-||x.com/i/csp_report
+||x.com/i/csp_report$xmlhttprequest
 x.com/*/videoads/
 
-! ───── 이메일 추적 파라미터 (Drip/Klaviyo) ─────
-*$removeparam=/^__s=[A-Za-z0-9]{6,}/
+! ───── 이메일 추적 파라미터 (Drip/Klaviyo) - 문법 단순화 ─────
+*$removeparam=/^__s$/
 
-! ───── Azure Application Insights 텔레메트리 ─────
-||applicationinsights.azure.com^$domain=~azure.net
+! ───── Azure Application Insights 텔레메트리 (수정) ─────
+||applicationinsights.azure.com^$third-party,domain=~azure.net|~portal.azure.com
 
 ! ───── LogRocket/Sentry 클라이언트 등록 ─────
 /v1/rgstr?k=client-
 
-! ───── ChatGPT 텔레메트리 ─────
-||chatgpt.com/ces/v1/t$xhr,redirect-rule=noopjson
-||chatgpt.com/ces/v1/p|$xhr,redirect-rule=noopjson
+! ───── ChatGPT 텔레메트리 ($xhr → $xmlhttprequest) ─────
+||chatgpt.com/ces/v1/t$xmlhttprequest,redirect-rule=noopjson
+||chatgpt.com/ces/v1/p|$xmlhttprequest,redirect-rule=noopjson
 
 ! ───── Datadog RUM 텔레메트리 ─────
 ||browser-intake-*-datadoghq.com^
@@ -1794,20 +1766,19 @@ x.com/*/videoads/
 ||claude.ai/api/event_logging/
 
 ! ───── PerimeterX (⚠️ 일부 사이트 접속 차단 가능) ─────
-! PerimeterX 차단 후 평소 가는 사이트가 갑자기 "접속 차단" 또는 무한 로딩 → px-cloud.net 줄 주석 처리
 ||px-cloud.net/api/v2/collector
 ||px-cloud.net/b/s
 
-! ───── Netflix 로그 ─────
-||netflix.com/log/
+! ⚠️ Netflix 로그 - 시청 위치 동기화 영향 가능, 보수적 주석
+!||netflix.com/log/
 
-! ───── GitHub 비공개 텔레메트리 ─────
-||api.github.com/_private/browser/stats
+! ───── GitHub 비공개 텔레메트리 (중복 제거 - [8]에 이미 있음) ─────
+! ||api.github.com/_private/browser/stats  ← [8]에서 $empty로 처리됨
 
 ! ───── OneTrust 쿠키 동의 위치 확인 ─────
 ||geolocation.onetrust.com/cookieconsentpub/*/geo/location$xmlhttprequest,redirect-rule=noopjson
 
-! WebSocket 연결은 removeparam 예외 (토큰·세션 보호)
+! ───── WebSocket 연결은 removeparam 예외 (토큰·세션 보호) ─────
 @@|wss://$removeparam
 
 
@@ -1855,14 +1826,12 @@ x.com/*/videoads/
 !||*.cohere.ai/v1/track^$empty
 
 ! ───── 다크 패턴 / 강제 회원가입 모달 ─────
-! ⚠️ 일부 사이트 콘텐츠 읽기 불가능해질 수 있음
 !##.signup-wall
 !##.login-wall
 !##.paywall-overlay
 !##.subscription-prompt
 
 ! ───── 검색엔진 AI 요약 (선택) ─────
-! ⚠️ Google AI Overview / Bing Chat 결과 표시 안 됨
 !google.com##div[data-attrid*="ai_overview"]
 !google.com##.ai-overview
 !bing.com##.b_chat
@@ -1882,7 +1851,6 @@ x.com/*/videoads/
 
 ! ───── uBlock 사칭/비공식 사이트 ─────
 ! 진짜 공식: https://github.com/gorhill/uBlock
-! $doc로 페이지 차단 + ##html로 이중 안전장치
 ||ublockdns.com^$doc
 ||ublockorigin.com^$doc
 ublockdns.com##html
