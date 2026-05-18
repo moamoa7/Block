@@ -1925,5 +1925,6 @@ ublockorigin.com##html
 @@/^https?:\/\/(docs|accounts|mail|calendar|meet|photos|keep|translate|maps|forms|sites|scholar|news)\.google(\.[a-z]{2,}){1,}/$removeparam
 @@/^https?:\/\/([a-z0-9-]+\.)*?google(\.[a-z]{2,}){1,}(\/upload)?\/drive\//$removeparam
 
-! ───── PC에서 위치 추적 줄이는 방법 (제한적) ─────
+! ───── PC에서 구글 위치 추적 줄이는 방법 (제한적) ─────
+! 다만 Google Maps, 일부 서비스가 영향 받음
 ||www.googleapis.com/geolocation/^
