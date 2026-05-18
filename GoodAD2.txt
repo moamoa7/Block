@@ -914,38 +914,6 @@ $cookie=/^__hstc$/
 ||*$image,third-party,domain=adsrvr.org|3lift.com|smartadserver.com|casalemedia.com
 ||*$image,third-party,domain=cauly.co.kr|widerplanet.com|mobon.net
 
-! ───── 백그라운드 비콘 / 추적 요청 (XHR) ─────
-||*/beacon$xmlhttprequest,third-party,empty
-||*/beacon/*$xmlhttprequest,third-party,empty
-||*/beacons$xmlhttprequest,third-party,empty
-||*/telemetry$xmlhttprequest,third-party,empty
-||*/telemetry/*$xmlhttprequest,third-party,empty
-||*/collect$xmlhttprequest,third-party,empty
-||*/collect/*$xmlhttprequest,third-party,empty
-||*/collector$xmlhttprequest,third-party,empty
-||*/collector/*$xmlhttprequest,third-party,empty
-||*/track$xmlhttprequest,third-party,empty
-||*/track/*$xmlhttprequest,third-party,empty
-||*/tracker$xmlhttprequest,third-party,empty
-||*/tracker/*$xmlhttprequest,third-party,empty
-||*/tracking$xmlhttprequest,third-party,empty
-||*/tracking/*$xmlhttprequest,third-party,empty
-||*/pixel$xmlhttprequest,third-party,empty
-||*/pixel/*$xmlhttprequest,third-party,empty
-||*/event$xmlhttprequest,third-party,empty
-||*/events$xmlhttprequest,third-party,empty
-||*/log$xmlhttprequest,third-party,empty
-||*/logs$xmlhttprequest,third-party,empty
-||*/logger$xmlhttprequest,third-party,empty
-||*/analytics$xmlhttprequest,third-party,empty
-||*/analytics/*$xmlhttprequest,third-party,empty
-||*/metric$xmlhttprequest,third-party,empty
-||*/metrics$xmlhttprequest,third-party,empty
-||*/stats$xmlhttprequest,third-party,empty
-||*/statistics$xmlhttprequest,third-party,empty
-||*/impression$xmlhttprequest,third-party,empty
-||*/impressions$xmlhttprequest,third-party,empty
-
 ! ───── Ping/Beacon 추적 (전체 차단) ─────
 *$ping
 
