@@ -1562,7 +1562,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ![$domain=/^boztv\d+.com/]##li.off.menu-li:nth-of-type(5)
 !
 !
-! 메시티비 (https://messitv8.com/)
+! 메시티비 (https://messitv8.com/) -> 이지티비 (https://nuevosiglonews.com/) 로 변경
 ! - 메인 배너 여러개
 !##.baner
 ! - 왼쪽 상단 배너
@@ -1576,7 +1576,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ! - 왼쪽 맨 아래 하단 배너
 !$domain=/^messitv\d+.com/]##.bigwin-bn
 ! - 플레이어내 배너
-||bigwin.livenst.com/static/upload/*
+!||bigwin.livenst.com/static/upload/*
 ! - 채팅박스
 ! - - - VIP TV (https://viptv24.com/)
 ! - - - 쿨티비 (https://www.cool111.com)
@@ -1584,10 +1584,10 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ! - - - 블랙티비 (https://blacktv88.com/)
 ! - - - 배트맨티비 (https://bmtv24.com/)
 ! - - - 놀고가닷컴 (https://nolgoga365.com/)
-##u-chat
+!##u-chat
 ! - 예외
 ! - --  https://poooo.ml/ - ㅡ채팅창 내 배너(채팅방 배너) 안보임 해결
-poooo.ml/#@#u-chat
+!poooo.ml/#@#u-chat
 !
 !
 ! VIP TV (https://viptv24.com/)
@@ -1595,14 +1595,7 @@ poooo.ml/#@#u-chat
 [$domain=/^viptv\d+.com/]###popup_1
 ! - 채팅 공간
 ! - - - https://www.cool111.com/
-###left_chat
-!
-!
-! 365티비 (https://sgtpapas.com/)
-! - 배너
-!||*/theme/basic/img/*
-! - 배너 공간
-sgtpapas.com##div.d-lg-block.d-none.na-col.col-lg-4:nth-of-type(1)
+!###left_chat
 !
 !
 ! 쿨티비 (https://www.cool111.com/)
@@ -1614,102 +1607,16 @@ sgtpapas.com##div.d-lg-block.d-none.na-col.col-lg-4:nth-of-type(1)
 !###hd_pop
 ! - - - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 ##[id^="hd_pop" i]
-! - 색색티비 (https://kr537.mysstv.com/) - 클릭 안됨
-[$domain=/^kr\d+.mysstv.com/]#@#[id^="hd_pop" i]
-!
-!
-! 굿라이브티비 (https://gltv88.com/)
-! - 배너 (오른쪽)
-! - - -  블랙티비 (https://blacktv88.com/)
-!##.middle-banner
-! - 왼쪽 챗 공간
-! - - - 울프티비 (https://wftv88.com/)
-[$domain=/^gltv\d+.com/],[$domain=/^wftv\d+.com/]###fchat
-###fchat
-! - 보증업체 글자
-![$domain=/^gltv\d+.com/]##li.gnb_1dli:nth-of-type(6)
-! - 공지사항 - 보증업체
-![$domain=/^gltv\d+.com/]##.board-gallery
-!
-!
-! 블랙티비 (https://blacktv88.com/)
-! - 배너
-![$domain=/^blacktv\d+.com/]###mdiv2
-! - 채팅 공간
-[$domain=/^blacktv\d+.com/]##div.b-ox:nth-of-type(3)
-! - 보증업체 글자
-!||blacktv*.com/img/bo1.gif
-! - 먹튀업체
-![$domain=/^blacktv\d+.com/]##.gall_con
-!
-!
-! 블랙티비 (https://blacktv567.com/)
-! - 보증업체 글자 공간
-![$domain=/^blacktv\d+.com/]##button.v-size--default.theme--dark.v-btn--text.v-btn.pb-2.pt-2.top-menu-btn.text-center:nth-of-type(3)
-!
-!
-! 배트맨티비 (https://bmtv24.com/)
-! - 팝업
-![$domain=/^bmtv\d+.com/]##.modal_item
-! - 챗 공간
-[$domain=/^bmtv\d+.com/]##.chat_frame
-!
-!
-! 백억티비 (https://xn--tv-rx1jk82a.com)
-! - 공식보증업체
-!xn--tv-rx1jk82a.com##.p-3.bb-3.border.h-100
-!
-!
-! 놀고가닷컴 (https://nolgoga365.com/)
-! - 배너
-!||nolgoga*.com/data/file/*$image
-!||nolgoga*.com/img/ps_banner.gif
-! - - -  타이틀 복원
-!@@||nolgoga*.com/img/top_logo.png
-! - 먹튀정보 글자
-![$domain=/^nolgoga\d+.com/]##li.gnb_al_li_plus.gnb_1dli:nth-of-type(6)
-! - 보증업체 글자
-![$domain=/^nolgoga\d+.com/]##.menu_blank.gnb_1da
-! -채팅 공간 (아래 포인트순위까지 지워지네. 어쩔)
-![$domain=/^nolgoga\d+.com/]###aside > div
-!
-!
-! 라이브스코어 (https://livescore.co.kr/)
-! - 챗 공간
-###livechat
-! - 배너
-!livescore.co.kr###leftBan
-!livescore.co.kr##div#leftAD_iframe:nth-of-type(1)
-!livescore.co.kr##div.ad_area_wrap:nth-of-type(1)
-!livescore.co.kr##div.ad_area_wrap:nth-of-type(4)
-!livescore.co.kr##div#leftAD_iframe:nth-of-type(5)
-!
-!
-! 킹콩티비 (https://xn--989ax54a79c97h8wgq4bg9cwvgwsc.com/) (https://kktv12.com/)
-! - 팝업
-![$domain=/^kktv\d+.com/]##.modal_flex
-! - 챗 공간
-[$domain=/^kktv\d+.com/]##.chat_frame
-!
-!
-! 블루티비 (https://bluelive77.com/)
-! - 오른쪽 상단 배너
-![$domain=/^bluelive\d+.com/]##.collapse
-!- 배팅하러가기 배너
-! - 중계방송 배팅하러가기 배너
-!![$domain=/^bluelive\d+.com/]##.btn-group.mt-2
-!![$domain=/^bluelive\d+.com/]##.mt-2.col-12 > [href="/html/toto/"]
-![$domain=/^bluelive\d+.com/]##[href^="/html/toto/"]
-! - 중계방송 하단 배너 2개
-!named.com###sport_mobile_banner_left
-!named.com###sport_mobile_banner_right
+! - 색색티비 (https://kr542.mysstv.com/) - 클릭 안됨
+![$domain=/^kr\d+.mysstv.com/]#@#[id^="hd_pop" i]
 !
 !
 ! 헐크티비 (https://www.hulk24.com/) (https://xn--2p7bp2h.tv/)
 ! - 오른쪽 상단 배너
-[$domain=/^www.hulk\d+.com/]##.right_top_banner
+![$domain=/^www.hulk\d+.com/]##.right_top_banner
+##[class*="top_banner" i]
 ! - 채팅 공간
-[$domain=/^www.hulk\d+.com/]##.left_chat_box
+![$domain=/^www.hulk\d+.com/]##.left_chat_box
 ! - 중계방송 아래 흐르는 배너
 ![$domain=/^www.hulk\d+.com/]##.notice_wrap
 ! - 보증업체
@@ -1723,145 +1630,6 @@ sgtpapas.com##div.d-lg-block.d-none.na-col.col-lg-4:nth-of-type(1)
 ! - 왼쪽 / 오른쪽 배너
 ![$domain=/^www.hulk\d+.com/]##.left.floating_banner
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
-!
-!
-! 마징가티비 (https://mazgtv1.com/)
-! - 팝업
-! - - - 토토연습장 (https://totoexer.com/) 
-! - - -  콕티비 (https://coktv1.com/)
-![$domain=/^mazgtv\d+.com/]##.popup-container
-!totoexer.com##.popup-container
-##.popup-container
-! - 챗 공간
-[$domain=/^mazgtv\d+.com/]###uchatDom
-! - 제휴업체 글자
-![$domain=/^mazgtv\d+.com/]##.othersite-tab-bg
-!
-!
-! 콕티비 (https://coktv1.com/)
-! - 보증업체 글자
-![$domain=/^coktv\d+.com/]##.othersite-tab-bg
-!
-!
-! 구구티비 (https://randburg.com/)
-! - 배너
-randburg.com##div.d-lg-block.d-none.na-col.col-lg-4:nth-of-type(1)
-! - 오른쪽 챗 메모
-##.chat-notice
-!
-!
-! 개구리티비 (https://grtv09.com/)
-! - 배너 이미지
-!||grtv*.com/data/editor/*
-!
-!
-! 라이브걸 (https://livegirl.biz/)
-! - 배너 공간
-livegirl.biz##.my-3.px-sm-0.px-3
-! - 보증업체 글자
-!livegirl.biz##.on.me-li.p-0.float-left
-!
-!
-! 청양티비 (https://cytv138.com/)
-! - 링크 삭제
-![$domain=/^cytv\d+.com/]##.type-slide.stui-header__menu [href="/index.php/vod/banner2/type/999.html"]
-!
-!
-! 쿨티비 (https://www.cool111.com/)
-! - 챗 공간
-[$domain=/^www.cool\d+.com/]##.left_chat
-! - 왼쪽 바로가기
-![$domain=/^www.cool\d+.com/]##.left_shortcut
-! - 보증업체 글자
-![$domain=/^www.cool\d+.com/]##.sub08_active.gnb_active
-!
-!
-! 울프티비 (https://wftv88.com/)
-! - 왼쪽 배너
-![$domain=/^wftv\d+.com/]##.ebs-comm003-head-wrap-1718606779
-![$domain=/^wftv\d+.com/]##.ebs-comm003-head-wrap-1718596064
-![$domain=/^wftv\d+.com/]##.ebs-comm003-head-wrap-1718606598
-! - 링크모음
-![$domain=/^wftv\d+.com/]##li.dropdown:nth-of-type(10)
-!
-!
-! 구구티비 (https://gutv24.com/)
-! - 챗 공간
-[$domain=/^gutv\d+.com/]##div.side-widget:nth-of-type(4)
-! - 왼쪽 보증놀이터 배너
-![$domain=/^gutv\d+.com/]##div.side-widget:nth-of-type(3)
-!
-!
-! 로얄티비 (https://royaltv01.com/)
-! 보증업체 이미지
-!##.img-item > [href^="https://royaltv01.com/bbs/board.php"]
-! - 보증업체 더보기
-!##.add-to-cart
-!
-!
-! 슈퍼맨티비 (https://smantv5.net/)
-! -왼쪽 배너
-![$domain=/^smantv\d+.net/]###kakao_bg
-! - 채팅
-[$domain=/^smantv\d+.net/]##.sman_chat_size
-!
-!
-! 쪽티비 (https://www.jjoktv.com/)
-! - 보증업체 글자
-!jjoktv.com##.assurance-menu__btn.v-size--default.theme--light.v-btn--text.v-btn.pa-0
-!
-!
-! 올킬티비 (https://allkilltv.com/)
-! - 오른쪽 상단 배너
-!allkilltv.com##.swiper-slide-active.swiper-slide
-! - 배너 이미지
-!||allkilltv.com/data/ebbanner/*$image
-!||allkilltv.com/data/ebslider/*$image
-! - 보증업체 글자
-!allkilltv.com##li.dropdown:nth-of-type(1)
-!
-!
-! 군밤티비 (https://drhtv.tv/)
-! - 왼쪽 배너
-!drhtv.tv##.slide
-!
-!
-! 퐁퐁티비 (https://ppmantv.com/)
-! - 배너
-!ppmantv.com##.p-0.card-footer
-! - 왼쪽 석삼 매뉴
-!ppmantv.com##.me-auto.d-lg-block.d-none.dropdown-mega-menu.dropdown
-! 보증업체 글자
-!ppmantv.com##li.dropdown:nth-of-type(5)
-! 먹튀검증 글자
-!ppmantv.com##li.dropdown:nth-of-type(7)
-! 무료슬롯 글자
-!ppmantv.com##li.dropdown:nth-of-type(8)
-!
-!
-! 챔스티비 (https://xn--9w3b13ftwkozg.com/) tps://chm7.com/)
-! - 보증업체
-![$domain=/^chm\d+.com/]##.mx-n2.row-cols-md-4.row-cols-2.row
-! - 슬롯체험
-![$domain=/^chm\d+.com/]##.mx-n2.row-cols-md-3.row-cols-2.row
-! - 왼쪽 배너
-![$domain=/^chm\d+.com/]##.owl-3.position-relative.owl-slider
-!
-!
-! 노카티비 (https://nocatv3.com/)
-! - 제휴업체 / 보증업체
-![$domain=/^nocatv\d+.com/]##.box-center
-![$domain=/^nocatv\d+.com/]##.mx-n2.row-cols-lg-3.row-cols-md-2.row-cols-sm-2.row-cols-1.row
-! - 왼쪽 배너
-![$domain=/^nocatv\d+.com/]##a[href^="https://nocatv3.com/bbs/link.php"]:nth-of-type(2)
-!
-!
-! 호두코믹스 시즌2 (https://hdhd501.net/)
-! 툰코 (https://tkr416.com/)
-! - 팝업
-!##.alert_windows
-! - 이미지 복원
-!@@||img.asfsadfimiim.com/img/*$image
 !
 !
 ! 툰코 (https://tkor116.com/)
@@ -2574,16 +2342,6 @@ pedia.watcha.com##.adFixed
 ! 토렌트쓱 (https://ssg2.torrentssg8.com/)
 ! - 배너
 [$domain=/^ssg\d+\.torrentssg\d+\.com$/]##.post-img
-!
-!
-! 디토렌트 (https://ditto-torrent18.top/)
-! 배너 이미지
-!||ditto-torrent*.top/img/sponsor/*$image
-!||*/img/sponsor/*$image
-! 배너 공간
-![$domain=/^ditto-torrent\d+.top/]##.top_banner
-!##.top_banner
-!##[class*="top_banner" i]
 !
 !
 ! 토렌트 RJ (https://torrentrj199.com/)
@@ -3524,11 +3282,6 @@ wavve.com#@#[id*="main-banner" i]
 ! - 입장시 18세 체크
 !##[id*="ageCheck"]
 ##[id*="agecheck" i]
-!
-!
-! 야동aVMOV (https://avmov.best/)
-! - 상단 배너
-!##.top_banner_grid - ##[class*="top_banner" i]로 대체
 !
 !
 ! AV핫걸 (https://avhotgirl.top/)
@@ -4834,6 +4587,11 @@ modded-1.com#@#[class*="ad-container" i]
 !
 */ad/*
 @@*/ad/*$domain=avsee.ru
+!
+*/Ad/*
+!
+*/aD/*
+!
 */AD/*
 !
 !
@@ -4890,6 +4648,12 @@ ad-script.
 !
 !
 */videoad/*
+!
+*/video-ad/*
+!
+*/videoads/*
+!
+*/video-ads/*
 !
 !
 ##[class$="right-ad" i]
