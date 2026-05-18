@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 Homepage: https://github.com/moamoa7/Block
-! Version: 20260517
+! Version: 20260518
 !
 !
 !
@@ -4786,6 +4786,11 @@ dschool.co.kr##[id="modal-banner" i]
 dschool.co.kr##[id*="lean_overlay" i]
 !
 !
+! https://modded-1.com/
+! - 다운로드 버튼 안보이는거 해결
+modded-1.com#@#[class*="ad-container" i]
+!
+!
 !
 !
 !
@@ -5069,6 +5074,7 @@ emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
+
 
 
 
