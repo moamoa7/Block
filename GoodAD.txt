@@ -116,6 +116,11 @@ Homepage: https://github.com/moamoa7/Block
 ! - 카카오TV 광고 차단 우회
 ! - - - ||vst.play.kakao.com^ 차단해도 가능
 !tv.kakao.com#%#//scriptlet('set-constant', 'kakao.tv.adManager', 'noopFunc')
+! - 동영상 재상 안되는 문제 해결 (일부 차단 필터 차단 규칙 해제)
+tv.kakao.com#@#.ads
+tv.kakao.com#@#div.ads
+!  - --  DNS에서 차단중이면 아래 추가 필요
+||smartmediarep.com^$badfilter
 !
 !
 ! 카카오톡 (앱)
@@ -314,7 +319,6 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 ! - 배너 빈공간
 ! - - - https://chzzk.naver.com/ - 영상 내 보이지 않는 부분 (무엇인지는 모름)
 ##[class*="advertisement" i]
-
 !
 !
 ! ! 네이버 웹툰 (https://comic.naver.com/index)
@@ -326,6 +330,10 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 ! 네이버 지도 (https://map.naver.com/)
 ! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 map.naver.com##div[class^="AD"][style]
+!
+! 네이버TV (https://tv.naver.com/)
+! - 로그인 팝업 안뜨는거 해걸
+tv.naver.com#@#[class*="popup_modal" i]
 !
 !
 ! 네이트 (https://www.nate.com/)
@@ -472,6 +480,8 @@ chzzk.naver.com##.tooltip
 !my.nextdns.io#@#.tooltip
 ! - 영상내 치지직 로딩 이미지 삭제
 chzzk.naver.com##.pzp-pc__loading-indicator
+! - 로그인 팝업 안뜨는거 해결
+chzzk.naver.com#@#[class*="popup_modal" i]
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -2036,7 +2046,6 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 왼쪽 배너
 !##[class*="list-banner"] - ##[class*="banner"]:has(img) 로 대체
 !##.list-banner
-
 !
 !
 ! 연합뉴스 (https://www.yna.co.kr/)
