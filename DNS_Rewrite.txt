@@ -1462,12 +1462,10 @@
 ||plausible.io^
 !
 
-! ───── Helium 브라우저 ─────
-! 업데이트 체크 (브라우저 시작 시) - 유지 권장
-!||update.helium.app^
-!
-! 1시간 간격 백엔드 호출 (텔레메트리 의심) - 차단 권장
-||services.helium.imput.net^
+! ───── Helium 브라우저 (참고용) ─────
+! 차단 금지 - Helium 핵심 기능
+! update.helium.app          ← 브라우저 시작 시 업데이트 체크
+! services.helium.imput.net  ← 확장/필터/사전/bangs 프록시 (1시간 간격)
 
 !
 !
