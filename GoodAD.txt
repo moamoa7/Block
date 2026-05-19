@@ -686,9 +686,9 @@ etoland.co.kr##.py-6
 ! - 게시물 하단 남는 공간 (모바일)
 ! - - - 오징어랜드 이미지 안보여서 해제
 !etoland.co.kr##div.justify-center.w-full
-etoland.co.kr##.justify-center.w-full.min-h-\[250px\]
+!etoland.co.kr##.justify-center.w-full.min-h-\[250px\]
 ! -댓글 하단 빈 공간
-etoland.co.kr##.justify-center.w-full.min-h-\[280px\]
+!etoland.co.kr##.justify-center.w-full.min-h-\[280px\]
 ! Etoland 네이버 광고 차단 (공용)
 !etoland.co.kr##li:has(a[href*="ader.naver.com"])
 !etoland.co.kr##a[href*="ader.naver.com"]
