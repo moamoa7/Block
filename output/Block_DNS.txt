@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-19 19:22:49 UTC
+! Generated: 2026-05-19 20:56:09 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,269
+! Block Rules: 85,274
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -3303,6 +3303,7 @@
 ||adatrix.com^
 ||adb.reallifecams.net^
 ||adb.voyeur-house.org^
+||adbakbhknpczi.site^
 ||adballoon.sooplive.com^
 ||adbard.net^
 ||adbasket.net^
@@ -5955,7 +5956,6 @@
 ||amazingcounters.com^
 ||amazingmeaning.com^
 ||amazingsite.pro^
-||amazonlogistics.jp^
 ||amazy.ru^
 ||ambaab.com^
 ||ambiciubzprxl.website^
@@ -68749,6 +68749,7 @@
 ||stridentuser.com^
 ||strideovertakelargest.com^
 ||strifeschronol.cyou^
+||strigilemystrochid.cyou^
 ||striglusor.com^
 ||strikebreaker3x.fun^
 ||strikingcondolences.com^
@@ -69206,6 +69207,7 @@
 ||suurl.nuudcare.de^
 ||suvloxmlkfier.online^
 ||suvntjrxksruf.space^
+||suvxztxz.com^
 ||suwgpealj.in^
 ||suwytid.com^
 ||suxbduziqbblv.store^
@@ -77692,6 +77694,7 @@
 ||uvtwcxrwiibvy.online^
 ||uvuap.stampington.com^
 ||uvvhimqchjcvq.site^
+||uw23eh8kno5xkueg8lqoywqbh.rest^
 ||uwahagoyvuccd.website^
 ||uwauarphjaflw.website^
 ||uwavgfrn.com^
@@ -78367,6 +78370,7 @@
 ||vgkaszpddsetc.online^
 ||vglkx9lick.com^
 ||vgnhigankih.com^
+||vgnniagmx.com^
 ||vgnyli.top^
 ||vgoawzppsjrff.store^
 ||vgoimmkcgdc.com^
@@ -85125,6 +85129,7 @@
 ||zumnervl.com^
 ||zumrieth.com^
 ||zumsivonaiss.net^
+||zun3e3eyw5h4fvj859.cfd^
 ||zunsoach.com^
 ||zuowen.hydcd.com^
 ||zupcrxfechrmx.store^
