@@ -1384,7 +1384,8 @@ poooo.ml#@#.ad
 ! - 팝업 - ##[class*="popup-banner" i]으로 대체
 !##[class*="popup-banners" i]
 ! - 상단 배너 공간
-[$domain=/^cokcok\d+.com/],tvwiki.app##.custom_banner_wrap
+![$domain=/^cokcok\d+.com/],tvwiki.app##.custom_banner_wrap
+##[class*="custom_banner" i]
 !
 !
 ! 무비킹 (https://mvking4.org/)
