@@ -683,18 +683,12 @@ fmkorea.com###fm_alert
 ! - 알림 - 삭제하기 버튼 클릭시 메뉴 안나옴
 !etoland.co.kr##.overflow-y-auto
 etoland.co.kr##.py-6
+! - 네이버 광고 차단 (모바일)
+etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 ! - 전체 게시물 목록과 히트글 사이 남는 공간 (모바일)
 etoland.co.kr##div.flex.min-h-\[250px\]:has(> script[src])
-! -개별 게시물 댓글 하단과 히트글 사이 빈 공간
+! -개별 게시물 댓글 하단과 히트글 사이 빈 공간 (모바일)
 etoland.co.kr##div.my-4.flex:has(> script[src])
-! Etoland 네이버 광고 차단 (공용)
-!etoland.co.kr##li:has(a[href*="ader.naver.com"])
-!etoland.co.kr##a[href*="ader.naver.com"]
-!||ader.naver.com
-! Etoland 네이버 광고 차단 (PC)
-!etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
-! Etoland 네이버 광고 차단 (모바일)
-!etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 ! - 게시물내 광고글
 ! - - - PC
 !etoland.co.kr##li:has(img[src*="/ad"])
