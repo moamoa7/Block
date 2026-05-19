@@ -678,22 +678,7 @@ fmkorea.com###fm_alert
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! - - - - - - - - 신버젼
 ! - 팝업
-! - - -  - 다른 요소까지 지워짐
-!##[class*="overflow" i]
-! - 알림 - 삭제하기 버튼 클릭시 메뉴 안나옴
-!etoland.co.kr##.overflow-y-auto
-etoland.co.kr##.py-6
-! - 네이버 광고 차단 (모바일)
-!toland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
-! - 게시물 목록 상단 배너 공간 (모바일)
-! - 개별 게시물과 댓글 사이 빈 공간 (모바일)
-!toland.co.kr##article.w-full.min-h-\[150px\]:has(> ul.mx-\[5px\])
-! - 전체 게시물 목록과 히트글 사이 남는 공간 (모바일)
-!toland.co.kr##div.flex.min-h-\[250px\]:has(> script[src])
-! -개별 게시물 댓글 하단과 히트글 사이 빈 공간 (모바일)
-!toland.co.kr##div.my-4.flex:has(> script[src])
-
-
+etoland.co.kr##div.fixed.z-1000.inset-0
 ! - 네이버 광고 차단 (모바일)
 etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
 ! - 게시물 목록 상단 배너 공간 (모바일)
@@ -703,13 +688,9 @@ etoland.co.kr##article.w-full:has(> ul.mx-\[5px\])
 etoland.co.kr##div[class*="min-h-"]:has(> script)
 ! - 개별 게시물 댓글 하단과 히트글 사이 빈 공간 (모바일)
 etoland.co.kr##div.my-4.flex:has(> script)
-
-
-
 ! - 게시물내 광고글
 ! - - - PC
-!etoland.co.kr##li:has(img[src*="/ad"])
-##li:has(img[src*="/ad"])
+etoland.co.kr##li:has(img[src*="/ad"])
 ! - - - 모바일
 etoland.co.kr##body *[class*="list"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽|난짜리|호날두우우킴)/)
 etoland.co.kr##[class*="caption"]:has-text(/(인터넷|보험|상점)/), a:has-text(/(인터넷|보험|상점)/)
