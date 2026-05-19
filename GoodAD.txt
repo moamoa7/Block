@@ -702,8 +702,9 @@ etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.f
 ! - - - PC
 ##li:has(img[src*="/ad"])
 ! - - - 모바일
-etoland.co.kr##body *[class*="list"]:has(span.caption-m.whitespace-nowrap:has-text(/(인터넷상담|보험상담|비밀상점|신도림샤인컴)/))
-etoland.co.kr##body *[class*="reply"]:has(span.caption-m.whitespace-nowrap:has-text(/(인터넷상담|보험상담|비밀상점|신도림샤인컴)/))
+etoland.co.kr##body *[class*="list"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽|인터넷상담)/)
+etoland.co.kr##body *[class*="reply"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽|인터넷상담)/)
+
 ! - 애드블럭 감지 해제
 @@||doubleclick.net^$domain=etoland.co.kr
 ! - 팝업 차단
