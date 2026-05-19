@@ -1343,18 +1343,9 @@ poooo.ml#@#.ad
 [$domain=/^tvwiki\d+\.net$/]##.floating-side-btns
 !
 !
-! 티비착 (https://tvchak.org/ (https://tvchak.live/)
-! - 주소 안내 - https://namu.wiki/w/%ED%8B%B0%EB%B9%84%EC%B0%A9
-!
-!
-! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
-! 애니위크 (https://aniweek.com/)
-! 애니24 (https://ohli24.com/)
-! - 상단 배너
-!##div.insty
-! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
-! - 영상내 하단 배너
-!###exon
+! 티비착 (https://tvchak.org/) (https://tvchak.live/) (https://tvchak201.com/)
+! - 팝업
+[$domain=/^tvchak\d+\.com$/],tvchak.live##.popup_mdd
 !
 !
 ! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03) (https://kf.hoohootv398.xyz/)
