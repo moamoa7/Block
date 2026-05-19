@@ -683,32 +683,29 @@ fmkorea.com###fm_alert
 ! - 알림 - 삭제하기 버튼 클릭시 메뉴 안나옴
 !etoland.co.kr##.overflow-y-auto
 etoland.co.kr##.py-6
-! - 게시물 하단 남는 공간 (모바일)
-! - - - 오징어랜드 이미지 안보여서 해제
-!etoland.co.kr##div.justify-center.w-full
-!etoland.co.kr##.justify-center.w-full.min-h-\[250px\]
-! -댓글 하단 빈 공간
-!etoland.co.kr##.justify-center.w-full.min-h-\[280px\]
+! - 전체 게시물 목록과 히트글 사이 남는 공간 (모바일)
+etoland.co.kr##div.flex.min-h-\[250px\]:has(> script[src])
+! -개별 게시물 댓글 하단과 히트글 사이 빈 공간
+etoland.co.kr##div.my-4.flex:has(> script[src])
 ! Etoland 네이버 광고 차단 (공용)
 !etoland.co.kr##li:has(a[href*="ader.naver.com"])
 !etoland.co.kr##a[href*="ader.naver.com"]
 !||ader.naver.com
 ! Etoland 네이버 광고 차단 (PC)
-etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
+!etoland.co.kr##li.h-fit.min-h-14:has(> div:not(a) > div .animate-pulse):not(:has(a))
 ! Etoland 네이버 광고 차단 (모바일)
-etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
+!etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 ! - 게시물내 광고글
-!etoland.co.kr##li:has(img[src*="/ad"])
 ! - - - PC
+!etoland.co.kr##li:has(img[src*="/ad"])
 ##li:has(img[src*="/ad"])
 ! - - - 모바일
 etoland.co.kr##body *[class*="list"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽|난짜리|호날두우우킴)/)
-!etoland.co.kr##body *[class*="reply"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽)/)
 etoland.co.kr##[class*="caption"]:has-text(/(인터넷|보험|상점)/), a:has-text(/(인터넷|보험|상점)/)
 ! - 모바일 각 게시판 상단 공간
-etoland.co.kr##article.w-full.min-h-\[150px\]:has(> ul.mx-\[5px\])
+!etoland.co.kr##article.w-full.min-h-\[150px\]:has(> ul.mx-\[5px\])
 ! - 모바일 각 게시물 일부 최하단 공간
-etoland.co.kr##article.w-full.min-h-\[150px\]:has(> ul.mx-\[5px\]):nth-of-type(2)
+!etoland.co.kr##div.flex.min-h-\[250px\]:has(> script[src])
 ! - 애드블럭 감지 해제
 @@||doubleclick.net^$domain=etoland.co.kr
 ! - 팝업 차단
