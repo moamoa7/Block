@@ -1346,7 +1346,8 @@ poooo.ml#@#.ad
 !
 ! 티비착 (https://tvchak.org/)  (https://tvchak201.com/)  (https://tvchak.live/)
 ! - 팝업
-[$domain=/^tvchak\d+\.com$/],tvchak.live##[class*="popup_mdd" i]
+[$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
+tvchak.live##[class*="popup_mdd" i]
 ! - 배너 공간
 ![$domain=/^tvchak\d+\.com$/],tvchak.live###advertiseMain
 ##[id*="advertise" i]
