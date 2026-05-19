@@ -702,7 +702,7 @@ etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.f
 ! - - - PC
 ##li:has(img[src*="/ad"])
 ! - - - 모바일
-etoland.co.kr##body *[class*="list"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽|난짜리)/)
+etoland.co.kr##body *[class*="list"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽|난짜리|호날두우우킴)/)
 !etoland.co.kr##body *[class*="reply"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽)/)
 etoland.co.kr##[class*="caption"]:has-text(/(인터넷|보험|상점)/), a:has-text(/(인터넷|보험|상점)/)
 ! - 모바일 각 게시판 상단 공간
