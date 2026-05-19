@@ -640,7 +640,7 @@ m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
 !##.adsbygoogle
 ##[class*="adsbygoogle" i]
-##[id*="google_ads"]
+!##[id*="google_ads"]
 ! - - - 파워 링크
 !##[class*="ad_"] [style]
 ! - - - 예외
@@ -716,8 +716,12 @@ theqoo.net##.theqoo-counter
 !
 ! 인벤 (https://www.inven.co.kr/)
 ! - 오른쪽 배너 공간
+!- - - ##.ad-right2 처리 후 남는 공간
 inven.co.kr##.commu-right > div
-! - 게시물 하단 배너?
+! - 게시물 본문 상단 오른쪽 배너
+!##.googleSubjectAd
+##[class*="googlesubjectad" i]
+! - 게시물 하단 작성자 프로필
 inven.co.kr###inventory-skin-800
 ! - 로딩 없애기
 !inven.co.kr##[id="loading"]
@@ -725,7 +729,7 @@ inven.co.kr##[class="modal-fixed" i]
 ! - ##.ad 예외
 inven.co.kr#@#.ad
 ! - 게시물 전체 배너
-!##[src*=".ads/"]
+##[src*=".ads/" i]
 ! -오른쪽 배너
 ##[class*="ad-right" i]
 ! - 예외
@@ -783,7 +787,7 @@ inven.co.kr###invenAppSuggestion
 ##[class*="top_ad" i]
 ! - 오른쪽 배너
 !##.big_banner
-!##[class*="big_banner" i]
+##[class*="big_banner" i]
 ! - 게시물 하단 배너 / 맨 하단 배너
 ##.left_cont > div[style]
 ! - 댓글 바로 위 텍스트 배너?
@@ -799,12 +803,8 @@ mlbpark.donga.com##.inner_article
 !##.naver_power
 ##[class*="naver_power" i]
 ! - 댓글 하단 광고
-mlbpark.donga.com##.naver_place
-! - 차단 사이트
-!||ad.aceplanet.co.kr^
-!||contentsfeed.com^
-!||searchad-phinf.pstatic.net^
-!||dable.io^
+!##.naver_place
+##[class*="naver_place" i]
 ! - ||content-loader.com^ 해제 (사이트 깨짐) ( RK’s ZeroHosts — Network Filters 필터 차단 해제 )
 @@||content-loader.com^
 !
@@ -1114,9 +1114,12 @@ slrclub.com##[class="notice"]
 ! - - - 예외 (공지글 제목 안보임
 !cineaste.co.kr#@#.notice
 ! - 하단 배너 공백
-!##.adsbyadop
 ! - - - https://etoland.co.kr/ 하단 배너 공백
-##[class*="adsbyadop" i]
+!##.adsbyadop
+!##[class*="adsbyadop" i]
+##div:has(> ins.adsbyadop)
+! - 메인 남겨진 여백 공간
+www.slrclub.com###section3
 !
 !
 ! 클리앙 (https://www.clien.net/)
@@ -2321,16 +2324,9 @@ pedia.watcha.com##.adFixed
 !##[id="at-main"] a[target] img[width="100%"]
 !- - - 일반식으로 차단
 !||ru/imgs/*
-! - 위 스크립트 실행 후 남는 배너 이미지 공간
-avsee.ru##[class="title"]
-avsee.ru##div.main-box:nth-of-type(1)
-! - Best Recommend 지우기
-! - - - 공통
-!avsee.ru##.div-title-wrap
-! - - - PC
-!avsee.ru##.nav-justified
-! - Mobile
-!avsee.ru##.list-category
+! - 남는 배너 이미지 공간
+avsee.ru##div.title:nth-of-type(1)
+avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
 ! - - - 스크립트의 ui 탭 을 막아서 해제
 avsee.ru#@#.tabs
 ! - 팝업 (새창) 방지
