@@ -685,6 +685,9 @@ fmkorea.com###fm_alert
 etoland.co.kr##.py-6
 ! - 네이버 광고 차단 (모바일)
 etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
+! - 게시물 목록 상단 배너 공간 (모바일)
+! - 개별 게시물과 댓글 사이 빈 공간 (모바일)
+etoland.co.kr##article.w-full.min-h-\[150px\]:has(> ul.mx-\[5px\])
 ! - 전체 게시물 목록과 히트글 사이 남는 공간 (모바일)
 etoland.co.kr##div.flex.min-h-\[250px\]:has(> script[src])
 ! -개별 게시물 댓글 하단과 히트글 사이 빈 공간 (모바일)
@@ -696,10 +699,6 @@ etoland.co.kr##div.my-4.flex:has(> script[src])
 ! - - - 모바일
 etoland.co.kr##body *[class*="list"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽|난짜리|호날두우우킴)/)
 etoland.co.kr##[class*="caption"]:has-text(/(인터넷|보험|상점)/), a:has-text(/(인터넷|보험|상점)/)
-! - 모바일 각 게시판 상단 공간
-!etoland.co.kr##article.w-full.min-h-\[150px\]:has(> ul.mx-\[5px\])
-! - 모바일 각 게시물 일부 최하단 공간
-!etoland.co.kr##div.flex.min-h-\[250px\]:has(> script[src])
 ! - 애드블럭 감지 해제
 @@||doubleclick.net^$domain=etoland.co.kr
 ! - 팝업 차단
