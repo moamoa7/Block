@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260519
+! Version: 20260520
 !
 !
 !
@@ -1309,7 +1309,7 @@ poooo.ml##.h30
 poooo.ml#@#.ad
 !
 !
-! 티비위키 (https://tvwiki22.net/) / 티비몬 (https://tvmon.site/) / 티비핫 (https://tvhot.store/)
+! 티비위키 (https://tvwiki22.net/) / 티비몬 (https://tvmon1.com/) / 티비핫 (https://tvhot.store/)
 ! - 팝업 제거
 ##[id*="modal-overlay" i]
 ! - 티비위키 배너 이미지 -  kr: List-KR Classic 정규식이 잇어 패스
@@ -1379,9 +1379,12 @@ poooo.ml#@#.ad
 [$domain=/^www.nnuutv\d+.tv/]###comp-lhh974mf2
 !
 !
-! 콕콕티비 (https://cokcoktv4.com/)
-! - 배너
-![$domain=/^cokcoktv\d+.com/]##.custom_banner_wrap
+! 콕콕티비 (https://cokcok6.com//)
+! - -  티비위키 (https://tvwiki.app/)
+! - 팝업 - ##[class*="popup-banner" i]으로 대체
+!##[class*="popup-banners" i]
+! - 상단 배너 공간
+[$domain=/^cokcok\d+.com/],tvwiki.app##.custom_banner_wrap
 !
 !
 ! 무비킹 (https://mvking4.org/)
@@ -4582,9 +4585,6 @@ ad-script.
 ##[class$="left-ad" i]
 !
 !
-##[class*="popup-banner" i]
-!
-!
 ! - https://www.yna.co.kr/
 ##[class*="popup-mobile" i]
 !##[class*="popup-mo" i]
@@ -4688,7 +4688,9 @@ ad-script.
 
 ! - https://06.avsee.ru/
 ##a[href][target="_blank"] > img[width="100%"][src$=".gif"]
-##A[target="_blank"] > IMG[width="100%"][src*=".gif"]
+##a[target*="blank"] > img[width="100%"][src*=".gif"]
+
+
 
 
 ! - 자브걸 (https://kr27.javgirl.co/)
