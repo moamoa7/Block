@@ -1345,7 +1345,7 @@ poooo.ml#@#.ad
 !
 ! 티비착 (https://tvchak.org/) (https://tvchak.live/) (https://tvchak201.com/)
 ! - 팝업
-[$domain=/^tvchak\d+\.com$/],tvchak.live##.popup_mdd
+[$domain=/^tvchak\d+\.com$/],tvchak.live##[class*="popup_mdd" i]
 !
 !
 ! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03) (https://kf.hoohootv398.xyz/)
