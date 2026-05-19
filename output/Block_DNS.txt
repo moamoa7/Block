@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-19 01:53:28 UTC
+! Generated: 2026-05-19 05:54:51 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,552
+! Block Rules: 85,554
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -81008,6 +81008,7 @@
 ||wildhookups.com^
 ||wildlyzonereseptivereseptive.com^
 ||wildmatch.com^
+||wildpetalfarm.com^
 ||wildtraffic.pro^
 ||wildwoodavenue.com^
 ||wildxxxparties.com^
@@ -81454,6 +81455,7 @@
 ||woofbeginner.com^
 ||wooferdeia.com^
 ||woofoobukugly.net^
+||woofweather.com^
 ||woogoust.com^
 ||wooguwhede.net^
 ||wooldedapitong.qpon^
