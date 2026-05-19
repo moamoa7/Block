@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-19 05:54:51 UTC
+! Generated: 2026-05-19 08:52:30 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,554
+! Block Rules: 85,556
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -36126,6 +36126,7 @@
 ||jointcap.pro^
 ||jointerestpred.cyou^
 ||jojoad.com^
+||jokedecays.com^
 ||jokercheerfullylet.com^
 ||jokerly.com^
 ||jokfrivqogtwq.site^
@@ -43832,6 +43833,7 @@
 ||mitopamosal.com^
 ||mitrarank.ir^
 ||mitratemanors.com^
+||mitresaxillae.com^
 ||mitself.net^
 ||mittaus.kayttoauto.fi^
 ||mittencattle.com^
