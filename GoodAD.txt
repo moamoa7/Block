@@ -2973,6 +2973,8 @@ adguard-dns.io#@#[class*="bottomright" i]
 @@||fourhoi.com
 ! - 기타
 ##[rel*="sponsor" i]
+! - 예외
+linkareer.com#@#[rel*="sponsor" i]
 !##div:has(> [rel*='sponsor'])
 !##*:has(> [rel*='sponsor'])
 !##:is(div, section, ins, span, li):has(> [rel*="sponsored" i])
@@ -3791,6 +3793,8 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ! - 배너
 !/advertise^
 ##[src*="advertise" i]
+! - 예외
+linkareer.com#@#[src*="advertise" i]
 ! - 상단 배너 공간
 ![$domain=/^www.bamgad\d+.com/]##.new-top.container
 [$domain=/^www.bamgad/],[$domain=/^bamgad/]##.new-top.container
@@ -4501,7 +4505,8 @@ modded-1.com#@#[class*="ad-container" i]
 !
 !
 */ad/*
-@@*/ad/*$domain=avsee.ru
+@@*/ad/*$domain=avsee.ru|media-cdn|linkareer.com
+
 !
 */Ad/*
 !
@@ -4511,7 +4516,7 @@ modded-1.com#@#[class*="ad-container" i]
 !
 !
 ! https://ygosu.com/ 광고 게시물 삭제
-~avsee.ru##[src*="/ad/" i]
+~avsee.ru,~linkareer.com##[src*="/ad/" i]
 !
 !
 ##[src*="/ads/" i]
@@ -4599,6 +4604,10 @@ ad-script.
 !
 ! - https://shopping.naver.com/
 ^advertisement^
+@@^advertisement^$domain=linkareer.com
+
+
+
 !
 !
 ##[id*="popup_banner" i]
@@ -4722,7 +4731,8 @@ manhwabang.org##a[target*="target"] img
 ! - 숲토어 (https://sooptore.sooplive.com/)
 ! - 카카오TV (https://tv.kakao.com/)
 ! - 애니라이프 (https://anilife.app/)
-@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|shoppinglive.naver.com|smartstore.naver.com|brand.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com|sooplive.com|cinety.sooplive.com|sooptore.sooplive.com|tv.kakao.com|anilife.app
+! - 링커리어 (https://linkareer.com/)
+@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|shoppinglive.naver.com|smartstore.naver.com|brand.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com|sooplive.com|cinety.sooplive.com|sooptore.sooplive.com|tv.kakao.com|anilife.app|linkareer.com
 
 
 
