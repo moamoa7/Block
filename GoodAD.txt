@@ -684,14 +684,28 @@ fmkorea.com###fm_alert
 !etoland.co.kr##.overflow-y-auto
 etoland.co.kr##.py-6
 ! - 네이버 광고 차단 (모바일)
-etoland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
+!toland.co.kr##li.py-3.px-1.border-b.border-etoDivider-1.gap-2.justify-between.flex:not(:has(a))
 ! - 게시물 목록 상단 배너 공간 (모바일)
 ! - 개별 게시물과 댓글 사이 빈 공간 (모바일)
-etoland.co.kr##article.w-full.min-h-\[150px\]:has(> ul.mx-\[5px\])
+!toland.co.kr##article.w-full.min-h-\[150px\]:has(> ul.mx-\[5px\])
 ! - 전체 게시물 목록과 히트글 사이 남는 공간 (모바일)
-etoland.co.kr##div.flex.min-h-\[250px\]:has(> script[src])
+!toland.co.kr##div.flex.min-h-\[250px\]:has(> script[src])
 ! -개별 게시물 댓글 하단과 히트글 사이 빈 공간 (모바일)
-etoland.co.kr##div.my-4.flex:has(> script[src])
+!toland.co.kr##div.my-4.flex:has(> script[src])
+
+
+! - 네이버 광고 차단 (모바일)
+etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
+! - 게시물 목록 상단 배너 공간 (모바일)
+! - 개별 게시물과 댓글 사이 빈 공간 (모바일)
+etoland.co.kr##article.w-full:has(> ul.mx-\[5px\])
+! - 전체 게시물 목록과 히트글 사이 빈 공간 (개편 후 안전 버전)
+etoland.co.kr##div[class*="min-h-"]:has(> script)
+! - 개별 게시물 댓글 하단과 히트글 사이 빈 공간 (모바일)
+etoland.co.kr##div.my-4.flex:has(> script)
+
+
+
 ! - 게시물내 광고글
 ! - - - PC
 !etoland.co.kr##li:has(img[src*="/ad"])
