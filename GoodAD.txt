@@ -318,7 +318,8 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 ! 네이버 블로그 (https://section.blog.naver.com/)
 ! - 배너 빈공간
 ! - - - https://chzzk.naver.com/ - 영상 내 보이지 않는 부분 (무엇인지는 모름)
-##[class*="advertisement" i]
+!##[class*="advertisement" i]
+##[class*="advertise" i]
 !
 !
 ! ! 네이버 웹툰 (https://comic.naver.com/index)
@@ -1346,6 +1347,9 @@ poooo.ml#@#.ad
 ! 티비착 (https://tvchak.org/) (https://tvchak.live/) (https://tvchak201.com/)
 ! - 팝업
 [$domain=/^tvchak\d+\.com$/],tvchak.live##[class*="popup_mdd" i]
+! - 배너 공간
+![$domain=/^tvchak\d+\.com$/],tvchak.live###advertiseMain
+##[id*="advertise" i]
 !
 !
 ! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03) (https://kf.hoohootv398.xyz/)
