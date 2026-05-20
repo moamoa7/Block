@@ -2374,7 +2374,7 @@ avsee.ru#@#.tabs
 !
 ! SEXTB.NET (https://sextb.date/) (https://sextb.cc/) (https://sextb.net/)
 ! - 매인 상단 텍스트 배너
-sextb.net###alert-domain
+sextb.net##div.notice
 ! - 메인 배너 공간
 sextb.net##[style][class*="hidden-sm"]
 ! -영상 오른쪽 배너 공간 3개
