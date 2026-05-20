@@ -160,6 +160,8 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !##[class*="adsense" i]:not(:has(p))
 ##[class*="adsense" i]
 ##[id*="adsense" i]
+!##.google-ads
+##[class*="google-ads" i]
 !
 !
 !
@@ -1689,17 +1691,16 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ![$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
 !
 !
-! 뉴토끼 (https://sbxh2.com/)
+! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
 ! - 팝업
-[$domain=/^sbxh\d+.com/]##.pop-mod-overlay
-! - 상단 배너 및 개별 목록 배너 전체
-##[aria-label='배너 광고']
-! - 상단 배너
-! - - - 배너가 있는 이미지
+[$domain=/^sbxh\d+.com/]##[class*="-po"]
+! - 상단 이미지
 ||i.toonflix.app/board_uploads/*
-! - - - 배너가 없어 사라지지 않는 배너 공간 -  kr: List-KR Classic 과 규칙이 거의 동일해서 주석처리
-![$domain=/^sbxh/]##.banner-row
-
+! - 상단 배너 및 개별 목록 배너 전체 공간
+##[aria-label='배너']
+! - 안티 애드블록 우회 규칙 --- 
+!||sbxh1.com^$script,redirect=noopjs
+/^https?:\/\/([a-z0-9-]+\.)?sbxh[0-9]*\.com/$script,redirect=noopjs
 !
 !
 ! 무료툰 (https://foc94.com/)
@@ -2164,6 +2165,8 @@ danawa.com##.main-top__right
 !danawa.com#@#iframe[src*="/RealMedia/ads/"]
 ! - 광고 배너 (오늘 봐야할 추천 상품)
 danawa.com###adSmartProductContainer
+! - 검색시 나오는 광고 배너
+danawa.com##[id^='powerShoppingArea']
 #iframe[title*="배너"]
 !##div:has(> iframe[title*="배너"])
 !##li:has(> iframe[title*="배너"])
@@ -4505,6 +4508,11 @@ mozatv.com##.tips-box
 ! 청양티비 (https://cytv144.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 영상 있는 페이지내 팝업 (왼쪽/오른쪽)
 [$domain=/^cytv\d+.com/]##.index-wall-left, .index-wall-right
+!
+!
+! 김박사넷 (https://phdkim.net/)
+! - 팝업
+##[class^="popup" i]
 !
 !
 !
