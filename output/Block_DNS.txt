@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-20 11:39:27 UTC
+! Generated: 2026-05-20 14:25:11 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,336
+! Block Rules: 85,339
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -27279,7 +27279,6 @@
 ||goclicknext.com^
 ||gocmmwiotoiwp.online^
 ||goddedkrater.com^
-||goddesslamps.com^
 ||godhat.com^
 ||godkc.com^
 ||godlesscourieradmirable.com^
@@ -57182,6 +57181,7 @@
 ||safewarns.com^
 ||safewarriorsinfected.com^
 ||saffronrefuge.com^
+||safjvplyudno.com^
 ||saflcoofffi.com^
 ||safmuzwte.in^
 ||safsdvc.com^
@@ -65210,6 +65210,7 @@
 ||sodneedlesparkle.com^
 ||sodoit.com^
 ||soduniversal.com^
+||soetovuwyvqrd.space^
 ||sofarindaba.cfd^
 ||sofcjikmwxuya.online^
 ||sofftdate.com^
@@ -65760,6 +65761,7 @@
 ||spicewaxworks.com^
 ||spicy-effect.com^
 ||spicy-two.com^
+||spicycopy.com^
 ||spicyram.com^
 ||spicytask.pro^
 ||spider-mich.com^
@@ -69077,6 +69079,7 @@
 ||suffocatefried.com^
 ||suffocateinnhandling.com^
 ||suffuseoilcamp.qpon^
+||sufhhgnwrvgyq.space^
 ||sugamoscry.com^
 ||sugar.zhihu.com^
 ||sugarruse.com^
