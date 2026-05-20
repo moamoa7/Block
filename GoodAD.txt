@@ -3335,6 +3335,8 @@ wavve.com#@#[id*="main-banner" i]
 !kilho.net#@#[class*="border"]:has(> a[href][target*="_blank"])
 ! - - - https://www.cnine.kr/ - 일부 박스내용 사라짐
 cnine.kr#@#[class*="border"]:has(> a[target*="_blank"])
+! - - - https://www.tving.com/ - 팝업 제거?
+#@#[class*="border"]:has(> a[target*="_blank"])
 ! - 상단 빈 공간 (PC/모바일 공통)
 !##.justify-start.flex-wrap.flex
 !  - 각 주제별 상단 빈 공간 (PC/모바일 공통)
