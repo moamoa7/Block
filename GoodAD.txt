@@ -3204,8 +3204,6 @@ wavve.com#@#[id*="main-banner" i]
 ##[class*="popup-pc" i]
 ! - - - 모바일
 ##.w-80.relative
-! - 상단 빈공간
-##.w-full.mt-1
 !
 !
 ! - - - ! 빨간비디오 (https://redvi80.com/)
@@ -3224,6 +3222,8 @@ wavve.com#@#[id*="main-banner" i]
 !##.vjs-bottom-banner
 ! 보증업체 더보기 텍스트 배너
 !##.rounded-md.border.p-1.w-full
+! - 비디오 복원
+[$domain=/^redvi\d+.com/]#@#iframe[sandbox][src]
 !
 !
 ! 밤포탈 (https://bampt3.com/)
@@ -3923,8 +3923,9 @@ xn--9l4b15e2td.com##.widget-box
 !
 !
 ! 18모아 (https://18moa028.com/)
-! - - - 주소 바뀜 주의
-@@||*banner*^$domain=18moa028.com|18moa029.com|18moa030.com
+! - 이미지 복원
+[$domain=/^18moa\d+.com/]#@#[class*="banner" i]
+[$domain=/^18moa\d+.com/]##.banner
 !
 !
 ! 주소요 (https://jusoyo42.com/)
