@@ -2374,13 +2374,13 @@ avsee.ru#@#.tabs
 !
 ! SEXTB.NET (https://sextb.date/) (https://sextb.cc/) (https://sextb.net/)
 ! - 매인 상단 텍스트 배너
-sextb.date,sextb.cc,sextb.net###alert-domain
+sextb.net###alert-domain
 ! - 메인 배너 공간
-sextb.date,sextb.cc,sextb.net##[style][class*="hidden-sm"]
+sextb.net##[style][class*="hidden-sm"]
 ! -영상 오른쪽 배너 공간 3개
-sextb.date,sextb.cc,sextb.net##.hidden-md.right.col-3
+sextb.net##.hidden-md.right.col-3
 ! - 영상 하단 배너 공간 (모바일)
-sextb.date,sextb.cc,sextb.net##div.col-3.right:nth-of-type(2)
+sextb.net##div.col-3.right:nth-of-type(2)
 ! - 일부 영상 재생 차단 방지
 !turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]
 !
