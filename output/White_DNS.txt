@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-20 08:47:55 UTC
+! Generated: 2026-05-20 11:39:27 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,589
+! Exception Rules: 6,594
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -2981,6 +2981,7 @@
 @@||mkto-ab010088.com^
 @@||mkto-ab020242.com^
 @@||mkto-ab040115.com^
+@@||mkto-ab040117.com^
 @@||mkto-ab060134.com^
 @@||mkto-ab060144.com^
 @@||mkto-ab060210.com^
@@ -2997,6 +2998,7 @@
 @@||mkto-ab150224.com^
 @@||mkto-ab160143.com^
 @@||mkto-ab170094.com^
+@@||mkto-ab170123.com^
 @@||mkto-ab180008.com^
 @@||mkto-ab180024.com^
 @@||mkto-ab190076.com^
@@ -3110,6 +3112,7 @@
 @@||mkto-d0024.com^
 @@||mkto-d0170.com^
 @@||mkto-e0014.com^
+@@||mkto-e0126.com^
 @@||mkto-e0231.com^
 @@||mkto-f0235.com^
 @@||mkto-g0030.com^
@@ -3153,11 +3156,13 @@
 @@||mkto-nld1040186.com^
 @@||mkto-nld1050007.com^
 @@||mkto-nld1050103.com^
+@@||mkto-nld1050130.com^
 @@||mkto-o0039.com^
 @@||mkto-p0016.com^
 @@||mkto-qa-stage.softwareone.com^
 @@||mkto-sj010104.com^
 @@||mkto-sj010128.com^
+@@||mkto-sj010203.com^
 @@||mkto-sj020238.com^
 @@||mkto-sj030214.com^
 @@||mkto-sj040148.com^
