@@ -1452,15 +1452,6 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 [$domain=/^gogumatv\d+.com/]###rightDiv
 !
 !
-! 별별티비 (https://bbtv76.com/)
-! - 왼쪽 배너
-![$domain=/^bbtv\d+.com/]##div.open.main-menu:nth-of-type(3)
-! - 링크동맹 안보이게
-![$domain=/^bbtv\d+.com/]##div.main-menu:nth-of-type(2)
-! - 로고 복원
-!@@||bbtv*.com/img/*$image
-!
-!
 ! TV다시보자 (https://bozatv108.com/)
 ! 방구석티비 (https://bontv100.com/)
 ! 9티비 (https://9tv71.com/)
@@ -1583,21 +1574,24 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !kilho.net#@#.clearfix
 !
 !
+! 나이스링크 (https://nicelink51.com/)
 ! 늑대닷컴 (https://xn--ph1bph0az41x.com/)
-! 늑대닷컴 (https://wfwf449.com/)
-! 늑대닷컴2 (https://wftoon205.com/)
-! 여우코믹스 (https://fxfx319.com/)
+! 늑대닷컴 (https://wfwf452.com/)
+! 늑대닷컴2 (https://wftoon208.com/)
+! W툰 (https://wtwt326.com/)
+! 여우코믹스 (https://fxfx324.com/)
 ! - 팝업
-! - - - 별별티비 (https://bbtv76.com/)
+! - - - 별별티비 (https://www.bbtv86.com/)
 !##.modal-wrapper
 ! - 뿌옇거 해결
 !##.modal-overlay
 ! - 배너
 !##.top-banner
 ! - 팝업 이미지
-##.modal-content > div > center
+!/^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\/[a-z0-9-_]+\./$image,domain=/wfwf[0-9]+\.com/ - 늑대닷컴만 되어있어 (List-KR classic) 늑대닷컴 포함 4개 추가
+/^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\/[a-z0-9-_]+\./$image,domain=/(wfwf|wftoon|wtwt|fxfx)[0-9]+\.com/
 ! - 배너 이미지
-##.menu > ul > li > [href="/bz"]
+!#.menu > ul > li > [href="/bz"]
 !
 !
 ! 모애니 (https://moeni.live/)
@@ -3834,7 +3828,7 @@ linkareer.com#@#[src*="advertise" i]
 ! - 영상 재생 닫기 버튼 (EasyList)
 !##.ad-overlay
 ! - 영상 재생 앞 로딩 부분
-! - - - 청양티비 (https://cytv138.com/)
+! - - - 청양티비 (https://cytv144.com/)
 ###buffer
 ! - 동맹 글자
 !vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
@@ -4470,6 +4464,47 @@ dschool.co.kr##[id*="lean_overlay" i]
 ! https://modded-1.com/
 ! - 다운로드 버튼 안보이는거 해결
 modded-1.com#@#[class*="ad-container" i]
+!
+!
+! 라바TV (https://lrtv111.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! - 팝업
+##.popup_left
+##.popup_right
+! - 상단 배너
+[$domain=/^lrtv\d+.com/]##.yk-container
+! - 영상 하단 배너
+! - - -  뷰티비 (https://vitv78.com/) 
+[$domain=/^lrtv\d+.com/],[$domain=/^vitv\d+.com/]##.yk-container3
+!
+!
+! 별별티비 (https://www.bbtv86.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! - 배너
+! - - - 달달티비 (https://www.dadtv2.com/)
+[$domain=/^www.dadtv\d+.com/],[$domain=/^www.bbtv\d+.com/]##[class*="el-row"] [target]
+!
+!
+! 도도티비 (https://www.dodotv.tv/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! - 상단 텍스트 배너
+dodotv.tv##.line-notice
+!
+!
+! 모자TV (https://www.mozatv.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! - 배너
+mozatv.com##.slick-slider
+! - 영상내 상단 택스트 배너
+mozatv.com##.tips-box
+!
+!
+! 땡땡티비 (http://www.ootv41.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! - 왼쪽 하단 배너
+[$domain=/^www.ootv\d+.com/]##.sub-open
+!
+!
+! 청양티비 (https://cytv144.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! - 영상 있는 페이지내 팝업 (왼쪽/오른쪽)
+[$domain=/^cytv\d+.com/]##.index-wall-left, .index-wall-right
+!
+!
 !
 !
 !
