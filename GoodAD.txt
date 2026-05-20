@@ -1146,7 +1146,8 @@ clien.net#@#[class*="banner" i]
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
-!###slide_image
+! - 게시물 중 이미지 차단되는거 해결
+hungryapp.co.kr#@#[src*="/ad/" i]
 !
 !
 ! 다모앙 (https://damoang.net/)
@@ -1701,7 +1702,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 상단 이미지
 !||i.toonflix.app/board_uploads/*
 ! - 상단 배너 및 개별 목록 배너 전체 공간 제거
-##[aria-label*='배너']
+##[aria-label*="배너"]
 ! - 안티 애드블록 문구 차단 - 별도 스크립트로 작성(아래는 스크립트 없이도 현재 가능한 규칙임)
 ! - - -  방법 1 : 편법 (바로 짤릴수 있음)
 ![$domain=/^sbxh\d+.com/]##div[class^="g"]
@@ -2373,13 +2374,13 @@ avsee.ru#@#.tabs
 !
 ! SEXTB.NET (https://sextb.date/) (https://sextb.cc/) (https://sextb.net/)
 ! - 매인 상단 텍스트 배너
-[$domain=/^sextb/]###alert-domain
+sextb.*###alert-domain
 ! - 메인 배너 공간
-[$domain=/^sextb/]##[style][class*="hidden-sm"]
+sextb.*##[style][class*="hidden-sm"]
 ! -영상 오른쪽 배너 공간 3개
-[$domain=/^sextb/]##.hidden-md.right.col-3
+sextb.*##.hidden-md.right.col-3
 ! - 영상 하단 배너 공간 (모바일)
-[$domain=/^sextb/]##div.col-3.right:nth-of-type(2)
+sextb.*##div.col-3.right:nth-of-type(2)
 ! - 일부 영상 재생 차단 방지
 !turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]
 !
