@@ -1693,12 +1693,15 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
 ! - 팝업
-[$domain=/^sbxh\d+.com/]##.n3h5ox.a37259149-po
+[$domain=/^sbxh\d+.com/]##[class*="-po"]:has(img)
 ! - 상단 이미지
 !||i.toonflix.app/board_uploads/*
 ! - 상단 배너 및 개별 목록 배너 전체 공간 제거
 ##[aria-label='배너']
-! - 안티 애드블록 문구 차단 - 별대 스크립트로 작성
+! - 안티 애드블록 문구 차단 - 별도 스크립트로 작성(아래는 스크립트 없이도 현재 가능한 규칙임)
+! - - -  편법 (바로 짤릴수 있음)
+[$domain=/^sbxh\d+.com/]##div[class^="g"]
+! - - - 텍스트 기반 차단 (차단은 되나 한번 번쩍이는거 별로임)
 ![$domain=/^sbxh\d+.com/]##div[aria-label*="배너"], div:has-text(광고 차단 프로그램이 감지되었습니다)
 !
 !
