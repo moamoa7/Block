@@ -2364,6 +2364,9 @@ avsee.ru#@#.tabs
 !
 !
 ! https://javplayer.org/
+! - 영상 오른쪽 배너
+!##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"][src]
+##iframe[sandbox][src]
 ! - 일부 영상 재생 차단 방지
 !stb.strp2p.com,hgslave.xyz,ryderjet.com#@#[class*="floating" i]
 !
@@ -2411,8 +2414,8 @@ momoiroadult.com##.pc-header
 !
 !
 ! FUNLOVE (https://funlove.info/)
-! - 팝업방지
-!||funclubx.com^$popup
+! - 전체 배너
+##.boxAds
 !
 !
 ! JavGG (https://javgg.net/)
@@ -2429,9 +2432,9 @@ javgg.net##.home_iframead
 ||a.magsrv.com/ad-provider.js$redirect-rule=noopjs
 !
 !
-! 7MMTV (https://7tv034.com/)
+! 7MMTV (https://7tv076.com/)
 ! - 유니콘Pro에서는 ST영상 재생 불가
-! - 상단 배너 공간
+! - 메인 전체 배너 공간
 ##.a-d-block
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
 ##div.set_height_250
@@ -2935,11 +2938,6 @@ missav.*,njavtv.com##[class^="mx-auto" i]
 !##[src*="//ads.adxadserv.com/" i]
 !
 !
-! Jable.TV (https://jable.tv/)
-!
-!##[href*="/smartpop/" i]
-!
-!
 ! https://popjav.in/
 ! -  상단부 빈 공간 (상단 바로 아래)
 popjav.in##div.pop--excl
@@ -3235,15 +3233,17 @@ wavve.com#@#[id*="main-banner" i]
 ! - 팝업 뿌연거 해결  (모바일)
 ##[id="popupoverlay" i]
 ! - 상단 배너
-##[class*="premium-banner" i]
-##[class*="small-banner" i]
+!##[class*="premium-banner" i]
+!##[class*="small-banner" i]
 !  - - - 모바일
-##[class*="premium-ad" i]
-##[class*="small-ad" i]
+!##[class*="premium-ad" i]
+!##[class*="small-ad" i]
 ! - 영상 목록 사이 배너 (PC)
 ##[class*="infeed-ad" i]
 ! - 영상 목록 사이 / 영상 하단 배너 (모바일)
 ##[class*="premium-ad" i]
+! - 영상내 배너
+##.ad-active
 !
 !
 ! 야동존 (https://xxzone21.cc/)
@@ -3254,7 +3254,7 @@ wavve.com#@#[id*="main-banner" i]
 ##[id*="popupbanner" i]
 !
 !
-! 오늘의 중계 (today-sports8.com)
+! 오늘의 중계 (https://today-sports8.com/)
 ! - - - 코난티비(https://conan-tv.com/) - 팝업
 !###hd_pop
 ! - 상단 배너 공간
@@ -3262,14 +3262,14 @@ wavve.com#@#[id*="main-banner" i]
 ! - 모바일 상단 배너
 ![$domain=/^today-sports\d+.com/]##.live-stream
 !##.live-stream
-##[class*="live-stream" i]
+!##[class*="live-stream" i]
 ! - - - https://play.sooplive.co.kr/
 !##[class*="-stream"]
 ! - - - 예외
 !youtube.com#@#[class*="-stream"]
 ! - 왼쪽 배너 공간
 !##.info-banner
-##[class*="info-banner" i]
+!##[class*="info-banner" i]
 ! - 오른쪽 배너 공간
 !##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner > .draggable.slick-list
 !##[class^="live-stream-banner" i]
@@ -3286,6 +3286,9 @@ wavve.com#@#[id*="main-banner" i]
 !
 !
 ! 야동공장 (https://yagong91.com/)
+! - 전체 배너
+! - - -AV탑걸 (https://kr41.topgirl.co/)
+##[class*="mx-auto" i] [target] img[src]
 ! - 영상 하단내 배너 테두리
 !##.vjs-bottom-banner.vjs-bottom-banner-container
 ! 팝업 잔쟁이들
@@ -3875,6 +3878,18 @@ pandalive.co.kr##body:style(pointer-events: auto !important; overflow: auto !imp
 ![$domain=/^linkpan\d+.com/]##li:nth-of-type(7)
 !
 !
+! 주소월드 (https://wdwd11.com/)
+! - 순위 리스트 복원 및 상단 배너 삭제
+[$domain=/^wdwd\d+.com/]#@#[class*="banner" i]
+[$domain=/^wdwd\d+.com/]##.banner_list
+!
+!
+! 주소핑 (https://jusoping2.net/)
+! - 순위 리스트 복원 및 상단 배너 삭제
+[$domain=/^jusoping\d+.net/]#@#[class*="banner" i]
+[$domain=/^jusoping\d+.net/]##.bg-black.carousel-inner 
+!
+!
 ! 야주소 (https://xn--9l4b15e2td.com/)
 ! - 상단 배너 공간
 xn--9l4b15e2td.com##.widget-box
@@ -3905,11 +3920,6 @@ xn--9l4b15e2td.com##.widget-box
 ##[class*="popup_1" i]
 ! - 배너
 ##.banner_top_box
-!
-!
-! 주소야 (https://jusoya.com/)
-! - 상단 배너 / 목록 내 비너
-[$domain=/^jusoya/]##[class*="w-banner" i]
 !
 !
 ! 18모아 (https://18moa028.com/)
@@ -4194,8 +4204,8 @@ tistory.com##+js(set, adblockChecker, noopFunc)
 ! 주소콘 (https://www.jusocon.com/) (https://jusocon1.com/)
 ! - 상단 배너
 !##.banner_box
-##[class*="banner_box" i]
-! - 손가락?
+!##[class*="banner_box" i]
+! - 배너 지움으로 인해 손가락 위치가 틀려서 지움에 따라 글자까지 같이 지우기
 [$domain=/^jusocon/]###dvhidden
 !
 !
@@ -4801,6 +4811,9 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 *background*
 ! - 예외
 @@||*background$domain=cineaste.co.kr
+
+
+*/background/*
 
 
 
