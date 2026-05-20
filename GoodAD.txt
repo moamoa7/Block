@@ -1708,22 +1708,12 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - - - 방법 2 : 텍스트 기반 차단 (차단은 되나 한번 번쩍이는거 별로임)
 ![$domain=/^sbxh\d+.com/]##div[aria-label*="배너"], div:has-text(광고 차단 프로그램이 감지되었습니다)
 ! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt (애드가드 전용 규칙으로 유블럭 규칙 추가)
-! ==========================================
-! [1] uBlock Origin 전용 세트 (유블록)
-! ==========================================
-! 1-1. API 및 스타일 변조 스크립트 릿 주입 (uBlock 규격)
-![$domain=/^sbxh\d+\.com$/]##+js(execute-script, (function(){const o=window.getComputedStyle;window.getComputedStyle=function(e,t){return e&&(e.hasAttribute("data-adblock-bait")||e.hasAttribute("data-adblock-root")||"1"===e.getAttribute("data-br"))?{display:"block",visibility:"visible",opacity:"1"}:o.apply(this,arguments)};const f=window.fetch;window.fetch=function(e,t){const u="string"==typeof e?e:e instanceof URL?e.href:e&&e.url?e.url:"";if(u.includes("/api/me/block-check"))return Promise.resolve(new Response(JSON.stringify({ok:true,blocked:false}),{headers:{"content-type":"application/json"}}));if(u.includes("/api/dev-block"))return Promise.resolve(new Response(JSON.stringify({ok:true}),{headers:{"content-type":"application/json"}}));return f.apply(this,arguments)}})())
-! ==========================================
-! [2] AdGuard 전용 세트 (애드가드)
-! ==========================================
-! 2-1. API 및 스타일 변조 스크립트 릿 주입 (AdGuard 규격)
-![$domain=/^sbxh\d+\.com$/]#%#(function(){const o=window.getComputedStyle;window.getComputedStyle=function(e,t){return e&&(e.hasAttribute("data-adblock-bait")||e.hasAttribute("data-adblock-root")||"1"===e.getAttribute("data-br"))?{display:"block",visibility:"visible",opacity:"1"}: o.apply(this,arguments)};const f=window.fetch;window.fetch=function(e,t){const u="string"==typeof e?e:e instanceof URL?e.href:e&&e.url?e.url:"";if(u.includes("/api/me/block-check"))return Promise.resolve(new Response(JSON.stringify({ok:!0,blocked:!1}),{headers:{"content-type":"application/json"}}));if(u.includes("/api/dev-block"))return Promise.resolve(new Response(JSON.stringify({ok:!0}),{headers:{"content-type":"application/json"}}));return f.apply(this,arguments)}})();
+! - - - 현재는 아래 규칙 하나면 충분하기때문에 추가 규칙 불필요
 ! ==========================================
 ! [3] 공통 규칙 (유블록 & 애드가드 동시 호환)
 ! ==========================================
-! 3-1. 안티 애드블록 스크립트가 실행하는 반복 타이머(setInterval) 자체를 저격해서 아예 시작도 못 하게 잠가버림
+!-  안티 애드블록 스크립트가 실행하는 반복 타이머(setInterval) 자체를 저격해서 아예 시작도 못 하게 잠가버림
 [$domain=/^sbxh\d+\.com$/]##+js(nosiif, , 700)
-
 !
 !
 ! 무료툰 (https://foc94.com/)
