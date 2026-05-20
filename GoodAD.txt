@@ -1118,8 +1118,7 @@ slrclub.com##[class="notice"]
 ! - 하단 배너 공백
 ! - - - https://etoland.co.kr/ 하단 배너 공백
 !##.adsbyadop
-!##[class*="adsbyadop" i]
-##div:has(> ins.adsbyadop)
+##[class*="adsbyadop" i]
 ! - 메인 남겨진 여백 공간
 www.slrclub.com###section3
 !
@@ -1141,9 +1140,9 @@ clien.net##.active.button_sidemenu
 !clien.net#@#[class^="ad" i]
 ! - 게시물 광고 글
 clien.net###hongboInfoList
-! - 차단 사이트
-!||epnt.ebay.com^
-!||openx.net^
+! - 댓글 사라지는거 방지
+clien.net#@#[class*="banner" i]
+
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -1411,6 +1410,7 @@ tvchak.live##[class*="popup_mdd" i]
 !
 ! 애니라이프 (https://anilife.live/) (https://anilife.app/)
 ! - 상단 배너 공간
+anilife.app##.grid-cols-1
 anilife.live##.MainBnnWrap
 ! - 앱 설치하기 팝업
 anilife.app##.duration-300
@@ -4329,8 +4329,7 @@ fc-info.com##[class*="videoContainer"]
 !
 ! https://kio.ac/
 ! - - 하단 배너
-!kio.ac##.w-full.min-h-svh.flex.has-data-\[variant\=inset\]\:bg-sidebar.group\/sidebar-wrapper > .group-data-\[collapsible\=offcanvas\]\:after\:start-full
-kio.ac##.svelte-8515pp.idle.applications > .lucide-construction
+kio.ac##div.flex.w-full:has(> div.flex):nth-of-type(2)
 !
 !
 ! https://noonnu.cc/
@@ -4630,6 +4629,9 @@ ad-script.
 !*ads.*
 !
 !
+##.ads
+!
+!
 */banner-ad/*
 !
 !
@@ -4766,10 +4768,13 @@ i-boss.co.kr,~avsee.ru##a[target*="blank"] > img[src*=".gif"]
 manhwabang.org##a[target*="target"] img
 
 
+!*banner*
+*banner*$script
 
-*banner*
+*ad*banner*
+*click*banner*
 
-! - 트위치 (https://www.twitch.tv/) - 하지말아볼것
+##[class*="banner" i]
 
 ! - 예외
 ! - 옥션 (https://www.auction.co.kr/)
@@ -4796,7 +4801,8 @@ manhwabang.org##a[target*="target"] img
 ! - 숲토어 (https://sooptore.sooplive.com/)
 ! - 카카오TV (https://tv.kakao.com/)
 ! - 애니라이프 (https://anilife.app/)
-@@||*banner*$domain=auction.co.kr|coupang.com|shopping.naver.com|shoppinglive.naver.com|smartstore.naver.com|brand.naver.com|gmarket.co.kr|sungsimdangmall.co.kr|wadiz.kr|11st.co.kr|store.kakao.com|web.joongna.com|t2.xtoon365.com|kr.iherb.com|zum.com|gsshop.com|coupangplay.com|wavve.com|tving.com|sooplive.com|cinety.sooplive.com|sooptore.sooplive.com|tv.kakao.com|anilife.app
+auction.co.kr,coupang.com,shopping.naver.com,shoppinglive.naver.com,smartstore.naver.com,brand.naver.com,gmarket.co.kr,sungsimdangmall.co.kr,wadiz.kr,11st.co.kr,store.kakao.com,web.joongna.com,t2.xtoon365.com,kr.iherb.com,zum.com,gsshop.com,coupangplay.com,wavve.com,tving.com,sooplive.com,cinety.sooplive.com,sooptore.sooplive.com,tv.kakao.com,anilife.app#@#[class*="banner" i]
+! - 트위치 (https://www.twitch.tv/) - 하지말아볼것
 
 
 
