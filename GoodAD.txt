@@ -3207,11 +3207,13 @@ wavve.com#@#[id*="main-banner" i]
 !
 !
 ! - - - ! 빨간비디오 (https://redvi80.com/)
+! - 팝업 (PC)
 !###desktop-popup-wrapper
 ##[class*="popup-item" i]
-! - - - mobile
+! - 팝업 (모바일)
 !##.w-80.relative
 !##.relative.w-80
+[$domain=/^redvi\d+.com/]##div.fixed.sm\:hidden:nth-of-type(11)
 ! - 메인 상단 배너 (PC)
 !##.cursor-pointer.shadow-sm.rounded-sm.w-full.object-fill
 ! - 메인 상단 배너 (모바일)
