@@ -1693,14 +1693,12 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
 ! - 팝업
-[$domain=/^sbxh\d+.com/]##[class*="-po"]
+![$domain=/^sbxh\d+.com/]##[class*="-po"]
 ! - 상단 이미지
 ||i.toonflix.app/board_uploads/*
-! - 상단 배너 및 개별 목록 배너 전체 공간
+! - 안티 애드블록 문구 차단 및 상단 배너 및 개별 목록 배너 전체 공간 제거
 ##[aria-label='배너']
-! - 안티 애드블록 우회 규칙 --- 
-!||sbxh1.com^$script,redirect=noopjs
-/^https?:\/\/([a-z0-9-]+\.)?sbxh[0-9]*\.com/$script,redirect=noopjs
+[$domain=/^sbxh\d+.com/]##div[aria-label*="배너"], div:has-text(광고 차단 프로그램이 감지되었습니다)
 !
 !
 ! 무료툰 (https://foc94.com/)
