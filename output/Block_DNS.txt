@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-20 05:54:05 UTC
+! Generated: 2026-05-20 08:47:55 UTC
 ! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 85,274
+! Block Rules: 85,276
 !
 ||0.avmarket.rs^
 ||0.myikas.com^
@@ -45545,6 +45545,7 @@
 ||nasimke.ru^
 ||nasimobi.com^
 ||naskhizeroingmeissa.qpon^
+||nasodresser.com^
 ||nasrispit.com^
 ||nasrolrt.com^
 ||nasty-technology.pro^
@@ -45594,6 +45595,7 @@
 ||naturaltracking.com^
 ||nature-land1.site^
 ||nature-land2.site^
+||naturebeans.com^
 ||naughty-black.com^
 ||naughty-breast.pro^
 ||naughty-industry.pro^
