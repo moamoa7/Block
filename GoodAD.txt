@@ -2460,7 +2460,10 @@ javgg.net##.home_iframead
 ##.dark-banner-group
 !  - 팝업 방지 (uBlock filters – Ads)
 ||a.magsrv.com/ad-provider.js$redirect-rule=noopjs
-||j91.asia,oppaiav.com$script
+!  - 팝업 추가 방지
+||pemsrv.com^$script,redirect=noopjs
+||endlesshandbaglinked.com^$script,redirect=noopjs
+||emotionallytonightintelligent.com^$script,redirect=noopjs
 !
 !
 ! 7MMTV (https://7tv034.com/)
@@ -2481,7 +2484,7 @@ javgg.net##.home_iframead
 ! - 재생 방지
 !embed.streamxx.net#@#[class*="floating" i]
 ! - 팝업 방지
-||javgiga.com,composedmom.com$script
+||composedmom.com^$script,redirect=noopjs
 !
 !
 ! https://javhd.today/
