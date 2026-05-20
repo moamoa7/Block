@@ -4490,7 +4490,7 @@ dodotv.tv##.line-notice
 !
 ! 모자TV (https://www.mozatv.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 배너
-mozatv.com##.slick-slider
+mozatv.com##.banner_max
 ! - 영상내 상단 택스트 배너
 mozatv.com##.tips-box
 !
