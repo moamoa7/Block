@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.3.0
-// @description  Web Element Inspector & CSS Selector Tool with Ad Block - Enhanced Edition
+// @version      3.4.3
+// @description  Web Element Inspector & CSS Selector Tool with Ad Block - Mobile Optimized
 // @author       hooray804 (modified)
 // @license      MPL-2.0
 // @match        *://*/*
@@ -22,7 +22,6 @@
         "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
     }[c]));
 
-    // 🔧 FIX #12: Only run on top window (no iframes)
     if (window.self !== window.top) return;
 
     const TOOL_ID = "picky-tool";
@@ -33,7 +32,13 @@
     const SHIELD_ID = "picky-shield";
     const DRAG_THRESHOLD = 14;
 
-    // 🔧 FIX #13: Check :has() support once
+    // 드래그 시작을 무시할 인터랙티브 요소 셀렉터
+    const NO_DRAG_SELECTOR = 'input, button, select, textarea, label, a, ' +
+        '#picky-nav-slider, #picky-nav-slider-container, ' +
+        '.picky-icon-button, .picky-selector-display, .picky-switch, ' +
+        '.picky-slider, [data-no-drag], .picky-modal-content, ' +
+        '.picky-ad-suggest-item, .picky-child-list, .picky-cookie-table';
+
     const SUPPORTS_HAS = (() => {
         try { return CSS.supports('selector(:has(*))'); }
         catch(e) { return false; }
@@ -58,12 +63,14 @@
     const ICON_RESET = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>';
     const ICON_CODE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>';
     const ICON_DOT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>';
+    const ICON_DRAG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 9H4v2h16V9zM4 15h16v-2H4v2z"/></svg>';
+    const ICON_HOME = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
+    const ICON_TARGET = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>';
 
     // =========================================================
-    // BLOCKER CLASS (Enhanced)
+    // BLOCKER CLASS
     // =========================================================
     class Blocker {
-        // 🔧 FIX #7: Run at document-start with MutationObserver fallback
         static init() {
             if (document.head) {
                 this.enforce();
@@ -77,15 +84,12 @@
                 obs.observe(document.documentElement, { childList: true });
             }
         }
-
         static fetch() {
             return GM_getValue("picky_blocked_rules", {})[window.location.hostname] || [];
         }
-
         static fetchAll() {
             return GM_getValue("picky_blocked_rules", {});
         }
-
         static append(sel) {
             if (!sel || /[{}]/.test(sel)) return false;
             const all = GM_getValue("picky_blocked_rules", {});
@@ -94,7 +98,6 @@
             if (all[host].includes(sel)) return false;
             all[host].push(sel);
             GM_setValue("picky_blocked_rules", all);
-            // 🔧 FIX #4: Save history for undo
             const history = GM_getValue("picky_history", []);
             history.push({ host, selector: sel, time: Date.now() });
             if (history.length > 50) history.shift();
@@ -102,7 +105,6 @@
             this.enforce();
             return true;
         }
-
         static drop(sel) {
             const all = GM_getValue("picky_blocked_rules", {});
             const host = window.location.hostname;
@@ -113,8 +115,6 @@
             this.enforce();
             return true;
         }
-
-        // 🔧 FIX #4: Undo last block
         static undoLast() {
             const history = GM_getValue("picky_history", []);
             if (history.length === 0) return null;
@@ -129,36 +129,26 @@
             }
             return last;
         }
-
-        // 🔧 FIX #6: Toggle on/off without deleting
-        static isEnabled() {
-            return GM_getValue("picky_blocking_enabled", true);
-        }
+        static isEnabled() { return GM_getValue("picky_blocking_enabled", true); }
         static toggleEnabled() {
             const cur = this.isEnabled();
             GM_setValue("picky_blocking_enabled", !cur);
             this.enforce();
             return !cur;
         }
-
-        // 🔧 FIX #14: Aggressive blocking option
-        static isAggressive() {
-            return GM_getValue("picky_aggressive_block", false);
-        }
+        static isAggressive() { return GM_getValue("picky_aggressive_block", false); }
         static toggleAggressive() {
             const cur = this.isAggressive();
             GM_setValue("picky_aggressive_block", !cur);
             this.enforce();
             return !cur;
         }
-
         static enforce() {
             const rules = this.fetch();
             const enabled = this.isEnabled();
             const aggressive = this.isAggressive();
             const styleId = "picky-blocker-style";
             let style = document.getElementById(styleId);
-
             if (rules.length && enabled) {
                 if (!style) {
                     style = document.createElement("style");
@@ -175,7 +165,6 @@
                 style.remove();
             }
         }
-
         static clear() {
             const all = GM_getValue("picky_blocked_rules", {});
             const host = window.location.hostname;
@@ -190,8 +179,6 @@
                 alert("저장된 차단 규칙이 없습니다.");
             }
         }
-
-        // 🔧 FIX #3: Statistics
         static getStats() {
             const rules = this.fetch();
             let hidden = 0;
@@ -204,13 +191,11 @@
             Object.values(all).forEach(arr => totalRules += arr.length);
             return { ruleCount: rules.length, hiddenCount: hidden, totalSites, totalRules };
         }
-
-        // 🔧 FIX #1: Export to JSON
         static exportJSON() {
             const all = this.fetchAll();
             const data = {
                 app: "Picky Advanced",
-                version: "3.3.0",
+                version: "3.4.3",
                 exportDate: new Date().toISOString(),
                 rules: all
             };
@@ -222,8 +207,6 @@
             a.click();
             URL.revokeObjectURL(url);
         }
-
-        // 🔧 FIX #2: Export to uBlock format
         static exportUblock() {
             const all = this.fetchAll();
             let text = "! Picky Advanced Export - " + new Date().toISOString() + "\n";
@@ -241,8 +224,6 @@
                 prompt("복사 실패. 수동으로 복사하세요:", text);
             });
         }
-
-        // 🔧 FIX #1: Import from JSON
         static importJSON() {
             const input = document.createElement('input');
             input.type = 'file';
@@ -293,11 +274,11 @@
             this.container = container;
             this.node = null;
         }
-        display(title, body, isHtml = false) {
+        display(title, body, isHtml = false, extraClass = "") {
             this.dismiss();
             const o = document.createElement("div");
-            o.className = "picky-modal-overlay";
-            o.innerHTML = `<div class="picky-modal-content"><div class="picky-modal-header"><span class="picky-modal-title"></span><button class="picky-icon-button" data-action="closeModal">${ICON_CLOSE}</button></div><div class="picky-modal-body"></div></div>`;
+            o.className = "picky-modal-overlay" + (extraClass ? " " + extraClass : "");
+            o.innerHTML = `<div class="picky-modal-content"><div class="picky-modal-header"><span class="picky-modal-title"></span><button class="picky-icon-button" data-action="closeModal" title="닫기">${ICON_CLOSE}</button></div><div class="picky-modal-body"></div></div>`;
             o.querySelector(".picky-modal-title").textContent = title;
             const b = o.querySelector(".picky-modal-body");
             if (isHtml) {
@@ -337,7 +318,11 @@
                 autoDismiss: GM_getValue("picky_auto_close", true),
                 alignment: GM_getValue("picky_alignment", "bottom"),
                 isPro: false,
-                hoverPreviewNodes: []  // 🔧 FIX #5
+                hoverPreviewNodes: [],
+                adSelectedNodes: [],
+                dragPos: GM_getValue("picky_drag_pos", null),
+                isDragging: false,
+                dragDidMove: false
             };
             this.config = {
                 useId: true, useClasses: true, classCount: 2, useNthOfType: true,
@@ -350,6 +335,7 @@
             };
             this.overlay = null;
             this.watcher = null;
+            this.longPressTimer = null;
         }
 
         resolveParent(t) {
@@ -473,7 +459,6 @@
                     }
                 }
 
-                // 🔧 FIX #13: Only use :has() if supported
                 if (SUPPORTS_HAS) {
                     const adLnk = t.querySelector('a[href*="/ad/"],a[href*="/ads/"],a[href*="/click/"],a[href*="sponsor"],a[href*="banner"]');
                     if (adLnk) {
@@ -580,34 +565,53 @@
 
         fetchStylesheet() {
             return `:host{--pk-pri:#007aff;--pk-on-pri:#fff;--pk-pri-cont:#007aff;--pk-on-pri-cont:#fff;--pk-sec-cont:#e9e9eb;--pk-on-sec-cont:#1d1d1f;--pk-surf-var:#f0f0f2;--pk-on-surf-var:#333;--pk-outl:#d1d1d6;--pk-surf:#f9f9f9;--pk-on-surf:#1d1d1f;--pk-succ:#34c759;--pk-err:#ff3b30;--pk-warn:#ff9500;all:initial;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;position:fixed;top:0;left:0;z-index:2147483647;width:0;height:0}
-            #${TOOL_ID}{position:fixed;left:50%;transform:translateX(-50%);z-index:2147483646;width:calc(100% - 24px);max-width:400px;background:rgba(248,248,248,.75);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.1);padding:12px;box-sizing:border-box;transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .4s,top .4s,bottom .4s,width .3s,height .3s,border-radius .3s;user-select:none;-webkit-user-select:none;font-size:14px;color:#000}
-            #${TOOL_ID}.top{top:-200%;opacity:0}#${TOOL_ID}.bottom{bottom:-200%;opacity:0}
-            #${TOOL_ID}.visible.top{top:12px;opacity:1}#${TOOL_ID}.visible.bottom{bottom:12px;opacity:1}
+            #${TOOL_ID}{position:fixed;z-index:2147483646;width:calc(100% - 24px);max-width:420px;background:rgba(248,248,248,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid rgba(0,0,0,.1);padding:10px 12px 12px;box-sizing:border-box;transition:opacity .4s,top .4s,bottom .4s,width .3s,height .3s,border-radius .3s;user-select:none;-webkit-user-select:none;font-size:14px;color:#000}
+            #${TOOL_ID}.no-drag-pos.top{left:50%;transform:translateX(-50%);top:-200%;opacity:0}
+            #${TOOL_ID}.no-drag-pos.bottom{left:50%;transform:translateX(-50%);bottom:-200%;opacity:0}
+            #${TOOL_ID}.no-drag-pos.visible.top{top:12px;opacity:1}
+            #${TOOL_ID}.no-drag-pos.visible.bottom{bottom:12px;opacity:1}
+            #${TOOL_ID}.has-drag-pos{transform:none!important;opacity:1}
+            #${TOOL_ID}.dragging{transition:none!important;opacity:.85;cursor:grabbing!important}
+            #${TOOL_ID} .picky-drag-handle{display:flex;align-items:center;justify-content:center;width:100%;height:18px;margin-bottom:4px;cursor:grab;color:var(--pk-on-surf-var);opacity:.4;border-radius:8px;touch-action:none;user-select:none;-webkit-user-select:none}
+            #${TOOL_ID} .picky-drag-handle:hover{opacity:.8;background:rgba(0,0,0,.04)}
+            #${TOOL_ID} .picky-drag-handle:active{cursor:grabbing}
+            #${TOOL_ID} .picky-drag-handle svg{width:20px;height:8px;fill:currentColor!important;display:block;pointer-events:none}
             #${TOOL_ID} .picky-icon-button{display:flex;align-items:center;justify-content:center;background:0 0;border:none;padding:4px;color:var(--pk-on-surf);cursor:pointer;border-radius:50%;transition:background-color .2s}
             #${TOOL_ID} .picky-icon-button:hover{background-color:rgba(0,0,0,.08)}
-            #${TOOL_ID} .picky-icon-button svg{width:24px;height:24px;fill:currentColor!important;display:block}
-            #${TOOL_ID} .picky-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;color:var(--pk-on-surf)}
-            #${TOOL_ID} .picky-header-title{font-size:16px;font-weight:600}
-            #${TOOL_ID} .picky-header-actions{display:flex;gap:8px}
-            #${TOOL_ID} .picky-selector-box{background-color:var(--pk-surf-var);padding:8px 12px;border-radius:12px;margin-bottom:12px}
+            #${TOOL_ID} .picky-icon-button svg{width:24px;height:24px;fill:currentColor!important;display:block;pointer-events:none}
+            #${TOOL_ID} .picky-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:var(--pk-on-surf);flex-wrap:nowrap;gap:6px}
+            #${TOOL_ID} .picky-header-title{font-size:16px;font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+            #${TOOL_ID} .picky-header-title span{white-space:nowrap;word-break:keep-all}
+            #${TOOL_ID} .picky-header-title.clickable{cursor:pointer;padding:2px 8px;border-radius:6px}
+            #${TOOL_ID} .picky-header-title.clickable:hover{background:rgba(0,0,0,.06)}
+            #${TOOL_ID} .picky-header-actions{display:flex;gap:4px;align-items:center;flex-shrink:0;flex-wrap:nowrap}
+            #${TOOL_ID} .picky-selector-box{background-color:var(--pk-surf-var);padding:8px 12px;border-radius:12px;margin-bottom:10px}
             #${TOOL_ID} .picky-selector-box-title{font-size:11px;color:var(--pk-on-surf-var);margin-bottom:4px;display:flex;justify-content:space-between}
-            #${TOOL_ID} .picky-selector-display{font-family:'SF Mono','Menlo',monospace;font-size:12px;color:var(--pk-on-surf);word-break:break-all;max-height:7em;overflow-y:auto;cursor:pointer}
-            #${TOOL_ID} .picky-selector-display:hover{background-color:rgba(0,0,0,.04);border-radius:4px}
+            #${TOOL_ID} .picky-selector-display{font-family:'SF Mono','Menlo',monospace;font-size:12px;color:var(--pk-on-surf);word-break:break-all;max-height:7em;overflow-y:auto;cursor:pointer;padding:4px;border-radius:6px;border:1px dashed transparent}
+            #${TOOL_ID} .picky-selector-display:hover{background-color:rgba(0,122,255,.08);border-color:var(--pk-pri)}
+            #${TOOL_ID} .picky-selector-display::after{content:" ✎";color:var(--pk-pri);opacity:.5;font-size:11px}
             #${TOOL_ID} .picky-stats-bar{font-size:11px;color:var(--pk-on-surf-var);padding:4px 8px;background:var(--pk-surf-var);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
             #${TOOL_ID} .picky-stats-bar .pk-stat-val{color:var(--pk-pri);font-weight:600}
-            #${TOOL_ID} hr{border:none;border-top:1px solid var(--pk-surf-var);margin:10px 0}
-            #${TOOL_ID} button{padding:8px 10px;border:none;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;background-color:var(--pk-sec-cont);color:var(--pk-on-sec-cont);transition:background-color .2s,transform .1s;display:flex;align-items:center;justify-content:center;gap:4px}
+            #${TOOL_ID} hr{border:none;border-top:1px solid var(--pk-surf-var);margin:8px 0}
+            #${TOOL_ID} .picky-btn-group{display:grid;gap:6px;margin-bottom:6px}
+            #${TOOL_ID} .picky-btn-group-label{font-size:10px;color:var(--pk-on-surf-var);text-transform:uppercase;letter-spacing:.5px;margin:6px 4px 2px}
+            #${TOOL_ID} button{padding:8px 6px;border:none;border-radius:14px;font-size:12px;font-weight:500;cursor:pointer;background-color:var(--pk-sec-cont);color:var(--pk-on-sec-cont);transition:background-color .2s,transform .1s;display:flex;align-items:center;justify-content:center;gap:4px;min-height:34px;white-space:nowrap}
             #${TOOL_ID} button:active{transform:scale(.96)}
             #${TOOL_ID} button.primary{background-color:var(--pk-pri-cont);color:var(--pk-on-pri-cont)}
             #${TOOL_ID} button.copied{background-color:var(--pk-succ);color:#fff}
             #${TOOL_ID} button.warn{background-color:var(--pk-warn);color:#fff}
-            #${TOOL_ID}.minimized{left:auto;right:20px;transform:none;width:28px;height:28px;border-radius:50%;padding:0;cursor:pointer}
-            #${TOOL_ID}.minimized .picky-content{display:none}
+            #${TOOL_ID} button.danger{background-color:var(--pk-err);color:#fff}
+            #${TOOL_ID}.minimized{width:36px!important;height:36px!important;border-radius:50%!important;padding:0!important;cursor:pointer;touch-action:none;display:flex!important;align-items:center!important;justify-content:center!important;background:rgba(255,255,255,.95)!important;overflow:hidden}
+            #${TOOL_ID}.no-drag-pos.minimized{left:auto!important;right:20px!important;transform:none!important}
+            #${TOOL_ID}.minimized .picky-content,#${TOOL_ID}.minimized .picky-drag-handle{display:none!important}
             #${TOOL_ID} .picky-maximize-button{display:none}
-            #${TOOL_ID}.minimized .picky-maximize-button{display:flex;width:100%;height:100%;align-items:center;justify-content:center}
+            #${TOOL_ID}.minimized .picky-maximize-button{display:flex!important;width:100%!important;height:100%!important;align-items:center!important;justify-content:center!important;padding:0!important;margin:0!important;border-radius:50%!important;background:transparent!important}
+            #${TOOL_ID}.minimized .picky-maximize-button svg{width:20px!important;height:20px!important;display:block!important;margin:auto!important;fill:#1d1d1f!important;pointer-events:none}
+            #${TOOL_ID}.minimized .picky-maximize-button svg circle,#${TOOL_ID}.minimized .picky-maximize-button svg path{fill:#1d1d1f!important}
             #${TOOL_ID}.minimal{padding:6px;height:auto}
-            #${TOOL_ID}.minimal .picky-content{display:flex;justify-content:space-around;gap:4px}
-            #${TOOL_ID}.minimal button{background:0 0}
+            #${TOOL_ID}.minimal .picky-content{display:flex;justify-content:space-around;gap:4px;flex-wrap:wrap}
+            #${TOOL_ID}.minimal .picky-drag-handle{height:14px;margin-bottom:2px}
+            #${TOOL_ID}.minimal button{background:0 0;min-height:auto;padding:4px}
             #${TOOL_ID}.minimal button:hover{background-color:rgba(0,0,0,.08)}
             #${SHIELD_ID}{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2147483645;background:transparent;display:none}
             #${TOOL_ID} .picky-setting-title{font-weight:500;font-size:15px;margin:8px 0 4px;color:var(--pk-on-surf)}
@@ -620,12 +624,26 @@
             #${TOOL_ID} input:checked+.picky-slider:before{transform:translateX(20px)}
             .picky-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:2147483647;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);opacity:0;transition:opacity .3s}
             .picky-modal-overlay.visible{opacity:1}
+            .picky-modal-overlay.picky-ads-modal{background:rgba(0,0,0,.2)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;pointer-events:none}
+            .picky-modal-overlay.picky-ads-modal .picky-modal-content{pointer-events:auto;position:fixed!important;top:12px!important;right:12px!important;left:auto!important;transform:none!important;max-width:380px!important;width:calc(100% - 24px)!important;max-height:calc(100vh - 24px)!important}
+            .picky-modal-overlay.picky-ads-modal.visible .picky-modal-content{transform:none!important}
+            .picky-modal-overlay.picky-ads-modal .picky-modal-header{position:sticky;top:0;background:var(--pk-surf);z-index:2;border-bottom:1px solid var(--pk-outl)}
+            .picky-modal-overlay.picky-ads-modal .picky-modal-header .picky-icon-button{background:var(--pk-err)!important;color:#fff!important;width:36px!important;height:36px!important;border-radius:50%!important;flex-shrink:0;box-shadow:0 2px 6px rgba(255,59,48,.4)}
+            .picky-modal-overlay.picky-ads-modal .picky-modal-header .picky-icon-button svg{fill:#fff!important;width:22px!important;height:22px!important}
+            .picky-modal-overlay.picky-ads-modal .picky-modal-header .picky-icon-button:hover{background:#cc2e25!important}
             .picky-modal-content{position:fixed;top:50%;left:50%;width:calc(100% - 32px);max-width:600px;max-height:80vh;background-color:var(--pk-surf);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;flex-direction:column;opacity:0;transform:translate(-50%,-45%);transition:opacity .3s,transform .3s}
             .picky-modal-overlay.visible .picky-modal-content{opacity:1;transform:translate(-50%,-50%)}
             .picky-modal-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--pk-outl);flex-shrink:0}
             .picky-modal-title{font-size:16px;font-weight:600;color:var(--pk-on-surf);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
             .picky-modal-body{padding:4px 12px 12px;overflow-y:auto;color:var(--pk-on-surf)}
             .picky-modal-body textarea{width:100%;height:50vh;background:var(--pk-surf-var);border:none;border-radius:8px;color:var(--pk-on-surf);font-family:'SF Mono',monospace;font-size:12px;padding:8px;box-sizing:border-box;resize:vertical}
+            .picky-edit-modal textarea{width:100%;min-height:120px;background:var(--pk-surf-var);border:1px solid var(--pk-outl);border-radius:8px;color:var(--pk-on-surf);font-family:'SF Mono',monospace;font-size:13px;padding:10px;box-sizing:border-box;resize:vertical;outline:none}
+            .picky-edit-modal textarea:focus{border-color:var(--pk-pri)}
+            .picky-edit-modal .picky-match-info{margin:10px 0;padding:8px 12px;background:var(--pk-surf-var);border-radius:8px;font-size:13px;color:var(--pk-on-surf)}
+            .picky-edit-modal .picky-match-info.error{background:rgba(255,59,48,.15);color:var(--pk-err)}
+            .picky-edit-modal .picky-match-info.ok{background:rgba(52,199,89,.15);color:var(--pk-succ)}
+            .picky-edit-modal .picky-edit-actions{display:flex;gap:8px;margin-top:10px}
+            .picky-edit-modal .picky-edit-actions button{flex:1;padding:10px;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer}
             .picky-child-list,.picky-cookie-table{list-style:none;padding:0;margin:0;width:100%;border-collapse:collapse}
             .picky-child-list li{padding:10px;border-bottom:1px solid var(--pk-outl);cursor:pointer;transition:background-color .2s;font-family:'SF Mono',monospace;font-size:12px;color:var(--pk-on-surf-var)}
             .picky-child-list li:hover{background-color:var(--pk-surf-var)}
@@ -635,8 +653,8 @@
             .picky-cookie-table .cookie-actions{display:flex;gap:8px}
             .picky-cookie-table .cookie-actions button{padding:4px 8px;font-size:11px;border-radius:8px;background:var(--pk-sec-cont);color:var(--pk-on-sec-cont);border:none;cursor:pointer}
             .picky-cookie-table .cookie-actions button.delete{background-color:var(--pk-err);color:#fff}
-            #picky-nav-slider-container{padding:8px 0}
-            #picky-nav-slider{width:100%;-webkit-appearance:none;appearance:none;background:var(--pk-outl);height:5px;border-radius:3px;outline:none;cursor:pointer}
+            #picky-nav-slider-container{padding:6px 0;touch-action:pan-x;user-select:none;-webkit-user-select:none}
+            #picky-nav-slider{width:100%;-webkit-appearance:none;appearance:none;background:var(--pk-outl);height:5px;border-radius:3px;outline:none;cursor:pointer;touch-action:pan-x}
             #picky-nav-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;background:var(--pk-pri);border-radius:50%;cursor:pointer}
             #picky-nav-slider::-moz-range-thumb{width:22px;height:22px;background:var(--pk-pri);border-radius:50%;cursor:pointer}
             .picky-code-tabs{display:flex;border-bottom:1px solid var(--pk-outl);margin-bottom:12px}
@@ -649,14 +667,19 @@
             .picky-ad-suggest-item:hover{background:var(--pk-surf-var)}
             .picky-ad-suggest-item input[type=checkbox]{transform:scale(1.3)}
             .picky-ad-suggest-score{background:var(--pk-warn);color:#fff;padding:2px 6px;border-radius:8px;font-size:11px;font-weight:600;min-width:24px;text-align:center}
-            .picky-rule-preview-hover{outline:3px solid orange!important;outline-offset:2px!important;background:rgba(255,165,0,.1)!important}`;
+            .picky-rule-preview-hover{outline:3px solid orange!important;outline-offset:2px!important;background:rgba(255,165,0,.15)!important;box-shadow:0 0 0 9999px rgba(0,0,0,.25)!important;scroll-margin:80px!important}
+            .picky-ad-selected-mark{outline:3px solid #34c759!important;outline-offset:2px!important;background:rgba(52,199,89,.18)!important;scroll-margin:80px!important}
+            .picky-ad-selected-mark.picky-rule-preview-hover{outline:3px solid #ffcc00!important;background:rgba(255,204,0,.2)!important}`;
         }
 
         embedGlobalCSS() {
             const e = `.${HL_CLASS}{outline:2px dotted #ff453a!important;outline-offset:2px;box-shadow:0 0 0 9999px rgba(0,0,0,.4)!important;transition:outline .1s,box-shadow .1s}
             html.${ISO_BODY} > body{visibility:hidden!important}
             html.${ISO_BODY} .${ISO_PATH}{visibility:visible!important}
-            html.${ISO_BODY} .${ISO_PATH} *{visibility:visible!important}`;
+            html.${ISO_BODY} .${ISO_PATH} *{visibility:visible!important}
+            .picky-rule-preview-hover{outline:3px solid orange!important;outline-offset:2px!important;background:rgba(255,165,0,.15)!important;box-shadow:0 0 0 9999px rgba(0,0,0,.25)!important}
+            .picky-ad-selected-mark{outline:3px solid #34c759!important;outline-offset:2px!important;background:rgba(52,199,89,.18)!important}
+            .picky-ad-selected-mark.picky-rule-preview-hover{outline:3px solid #ffcc00!important;background:rgba(255,204,0,.2)!important}`;
             const a = document.createElement("style");
             a.id = `${TOOL_ID}-global-style`;
             a.textContent = e;
@@ -692,7 +715,7 @@
             sh.appendChild(s);
             this.dom.tool = document.createElement("div");
             this.dom.tool.id = TOOL_ID;
-            this.dom.tool.className = this.state.alignment;
+            this.applyPositionClass();
             sh.appendChild(this.dom.tool);
             this.dom.shield = document.createElement("div");
             this.dom.shield.id = SHIELD_ID;
@@ -708,6 +731,27 @@
             this.watcher.observe(document.documentElement, { childList: true });
         }
 
+        applyPositionClass() {
+            const t = this.dom.tool;
+            if (!t) return;
+            const wasVisible = t.classList.contains("visible");
+            t.classList.remove("top", "bottom", "no-drag-pos", "has-drag-pos");
+            if (this.state.dragPos) {
+                t.classList.add("has-drag-pos");
+                t.style.left = this.state.dragPos.x + "px";
+                t.style.top = this.state.dragPos.y + "px";
+                t.style.right = "auto";
+                t.style.bottom = "auto";
+            } else {
+                t.classList.add("no-drag-pos", this.state.alignment);
+                t.style.left = "";
+                t.style.top = "";
+                t.style.right = "";
+                t.style.bottom = "";
+            }
+            if (wasVisible) t.classList.add("visible");
+        }
+
         render() {
             const t = this.dom.tool;
             if (!t) return;
@@ -716,62 +760,226 @@
             t.classList.remove("full");
             if (!this.state.isCollapsed && this.state.scale === "full") t.classList.add("full");
             this.dom.shield.style.display = (this.state.mode !== "initial" && this.state.mode !== "selected") || this.state.isCollapsed ? "none" : "block";
+
+            let dragHandle = "";
+            if (!this.state.isCollapsed) {
+                dragHandle = `<div class="picky-drag-handle" title="드래그로 이동">${ICON_DRAG}</div>`;
+            }
+
             let e = "";
             if (this.state.isCollapsed) {
-                e = `<button class="picky-maximize-button picky-icon-button" data-action="cycleSize">${ICON_DOT}</button>`;
+                e = `<button class="picky-maximize-button picky-icon-button" data-action="cycleSize" title="Picky 열기 (길게 누르면 광고감지)">${ICON_DOT}</button>`;
             } else if (this.state.scale === "minimal") {
-                e = `<div class="picky-content">${this.getMinLayout()}</div>`;
+                e = dragHandle + `<div class="picky-content">${this.getMinLayout()}</div>`;
             } else {
-                e = `<div class="picky-content">${this.getFullLayout()}</div>`;
+                e = dragHandle + `<div class="picky-content">${this.getFullLayout()}</div>`;
             }
             t.innerHTML = e;
+
             if (this.state.mode === "selected") {
                 this.attachRefs();
                 this.refreshMetrics();
             }
+
+            this.attachDragHandlers();
+            if (this.state.isCollapsed) this.attachLongPressOnDot();
+        }
+
+        // ========== 드래그 핸들러 (수정됨) ==========
+        // 최소화 상태: 본체 자체에서만 드래그 시작 가능
+        // 펼친 상태: .picky-drag-handle에서만 드래그 시작 가능
+        // 어느 경우든 인터랙티브 요소(슬라이더/버튼/입력) 위에서는 드래그 무시
+        attachDragHandlers() {
+            const t = this.dom.tool;
+            if (!t) return;
+
+            const isInteractive = (target) => {
+                if (!target || target.nodeType !== 1) return false;
+                try {
+                    return !!target.closest(NO_DRAG_SELECTOR);
+                } catch(e) { return false; }
+            };
+
+            const getHandleElement = () => {
+                return this.state.isCollapsed ? t : t.querySelector(".picky-drag-handle");
+            };
+
+            const start = (clientX, clientY) => {
+                const rect = t.getBoundingClientRect();
+                this.state.isDragging = true;
+                this.state.dragOffset = { x: clientX - rect.left, y: clientY - rect.top };
+                this.state.dragStart = { x: clientX, y: clientY };
+                this.state.dragDidMove = false;
+                t.classList.add("dragging");
+            };
+            const move = (clientX, clientY) => {
+                if (!this.state.isDragging) return;
+                const dx = Math.abs(clientX - this.state.dragStart.x);
+                const dy = Math.abs(clientY - this.state.dragStart.y);
+                if (dx > 5 || dy > 5) this.state.dragDidMove = true;
+
+                let nx = clientX - this.state.dragOffset.x;
+                let ny = clientY - this.state.dragOffset.y;
+                const rect = t.getBoundingClientRect();
+                const maxX = window.innerWidth - rect.width;
+                const maxY = window.innerHeight - rect.height;
+                nx = Math.max(0, Math.min(nx, maxX));
+                ny = Math.max(0, Math.min(ny, maxY));
+
+                t.classList.remove("no-drag-pos", "top", "bottom");
+                t.classList.add("has-drag-pos");
+                t.style.left = nx + "px";
+                t.style.top = ny + "px";
+                t.style.right = "auto";
+                t.style.bottom = "auto";
+            };
+            const end = () => {
+                if (!this.state.isDragging) return;
+                this.state.isDragging = false;
+                t.classList.remove("dragging");
+                if (this.state.dragDidMove) {
+                    const rect = t.getBoundingClientRect();
+                    this.state.dragPos = { x: rect.left, y: rect.top };
+                    GM_setValue("picky_drag_pos", this.state.dragPos);
+                }
+            };
+
+            // 마우스
+            const onMouseDown = (e) => {
+                if (e.button !== undefined && e.button !== 0) return;
+                // 펼친 상태에서는 드래그 핸들에서만 시작
+                if (!this.state.isCollapsed) {
+                    if (!e.target.closest(".picky-drag-handle")) return;
+                } else {
+                    // 최소화 상태: 인터랙티브 요소(거의 없겠지만) 가드
+                    if (isInteractive(e.target) && !e.target.closest(".picky-maximize-button")) return;
+                }
+                e.preventDefault();
+                start(e.clientX, e.clientY);
+                const mm = ev => move(ev.clientX, ev.clientY);
+                const mu = ev => {
+                    document.removeEventListener("mousemove", mm, true);
+                    document.removeEventListener("mouseup", mu, true);
+                    end();
+                    if (this.state.dragDidMove) {
+                        ev.stopPropagation();
+                        ev.preventDefault();
+                    }
+                };
+                document.addEventListener("mousemove", mm, true);
+                document.addEventListener("mouseup", mu, true);
+            };
+            t.addEventListener("mousedown", onMouseDown);
+
+            // 터치
+            const onTouchStart = (e) => {
+                // 펼친 상태: 드래그 핸들에서만
+                if (!this.state.isCollapsed) {
+                    if (!e.target.closest(".picky-drag-handle")) return;
+                } else {
+                    if (isInteractive(e.target) && !e.target.closest(".picky-maximize-button")) return;
+                }
+                const tt = e.touches[0];
+                start(tt.clientX, tt.clientY);
+            };
+            const onTouchMove = (e) => {
+                if (!this.state.isDragging) return;
+                e.preventDefault();
+                const tt = e.touches[0];
+                move(tt.clientX, tt.clientY);
+            };
+            t.addEventListener("touchstart", onTouchStart, { passive: true });
+            t.addEventListener("touchmove", onTouchMove, { passive: false });
+            t.addEventListener("touchend", end);
+            t.addEventListener("touchcancel", end);
+        }
+
+        attachLongPressOnDot() {
+            const t = this.dom.tool;
+            if (!t) return;
+            const cancel = () => {
+                if (this.longPressTimer) {
+                    clearTimeout(this.longPressTimer);
+                    this.longPressTimer = null;
+                }
+            };
+            const startLP = () => {
+                cancel();
+                this.longPressTimer = setTimeout(() => {
+                    this.longPressTimer = null;
+                    if (this.state.isDragging || this.state.dragDidMove) return;
+                    if (navigator.vibrate) try { navigator.vibrate(50); } catch(e) {}
+                    if (this.state.isCollapsed) {
+                        this.state.isCollapsed = false;
+                        this.state.scale = "full";
+                        this.render();
+                    }
+                    this.suggestAds();
+                }, 600);
+            };
+            t.addEventListener("mousedown", e => {
+                if (!this.state.isCollapsed) return;
+                startLP();
+            });
+            t.addEventListener("touchstart", e => {
+                if (!this.state.isCollapsed) return;
+                startLP();
+            }, { passive: true });
+            ["mouseup","mouseleave","touchend","touchcancel","touchmove"].forEach(ev =>
+                t.addEventListener(ev, cancel)
+            );
         }
 
         getFullLayout() {
             if (this.state.mode === "selected") return this.getSelLayout();
             if (this.state.mode === "settings") return this.getSetLayout();
-            // 🔧 FIX #3: Stats in initial screen
             const stats = Blocker.getStats();
             const enabled = Blocker.isEnabled();
-            return `<div class="picky-header"><div class="picky-header-title">요소 선택기</div><div class="picky-header-actions"><button class="picky-icon-button" data-action="showSettings" title="설정">${ICON_SETTINGS}</button><button class="picky-icon-button" data-action="close">${ICON_CLOSE}</button></div></div>
-            <div class="picky-stats-bar"><span>이 사이트: <span class="pk-stat-val">${stats.ruleCount}</span>개 규칙 / <span class="pk-stat-val">${stats.hiddenCount}</span>개 요소 숨김</span><span>${enabled ? '🟢 ON' : '🔴 OFF'}</span></div>
-            <div style="text-align:center; color: var(--pk-on-surf-var); padding: 16px 0;">페이지에서 요소를 탭/클릭하세요...<br><span style="font-size:11px">Ctrl+Shift+P로 토글 / 화살표 키로 탐색</span></div>
-            <div class="picky-button-grid" style="grid-template-columns: repeat(3, 1fr); gap: 6px;">
-                <button data-action="suggestAds" class="warn">🎯 광고 자동 감지</button>
-                <button data-action="toggleBlocking">${enabled ? '⏸ 차단 일시정지' : '▶ 차단 다시 켜기'}</button>
-                <button data-action="undoLast">↩ 마지막 차단 취소</button>
+            return `<div class="picky-header"><div class="picky-header-title"><span>요소 선택기</span></div><div class="picky-header-actions"><button class="picky-icon-button" data-action="showSettings" title="설정">${ICON_SETTINGS}</button><button class="picky-icon-button" data-action="minimize" title="최소화">${ICON_CLOSE}</button></div></div>
+            <div class="picky-stats-bar"><span>이 사이트: <span class="pk-stat-val">${stats.ruleCount}</span>개 규칙 / <span class="pk-stat-val">${stats.hiddenCount}</span>개 숨김</span><span>${enabled ? '🟢 ON' : '🔴 OFF'}</span></div>
+            <div style="text-align:center;color:var(--pk-on-surf-var);padding:14px 0;font-size:13px;">페이지에서 요소를 탭/클릭하세요<br><span style="font-size:11px;opacity:.7">Ctrl+Shift+P 토글 / 화살표 키 탐색</span></div>
+            <div class="picky-btn-group-label">빠른 작업</div>
+            <div class="picky-btn-group" style="grid-template-columns:repeat(3,1fr)">
+                <button data-action="suggestAds" class="warn">🎯 자동감지</button>
+                <button data-action="toggleBlocking">${enabled ? '⏸ 일시정지' : '▶ 다시 켜기'}</button>
+                <button data-action="undoLast">↩ 되돌리기</button>
             </div>`;
         }
 
         getSelLayout() {
             const t = this.calcSliderLimits();
-            const e = `<div id="picky-nav-slider-container"><label for="picky-nav-slider" style="font-size:11px; color:var(--pk-on-surf-var)">요소 탐색 (상위 ← → 하위)</label><input type="range" id="picky-nav-slider" min="${t.min}" max="${t.max}" value="${t.val}"></div>`;
-            return `<div class="picky-header"><div class="picky-header-title">요소 선택됨</div><div class="picky-header-actions">
-                <button class="picky-icon-button" data-action="inspectCode" title="연관 코드 보기">${ICON_CODE}</button>
-                <button class="picky-icon-button" data-action="showSettings" title="설정">${ICON_SETTINGS}</button>
-                <button class="picky-icon-button" data-action="cycleSize" title="모드 전환">${ICON_MIN}</button>
-                <button class="picky-icon-button" data-action="close" title="닫기">${ICON_CLOSE}</button></div></div>
+            const slider = `<div id="picky-nav-slider-container" data-no-drag><label for="picky-nav-slider" style="font-size:11px;color:var(--pk-on-surf-var)">요소 탐색 (← 상위 / 하위 →)</label><input type="range" id="picky-nav-slider" min="${t.min}" max="${t.max}" value="${t.val}" data-no-drag></div>`;
+            return `<div class="picky-header">
+                <div class="picky-header-title clickable" data-action="goHome" title="홈으로">${ICON_HOME}<span>요소 선택됨</span></div>
+                <div class="picky-header-actions">
+                    <button class="picky-icon-button" data-action="suggestAds" title="광고 자동 감지" style="color:var(--pk-warn)">${ICON_TARGET}</button>
+                    <button class="picky-icon-button" data-action="inspectCode" title="연관 코드">${ICON_CODE}</button>
+                    <button class="picky-icon-button" data-action="showSettings" title="설정">${ICON_SETTINGS}</button>
+                    <button class="picky-icon-button" data-action="cycleSize" title="모드 전환">${ICON_MIN}</button>
+                    <button class="picky-icon-button" data-action="minimize" title="최소화">${ICON_CLOSE}</button>
+                </div></div>
             <div class="picky-selector-box">
-                <div class="picky-selector-box-title"><span>CSS 선택자 (클릭=직접 편집)</span><span class="picky-match-count"></span></div>
+                <div class="picky-selector-box-title"><span>CSS 선택자 (탭=직접 편집)</span><span class="picky-match-count"></span></div>
                 <div class="picky-selector-display" data-action="editSelector"></div>
-            </div>${e}
-            <div class="picky-button-grid" style="grid-template-columns: repeat(6, 1fr); margin-top: 10px; gap: 6px;">
-                <button data-action="selParent">상위</button>
-                <button data-action="selChild">하위</button>
-                <button data-action="toggleHide">${this.state.isObscured ? "복원" : "숨김"}</button>
-                <button data-action="permanentBlock" style="color:#fff; background-color:var(--pk-err);">차단</button>
-                <button data-action="toggleIsolate">${this.state.isQuarantined ? "해제" : "격리"}</button>
-                <button data-action="selSimilar">유사</button>
-                <button data-action="extractUrl">URL</button>
-                <button data-action="extractAttr">속성</button>
-                <button data-action="togglePro" class="${this.state.isPro ? 'primary' : ''}">Pro</button>
-                <button data-action="copyCSS" class="primary">CSS</button>
-                <button data-action="copyRule" class="primary">규칙</button>
-                <button data-action="reset">리셋</button>
+            </div>
+            ${slider}
+            <div class="picky-btn-group-label">탐색 / 액션</div>
+            <div class="picky-btn-group" style="grid-template-columns:repeat(3,1fr)">
+                <button data-action="selParent">⬆ 상위</button>
+                <button data-action="selChild">⬇ 하위</button>
+                <button data-action="selSimilar">≡ 유사</button>
+                <button data-action="toggleHide">${this.state.isObscured ? "👁 복원" : "🚫 숨김"}</button>
+                <button data-action="toggleIsolate">${this.state.isQuarantined ? "📤 해제" : "📦 격리"}</button>
+                <button data-action="permanentBlock" class="danger">⛔ 차단</button>
+            </div>
+            <div class="picky-btn-group-label">추출 / 복사 / 기타</div>
+            <div class="picky-btn-group" style="grid-template-columns:repeat(3,1fr)">
+                <button data-action="extractUrl">🔗 URL</button>
+                <button data-action="extractAttr">🏷 속성</button>
+                <button data-action="togglePro" class="${this.state.isPro ? 'primary' : ''}">${this.state.isPro ? '⚡ Pro ON' : '⚡ Pro'}</button>
+                <button data-action="copyCSS" class="primary">📋 CSS</button>
+                <button data-action="copyRule" class="primary">📋 규칙</button>
+                <button data-action="reset">🔄 리셋</button>
             </div>`;
         }
 
@@ -779,7 +987,8 @@
             return `<button class="picky-icon-button" data-action="selParent" title="상위">${ICON_UP}</button>
             <button class="picky-icon-button" data-action="selChild" title="하위">${ICON_DOWN}</button>
             <button class="picky-icon-button" data-action="toggleHide" title="${this.state.isObscured ? "복원" : "숨김"}">${this.state.isObscured ? ICON_EYE : ICON_EYE_OFF}</button>
-            <button class="picky-icon-button" data-action="copyCSS" title="CSS">${ICON_COPY}</button>
+            <button class="picky-icon-button" data-action="suggestAds" title="광고 자동 감지" style="color:var(--pk-warn)">${ICON_TARGET}</button>
+            <button class="picky-icon-button" data-action="copyCSS" title="CSS 복사">${ICON_COPY}</button>
             <button class="picky-icon-button" data-action="reset" title="초기화">${ICON_RESET}</button>
             <button class="picky-icon-button" data-action="cycleSize" title="전체 모드">${ICON_MAX}</button>`;
         }
@@ -790,40 +999,44 @@
             const stats = Blocker.getStats();
             const enabled = Blocker.isEnabled();
             const aggressive = Blocker.isAggressive();
-            return `<div class="picky-header"><button class="picky-icon-button" data-action="showSelected">${ICON_BACK}</button><div class="picky-header-title">설정</div><div class="picky-header-actions"><button class="picky-icon-button" data-action="showSelected">${ICON_CLOSE}</button></div></div>
-            <div class="picky-stats-bar"><span>전역: <span class="pk-stat-val">${stats.totalSites}</span>사이트 / <span class="pk-stat-val">${stats.totalRules}</span>규칙</span><span>현재 사이트: <span class="pk-stat-val">${stats.ruleCount}</span>개</span></div>
+            return `<div class="picky-header"><button class="picky-icon-button" data-action="showSelected">${ICON_BACK}</button><div class="picky-header-title"><span>설정</span></div><div class="picky-header-actions"><button class="picky-icon-button" data-action="showSelected">${ICON_CLOSE}</button></div></div>
+            <div class="picky-stats-bar"><span>전역: <span class="pk-stat-val">${stats.totalSites}</span>사이트 / <span class="pk-stat-val">${stats.totalRules}</span>규칙</span><span>현재: <span class="pk-stat-val">${stats.ruleCount}</span>개</span></div>
+            <button data-action="suggestAds" class="warn" style="width:100%;padding:12px;margin-bottom:8px;font-size:14px;">🎯 광고 자동 감지 (이 페이지 스캔)</button>
             <div class="picky-setting-item"><span>복사 후 자동 닫기</span><label class="picky-switch"><input type="checkbox" data-action="toggleAutoClose" ${this.state.autoDismiss ? "checked" : ""}><span class="picky-slider"></span></label></div>
             <div class="picky-setting-item"><span>차단 활성화</span><label class="picky-switch"><input type="checkbox" data-action="toggleBlockingSwitch" ${enabled ? "checked" : ""}><span class="picky-slider"></span></label></div>
-            <div class="picky-setting-item"><span>공격적 차단 (공간까지 제거)</span><label class="picky-switch"><input type="checkbox" data-action="toggleAggressive" ${aggressive ? "checked" : ""}><span class="picky-slider"></span></label></div>
+            <div class="picky-setting-item"><span>공격적 차단 (공간 제거)</span><label class="picky-switch"><input type="checkbox" data-action="toggleAggressive" ${aggressive ? "checked" : ""}><span class="picky-slider"></span></label></div>
             <div class="picky-setting-title">선택자 생성 규칙</div>
             <div class="picky-setting-item"><span>지능형 모드</span><label class="picky-switch"><input type="checkbox" data-cfg-key="intelligentMode" ${t.intelligentMode ? "checked" : ""}><span class="picky-slider"></span></label></div>
             <div class="picky-manual-settings" ${e}>
                 <div class="picky-setting-item"><span>ID 사용 (#id)</span><label class="picky-switch"><input type="checkbox" data-cfg-key="useId" ${t.useId ? "checked" : ""}><span class="picky-slider"></span></label></div>
-                <div class="picky-setting-item"><span>클래스 사용 (.class)</span><label class="picky-switch"><input type="checkbox" data-cfg-key="useClasses" ${t.useClasses ? "checked" : ""}><span class="picky-slider"></span></label></div>
-                <div class="picky-setting-item"><span>순서 사용 (:nth-of-type)</span><label class="picky-switch"><input type="checkbox" data-cfg-key="useNthOfType" ${t.useNthOfType ? "checked" : ""}><span class="picky-slider"></span></label></div>
+                <div class="picky-setting-item"><span>클래스 사용</span><label class="picky-switch"><input type="checkbox" data-cfg-key="useClasses" ${t.useClasses ? "checked" : ""}><span class="picky-slider"></span></label></div>
+                <div class="picky-setting-item"><span>순서 사용</span><label class="picky-switch"><input type="checkbox" data-cfg-key="useNthOfType" ${t.useNthOfType ? "checked" : ""}><span class="picky-slider"></span></label></div>
             </div>
-            <div class="picky-setting-title">고급 기능</div>
-            <div class="picky-setting-item"><span>Shadow DOM 호환성</span><label class="picky-switch"><input type="checkbox" data-cfg-key="shadowDomSupport" ${t.shadowDomSupport ? "checked" : ""}><span class="picky-slider"></span></label></div>
-            <div class="picky-setting-title">광고 차단 관리</div>
-            <div class="picky-button-grid" style="margin-top:8px; grid-template-columns: 1fr 1fr;">
-                <button data-action="showBlockRules">📋 규칙 보기/관리</button>
-                <button data-action="resetBlocks" style="background-color: var(--pk-err); color: #fff;">🗑 규칙 초기화</button>
+            <div class="picky-setting-title">고급</div>
+            <div class="picky-setting-item"><span>Shadow DOM 호환</span><label class="picky-switch"><input type="checkbox" data-cfg-key="shadowDomSupport" ${t.shadowDomSupport ? "checked" : ""}><span class="picky-slider"></span></label></div>
+            <div class="picky-setting-title">규칙 관리</div>
+            <div class="picky-btn-group" style="grid-template-columns:1fr 1fr">
+                <button data-action="showBlockRules">📋 규칙 보기</button>
+                <button data-action="resetBlocks" class="danger">🗑 규칙 초기화</button>
             </div>
-            <div class="picky-setting-title">백업 / 가져오기 / 내보내기</div>
-            <div class="picky-button-grid" style="margin-top:8px; grid-template-columns: 1fr 1fr 1fr;">
+            <div class="picky-setting-title">백업 / 가져오기</div>
+            <div class="picky-btn-group" style="grid-template-columns:1fr 1fr 1fr">
                 <button data-action="exportJSON">📤 JSON</button>
                 <button data-action="exportUblock">📤 uBlock</button>
-                <button data-action="importJSON" class="primary">📥 가져오기</button>
+                <button data-action="importJSON" class="primary">📥 불러오기</button>
             </div>
-            <div class="picky-setting-title">개발자 도구 및 UI</div>
-            <div class="picky-button-grid" style="grid-template-columns: repeat(3, 1fr); gap: 6px;">
+            <div class="picky-setting-title">개발자 도구 / UI</div>
+            <div class="picky-btn-group" style="grid-template-columns:repeat(3,1fr)">
                 <button data-action="showSource" data-type="html">HTML</button>
                 <button data-action="showSource" data-type="css">CSS</button>
                 <button data-action="showSource" data-type="js">JS</button>
-                <button data-action="showCookies">쿠키</button>
-                <button data-action="showFp">핑거프린팅</button>
-                <button data-action="moveTop">UI 상단</button>
-                <button data-action="moveBottom">UI 하단</button>
+                <button data-action="showCookies">🍪 쿠키</button>
+                <button data-action="showFp">🔍 FP</button>
+                <button data-action="resetDragPos">📍 위치초기화</button>
+                <button data-action="moveTop">⬆ 상단</button>
+                <button data-action="moveBottom">⬇ 하단</button>
+                <button data-action="forceCorner">🆘 우하단 강제</button>
+                <button data-action="terminate" class="danger">❌ 완전 종료</button>
             </div>`;
         }
 
@@ -831,7 +1044,22 @@
             this.dom.disp = this.dom.tool.querySelector(".picky-selector-display");
             this.dom.match = this.dom.tool.querySelector(".picky-match-count");
             this.dom.slider = this.dom.tool.querySelector("#picky-nav-slider");
-            if (this.dom.slider) this.dom.slider.addEventListener("input", this.handleSlide.bind(this));
+            if (this.dom.slider) {
+                this.dom.slider.addEventListener("input", this.handleSlide.bind(this));
+                // ★ 슬라이더 이벤트가 패널 드래그로 전파되지 않도록 격리
+                const stopBubble = ev => ev.stopPropagation();
+                ["mousedown","mousemove","mouseup","touchstart","touchmove","touchend","pointerdown","pointermove","pointerup","click"].forEach(evt => {
+                    this.dom.slider.addEventListener(evt, stopBubble, evt.startsWith("touch") ? { passive: true } : false);
+                });
+            }
+            // 슬라이더 컨테이너 전체에도 동일하게 격리
+            const sliderContainer = this.dom.tool.querySelector("#picky-nav-slider-container");
+            if (sliderContainer) {
+                const stopBubble = ev => ev.stopPropagation();
+                ["mousedown","touchstart","pointerdown"].forEach(evt => {
+                    sliderContainer.addEventListener(evt, stopBubble, evt.startsWith("touch") ? { passive: true } : false);
+                });
+            }
         }
 
         rebuildTree(t) {
@@ -923,6 +1151,42 @@
             });
         }
 
+        forceCornerPos() {
+            this.state.dragPos = {
+                x: window.innerWidth - 52,
+                y: window.innerHeight - 52
+            };
+            GM_setValue("picky_drag_pos", this.state.dragPos);
+            this.applyPositionClass();
+            this.dom.tool?.classList.add("visible");
+        }
+
+        minimizeUI() {
+            this.purge();
+            this.clearRulePreview();
+            this.clearAdSelections();
+            this.overlay?.dismiss();
+            this.dropFocus(this.state.target);
+            this.state.target = null;
+            this.state.originTarget = null;
+            this.state.hierarchy = [];
+            this.state.mode = "initial";
+            this.state.scale = "full";
+            this.state.isCollapsed = true;
+            this.render();
+
+            requestAnimationFrame(() => {
+                const t = this.dom.tool;
+                if (!t) return;
+                const rect = t.getBoundingClientRect();
+                const oob = rect.right > window.innerWidth - 2
+                         || rect.bottom > window.innerHeight - 2
+                         || rect.left < 2 || rect.top < 2
+                         || rect.width === 0 || rect.height === 0;
+                if (oob) this.forceCornerPos();
+            });
+        }
+
         triggerAction(t) {
             const e = t.target;
             const i = e.closest("[data-action]");
@@ -943,7 +1207,13 @@
             const a = i.dataset.type;
 
             const actions = {
-                close: () => this.terminate(false),
+                minimize: () => this.minimizeUI(),
+                terminate: () => {
+                    if (confirm("Picky를 완전히 종료할까요? 다시 사용하려면 페이지를 새로고침해야 합니다.")) {
+                        this.terminate(true);
+                    }
+                },
+                forceCorner: () => { this.forceCornerPos(); alert("UI를 우하단으로 이동했습니다."); },
                 cycleSize: () => {
                     if (this.state.isCollapsed) {
                         this.state.isCollapsed = false;
@@ -957,6 +1227,15 @@
                 },
                 showSettings: () => { this.state.mode = "settings"; this.render(); },
                 showSelected: () => { this.state.mode = this.state.target ? "selected" : "initial"; this.render(); },
+                goHome: () => {
+                    this.purge();
+                    this.dropFocus(this.state.target);
+                    this.state.target = null;
+                    this.state.originTarget = null;
+                    this.state.hierarchy = [];
+                    this.state.mode = "initial";
+                    this.render();
+                },
                 reset: () => {
                     this.purge();
                     this.dropFocus(this.state.target);
@@ -998,32 +1277,27 @@
                 permanentBlock: () => {
                     const { selector } = this.state.queryData;
                     if (!selector) { alert("선택할 수 없는 요소입니다."); return; }
-                    if (confirm(`다음 선택자를 영구 차단하시겠습니까?\n\n${selector}\n\n* "설정 > 규칙 보기"에서 해제 가능`)) {
+                    if (confirm(`다음 선택자를 영구 차단하시겠습니까?\n\n${selector}`)) {
                         Blocker.append(selector);
                         actions.reset();
                     }
                 },
-                // 🔧 FIX #4
                 undoLast: () => {
                     const last = Blocker.undoLast();
                     if (last) alert(`되돌림:\n${last.selector}\n(${last.host})`);
                     else alert("되돌릴 기록이 없습니다.");
                     this.render();
                 },
-                // 🔧 FIX #6
                 toggleBlocking: () => {
                     const on = Blocker.toggleEnabled();
                     alert(on ? "차단 활성화됨" : "차단 일시정지됨");
                     this.render();
                 },
                 toggleBlockingSwitch: () => { Blocker.toggleEnabled(); this.render(); },
-                // 🔧 FIX #14
                 toggleAggressive: () => { Blocker.toggleAggressive(); this.render(); },
-                // 🔧 FIX #1, #2
                 exportJSON: () => Blocker.exportJSON(),
                 exportUblock: () => Blocker.exportUblock(),
                 importJSON: () => Blocker.importJSON(),
-                // 🔧 FIX #5: Rule list with hover preview
                 showBlockRules: () => this.showRulesWithPreview(),
                 resetBlocks: () => {
                     if (confirm(`현재 사이트(${window.location.hostname})의 모든 차단 규칙을 삭제하시겠습니까?`)) Blocker.clear();
@@ -1038,15 +1312,19 @@
                 },
                 moveTop: () => this.shiftUI("top"),
                 moveBottom: () => this.shiftUI("bottom"),
+                resetDragPos: () => {
+                    this.state.dragPos = null;
+                    GM_setValue("picky_drag_pos", null);
+                    this.applyPositionClass();
+                    alert("UI 위치가 기본값으로 초기화되었습니다.");
+                },
                 extractUrl: () => this.pullUrl(),
                 extractAttr: () => this.pullAttr(),
                 inspectCode: () => this.openInspector(),
                 showSource: () => this.printSource(a),
                 showCookies: () => this.printCookies(),
                 showFp: () => this.printFp(),
-                // 🔧 FIX #11: Manual selector edit
                 editSelector: () => this.editSelector(),
-                // 🔧 FIX #9: Auto-detect ads
                 suggestAds: () => this.suggestAds()
             };
             if (actions[s]) actions[s]();
@@ -1103,19 +1381,22 @@
                 btn.textContent = "복사 완료!";
                 btn.classList.add("copied");
                 setTimeout(() => {
-                    if (this.state.autoDismiss) this.terminate(false);
+                    if (this.state.autoDismiss) this.minimizeUI();
                     else { btn.innerHTML = old; btn.classList.remove("copied"); }
                 }, 1200);
             }).catch(() => {
                 prompt("복사 실패:", txt);
-                if (this.state.autoDismiss) this.terminate(false);
+                if (this.state.autoDismiss) this.minimizeUI();
             });
         }
 
         shiftUI(pos) {
             this.state.alignment = pos;
-            this.dom.tool.className = `${pos} visible`;
+            this.state.dragPos = null;
             GM_setValue("picky_alignment", pos);
+            GM_setValue("picky_drag_pos", null);
+            this.applyPositionClass();
+            this.dom.tool.classList.add("visible");
         }
 
         pullUrl() {
@@ -1162,12 +1443,11 @@
             });
         }
 
-        // 🔧 FIX #5: Rule list with hover preview
         showRulesWithPreview() {
             const renderList = () => {
                 const rules = Blocker.fetch();
                 if (rules.length === 0) return '<div style="padding:20px;text-align:center;color:var(--pk-on-surf-var);">저장된 차단 규칙이 없습니다.</div>';
-                return `<p style="font-size:11px;color:var(--pk-on-surf-var);margin-bottom:10px;">규칙에 마우스를 올리면 해당 요소가 페이지에서 하이라이트됩니다.</p>
+                return `<p style="font-size:11px;color:var(--pk-on-surf-var);margin-bottom:10px;">규칙에 호버하면 해당 요소가 하이라이트됩니다.</p>
                 <ul class="picky-child-list" style="max-height:50vh;overflow-y:auto;">
                 ${rules.map(r => `<li data-rule-hover="${esc(r)}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
                     <span style="word-break:break-all;font-family:monospace;font-size:11px;flex:1;">${esc(r)}</span>
@@ -1176,7 +1456,6 @@
             };
             this.overlay.display("현재 차단 규칙 관리", renderList(), true);
             const body = this.overlay.node.querySelector(".picky-modal-body");
-
             body.addEventListener("mouseover", e => {
                 const li = e.target.closest("[data-rule-hover]");
                 if (!li) return;
@@ -1206,30 +1485,87 @@
             this.state.hoverPreviewNodes.forEach(el => el.classList.remove("picky-rule-preview-hover"));
             this.state.hoverPreviewNodes = [];
         }
+        clearAdSelections() {
+            this.state.adSelectedNodes.forEach(el => el.classList.remove("picky-ad-selected-mark"));
+            this.state.adSelectedNodes = [];
+        }
 
-        // 🔧 FIX #11: Manual selector edit
         editSelector() {
             const current = this.state.queryData.selector;
             if (!current) return;
-            const edited = prompt("CSS 선택자 직접 편집:", current);
-            if (!edited || edited === current) return;
-            try {
-                const matches = document.querySelectorAll(edited);
-                this.state.queryData.selector = edited;
-                this.state.hits = matches.length;
-                if (this.dom.disp) this.dom.disp.textContent = edited;
-                if (this.dom.match) this.dom.match.textContent = `${matches.length}개 일치`;
-                if (matches[0]) {
-                    this.dropFocus(this.state.target);
-                    this.state.target = matches[0];
-                    this.setFocus(this.state.target);
+
+            const html = `<div class="picky-edit-modal">
+                <label style="font-size:12px;color:var(--pk-on-surf-var);">CSS 선택자를 직접 편집하세요:</label>
+                <textarea id="picky-edit-textarea" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+                <div class="picky-match-info" id="picky-edit-match">검사 중...</div>
+                <div class="picky-edit-actions">
+                    <button data-edit-action="cancel" style="background:var(--pk-sec-cont);color:var(--pk-on-sec-cont);">취소</button>
+                    <button data-edit-action="apply" class="primary" style="background:var(--pk-pri);color:#fff;">적용</button>
+                </div>
+            </div>`;
+
+            this.overlay.display("선택자 직접 편집", html, true);
+            const body = this.overlay.node.querySelector(".picky-modal-body");
+            const ta = body.querySelector("#picky-edit-textarea");
+            const info = body.querySelector("#picky-edit-match");
+            ta.value = current;
+
+            const validate = () => {
+                const v = ta.value.trim();
+                if (!v) {
+                    info.textContent = "선택자가 비어 있습니다.";
+                    info.className = "picky-match-info error";
+                    return null;
                 }
-            } catch(e) {
-                alert("올바르지 않은 선택자: " + e.message);
-            }
+                try {
+                    const matches = document.querySelectorAll(v);
+                    info.textContent = `✓ 유효함 — ${matches.length}개 요소 일치`;
+                    info.className = "picky-match-info ok";
+                    return { v, matches };
+                } catch(err) {
+                    info.textContent = "✗ 올바르지 않은 선택자: " + err.message;
+                    info.className = "picky-match-info error";
+                    return null;
+                }
+            };
+            validate();
+            ta.addEventListener("input", validate);
+            setTimeout(() => { ta.focus(); ta.select(); }, 100);
+
+            body.addEventListener("click", e => {
+                const btn = e.target.closest("[data-edit-action]");
+                if (!btn) return;
+                if (btn.dataset.editAction === "cancel") {
+                    this.overlay.dismiss();
+                    return;
+                }
+                if (btn.dataset.editAction === "apply") {
+                    const result = validate();
+                    if (!result) {
+                        alert("올바르지 않은 선택자입니다. 수정 후 다시 시도하세요.");
+                        return;
+                    }
+                    this.state.queryData.selector = result.v;
+                    this.state.hits = result.matches.length;
+                    if (this.dom.disp) this.dom.disp.textContent = result.v;
+                    if (this.dom.match) this.dom.match.textContent = `${result.matches.length}개 일치`;
+                    if (result.matches[0]) {
+                        this.dropFocus(this.state.target);
+                        this.state.target = result.matches[0];
+                        this.setFocus(this.state.target);
+                    }
+                    this.overlay.dismiss();
+                }
+            });
+
+            ta.addEventListener("keydown", e => {
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    body.querySelector('[data-edit-action="apply"]').click();
+                }
+            });
         }
 
-        // 🔧 FIX #9: Auto-detect ad-like elements
         suggestAds() {
             const adKw = /(^|[-_])(ad|ads|advert|banner|sponsor|promot|popup|sponsored)([-_]|$|s)/i;
             const candidates = [];
@@ -1266,10 +1602,9 @@
                 return;
             }
 
-            const html = `<p style="font-size:12px;color:var(--pk-on-surf-var);margin-bottom:10px;">아래 요소들이 광고로 의심됩니다. 호버하면 페이지에서 표시되고, 체크 후 차단 버튼을 누르면 영구 차단됩니다.</p>
+            const html = `<p style="font-size:12px;color:var(--pk-on-surf-var);margin-bottom:10px;line-height:1.5;">📌 항목에 <b>호버/터치</b>하면 페이지에서 <span style="color:#ff9500;font-weight:bold;">주황색</span>으로 표시되고 자동 스크롤됩니다.<br>체크하면 <span style="color:#34c759;font-weight:bold;">초록색</span>으로 고정 표시됩니다.<br>❌ 이 창을 닫으려면 <b style="color:#ff3b30;">우측 상단의 빨간 X 버튼</b>을 누르세요.</p>
             <div style="max-height:50vh;overflow-y:auto;">
             ${top.map((c, i) => {
-                const sel = this.evaluateCss(c.el).selector;
                 const preview = `${c.el.tagName.toLowerCase()}${c.el.id ? '#' + c.el.id : ''}${c.el.className ? '.' + String(c.el.className).split(' ').filter(Boolean).slice(0,2).join('.') : ''}`;
                 return `<label class="picky-ad-suggest-item" data-idx="${i}">
                     <input type="checkbox" data-idx="${i}">
@@ -1277,13 +1612,29 @@
                     <span style="flex:1;font-family:monospace;font-size:11px;word-break:break-all;">${esc(preview)}<br><span style="color:var(--pk-on-surf-var);font-size:10px;">${esc(c.reasons.join(', '))}</span></span>
                 </label>`;
             }).join("")}</div>
-            <div style="display:flex;gap:8px;margin-top:12px;">
-                <button data-suggest-action="selectAll" style="flex:1;padding:8px;background:var(--pk-sec-cont);border:none;border-radius:8px;cursor:pointer;">전체 선택</button>
-                <button data-suggest-action="blockSelected" style="flex:2;padding:8px;background:var(--pk-err);color:#fff;border:none;border-radius:8px;cursor:pointer;">선택 항목 영구 차단</button>
-            </div>`;
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                <button data-suggest-action="selectAll" style="flex:1;min-width:90px;padding:8px;background:var(--pk-sec-cont);border:none;border-radius:8px;cursor:pointer;">전체 선택</button>
+                <button data-suggest-action="clearSel" style="flex:1;min-width:90px;padding:8px;background:var(--pk-sec-cont);border:none;border-radius:8px;cursor:pointer;">선택 해제</button>
+                <button data-suggest-action="closeAds" style="flex:1;min-width:90px;padding:8px;background:var(--pk-sec-cont);border:none;border-radius:8px;cursor:pointer;">✖ 닫기</button>
+            </div>
+            <button data-suggest-action="blockSelected" style="width:100%;padding:10px;margin-top:8px;background:var(--pk-err);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">⛔ 선택 항목 영구 차단</button>`;
 
-            this.overlay.display(`광고 자동 감지 (${top.length}개)`, html, true);
+            this.overlay.display(`광고 자동 감지 (${top.length}개)`, html, true, "picky-ads-modal");
             const body = this.overlay.node.querySelector(".picky-modal-body");
+
+            const applyCheckMark = (idx, checked) => {
+                const item = top[idx];
+                if (!item) return;
+                if (checked) {
+                    if (!item.el.classList.contains("picky-ad-selected-mark")) {
+                        item.el.classList.add("picky-ad-selected-mark");
+                        this.state.adSelectedNodes.push(item.el);
+                    }
+                } else {
+                    item.el.classList.remove("picky-ad-selected-mark");
+                    this.state.adSelectedNodes = this.state.adSelectedNodes.filter(x => x !== item.el);
+                }
+            };
 
             body.addEventListener("mouseover", e => {
                 const lbl = e.target.closest("label[data-idx]");
@@ -1299,16 +1650,44 @@
             body.addEventListener("mouseout", e => {
                 if (e.target.closest("label[data-idx]")) this.clearRulePreview();
             });
+            body.addEventListener("touchstart", e => {
+                const lbl = e.target.closest("label[data-idx]");
+                if (!lbl) return;
+                this.clearRulePreview();
+                const item = top[parseInt(lbl.dataset.idx, 10)];
+                if (item) {
+                    item.el.classList.add("picky-rule-preview-hover");
+                    this.state.hoverPreviewNodes.push(item.el);
+                    item.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, { passive: true });
+
+            body.addEventListener("change", e => {
+                const cb = e.target.closest('input[type=checkbox][data-idx]');
+                if (!cb) return;
+                applyCheckMark(parseInt(cb.dataset.idx, 10), cb.checked);
+            });
+
             body.addEventListener("click", e => {
                 const btn = e.target.closest("[data-suggest-action]");
                 if (!btn) return;
                 const act = btn.dataset.suggestAction;
                 if (act === "selectAll") {
-                    body.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
+                    body.querySelectorAll('input[type=checkbox][data-idx]').forEach(cb => {
+                        cb.checked = true;
+                        applyCheckMark(parseInt(cb.dataset.idx, 10), true);
+                    });
+                } else if (act === "clearSel") {
+                    body.querySelectorAll('input[type=checkbox][data-idx]').forEach(cb => {
+                        cb.checked = false;
+                        applyCheckMark(parseInt(cb.dataset.idx, 10), false);
+                    });
+                } else if (act === "closeAds") {
+                    this.overlay.dismiss();
                 } else if (act === "blockSelected") {
-                    const selected = Array.from(body.querySelectorAll('input[type=checkbox]:checked'));
-                    if (selected.length === 0) { alert("선택된 항목이 없어요."); return; }
-                    if (!confirm(`${selected.length}개 요소를 영구 차단하시겠습니까?`)) return;
+                    const selected = Array.from(body.querySelectorAll('input[type=checkbox][data-idx]:checked'));
+                    if (selected.length === 0) { alert("선택된 항목이 없어요. 좌측 체크박스를 먼저 체크하세요."); return; }
+                    if (!confirm(`${selected.length}개 요소를 영구 차단하시겠습니까?\n(초록색으로 표시된 요소들)`)) return;
                     let added = 0;
                     selected.forEach(cb => {
                         const item = top[parseInt(cb.dataset.idx, 10)];
@@ -1318,11 +1697,20 @@
                         }
                     });
                     this.clearRulePreview();
+                    this.clearAdSelections();
                     alert(`${added}개 규칙이 추가되었습니다.`);
                     this.overlay.dismiss();
                     this.render();
                 }
             });
+
+            const originalDismiss = this.overlay.dismiss.bind(this.overlay);
+            this.overlay.dismiss = () => {
+                this.clearRulePreview();
+                this.clearAdSelections();
+                this.overlay.dismiss = originalDismiss;
+                originalDismiss();
+            };
         }
 
         openInspector() {
@@ -1499,7 +1887,6 @@
             document.addEventListener("touchmove", this.bindings.selMove, { capture: true, passive: true });
             document.addEventListener("touchend", this.bindings.selEnd, { capture: true });
 
-            // 🔧 FIX #8: Keyboard shortcuts
             this.keyHandler = (e) => {
                 if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') {
                     e.preventDefault();
@@ -1514,24 +1901,22 @@
                 }
                 if (e.key === 'Escape' && !this.state.isCollapsed) {
                     if (this.overlay.node) { this.overlay.dismiss(); return; }
-                    this.state.isCollapsed = true;
-                    this.render();
+                    this.minimizeUI();
                     return;
                 }
                 if (this.state.mode === 'selected' && !this.state.isCollapsed
                     && !e.target.closest('input, textarea')) {
                     if (e.key === 'ArrowUp') {
                         e.preventDefault();
-                        this.triggerAction({ target: { closest: () => ({ dataset: { action: 'selParent' } }) } });
+                        this.triggerAction({ target: { closest: sel => sel === '[data-action]' ? { dataset: { action: 'selParent' } } : null } });
                     } else if (e.key === 'ArrowDown') {
                         e.preventDefault();
-                        this.triggerAction({ target: { closest: () => ({ dataset: { action: 'selChild' } }) } });
+                        this.triggerAction({ target: { closest: sel => sel === '[data-action]' ? { dataset: { action: 'selChild' } } : null } });
                     }
                 }
             };
             window.addEventListener('keydown', this.keyHandler, true);
 
-            // Tampermonkey menu commands
             try {
                 GM_registerMenuCommand("🎯 광고 자동 감지", () => {
                     if (this.state.isCollapsed) { this.state.isCollapsed = false; this.render(); }
@@ -1547,12 +1932,22 @@
                     const on = Blocker.toggleEnabled();
                     alert(on ? "차단 ON" : "차단 OFF");
                 });
+                GM_registerMenuCommand("📍 UI 위치 초기화", () => {
+                    GM_setValue("picky_drag_pos", null);
+                    this.state.dragPos = null;
+                    this.applyPositionClass();
+                });
+                GM_registerMenuCommand("🆘 점을 우하단으로 강제 이동", () => {
+                    this.forceCornerPos();
+                    alert("점이 우하단으로 이동했습니다.");
+                });
             } catch(e) {}
         }
 
         terminate(purge = true) {
             if (purge) this.purge();
             this.clearRulePreview();
+            this.clearAdSelections();
             document.removeEventListener("click", this.bindings.nodePick, { capture: true });
             document.removeEventListener("touchstart", this.bindings.selStart, { capture: true });
             document.removeEventListener("touchmove", this.bindings.selMove, { capture: true });
