@@ -195,11 +195,6 @@ wikipedia.org###siteNotice
 wikipedia.org###centralNotice
 !
 !
-! https://account.live.com/
-! - 일부 필터에 의한 로그인 화면 안보임 해결
-account.live.com#@#[class*="-cookie-banner"]
-!
-!
 ! 덕덕고 (https://duckduckgo.com/)
 ! - 오른쪽 메뉴 없애기
 ##.header--aside
@@ -263,32 +258,6 @@ naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
 ||ssl.pstatic.net/adimg3.search/adpost/js/
 !
 !
-! 네이버 뉴스 (https://news.naver.com/)
-! - 필요없는거 없애기
-! - - - 이슈/기자/연재를 구독해보세요
-news.naver.com##.comp_news_subscribe
-! - - - 위클리 심층 키워드
-news.naver.com##.comp_common.comp_journal_subscribe.comp_twenty_news
-! - - - 관심있는 언론사 구독해보세요
-news.naver.com##._short_subscribe_banner_card_wrapper.main_brick_item
-! - - - 신문 1면 모아보기
-news.naver.com##._horizontal_scroll_type._horizontal_card_wrapper.main_brick_item
-!
-!
-! 네이버플러스 멤버쉽 (https://nid.naver.com/)
-! - 아래 규칙 해도 스크롤 안되므로 팝업 차단 하지 말것
-! - 팝업
-!##.popup_layer
-! -회면 뿌연거 해결
-!nid.naver.com###dimmed
-!
-!
-! 네이버엔터 (https://m.entertain.naver.com/)
-! - 오른쪽 배너
-entertain.naver.com##._comp_shortents_rcuul_1.comp_home_group
-entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
-!
-!
 ! 네이버 스토어 (https://smartstore.naver.com/)
 ! - 배너
 ##.ad-container
@@ -324,24 +293,9 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 ##[class*="advertise" i]
 !
 !
-! ! 네이버 웹툰 (https://comic.naver.com/index)
-! - 배너 빈공간
-! - - - 치지직 (https://chzzk.naver.com/) - 왼쪽 치지팜 배너
-##[class*="aside_banner"]
-!
-!
-! 네이버 지도 (https://map.naver.com/)
-! - https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-map.naver.com##div[class^="AD"][style]
-!
 ! 네이버TV (https://tv.naver.com/)
 ! - 로그인 팝업 안뜨는거 해걸
 tv.naver.com#@#[class*="popup_modal" i]
-!
-!
-! 네이트 (https://www.nate.com/)
-! - 차단 사이트
-!||cyad1.nate.com^
 !
 !
 ! 숲 (https://www.sooplive.com/)
@@ -448,43 +402,32 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! - 해제 목록
-!cinety.sooplive.com#@##main_banner
-!cinety.sooplive.com#@#a[href]:has(img[src*="banner"])
-!cinety.sooplive.com#@#[class*="_banner"]
-!cinety.sooplive.com#@#[id*="banner"]
-!cinety.sooplive.com#@#[id^="banner_"]
-!cinety.sooplive.com#@#.banner
-!cinety.sooplive.com#@#.banner_list
+cinety.sooplive.com#@#[class*="banner" i]
 !
 !
 ! 풍투데이 (https://poong.today/)
 ! - 작은 AD 배너
-##[class*="adCard"]
-! - 좌우 배너
-poong.today##._mainWingBannerArea_tck4v_537
-!- 중간 배너
-poong.today##._mainBannerAd_tck4v_534
-! - 하단 배너
-poong.today##._mainLiveArea_tck4v_535
+##li:has([class*="adcard" i])
 !
 !
 ! 치지직 (https://chzzk.naver.com/)
 ! - 광고 차단 프로그램을 사용 중이신가요? 팝업
-##[class*="popup_modal" i]
-!##p.live_information_video_text__zg-Xa:nth-of-type(1)
+!##[class*="popup_modal" i]
+!##[class^="popup" i]
 ! - 팝업 차단으로 인한 스크롤 차단 해제
 chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! 치트키 구매하기 툴팁
-chzzk.naver.com##.tooltip
-! 영상 왼쪽 하단 쇼핑 배너
-!##.streamer_shop_banner
-##[class*="shop_banner" i]
+!chzzk.naver.com##.tooltip
 ! - - - 예외 - 차단리스트 내용 안나옴
-!my.nextdns.io#@#.tooltip
+my.nextdns.io#@#.tooltip
+! 영상 왼쪽 하단 쇼핑 배너 (눈에 안보이는듯)
+!##.streamer_shop_banner
+!##[class*="shop_banner" i]
 ! - 영상내 치지직 로딩 이미지 삭제
-chzzk.naver.com##.pzp-pc__loading-indicator
+!chzzk.naver.com##.pzp-pc__loading-indicator
+chzzk.naver.com##[class*="loading" i]
 ! - 로그인 팝업 안뜨는거 해결
-chzzk.naver.com#@#[class*="popup_modal" i]
+chzzk.naver.com#@#[class^="popup" i]
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -552,7 +495,7 @@ aagag.com#$#.la { position: absolute !important; left: -3000px !important; width
 ! 디시인사이드 (https://gall.dcinside.com)
 ! - 오른쪽 배너 공간
 ! - - - 유니콘Pro에 없는거 (List-KR)
-##[class*="rightbanner" i]
+!##[class*="rightbanner" i]
 dcinside.com##.stickyunit
 ! - 게시물 하단 배너
 !||dctrend.ai/widget/widget.html
@@ -4490,9 +4433,6 @@ mozatv.com##.tips-box
 [$domain=/^cytv\d+.com/]##.index-wall-left, .index-wall-right
 !
 !
-! 김박사넷 (https://phdkim.net/)
-! - 팝업
-##[class^="popup" i]
 !
 !
 !
@@ -4729,8 +4669,10 @@ manhwabang.org##a[target*="target"] img
 !*banner*
 *banner*$script
 
-*ad*banner*$image.script
-*click*banner*$image.script
+*ad*banner*$image,script
+@@*ad*banner*$image,domain="cinety.sooplive.com"
+
+*click*banner*$image,script
 
 ##[class*="banner" i]
 
@@ -4754,12 +4696,10 @@ manhwabang.org##a[target*="target"] img
 ! - 쿠팡플레이 (https://www.coupangplay.com/)
 ! - 웨이브 (https://www.wavve.com/)
 ! - 티빙 (https://www.tving.com/)
-! - 숲 (https://www.sooplive.com/)
-! - 시네티 (https://cinety.sooplive.com/)
 ! - 숲토어 (https://sooptore.sooplive.com/)
 ! - 카카오TV (https://tv.kakao.com/)
 ! - 애니라이프 (https://anilife.app/)
-auction.co.kr,coupang.com,shopping.naver.com,shoppinglive.naver.com,smartstore.naver.com,brand.naver.com,gmarket.co.kr,sungsimdangmall.co.kr,wadiz.kr,11st.co.kr,store.kakao.com,web.joongna.com,t2.xtoon365.com,kr.iherb.com,zum.com,gsshop.com,coupangplay.com,wavve.com,tving.com,sooplive.com,cinety.sooplive.com,sooptore.sooplive.com,tv.kakao.com,anilife.app#@#[class*="banner" i]
+auction.co.kr,coupang.com,shopping.naver.com,shoppinglive.naver.com,smartstore.naver.com,brand.naver.com,gmarket.co.kr,sungsimdangmall.co.kr,wadiz.kr,11st.co.kr,store.kakao.com,web.joongna.com,t2.xtoon365.com,kr.iherb.com,zum.com,gsshop.com,coupangplay.com,wavve.com,tving.com,sooptore.sooplive.com,tv.kakao.com,anilife.app#@#[class*="banner" i]
 ! - 트위치 (https://www.twitch.tv/) - 하지말아볼것
 
 
