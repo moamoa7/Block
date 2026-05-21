@@ -1,11 +1,12 @@
 ! Title: List-KR classic filters list (AdGuard)
 ! Description: AdGuard용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20593.0
+! Version: 2026.20594.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
 
 !#if adguard
+||adv.imadrep.co.kr^
 ||delivery.pryzmads.com^
 ||barohere.xyz^
 ||ad.adwiser.kr^
@@ -256,6 +257,7 @@
 !
 ! DOMAIN-REFRESHER: END
 
+||serv.ds.kakao.com^
 ||cafe-ads-api.daum.net^
 ||worker.gsr-ads.co.kr^
 ||ad.mojisead.co.kr^
@@ -637,6 +639,9 @@ m.fmkorea.com##iframe[src*="//loader.fmkorea.com/"][src*="_loader/"]
 !
 ! DOMAIN-REFRESHER: START
 !
+[$domain=/newto[0-9]+\.com/]##div[class^="basic-banner-"]
+[$domain=/bookto[0-9]+\.com/]##div[class^="basic-banner-"]
+[$domain=/mato[0-9]+\.com/]##div[class^="basic-banner-"]
 [$domain=/sbxh[0-9]+\.com/]##[data-brs][data-br]
 [$domain=/torrentsee[0-9]+\.com/]##.container > div[style^="z-index:999; "]
 !
@@ -654,6 +659,7 @@ m.fmkorea.com##iframe[src*="//loader.fmkorea.com/"][src*="_loader/"]
 /^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 /data/banner.json?$domain=~nintendo.*
 
+||static.fmkorea.com/modules/fmad/tpl/*/naver_power_link.
 ||jeongcheogi.edugamja.com/ads/
 ||algumon.com/n/api/ca/list
 ||api.coupangstreaming.com/ads-vod-public/
@@ -1513,6 +1519,9 @@ m.fmkorea.com##iframe[src*="//loader.fmkorea.com/"][src*="_loader/"]
 !
 ! DOMAIN-REFRESHER: START
 !
+/\/data\/apms\/banner\//$domain=/mato[0-9]+\.com/
+/\/data\/apms\/banner\//$domain=/newto[0-9]+\.com/
+/\/data\/apms\/banner\//$domain=/bookto[0-9]+\.com/
 /^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\/[a-z0-9-_]+\./$image,domain=/wfwf[0-9]+\.com/
 /^https:\/\/cdn\.xtoon[0-9]+\.com\/collaboration\//$domain=/xtoon[0-9]+\.com/
 /^https:\/\/funbe[0-9]+\.com\/images\//$domain=/funbe[0-9]+\.com/
@@ -1789,6 +1798,7 @@ eegosa.com##section[id*="_ads_"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+ruliweb.com##.ti_reserved_slot[style^="min-height:"]
 etoland.co.kr###list-header + section li.h-fit.min-h-14:not(.border-b-etoDivider-1)
 zod.kr##a[rel="sponsored"]
 zod.kr##.swiper-container.swiper-initialized.swiper-horizontal li[style^="width:"] > a[target]
@@ -4066,19 +4076,14 @@ dicoall.com#@##homead
 dicoall.com#@##ad-lead
 dicoall.com#@##rightAd
 ! bser-koroshi.vercel.app
-!#if (adguard_app_windows || adguard_app_mac || adguard_app_android || adguard_app_cli || adguard_ext_firefox || adguard_ext_chromium || adguard_ext_chromium_mv3)
-_vercel/insights/script.js$domain=bser-koroshi.vercel.app,redirect=nooptext
-!#else
-bser-koroshi.vercel.app#%#//scriptlet('prevent-fetch', '_vercel/insights/script.js')
-!#endif
-!#if (adguard_app_ios || adguard_ext_safari)
 !#safari_cb_affinity(privacy)
 @@||bser-koroshi.vercel.app/_vercel/insights/script.js$domain=bser-koroshi.vercel.app,xmlhttprequest
 !#safari_cb_affinity
-!#endif
 ! windowsforum.kr
-windowsforum.kr#%#//scriptlet('prevent-constructor', 'MutationObserver', 'offsetHeight === 0')
-windowsforum.kr#%#//scriptlet('prevent-addEventListener', 'load', 'setTimeout(function() {')
+windowsforum.kr#%#//scriptlet('set-constant', 'isAdBlockDisabled', 'true')
+!#if (adguard_app_ios || adguard_ext_safari)
+@@||windowsforum.kr/prebid.js
+!#endif
 !
 etoland.co.kr#%#//scriptlet('prevent-fetch', '/pagead2.googlesyndication.com|googleads.g.doubleclick.net|googletagservices.com|securepubads.g.doubleclick.net|googleads.g.doubleclick.net|google-analytics.com|googlesyndication.com|doubleclick.net/')
 !#if (adguard_app_ios || adguard_ext_safari)
@@ -4309,6 +4314,7 @@ dicoall.com#@##homead
 dicoall.com#@##ad-lead
 dicoall.com#@##rightAd
 !
+@@||windowsforum.kr/prebid.js
 @@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=windowsforum.kr
 windowsforum.kr#@#.adsbygoogle-noablate
 windowsforum.kr#@#ins.adsbygoogle[data-ad-slot]
@@ -4550,6 +4556,9 @@ tvwiki22.com,tvwiki23.com,tvwiki24.com,tvwiki25.com,tvwiki26.com,tvwiki27.com,tv
 !#endif
 
 !#if (adguard && adguard_ext_chromium_mv3)
+/\/data\/apms\/banner\//$domain=mato05.com|mato06.com|mato07.com|mato08.com|mato09.com|mato10.com|mato11.com|mato12.com|mato13.com|mato14.com|mato15.com|mato16.com
+/\/data\/apms\/banner\//$domain=newto05.com|newto06.com|newto07.com|newto08.com|newto09.com|newto10.com|newto11.com|newto12.com|newto13.com|newto14.com|newto15.com|newto16.com
+/\/data\/apms\/banner\//$domain=bookto05.com|bookto06.com|bookto07.com|bookto08.com|bookto09.com|bookto10.com|bookto11.com|bookto12.com|bookto13.com|bookto14.com|bookto15.com|bookto16.com
 sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com,sbxh6.com,sbxh7.com,sbxh8.com,sbxh9.com,sbxh10.com,sbxh11.com,sbxh12.com#%#//scriptlet('prevent-setTimeout', '/[A-Za-z0-9]+ *\( *\) *, *[A-Za-z0-9]+ *\. *[A-Za-z0-9]+ *= *window\.setInterval *\(/')
 sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com,sbxh6.com,sbxh7.com,sbxh8.com,sbxh9.com,sbxh10.com,sbxh11.com,sbxh12.com##[data-brs][data-br]
 /^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\/[a-z0-9-_]+\./$image,domain=wfwf449.com|wfwf450.com|wfwf451.com|wfwf452.com|wfwf453.com|wfwf454.com|wfwf455.com|wfwf456.com|wfwf457.com|wfwf458.com|wfwf459.com
@@ -4575,3 +4584,4 @@ tvwiki22.com,tvwiki23.com,tvwiki24.com,tvwiki25.com,tvwiki26.com,tvwiki27.com,tv
 /https:\/\/tvwiki[0-9]+\.com\/data\/banner\//$domain=tvwiki22.com|tvwiki23.com|tvwiki24.com|tvwiki25.com|tvwiki26.com|tvwiki27.com|tvwiki28.com|tvwiki29.com|tvwiki30.com|tvwiki31.com|tvwiki32.com|tvwiki33.com|tvwiki34.com
 /^https:\/\/cdn[a-z0-9]+\.site\/data\/banner\//$domain=tvwiki18.net|tvwiki19.net|tvwik20.net|tvwik21.net|tvwik22.net|tvwik23.net|tvwik24.net|tvwik25.net|tvwik26.net|tvwiki27.net|tvwiki28.net|tvwiki29.net|tvwiki30.net|tvwiki31.net|tvwiki32.net
 !#endif
+
