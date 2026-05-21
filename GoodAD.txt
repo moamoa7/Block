@@ -105,6 +105,12 @@
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !
 !
+! - 모든 websocket 차단
+*$websocket,ping
+! - - - 채팅이 필요한곳 제외
+@@||*$websocket,domain=discord.com|play.sooplive.com|chzzk.naver.com|twitch.tv|kick.com|poooo.ml|ok.ru
+!
+!
 !
 !
 ! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
@@ -564,7 +570,7 @@ dcinside.com##.stickyunit
 !h5.dcinside.com##*
 !||wiki.dcinside.com
 !wiki.dcinside.com##*
-gall.dcinside.com##div[class*="banner" i]
+!gall.dcinside.com##div[class*="banner" i]
 ! - 모바일 디시에서 공지가 지워지는 현상 해결 (출처 : https://gall.dcinside.com/adguard/2348)
 m.dcinside.com#@##notice_list > li
 m.dcinside.com###notice_list > li:not(:has(.ntc-line-orange))
@@ -889,7 +895,8 @@ ygosu.com##.pull-left.btn-group
 ! - 모바일 하단 배너
 !##.ad_area1
 ! - 하단 오른쪽 따라다니는 배너
-##iframe[src*="//ad.aceplanet.co.kr/"]
+!##iframe[src*="//ad.aceplanet.co.kr/"]
+##iframe[src*="ad." i]
 ! - 이미지 복원
 !@@||jjang0u.com/img/*$image
 !
@@ -1293,6 +1300,9 @@ poooo.ml#@#.ad
 [$domain=/^tvwiki\d+\.net$/]##.bo_v_nb_sticky.bo_v_nb
 ! - 시청기록 / 맨위로 따라다니는 버튼
 [$domain=/^tvwiki\d+\.net$/]##.floating-side-btns
+! - websocket 차단 - 먼지 모르갰지만 재생에 필요한 사이트에 websocket이 켜있어서 막아놓음
+! - - - 티비위키 / 티비몬 / 티비핫 공통 적용 - 모든 websocket 차단으로 변경하여 주석처리
+!||player.bunny-frame.online$websocket
 !
 !
 ! 티비착 (https://tvchak.org/)  (https://tvchak201.com/)  (https://tvchak.live/)
@@ -4645,6 +4655,9 @@ ad-script.
 !
 !
 /_store
+!
+!
+##iframe[src*="ads" i]
 !
 !
 !
