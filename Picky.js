@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.6.0
+// @version      3.6.1
 // @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 카드 리스트 UI, 이미지·네트워크·ARIA 고급 전략 지원
 // @author       hooray804
 // @license      MIT
@@ -18,7 +18,6 @@
 (function () {
     'use strict';
 
-    // 프레임 내부에서는 동작 안 함 (최상위 문서에서만)
     if (window.top !== window.self) return;
 
     // ───────────────────────────────────────────────
@@ -32,7 +31,6 @@
     const SHIELD_ID  = 'picky-shield';
     const DRAG_THRESHOLD = 6;
 
-    // 드래그 무시 셀렉터 (UI 요소들)
     const NO_DRAG_SELECTOR = [
         'input', 'textarea', 'select', 'button', 'a',
         '[role="slider"]', '[contenteditable="true"]',
@@ -41,13 +39,11 @@
         '.picky-cards-scroll', '.picky-cards-scroll *'
     ].join(',');
 
-    // :has() 지원 여부
     const SUPPORTS_HAS = (() => {
         try { document.querySelector(':has(*)'); return true; }
         catch (_) { return false; }
     })();
 
-    // 안전한 HTML 이스케이프
     const esc = (s) => String(s ?? '')
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -66,7 +62,6 @@
         'mediavine.com', 'adcolony.com', 'mopub.com',
         'adnxs1.com', 'serving-sys.com', 'tapad.com',
         'bidswitch.net', 'casalemedia.com', 'contextweb.com',
-        // 한국 광고망
         'dable.io', 'mediacategory.com', 'realclick.co.kr',
         'recopick.com', 'ad.naver.com', 'ader.naver.com',
         'wcs.naver.net', 'ad.daum.net', 'display.ad.daum.net'
@@ -80,20 +75,20 @@
     ];
 
     const AD_LINK_PATTERNS = [
-        { kw: 'doubleclick',     desc: 'DoubleClick' },
+        { kw: 'doubleclick',       desc: 'DoubleClick' },
         { kw: 'googlesyndication', desc: 'Google Syndication' },
-        { kw: 'googleadservices', desc: 'Google Ad Services' },
-        { kw: '/click?',         desc: '클릭 추적' },
-        { kw: '/redirect',       desc: '리다이렉트' },
-        { kw: 'utm_source=ad',   desc: 'UTM 광고' },
-        { kw: 'utm_medium=cpc',  desc: 'CPC 캠페인' },
-        { kw: 'adclick',         desc: '광고 클릭' },
-        { kw: '//ad.',           desc: '광고 서브도메인' },
-        { kw: '//ads.',          desc: '광고 서브도메인' },
-        { kw: 'taboola',         desc: 'Taboola' },
-        { kw: 'outbrain',        desc: 'Outbrain' },
-        { kw: 'criteo',          desc: 'Criteo' },
-        { kw: '/track',          desc: '트래킹' }
+        { kw: 'googleadservices',  desc: 'Google Ad Services' },
+        { kw: '/click?',           desc: '클릭 추적' },
+        { kw: '/redirect',         desc: '리다이렉트' },
+        { kw: 'utm_source=ad',     desc: 'UTM 광고' },
+        { kw: 'utm_medium=cpc',    desc: 'CPC 캠페인' },
+        { kw: 'adclick',           desc: '광고 클릭' },
+        { kw: '//ad.',             desc: '광고 서브도메인' },
+        { kw: '//ads.',            desc: '광고 서브도메인' },
+        { kw: 'taboola',           desc: 'Taboola' },
+        { kw: 'outbrain',          desc: 'Outbrain' },
+        { kw: 'criteo',            desc: 'Criteo' },
+        { kw: '/track',            desc: '트래킹' }
     ];
 
     const AD_PATH_PATTERNS = [
@@ -107,19 +102,16 @@
         { kw: '-ad-',     desc: '광고 키워드' }
     ];
 
-    // 더미 href 값 (광고 클릭 버튼 패턴)
     const DUMMY_HREF_VALUES = new Set([
         'javascript:;', 'javascript:void(0)', 'javascript:void(0);',
         '#', '#!', 'about:blank', ''
     ]);
 
-    // ARIA 광고 키워드
     const ARIA_AD_KEYWORDS = [
         '광고', '배너', 'AD', 'ad', 'Ad', 'banner', 'Banner',
         'advertisement', 'sponsor', 'promotion', '프로모션', '스폰서'
     ];
 
-    // 이미지 src 같이 광고로 보이는 파일 확장자
     const AD_FILE_EXTS = ['.gif', '.jpg', '.jpeg', '.png', '.webp', '.svg'];
 
     // ───────────────────────────────────────────────
@@ -128,20 +120,15 @@
     const ICON_CLOSE   = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
     const ICON_SET     = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19.14 12.94a7.96 7.96 0 000-1.88l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.61-.22l-2.39.96a8.13 8.13 0 00-1.62-.94l-.36-2.54A.5.5 0 0014 2h-4a.5.5 0 00-.5.42l-.36 2.54c-.58.24-1.12.56-1.62.94l-2.39-.96a.5.5 0 00-.61.22L2.6 8.48a.5.5 0 00.12.64l2.03 1.58a7.96 7.96 0 000 1.88L2.72 14.16a.5.5 0 00-.12.64l1.92 3.32a.5.5 0 00.61.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54A.5.5 0 0010 22h4a.5.5 0 00.5-.42l.36-2.54a8.13 8.13 0 001.62-.94l2.39.96a.5.5 0 00.61-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1112 8.5a3.5 3.5 0 010 7z"/></svg>';
     const ICON_MIN     = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 13H5v-2h14v2z"/></svg>';
-    const ICON_MAX     = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
-    const ICON_BACK    = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>';
     const ICON_COPY    = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16 1H4a2 2 0 00-2 2v14h2V3h12V1zm3 4H8a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2zm0 16H8V7h11v14z"/></svg>';
     const ICON_BLOCK   = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18a7.95 7.95 0 01-4.9-1.69L18.31 7.1A7.95 7.95 0 0120 12c0 4.41-3.59 8-8 8z"/></svg>';
     const ICON_EDIT    = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
     const ICON_UP      = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>';
     const ICON_DOWN    = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>';
     const ICON_TARGET  = '<svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="3" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2" d="M12 4v3M12 17v3M4 12h3M17 12h3"/></svg>';
-    const ICON_DOT     = '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="8" fill="currentColor"/></svg>';
-    const ICON_RESET   = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 5V1L7 6l5 5V7a6 6 0 016 6 6 6 0 01-6 6 6 6 0 01-6-6H4a8 8 0 008 8 8 8 0 008-8 8 8 0 00-8-8z"/></svg>';
-    const ICON_CODE    = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0L19.2 12l-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>';
 
     // ───────────────────────────────────────────────
-    // Blocker — 규칙 저장/적용 + AdGuard/uBlock 내보내기
+    // Blocker
     // ───────────────────────────────────────────────
     const Blocker = {
         STYLE_ID: 'picky-block-style',
@@ -151,7 +138,6 @@
         KEY_AGG:   'picky_aggressive',
 
         async init() {
-            // document-start에서 호출 → 가능한 빨리 스타일 주입
             const apply = () => this.enforce();
             if (document.documentElement) apply();
             new MutationObserver(() => {
@@ -258,7 +244,6 @@
             };
         },
 
-        // AdGuard/uBlock 호환 코스메틱 규칙 (호스트##selector)
         toCosmetic(sel, scope = 'host') {
             if (scope === 'global') return `##${sel}`;
             return `${this.host()}##${sel}`;
@@ -267,7 +252,7 @@
         exportJSON() {
             const data = {
                 app: 'Picky Advanced',
-                version: '3.6.0',
+                version: '3.6.1',
                 exportDate: new Date().toISOString(),
                 rules: this.fetchAll()
             };
@@ -280,12 +265,11 @@
             setTimeout(() => URL.revokeObjectURL(url), 1000);
         },
 
-        // AdGuard/uBlock 호환 필터 텍스트 (양쪽 모두 동작하는 공통 문법)
         exportFilterText() {
             const all = this.fetchAll();
             const lines = [
                 '! Title: Picky Advanced Export',
-                `! Version: 3.6.0`,
+                `! Version: 3.6.1`,
                 `! Generated: ${new Date().toISOString()}`,
                 '! Syntax: AdGuard / uBlock Origin compatible',
                 ''
@@ -345,7 +329,7 @@
     Blocker.init();
 
     // ───────────────────────────────────────────────
-    // Modal — 오버레이 다이얼로그
+    // Modal
     // ───────────────────────────────────────────────
     class Modal {
         constructor(container) {
@@ -388,49 +372,31 @@
         }
     }
 
-    // 다음 파트로 ───────────────────────────────────
-    // Part 2/4: SelectorStrategies 전반부 (유틸 + 기존 6개 + 이미지 4개 + dummyHref)
     // ───────────────────────────────────────────────
-
-    // === Part 1 끝, Part 2~4는 이어서 출력 ===
-
-    // ───────────────────────────────────────────────
-    // SelectorStrategies — 셀렉터 생성 전략 집합
+    // SelectorStrategies
     // ───────────────────────────────────────────────
     class SelectorStrategies {
 
-        // ─── 유틸리티 ────────────────────────────
         static countMatches(sel, root = document) {
             if (!sel) return 0;
             try { return root.querySelectorAll(sel).length; }
             catch (_) { return 0; }
         }
 
-        // 클래스명이 의미있는지 (volatile / picky 내부 / 동적생성 클래스 제외)
         static isMeaningfulClass(cls) {
             if (!cls || typeof cls !== 'string') return false;
             if (cls.length < 2 || cls.length > 40) return false;
-
-            // Picky 내부 클래스 차단 (Patch A)
             if (cls.startsWith('picky-')) return false;
             if (cls === HL_CLASS || cls === ISO_PATH || cls === ISO_BODY) return false;
-
-            // 동적 prefix
             if (/^(ember|v-|ng-|re-|css-|sc-|jsx-|emotion-|makeStyles-)/.test(cls)) return false;
-
-            // 해시성 (영문 대문자+숫자 7자 이상)
             if (/^[a-zA-Z0-9_-]{8,}$/.test(cls) && /[0-9]/.test(cls) && /[A-Z]/.test(cls)) return false;
-
-            // 상태성 클래스
             const volatile = ['active','focus','hover','selected','disabled','checked',
                               'open','closed','expanded','collapsed','loading','transition',
                               'animating','v-enter','v-leave','is-active','is-open'];
             if (volatile.some(v => cls.toLowerCase().includes(v))) return false;
-
             return true;
         }
 
-        // 엘리먼트의 안전한 클래스 배열 (picky 클래스 제거)
         static safeClasses(el) {
             if (!el || !el.classList) return [];
             return Array.from(el.classList).filter(c =>
@@ -439,12 +405,10 @@
             );
         }
 
-        // 의미 있는 클래스만 추출
         static meaningfulClasses(el) {
             return this.safeClasses(el).filter(c => this.isMeaningfulClass(c));
         }
 
-        // 부모 체인 (최대 깊이)
         static parentChain(el, maxDepth = 5) {
             const chain = [];
             let cur = el?.parentElement;
@@ -455,7 +419,6 @@
             return chain;
         }
 
-        // 이미지 찾기 (자기 자신 / 자식 / 부모 a의 자식)
         static _findImg(el) {
             if (!el) return null;
             if (el.tagName === 'IMG') return el;
@@ -465,25 +428,21 @@
             return a?.querySelector?.('img') || null;
         }
 
-        // 가장 가까운 <a>
         static _findAnchor(el) {
             if (!el) return null;
             if (el.tagName === 'A') return el;
             return el.closest?.('a') || null;
         }
 
-        // 이미지 관련 요소인지
         static isImageRelated(el) {
             return !!this._findImg(el);
         }
 
-        // 셀렉터 점수 (0~100)
         static scoreSelector(sel, el, options = {}) {
             if (!sel) return 0;
             const matches = this.countMatches(sel);
             if (matches === 0) return 0;
 
-            // 실제로 대상 엘리먼트를 포함하는지 검증
             try {
                 const list = document.querySelectorAll(sel);
                 if (el && ![...list].includes(el)) return 0;
@@ -491,38 +450,32 @@
 
             let score = 50;
 
-            // 매치 개수 (적을수록 정확)
             if (matches === 1) score += 25;
             else if (matches <= 3) score += 18;
             else if (matches <= 10) score += 10;
             else if (matches <= 30) score += 4;
             else score -= 5;
 
-            // 셀렉터 길이
             if (sel.length < 30) score += 8;
             else if (sel.length < 60) score += 3;
             else if (sel.length > 120) score -= 8;
 
-            // 보너스
-            if (/^#[\w-]+$/.test(sel)) score += 12;                          // 순수 ID
-            if (/^#[\w-]+\.[\w-]+/.test(sel)) score += 14;                   // ID+클래스 조합
-            if (/\[data-[\w-]+/.test(sel)) score += 10;                      // data 속성
-            if (/\[aria-[\w-]+/.test(sel)) score += 8;                       // aria 속성
-            if (/:has\(/.test(sel)) score += 6;                              // :has()
-            if (/\[(src|href)\*?=/.test(sel)) score += 7;                    // src/href 매칭
+            if (/^#[\w-]+$/.test(sel)) score += 12;
+            if (/^#[\w-]+\.[\w-]+/.test(sel)) score += 14;
+            if (/\[data-[\w-]+/.test(sel)) score += 10;
+            if (/\[aria-[\w-]+/.test(sel)) score += 8;
+            if (/:has\(/.test(sel)) score += 6;
+            if (/\[(src|href)\*?=/.test(sel)) score += 7;
 
-            // 페널티
-            if (/:nth-of-type\(\d+\).*:nth-of-type/.test(sel)) score -= 8;   // nth 중첩
-            if (sel.split('>').length > 4) score -= 10;                      // 깊은 자손 셀렉터
-            if (/picky-/.test(sel)) return 0;                                // picky 클래스 완전 배제
+            if (/:nth-of-type\(\d+\).*:nth-of-type/.test(sel)) score -= 8;
+            if (sel.split('>').length > 4) score -= 10;
+            if (/picky-/.test(sel)) return 0;
 
-            // 사용자 옵션 보너스
             if (options.bonus) score += options.bonus;
 
             return Math.max(0, Math.min(100, score));
         }
 
-        // 점수 → 별 등급
         static scoreToStars(score) {
             if (score >= 80) return '★★★';
             if (score >= 60) return '★★☆';
@@ -530,7 +483,38 @@
             return '☆☆☆';
         }
 
-        // ─── 전략 1: 의미있는 속성 (semantic) ────
+        // 후보 배열 → 점수 정렬 후 상위 N개를 결과 객체로 변환
+        static _topN(candidates, baseInfo, el, n = 2) {
+            if (!candidates || !candidates.length) return [];
+            const scored = candidates
+                .map(c => ({
+                    ...c,
+                    score: this.scoreSelector(c.sel, el, { bonus: c.bonus || 0 })
+                }))
+                .filter(x => x.score > 0);
+
+            const seen = new Set();
+            const dedup = [];
+            for (const s of scored.sort((a, b) => b.score - a.score)) {
+                if (seen.has(s.sel)) continue;
+                seen.add(s.sel);
+                dedup.push(s);
+                if (dedup.length >= n) break;
+            }
+
+            return dedup.map(best => ({
+                type: baseInfo.type,
+                icon: baseInfo.icon,
+                label: baseInfo.label,
+                selector: best.sel,
+                matches: this.countMatches(best.sel),
+                score: best.score,
+                stars: this.scoreToStars(best.score),
+                hint: best.hint
+            }));
+        }
+
+        // ─── 전략 1: semantic ───────────────────
         static semantic(el) {
             const priority = [
                 'data-testid', 'data-cy', 'data-test-id', 'data-test',
@@ -545,191 +529,147 @@
                 if (!val || val.length > 60) continue;
                 const tag = el.tagName.toLowerCase();
                 const variants = [
-                    `[${attr}="${CSS.escape(val)}"]`,
-                    `${tag}[${attr}="${CSS.escape(val)}"]`,
-                    val.length > 8 ? `[${attr}*="${CSS.escape(val.slice(0, 8))}"]` : null
+                    { sel: `[${attr}="${CSS.escape(val)}"]`, hint: `${attr} 정확 일치` },
+                    { sel: `${tag}[${attr}="${CSS.escape(val)}"]`, hint: `${tag} + ${attr}` },
+                    val.length > 8
+                        ? { sel: `[${attr}*="${CSS.escape(val.slice(0, 8))}"]`, hint: `${attr} 부분 일치` }
+                        : null
                 ].filter(Boolean);
-
-                for (const sel of variants) {
-                    const score = this.scoreSelector(sel, el);
-                    if (score >= 50) candidates.push({ sel, score, attr });
-                }
+                candidates.push(...variants);
             }
 
-            if (!candidates.length) return null;
-            candidates.sort((a, b) => b.score - a.score);
-            const best = candidates[0];
-            return {
-                type: 'semantic',
-                icon: '🏷️',
-                label: '의미있는 속성',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: `${best.attr} 속성 기반`
-            };
+            return this._topN(
+                candidates,
+                { type: 'semantic', icon: '🏷️', label: '의미있는 속성' },
+                el, 2
+            );
         }
 
-        // ─── 전략 2: 가장 짧은 셀렉터 (shortest + ID+class 조합) ──
+        // ─── 전략 2: shortest ───────────────────
         static shortest(el) {
             const candidates = [];
             const tag = el.tagName.toLowerCase();
             const id = el.id;
             const classes = this.meaningfulClasses(el);
 
-            // 순수 ID
             if (id && /^[a-zA-Z][\w-]*$/.test(id)) {
-                candidates.push(`#${CSS.escape(id)}`);
-                // ID + 클래스 조합 (Patch C)
+                candidates.push({ sel: `#${CSS.escape(id)}`, hint: 'ID 단독' });
                 for (const c of classes.slice(0, 2)) {
-                    candidates.push(`#${CSS.escape(id)}.${CSS.escape(c)}`);
+                    candidates.push({ sel: `#${CSS.escape(id)}.${CSS.escape(c)}`, hint: 'ID + 클래스' });
                 }
                 if (classes.length >= 2) {
-                    candidates.push(`#${CSS.escape(id)}.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}`);
+                    candidates.push({
+                        sel: `#${CSS.escape(id)}.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}`,
+                        hint: 'ID + 다중 클래스'
+                    });
                 }
             }
 
-            // 클래스만
             for (const c of classes.slice(0, 3)) {
-                candidates.push(`.${CSS.escape(c)}`);
-                candidates.push(`${tag}.${CSS.escape(c)}`);
+                candidates.push({ sel: `.${CSS.escape(c)}`, hint: '클래스 단독' });
+                candidates.push({ sel: `${tag}.${CSS.escape(c)}`, hint: `${tag} + 클래스` });
             }
 
-            // 다중 클래스
             if (classes.length >= 2) {
-                candidates.push(`.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}`);
+                candidates.push({
+                    sel: `.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}`,
+                    hint: '다중 클래스'
+                });
             }
 
-            // 태그만 (마지막 수단)
-            if (!candidates.length) candidates.push(tag);
+            if (!candidates.length) candidates.push({ sel: tag, hint: '태그만' });
 
-            const scored = candidates
-                .map(sel => ({ sel, score: this.scoreSelector(sel, el) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'shortest',
-                icon: '✨',
-                label: '가장 짧은 셀렉터',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: id ? 'ID 우선' : '클래스 기반'
-            };
+            return this._topN(
+                candidates,
+                { type: 'shortest', icon: '✨', label: '가장 짧은 셀렉터' },
+                el, 2
+            );
         }
 
-        // ─── 전략 2b: 더미 href (Patch B) ────────
+        // ─── 전략 2b: dummyHref ────────────────
         static dummyHref(el) {
             const anchor = this._findAnchor(el);
-            if (!anchor) return null;
+            if (!anchor) return [];
             const href = anchor.getAttribute('href');
-            if (!href || !DUMMY_HREF_VALUES.has(href.trim())) return null;
+            if (!href || !DUMMY_HREF_VALUES.has(href.trim())) return [];
 
             const candidates = [];
             const parent = anchor.parentElement;
 
-            // 기본: a[href="..."]
-            candidates.push(`a[href="${CSS.escape(href)}"]`);
+            candidates.push({ sel: `a[href="${CSS.escape(href)}"]`, hint: `더미 href="${href}"`, bonus: 6 });
 
-            // ID/클래스 조합
             if (anchor.id && /^[a-zA-Z][\w-]*$/.test(anchor.id)) {
-                candidates.push(`a#${CSS.escape(anchor.id)}[href="${CSS.escape(href)}"]`);
+                candidates.push({
+                    sel: `a#${CSS.escape(anchor.id)}[href="${CSS.escape(href)}"]`,
+                    hint: 'ID + 더미 href',
+                    bonus: 8
+                });
             }
             const aClasses = this.meaningfulClasses(anchor);
             for (const c of aClasses.slice(0, 2)) {
-                candidates.push(`a.${CSS.escape(c)}[href="${CSS.escape(href)}"]`);
+                candidates.push({
+                    sel: `a.${CSS.escape(c)}[href="${CSS.escape(href)}"]`,
+                    hint: '클래스 + 더미 href',
+                    bonus: 7
+                });
             }
 
-            // 부모 ID 기반 자손 셀렉터
             if (parent?.id && /^[a-zA-Z][\w-]*$/.test(parent.id)) {
-                candidates.push(`#${CSS.escape(parent.id)} a[href="${CSS.escape(href)}"]`);
+                candidates.push({
+                    sel: `#${CSS.escape(parent.id)} a[href="${CSS.escape(href)}"]`,
+                    hint: '부모 ID 내 더미 href',
+                    bonus: 7
+                });
             }
 
-            const scored = candidates
-                .map(sel => ({ sel, score: this.scoreSelector(sel, el, { bonus: 6 }) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'dummyHref',
-                icon: '🔗',
-                label: '더미 링크 (광고 클릭 패턴)',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: `href="${href}" 광고 버튼 가능성`
-            };
+            return this._topN(
+                candidates,
+                { type: 'dummyHref', icon: '🔗', label: '더미 링크 (광고 클릭 패턴)' },
+                el, 2
+            );
         }
 
-        // ─── 전략 3: 클래스 패턴 (BEM/광고 키워드) ────
+        // ─── 전략 3: classPattern ──────────────
         static classPattern(el) {
             const classes = this.meaningfulClasses(el);
-            if (!classes.length) return null;
-
-            const adKeywords = ['ad', 'ads', 'banner', 'sponsor', 'promo', 'advertisement', 'popup', 'overlay'];
             const candidates = [];
+            const adKeywords = ['ad', 'ads', 'banner', 'sponsor', 'promo', 'advertisement', 'popup', 'overlay'];
 
             for (const c of classes) {
                 const low = c.toLowerCase();
-                // 광고 키워드 직접 포함
                 if (adKeywords.some(k => low.includes(k))) {
-                    candidates.push({ sel: `[class*="${CSS.escape(c)}"]`, hint: '광고 키워드 클래스' });
-                    candidates.push({ sel: `.${CSS.escape(c)}`, hint: '광고 키워드 클래스' });
+                    candidates.push({ sel: `[class*="${CSS.escape(c)}"]`, hint: `광고 키워드 부분일치: ${c}`, bonus: 4 });
+                    candidates.push({ sel: `.${CSS.escape(c)}`, hint: `광고 키워드 클래스: ${c}`, bonus: 6 });
                 }
-
-                // BEM 패턴 (block__element 또는 block--modifier)
                 const bem = c.match(/^([a-z][\w-]*?)(?:__|--)/i);
                 if (bem) {
                     candidates.push({ sel: `[class^="${CSS.escape(bem[1])}"]`, hint: `BEM 블록: ${bem[1]}` });
                 }
             }
 
-            // data-ad-* 속성
             for (const attr of el.attributes || []) {
                 if (/^data-ad/i.test(attr.name)) {
-                    candidates.push({ sel: `[${attr.name}]`, hint: '광고 데이터 속성' });
+                    candidates.push({ sel: `[${attr.name}]`, hint: `광고 데이터 속성: ${attr.name}`, bonus: 8 });
                 }
             }
 
-            if (!candidates.length) return null;
-
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, el) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'classPattern',
-                icon: '📎',
-                label: '클래스 패턴',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'classPattern', icon: '📎', label: '클래스 패턴' },
+                el, 2
+            );
         }
 
-        // ─── 전략 4: 정밀 평가 (외부 evaluator) ────
+        // ─── 전략 4: precise (단일) ────────────
         static precise(el, evaluator) {
-            if (typeof evaluator !== 'function') return null;
+            if (typeof evaluator !== 'function') return [];
             let sel;
-            try { sel = evaluator(el); } catch (_) { return null; }
-            if (!sel || /picky-/.test(sel)) return null;
+            try { sel = evaluator(el); } catch (_) { return []; }
+            if (!sel || /picky-/.test(sel)) return [];
 
             const score = this.scoreSelector(sel, el);
-            if (!score) return null;
-            return {
+            if (!score) return [];
+            return [{
                 type: 'precise',
                 icon: '🎯',
                 label: '정밀 셀렉터',
@@ -738,34 +678,29 @@
                 score,
                 stars: this.scoreToStars(score),
                 hint: '평가기 기반'
-            };
+            }];
         }
 
-        // ─── 전략 5: 유사 그룹 (similarGroup) ────
+        // ─── 전략 5: similarGroup ──────────────
         static similarGroup(el) {
             const parent = el.parentElement;
-            if (!parent) return null;
+            if (!parent) return [];
             const tag = el.tagName.toLowerCase();
             const classes = this.meaningfulClasses(el);
 
-            // 같은 태그의 형제
             const siblings = Array.from(parent.children).filter(c => c.tagName === el.tagName);
-            if (siblings.length < 2) return null;
+            if (siblings.length < 2) return [];
 
             const candidates = [];
-
-            // 공통 클래스 찾기
             for (const c of classes) {
                 const sharedCount = siblings.filter(s => s.classList.contains(c)).length;
                 if (sharedCount >= 2) {
                     candidates.push({
                         sel: `${tag}.${CSS.escape(c)}`,
-                        hint: `${sharedCount}개 형제 공유`
+                        hint: `${sharedCount}개 형제 공유: ${c}`
                     });
                 }
             }
-
-            // 부모 ID + 자식 태그
             if (parent.id && /^[a-zA-Z][\w-]*$/.test(parent.id)) {
                 candidates.push({
                     sel: `#${CSS.escape(parent.id)} > ${tag}`,
@@ -773,28 +708,14 @@
                 });
             }
 
-            if (!candidates.length) return null;
-
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, el) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'similarGroup',
-                icon: '👥',
-                label: '유사 그룹',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'similarGroup', icon: '👥', label: '유사 그룹' },
+                el, 2
+            );
         }
 
-        // ─── 전략 6: 컨테이너 (container) ────────
+        // ─── 전략 6: container ─────────────────
         static container(el) {
             const chain = this.parentChain(el, 4);
             const adKeywords = ['ad', 'ads', 'banner', 'sponsor', 'promo', 'advertisement'];
@@ -807,25 +728,22 @@
                 const classes = this.meaningfulClasses(p);
                 const tag = p.tagName.toLowerCase();
 
-                // 광고 키워드 ID
                 if (id && adKeywords.some(k => id.toLowerCase().includes(k))) {
                     candidates.push({
                         sel: `#${CSS.escape(id)}`,
-                        hint: `광고 키워드 ID: ${id}`
+                        hint: `광고 키워드 ID: ${id}`,
+                        bonus: 8
                     });
                 }
-
-                // 광고 키워드 클래스
                 for (const c of classes) {
                     if (adKeywords.some(k => c.toLowerCase().includes(k))) {
                         candidates.push({
                             sel: `.${CSS.escape(c)}`,
-                            hint: `광고 키워드 컨테이너: ${c}`
+                            hint: `광고 키워드 컨테이너: ${c}`,
+                            bonus: 6
                         });
                     }
                 }
-
-                // 시맨틱 컨테이너 태그
                 if (containerTags.includes(tag) && classes.length) {
                     candidates.push({
                         sel: `${tag}.${CSS.escape(classes[0])}`,
@@ -834,42 +752,26 @@
                 }
             }
 
-            if (!candidates.length) return null;
-
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, el) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'container',
-                icon: '🎨',
-                label: '부모 컨테이너',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'container', icon: '🎨', label: '부모 컨테이너' },
+                el, 2
+            );
         }
 
-        // ─── 이미지 전략 1: src 도메인 ───────────
+        // ─── 이미지 1: src 도메인 ──────────────
         static imgSrcDomain(el) {
             const img = this._findImg(el);
-            if (!img) return null;
+            if (!img) return [];
             const src = img.getAttribute('src') || img.src;
-            if (!src) return null;
+            if (!src) return [];
 
             let host = '';
             try { host = new URL(src, location.href).hostname; }
-            catch (_) { return null; }
-            if (!host) return null;
+            catch (_) { return []; }
+            if (!host) return [];
 
             const candidates = [];
-
-            // 광고 호스트 일치
             const adHost = AD_NETWORK_HOSTS.find(h => host.includes(h));
             if (adHost) {
                 candidates.push({
@@ -878,8 +780,6 @@
                     bonus: 12
                 });
             }
-
-            // 외부 도메인
             if (host !== location.hostname && !location.hostname.endsWith(host)) {
                 candidates.push({
                     sel: `img[src*="${host}"]`,
@@ -888,47 +788,37 @@
                 });
             }
 
-            if (!candidates.length) return null;
-
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, img, { bonus: c.bonus }) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'imgSrcDomain',
-                icon: '🖼️',
-                label: '광고 도메인 이미지',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'imgSrcDomain', icon: '🖼️', label: '광고 도메인 이미지' },
+                img, 2
+            );
         }
 
-        // ─── 이미지 전략 2: 표준 광고 크기 ──────
+        // ─── 이미지 2: 표준 광고 크기 ──────────
         static imgStandardSize(el) {
             const img = this._findImg(el);
-            if (!img) return null;
+            if (!img) return [];
 
             const w = parseInt(img.getAttribute('width')) || img.naturalWidth || img.width;
             const h = parseInt(img.getAttribute('height')) || img.naturalHeight || img.height;
-            if (!w || !h) return null;
+            if (!w || !h) return [];
 
             const matched = IAB_AD_SIZES.find(([sw, sh]) =>
                 Math.abs(sw - w) <= 5 && Math.abs(sh - h) <= 5
             );
-            if (!matched) return null;
+            if (!matched) return [];
 
             const anchor = this._findAnchor(img);
             const hasExtLink = anchor && anchor.href &&
                 (() => { try { return new URL(anchor.href).hostname !== location.hostname; } catch (_) { return false; } })();
 
             const candidates = [
-                { sel: `img[width="${matched[0]}"][height="${matched[1]}"]`, hint: `IAB 표준: ${matched[0]}×${matched[1]}`, bonus: hasExtLink ? 8 : 0 }
+                {
+                    sel: `img[width="${matched[0]}"][height="${matched[1]}"]`,
+                    hint: `IAB 표준: ${matched[0]}×${matched[1]}`,
+                    bonus: hasExtLink ? 8 : 4
+                }
             ];
 
             if (hasExtLink) {
@@ -939,127 +829,80 @@
                 });
             }
 
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, img, { bonus: c.bonus }) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'imgStandardSize',
-                icon: '📐',
-                label: '표준 광고 크기',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'imgStandardSize', icon: '📐', label: '표준 광고 크기' },
+                img, 2
+            );
         }
 
-        // ─── 이미지 전략 3: 광고 링크 안의 이미지 ──
+        // ─── 이미지 3: 광고 링크 안의 이미지 ──
         static imgInAdLink(el) {
             const img = this._findImg(el);
-            if (!img) return null;
+            if (!img) return [];
             const anchor = this._findAnchor(img);
-            if (!anchor) return null;
+            if (!anchor) return [];
             const href = anchor.getAttribute('href') || anchor.href || '';
-            if (!href) return null;
+            if (!href) return [];
 
             const matched = AD_LINK_PATTERNS.find(p => href.includes(p.kw));
-            if (!matched) return null;
+            if (!matched) return [];
 
             const candidates = [
-                { sel: `a[href*="${matched.kw}"] > img`, hint: `${matched.desc}`, bonus: 10 },
+                { sel: `a[href*="${matched.kw}"] > img`, hint: matched.desc, bonus: 10 },
                 { sel: `a[href*="${matched.kw}"] img`, hint: `${matched.desc} (자손)`, bonus: 6 }
             ];
 
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, img, { bonus: c.bonus }) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'imgInAdLink',
-                icon: '🔗',
-                label: '광고 링크 내 이미지',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'imgInAdLink', icon: '🔗', label: '광고 링크 내 이미지' },
+                img, 2
+            );
         }
 
-        // ─── 이미지 전략 4: src 경로 패턴 ────────
+        // ─── 이미지 4: src 경로 패턴 ───────────
         static imgPathPattern(el) {
             const img = this._findImg(el);
-            if (!img) return null;
+            if (!img) return [];
             const src = img.getAttribute('src') || img.src || '';
-            if (!src) return null;
+            if (!src) return [];
 
             const matched = AD_PATH_PATTERNS.find(p => src.toLowerCase().includes(p.kw));
-            if (!matched) return null;
-
-            const candidates = [
-                { sel: `img[src*="${matched.kw}"]`, hint: matched.desc, bonus: 6 }
-            ];
-
-            // 파일명 추출 (광고 이미지가 특정 파일명을 쓰는 경우)
+            const candidates = [];
+            if (matched) {
+                candidates.push({ sel: `img[src*="${matched.kw}"]`, hint: matched.desc, bonus: 6 });
+            }
             try {
                 const url = new URL(src, location.href);
                 const file = url.pathname.split('/').pop();
                 if (file && file.length >= 4 && file.length <= 30 && AD_FILE_EXTS.some(e => file.endsWith(e))) {
                     candidates.push({
                         sel: `img[src*="${file}"]`,
-                        hint: `광고 파일명: ${file}`,
+                        hint: `파일명: ${file}`,
                         bonus: 4
                     });
                 }
             } catch (_) {}
 
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, img, { bonus: c.bonus }) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'imgPathPattern',
-                icon: '📦',
-                label: '이미지 경로 패턴',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'imgPathPattern', icon: '📦', label: '이미지 경로 패턴' },
+                img, 2
+            );
         }
 
-        // 다음 파트로 ───────────────────────────────
-        // Part 3/4: 신규 4개 전략 (네트워크/혼합/조합/ARIA) + buildAll + toAdGuardRule
-        // ─────────────────────────────────────────
-
-        // ─── 신규 전략 1: 네트워크 필터 (🌐) ─────
-        // ||host/path 형식 — AdGuard/uBlock 공통
-        // CSS 셀렉터로는 차단 불가, 필터 텍스트 복사 전용
+        // ─── 네트워크 필터 ─────────────────────
         static networkFilter(el) {
-            // 대상이 src를 갖는 미디어/리소스 요소인지 확인
             const targets = [];
             const TAG_SRC = ['IMG', 'IFRAME', 'SCRIPT', 'VIDEO', 'AUDIO', 'SOURCE', 'EMBED'];
 
             if (TAG_SRC.includes(el.tagName)) {
                 targets.push(el);
             } else {
-                // 자식 중 src를 가진 요소
                 const inner = el.querySelector?.('img[src], iframe[src], video[src], embed[src]');
                 if (inner) targets.push(inner);
             }
-            if (!targets.length) return null;
+            if (!targets.length) return [];
 
             const candidates = [];
 
@@ -1075,29 +918,38 @@
                 const isAdHost = AD_NETWORK_HOSTS.some(h => host.includes(h));
                 const isExternal = host !== location.hostname && !location.hostname.endsWith(host);
 
-                // 광고 호스트는 호스트 전체 차단 우선
                 if (isAdHost) {
                     candidates.push({
                         filter: `||${host}^`,
-                        cssSel: `img[src*="${host}"], iframe[src*="${host}"]`,
-                        hint: `광고 호스트 차단: ${host}`,
+                        cssSel: `${t.tagName.toLowerCase()}[src*="${host}"]`,
+                        hint: `광고 호스트 전체 차단: ${host}`,
                         rawScore: 92
+                    });
+                    candidates.push({
+                        filter: `||${host}^$third-party`,
+                        cssSel: `${t.tagName.toLowerCase()}[src*="${host}"]`,
+                        hint: `광고 호스트 (3rd-party): ${host}`,
+                        rawScore: 88
                     });
                 }
 
-                // 파일 경로 기반 (광고 파일명/경로 패턴)
                 const fileName = path.split('/').pop();
                 const adPathMatch = AD_PATH_PATTERNS.find(p => path.toLowerCase().includes(p.kw));
                 if (adPathMatch && fileName) {
                     candidates.push({
                         filter: `||${host}${path}`,
-                        cssSel: `img[src*="${fileName}"]`,
-                        hint: `광고 경로: ${adPathMatch.desc}`,
+                        cssSel: `${t.tagName.toLowerCase()}[src*="${fileName}"]`,
+                        hint: `광고 경로 정확 매칭: ${adPathMatch.desc}`,
                         rawScore: 86
+                    });
+                    candidates.push({
+                        filter: `||${host}*${adPathMatch.kw}*`,
+                        cssSel: `${t.tagName.toLowerCase()}[src*="${adPathMatch.kw}"]`,
+                        hint: `광고 키워드 와일드카드: ${adPathMatch.kw}`,
+                        rawScore: 82
                     });
                 }
 
-                // 외부 도메인 + 표준 광고 크기
                 if (isExternal && t.tagName === 'IMG') {
                     const w = parseInt(t.getAttribute('width')) || t.naturalWidth;
                     const h = parseInt(t.getAttribute('height')) || t.naturalHeight;
@@ -1108,13 +960,12 @@
                         candidates.push({
                             filter: `||${host}^$image`,
                             cssSel: `img[src*="${host}"]`,
-                            hint: `외부 도메인 + IAB ${matchedSize[0]}×${matchedSize[1]}`,
-                            rawScore: 78
+                            hint: `외부 도메인 이미지 + IAB ${matchedSize[0]}×${matchedSize[1]}`,
+                            rawScore: 80
                         });
                     }
                 }
 
-                // 외부 도메인 + 광고 파일 확장자 (일반)
                 if (isExternal && fileName && AD_FILE_EXTS.some(e => fileName.toLowerCase().endsWith(e))) {
                     candidates.push({
                         filter: `||${host}${path}`,
@@ -1125,51 +976,57 @@
                 }
             }
 
-            if (!candidates.length) return null;
-            candidates.sort((a, b) => b.rawScore - a.rawScore);
-            const best = candidates[0];
+            if (!candidates.length) return [];
 
-            return {
-                type: 'networkFilter',
-                icon: '🌐',
-                label: '네트워크 필터',
-                selector: best.cssSel,           // 참고용 CSS (실제 차단 불가)
-                filter: best.filter,             // AdGuard/uBlock 네트워크 규칙
-                isNetwork: true,                 // ⛔ 버튼 비활성 플래그
-                matches: this.countMatches(best.cssSel),
-                score: best.rawScore,
-                stars: this.scoreToStars(best.rawScore),
-                hint: best.hint
-            };
+            // 중복 제거(filter 기준) + 점수순 상위 3개
+            const seen = new Set();
+            candidates.sort((a, b) => b.rawScore - a.rawScore);
+            const out = [];
+            for (const c of candidates) {
+                if (seen.has(c.filter)) continue;
+                seen.add(c.filter);
+                out.push({
+                    type: 'networkFilter',
+                    icon: '🌐',
+                    label: '네트워크 필터',
+                    selector: c.cssSel,
+                    filter: c.filter,
+                    isNetwork: true,
+                    matches: this.countMatches(c.cssSel),
+                    score: c.rawScore,
+                    stars: this.scoreToStars(c.rawScore),
+                    hint: c.hint
+                });
+                if (out.length >= 3) break;
+            }
+            return out;
         }
 
-        // ─── 신규 전략 2: 혼합 nth (🧩) ──────────
-        // div.main-box:nth-of-type(1) > div.main-head 같은 위치 기반 조합
+        // ─── 혼합 nth ──────────────────────────
         static mixedNth(el) {
             const parent = el.parentElement;
-            if (!parent) return null;
+            if (!parent) return [];
 
             const tag = el.tagName.toLowerCase();
             const classes = this.meaningfulClasses(el);
             const candidates = [];
 
-            // 자기 자신 위치 계산 (같은 태그 형제 중 몇 번째)
             const sameTagSiblings = Array.from(parent.children).filter(c => c.tagName === el.tagName);
             const myIdx = sameTagSiblings.indexOf(el) + 1;
 
-            // 케이스 1: tag.class:nth-of-type(n)
             if (myIdx > 0 && classes.length && sameTagSiblings.length > 1) {
                 candidates.push({
                     sel: `${tag}.${CSS.escape(classes[0])}:nth-of-type(${myIdx})`,
-                    hint: `${myIdx}번째 ${tag}.${classes[0]}`
+                    hint: `${myIdx}번째 ${tag}.${classes[0]}`,
+                    bonus: 3
                 });
                 candidates.push({
                     sel: `${tag}:nth-of-type(${myIdx})`,
-                    hint: `${myIdx}번째 ${tag}`
+                    hint: `${myIdx}번째 ${tag}`,
+                    bonus: 1
                 });
             }
 
-            // 케이스 2: parentTag.parentClass:nth-of-type(n) > tag (계층)
             const parentClasses = this.meaningfulClasses(parent);
             if (parent.parentElement && parentClasses.length) {
                 const parentSameTag = Array.from(parent.parentElement.children)
@@ -1180,55 +1037,37 @@
                 if (parentIdx > 0 && parentSameTag.length > 1) {
                     candidates.push({
                         sel: `${parentTag}.${CSS.escape(parentClasses[0])}:nth-of-type(${parentIdx}) > ${tag}${classes.length ? '.' + CSS.escape(classes[0]) : ''}`,
-                        hint: `${parentIdx}번째 ${parentTag} 안의 ${tag}`
+                        hint: `${parentIdx}번째 ${parentTag} 안의 ${tag}`,
+                        bonus: 4
                     });
                 }
             }
 
-            // 케이스 3: nth-child
             const allSiblings = Array.from(parent.children);
             const childIdx = allSiblings.indexOf(el) + 1;
-            if (childIdx > 0 && allSiblings.length > 1) {
-                if (classes.length) {
-                    candidates.push({
-                        sel: `.${CSS.escape(classes[0])}:nth-child(${childIdx})`,
-                        hint: `${childIdx}번째 자식`
-                    });
-                }
+            if (childIdx > 0 && allSiblings.length > 1 && classes.length) {
+                candidates.push({
+                    sel: `.${CSS.escape(classes[0])}:nth-child(${childIdx})`,
+                    hint: `${childIdx}번째 자식`,
+                    bonus: 2
+                });
             }
 
-            if (!candidates.length) return null;
-
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, el, { bonus: 3 }) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'mixedNth',
-                icon: '🧩',
-                label: '혼합 위치 셀렉터',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'mixedNth', icon: '🧩', label: '혼합 위치 셀렉터' },
+                el, 2
+            );
         }
 
-        // ─── 신규 전략 3: 다중 조건 조합 (🔧) ────
-        // [style*="..."] + .class + :has(> img) 등 AND 결합
+        // ─── 다중 조건 조합 ────────────────────
         static multiCondition(el) {
             const tag = el.tagName.toLowerCase();
             const classes = this.meaningfulClasses(el);
             const style = el.getAttribute('style') || '';
             const candidates = [];
 
-            // 조건 1: 인라인 style + 클래스
             if (style && classes.length) {
-                // style에서 의미있는 속성 추출
                 const stylePatterns = [
                     { kw: 'position:absolute', desc: '절대위치' },
                     { kw: 'position:fixed', desc: '고정위치' },
@@ -1239,14 +1078,14 @@
                     if (style.replace(/\s/g, '').toLowerCase().includes(sp.kw)) {
                         candidates.push({
                             sel: `${tag}.${CSS.escape(classes[0])}[style*="${sp.kw.split(':')[0]}"]`,
-                            hint: `${sp.desc} + 클래스`
+                            hint: `${sp.desc} + 클래스`,
+                            bonus: 5
                         });
                         break;
                     }
                 }
             }
 
-            // 조건 2: :has(> iframe) / :has(> img) — iframe/img 컨테이너
             if (SUPPORTS_HAS) {
                 const hasIframe = el.querySelector(':scope > iframe');
                 const hasImg = el.querySelector(':scope > img');
@@ -1259,73 +1098,63 @@
                 if (hasIframe && classes.length) {
                     candidates.push({
                         sel: `${tag}.${CSS.escape(classes[0])}:has(> iframe)`,
-                        hint: 'iframe 직접 자식'
+                        hint: 'iframe 직접 자식 + 클래스',
+                        bonus: 7
                     });
                 } else if (hasIframe) {
                     candidates.push({
                         sel: `${tag}:has(> iframe)`,
-                        hint: 'iframe 직접 자식'
+                        hint: 'iframe 직접 자식',
+                        bonus: 4
                     });
                 }
 
                 if (hasAdImg && classes.length) {
                     candidates.push({
                         sel: `${tag}.${CSS.escape(classes[0])}:has(> img[src*="ad"])`,
-                        hint: '광고 이미지 컨테이너'
+                        hint: '광고 이미지 컨테이너',
+                        bonus: 8
                     });
                 }
             }
 
-            // 조건 3: 다중 클래스 + 자식 태그
             if (classes.length >= 2) {
-                const childImg = el.querySelector(':scope > img');
-                if (childImg && SUPPORTS_HAS) {
-                    candidates.push({
-                        sel: `.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}:has(> img)`,
-                        hint: '다중 클래스 + img'
-                    });
+                if (SUPPORTS_HAS) {
+                    const childImg = el.querySelector(':scope > img');
+                    if (childImg) {
+                        candidates.push({
+                            sel: `.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}:has(> img)`,
+                            hint: '다중 클래스 + img',
+                            bonus: 5
+                        });
+                    }
                 }
-                // :has 없는 환경에서도 동작하는 후행 결합자
                 candidates.push({
                     sel: `.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}`,
-                    hint: '다중 클래스'
+                    hint: '다중 클래스 (호환 모드)',
+                    bonus: 2
                 });
             }
 
-            // 조건 4: data-* 속성 + 클래스
             const dataAttrs = Array.from(el.attributes || []).filter(a => a.name.startsWith('data-') && a.value.length < 30);
             if (dataAttrs.length && classes.length) {
                 const da = dataAttrs[0];
                 candidates.push({
                     sel: `.${CSS.escape(classes[0])}[${da.name}="${CSS.escape(da.value)}"]`,
-                    hint: `${da.name} 속성 결합`
+                    hint: `${da.name} 속성 결합`,
+                    bonus: 6
                 });
             }
 
-            if (!candidates.length) return null;
-
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, el, { bonus: 5 }) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'multiCondition',
-                icon: '🔧',
-                label: '다중 조건 조합',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'multiCondition', icon: '🔧', label: '다중 조건 조합' },
+                el, 2
+            );
         }
 
-        // ─── 신규 전략 4: ARIA / 접근성 (♿) ────
+        // ─── ARIA / 접근성 ─────────────────────
         static ariaLabel(el) {
-            // 자기 자신 또는 가장 가까운 조상에서 ARIA 속성 탐색 (최대 3단계)
             const targets = [el];
             let cur = el.parentElement;
             let depth = 0;
@@ -1339,7 +1168,6 @@
                 const role = t.getAttribute('role');
                 const ariaLabelledby = t.getAttribute('aria-labelledby');
 
-                // aria-label에 광고 키워드
                 if (ariaLabel) {
                     const matched = ARIA_AD_KEYWORDS.find(k => ariaLabel.includes(k));
                     if (matched) {
@@ -1354,7 +1182,6 @@
                             bonus: 10
                         });
                     } else if (ariaLabel.length <= 30) {
-                        // 광고 키워드 아니어도 짧은 aria-label은 식별성 좋음
                         candidates.push({
                             sel: `${tag}[aria-label="${CSS.escape(ariaLabel)}"]`,
                             hint: `aria-label="${ariaLabel}"`,
@@ -1363,7 +1190,6 @@
                     }
                 }
 
-                // role 기반
                 if (role && ['banner', 'complementary', 'advertisement'].includes(role)) {
                     candidates.push({
                         sel: `[role="${CSS.escape(role)}"]`,
@@ -1372,7 +1198,6 @@
                     });
                 }
 
-                // aria-labelledby
                 if (ariaLabelledby) {
                     candidates.push({
                         sel: `[aria-labelledby="${CSS.escape(ariaLabelledby)}"]`,
@@ -1382,28 +1207,14 @@
                 }
             }
 
-            if (!candidates.length) return null;
-
-            const scored = candidates
-                .map(c => ({ ...c, score: this.scoreSelector(c.sel, el, { bonus: c.bonus }) }))
-                .filter(x => x.score > 0)
-                .sort((a, b) => b.score - a.score);
-
-            if (!scored.length) return null;
-            const best = scored[0];
-            return {
-                type: 'ariaLabel',
-                icon: '♿',
-                label: 'ARIA / 접근성',
-                selector: best.sel,
-                matches: this.countMatches(best.sel),
-                score: best.score,
-                stars: this.scoreToStars(best.score),
-                hint: best.hint
-            };
+            return this._topN(
+                candidates,
+                { type: 'ariaLabel', icon: '♿', label: 'ARIA / 접근성' },
+                el, 2
+            );
         }
 
-        // ─── 전체 후보 빌드 ──────────────────────
+        // ─── 전체 후보 빌드 ─────────────────────
         static buildAll(el, evaluator) {
             if (!el || !el.tagName) return [];
 
@@ -1415,14 +1226,12 @@
                 () => this.precise(el, evaluator),
                 () => this.similarGroup(el),
                 () => this.container(el),
-                // 신규 4개
                 () => this.networkFilter(el),
                 () => this.mixedNth(el),
                 () => this.multiCondition(el),
                 () => this.ariaLabel(el)
             ];
 
-            // 이미지 관련 요소면 이미지 전략 추가
             if (this.isImageRelated(el)) {
                 strategies.push(
                     () => this.imgSrcDomain(el),
@@ -1436,14 +1245,17 @@
             for (const fn of strategies) {
                 try {
                     const r = fn();
-                    if (r && r.selector) results.push(r);
+                    if (!r) continue;
+                    if (Array.isArray(r)) {
+                        for (const item of r) if (item?.selector) results.push(item);
+                    } else if (r.selector) {
+                        results.push(r);
+                    }
                 } catch (_) {}
             }
 
-            // picky 셀렉터 완전 제거
             const filtered = results.filter(r => !/picky-/.test(r.selector));
 
-            // 중복 제거 (selector + filter 키 기준)
             const seen = new Set();
             const unique = [];
             for (const r of filtered) {
@@ -1453,41 +1265,34 @@
                 unique.push(r);
             }
 
-            // 점수 내림차순 정렬
             unique.sort((a, b) => b.score - a.score);
 
-            // 상위 후보에 추천 배지
-            if (unique.length) unique[0].recommended = true;
+            // ★★★ 추천 기준 강화: 별 3개(80점 이상)만 추천 배지 부여
+            for (const r of unique) {
+                if (r.score >= 80) {
+                    r.recommended = true;
+                    break;
+                }
+            }
 
             return unique;
         }
 
-        // ─── AdGuard/uBlock 호환 규칙 변환기 ─────
-        // 카드 후보 → 양쪽 모두 사용 가능한 필터 텍스트
         static toAdGuardRule(candidate, scope = 'host') {
             if (!candidate) return '';
-
-            // 네트워크 필터는 그대로 반환
             if (candidate.isNetwork && candidate.filter) {
                 return candidate.filter;
             }
-
-            // 코스메틱 규칙: host##selector (호스트 한정) 또는 ##selector (전역)
             const sel = candidate.selector;
             if (!sel) return '';
-
             const host = location.hostname || '';
             if (scope === 'global' || !host) return `##${sel}`;
             return `${host}##${sel}`;
         }
     }
 
-    // 다음 파트로 ───────────────────────────────
-    // Part 4/4: Inspector 클래스 (UI 전체) + CSS 스타일 + 부팅 코드
-    // ─────────────────────────────────────────
-
     // ───────────────────────────────────────────────
-    // Inspector — UI / 이벤트 / 카드 리스트 처리
+    // Inspector
     // ───────────────────────────────────────────────
     class Inspector {
         constructor() {
@@ -1502,8 +1307,8 @@
                 candidates: [],
                 selectedIdx: -1,
                 previewNodes: [],
-                mode: 'initial',         // 'initial' | 'picking' | 'selected'
-                scale: 'full',           // 'full' | 'min' | 'icon'
+                mode: 'initial',
+                scale: 'icon',          // 시작 시 아이콘
                 isCollapsed: true,
                 isObscured: false,
                 isQuarantined: false,
@@ -1513,8 +1318,8 @@
                 autoDismiss: GM_getValue('picky_auto_close', true),
                 hoverPreviewNodes: [],
                 adSelectedNodes: [],
-                iconPos: GM_getValue('picky_icon_pos', null),
-                panelPos: GM_getValue('picky_panel_pos', null),
+                iconPos: null,           // 저장 안 함 (세션 한정)
+                panelPos: null,          // 저장 안 함 (세션 한정)
                 isDragging: false,
                 dragDidMove: false,
                 dragTarget: null
@@ -1532,7 +1337,6 @@
             this._preciseEvaluator = (el) => this.evaluateCssBasic(el);
         }
 
-        // ─── 기본 평가기 (precise 전략용) ────────
         evaluateCssBasic(el) {
             if (!el || !el.tagName) return '';
             const tag = el.tagName.toLowerCase();
@@ -1542,7 +1346,6 @@
             return tag;
         }
 
-        // ─── 부모/자식 탐색 ─────────────────────
         resolveParent(el) {
             return el?.parentElement || null;
         }
@@ -1551,9 +1354,7 @@
             return Array.from(el.children || []);
         }
 
-        // ─── UI 구성 ───────────────────────────
         constructUI() {
-            // 호스트 + Shadow DOM
             const host = document.createElement('div');
             host.id = ROOT_ID;
             host.style.cssText = 'all:initial;position:fixed;z-index:2147483646;top:0;left:0;width:0;height:0;';
@@ -1562,19 +1363,16 @@
             this.dom.host = host;
             this.dom.shadow = shadow;
 
-            // 메인 도구
             const tool = document.createElement('div');
             tool.id = TOOL_ID;
             tool.className = 'picky-tool picky-icon';
             shadow.appendChild(tool);
             this.dom.tool = tool;
 
-            // CSS 주입
             const style = document.createElement('style');
             style.textContent = PICKY_CSS;
             shadow.appendChild(style);
 
-            // 모달 컨테이너
             this.modal = new Modal(shadow);
 
             this.render();
@@ -1582,37 +1380,35 @@
             this.applyPosition();
         }
 
-        // ─── 위치 적용 ──────────────────────────
+        // 위치 적용: 아이콘=오른쪽 하단, 패널=가운데 하단
         applyPosition() {
             const tool = this.dom.tool;
             if (!tool) return;
+
+            tool.style.left = '';
+            tool.style.top = '';
+            tool.style.right = '';
+            tool.style.bottom = '';
+            tool.style.transform = '';
+
             if (this.state.scale === 'icon') {
                 const pos = this.state.iconPos;
                 if (pos && typeof pos.x === 'number') {
                     tool.style.left = pos.x + 'px';
                     tool.style.top = pos.y + 'px';
-                    tool.style.right = 'auto';
-                    tool.style.bottom = 'auto';
                 } else {
                     tool.style.right = '20px';
                     tool.style.bottom = '20px';
-                    tool.style.left = 'auto';
-                    tool.style.top = 'auto';
                 }
             } else {
                 const pos = this.state.panelPos;
                 if (pos && typeof pos.x === 'number') {
                     tool.style.left = pos.x + 'px';
                     tool.style.top = pos.y + 'px';
-                    tool.style.right = 'auto';
-                    tool.style.bottom = 'auto';
                 } else {
-                    // 기본: 하단 중앙
                     tool.style.left = '50%';
                     tool.style.bottom = '20px';
                     tool.style.transform = 'translateX(-50%)';
-                    tool.style.right = 'auto';
-                    tool.style.top = 'auto';
                 }
             }
         }
@@ -1625,7 +1421,6 @@
             };
         }
 
-        // ─── 메인 렌더 ─────────────────────────
         render() {
             const tool = this.dom.tool;
             if (!tool) return;
@@ -1636,7 +1431,6 @@
                     <button class="picky-icon-btn" data-act="cycleSize" title="Picky 열기" aria-label="Picky 열기">
                         ${ICON_TARGET}
                     </button>`;
-                tool.style.transform = '';
                 this.attachRefs();
                 return;
             }
@@ -1647,18 +1441,17 @@
             this.renderCandidates();
         }
 
-        // ─── 패널 레이아웃 ─────────────────────
         getFullLayout() {
             const stats = Blocker.getStats();
             const enabled = Blocker.isEnabled();
             const agg = Blocker.isAggressive();
             return `
             <div class="picky-head" data-drag="1">
-                <span class="picky-title">Picky <small>v3.6.0</small></span>
+                <span class="picky-title">Picky <small>v3.6.1</small></span>
                 <div class="picky-head-btns">
                     <button class="picky-btn picky-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
                     <button class="picky-btn picky-btn-icon" data-act="cycleSize" title="최소화">${ICON_MIN}</button>
-                    <button class="picky-btn picky-btn-icon" data-act="terminate" title="닫기">${ICON_CLOSE}</button>
+                    <button class="picky-btn picky-btn-icon" data-act="terminate" title="아이콘으로 접기">${ICON_CLOSE}</button>
                 </div>
             </div>
 
@@ -1712,7 +1505,6 @@
             </div>`;
         }
 
-        // ─── DOM 참조 ──────────────────────────
         attachRefs() {
             const t = this.dom.tool;
             this.dom.disp = t.querySelector('[data-ref="disp"]');
@@ -1720,7 +1512,6 @@
             this.dom.slider = t.querySelector('[data-ref="slider"]');
             this.dom.cardsScroll = t.querySelector('[data-ref="cardsScroll"]');
 
-            // 액션 바인딩
             t.querySelectorAll('[data-act]').forEach(el => {
                 const act = el.getAttribute('data-act');
                 const evt = el.tagName === 'INPUT' && el.type === 'checkbox' ? 'change' : 'click';
@@ -1730,16 +1521,13 @@
                 });
             });
 
-            // 슬라이더
             this.dom.slider?.addEventListener('input', (e) => {
                 e.stopPropagation();
                 this.handleSlide(parseInt(e.target.value, 10));
             });
-            // 슬라이더가 패널 드래그 트리거 못하게
             this.dom.slider?.addEventListener('pointerdown', (e) => e.stopPropagation());
         }
 
-        // ─── 후보 카드 렌더 ────────────────────
         renderCandidates() {
             const wrap = this.dom.cardsScroll;
             if (!wrap) return;
@@ -1751,7 +1539,6 @@
 
             wrap.innerHTML = list.map((c, i) => this.renderCard(c, i)).join('');
 
-            // 카드 이벤트
             wrap.querySelectorAll('.picky-card').forEach(card => {
                 const idx = parseInt(card.dataset.idx, 10);
                 card.addEventListener('mouseenter', () => this.previewCandidate(idx));
@@ -1803,7 +1590,6 @@
             </div>`;
         }
 
-        // ─── 카드별 액션 ───────────────────────
         async handleCardAction(act, idx) {
             const c = this.state.candidates[idx];
             if (!c) return;
@@ -1851,7 +1637,6 @@
             }, 1800);
         }
 
-        // ─── 후보 미리보기 ─────────────────────
         previewCandidate(idx) {
             this.clearPreview();
             const c = this.state.candidates[idx];
@@ -1868,7 +1653,6 @@
             this.state.hoverPreviewNodes = [];
         }
 
-        // ─── 후보 선택 ─────────────────────────
         selectCandidate(idx) {
             this.state.selectedIdx = idx;
             const c = this.state.candidates[idx];
@@ -1880,7 +1664,6 @@
             this.renderCandidates();
         }
 
-        // ─── 메트릭 갱신 ──────────────────────
         refreshMetrics() {
             const disp = this.dom.disp;
             const match = this.dom.match;
@@ -1891,16 +1674,13 @@
                 match.textContent = `매치 ${n}개`;
             }
 
-            // 통계 업데이트
             const stats = Blocker.getStats();
             const statsEl = this.dom.tool?.querySelector('.picky-stats');
             if (statsEl) statsEl.textContent = `규칙 ${stats.ruleCount}개 (전체 ${stats.totalRules})`;
         }
 
-        // ─── 슬라이더 (계층 이동) ───────────────
         calcSliderLimits() {
             if (!this.state.originTarget) return;
-            // 상위로 가는 경로
             const upChain = [];
             let cur = this.state.originTarget.parentElement;
             while (cur && cur !== document.body) {
@@ -1908,7 +1688,6 @@
                 cur = cur.parentElement;
                 if (upChain.length > 20) break;
             }
-            // 하위로 가는 경로 (현재 target에서 첫 자식 따라가기)
             const downChain = [];
             let d = this.state.originTarget;
             while (d.firstElementChild) {
@@ -1921,17 +1700,16 @@
             if (slider) {
                 slider.min = 0;
                 slider.max = this.state.hierarchy.length - 1;
-                slider.value = upChain.length; // origin 위치
+                slider.value = upChain.length;
             }
         }
 
         handleSlide(idx) {
             const node = this.state.hierarchy[idx];
             if (!node) return;
-            this.selectNode(node, /*updateOrigin*/ false);
+            this.selectNode(node, false);
         }
 
-        // ─── 요소 선택 ─────────────────────────
         selectNode(el, updateOrigin = true) {
             if (!el || !el.tagName) return;
             this.state.target = el;
@@ -1939,16 +1717,22 @@
                 this.state.originTarget = el;
                 this.calcSliderLimits();
             }
-            // 후보 생성
             this.state.candidates = SelectorStrategies.buildAll(el, this._preciseEvaluator);
-            this.state.selectedIdx = this.state.candidates.findIndex(c => c.recommended);
-            if (this.state.selectedIdx >= 0) {
-                const rec = this.state.candidates[this.state.selectedIdx];
-                if (!rec.isNetwork) this.state.queryData.selector = rec.selector;
+
+            // 추천(별 3개)이 있으면 그것을, 없으면 첫 번째(점수 최고)를 기본 선택
+            let idx = this.state.candidates.findIndex(c => c.recommended);
+            if (idx < 0 && this.state.candidates.length) idx = 0;
+            this.state.selectedIdx = idx;
+
+            if (idx >= 0) {
+                const pick = this.state.candidates[idx];
+                if (!pick.isNetwork) this.state.queryData.selector = pick.selector;
+            } else {
+                this.state.queryData.selector = '';
             }
+
             this.refreshMetrics();
             this.renderCandidates();
-            // 하이라이트
             this.setFocus(el);
         }
 
@@ -1963,7 +1747,6 @@
             this.state.previewNodes = [];
         }
 
-        // ─── 픽킹 모드 ────────────────────────
         startPicking() {
             this.state.mode = 'picking';
             if (!this.overlay) {
@@ -1987,7 +1770,6 @@
         }
         onPickClick(e) {
             const path = e.composedPath ? e.composedPath() : [e.target];
-            // Picky UI 클릭은 무시
             if (path.some(n => n?.id === ROOT_ID)) return;
             e.preventDefault();
             e.stopPropagation();
@@ -1995,11 +1777,34 @@
             this.stopPicking();
         }
 
-        // ─── 액션 디스패치 ─────────────────────
+        cycleSize() {
+            if (this.state.scale === 'icon') {
+                this.state.scale = 'full';
+                this.state.panelPos = null;  // 패널 열 때마다 가운데 하단
+            } else {
+                this.state.scale = 'icon';
+                this.state.iconPos = null;   // 아이콘 돌아갈 때 오른쪽 하단
+                this.dropFocus();
+                this.clearPreview();
+                if (this.state.mode === 'picking') this.stopPicking();
+            }
+            this.render();
+            this.applyPosition();
+        }
+
         triggerAction(act, el, evt) {
             switch (act) {
                 case 'cycleSize': this.cycleSize(); break;
-                case 'terminate': this.terminate(); break;
+                case 'terminate':
+                    // 완전 종료 대신 아이콘으로 접기
+                    this.state.scale = 'icon';
+                    this.state.iconPos = null;
+                    this.dropFocus();
+                    this.clearPreview();
+                    if (this.state.mode === 'picking') this.stopPicking();
+                    this.render();
+                    this.applyPosition();
+                    break;
                 case 'settings':  this.showSettings(); break;
                 case 'startPick': this.startPicking(); break;
                 case 'suggestAds': this.suggestAds(); break;
@@ -2040,14 +1845,6 @@
             }
         }
 
-        cycleSize() {
-            if (this.state.scale === 'icon') this.state.scale = 'full';
-            else this.state.scale = 'icon';
-            this.render();
-            this.applyPosition();
-        }
-
-        // ─── 셀렉터 수동 편집 ─────────────────
         editSelector() {
             const cur = this.state.queryData.selector || '';
             const body = this.modal.display('셀렉터 편집', '', true);
@@ -2082,7 +1879,6 @@
             });
         }
 
-        // ─── 규칙 목록 ─────────────────────────
         showRules() {
             const rules = Blocker.fetch();
             const body = this.modal.display(`차단 규칙 (${rules.length})`, '', true);
@@ -2122,7 +1918,6 @@
             });
         }
 
-        // ─── 설정 ──────────────────────────────
         showSettings() {
             const body = this.modal.display('설정', '', true);
             const stats = Blocker.getStats();
@@ -2142,8 +1937,6 @@
                     </div>
                 </div>`;
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => {
-                GM_setValue('picky_icon_pos', null);
-                GM_setValue('picky_panel_pos', null);
                 this.state.iconPos = null;
                 this.state.panelPos = null;
                 this.applyPosition();
@@ -2169,12 +1962,10 @@
             });
         }
 
-        // ─── 광고 자동 탐지 ─────────────────────
         suggestAds() {
             const candidates = [];
             const adKeywords = ['ad', 'ads', 'banner', 'sponsor', 'promo', 'advertisement'];
 
-            // 1) 클래스/ID에 광고 키워드
             document.querySelectorAll('div, section, aside, ins').forEach(el => {
                 const cls = (el.className && typeof el.className === 'string' ? el.className : '').toLowerCase();
                 const id = (el.id || '').toLowerCase();
@@ -2183,13 +1974,11 @@
                 }
             });
 
-            // 2) 광고 네트워크 호스트 이미지/iframe
             document.querySelectorAll('img[src], iframe[src]').forEach(el => {
                 const src = el.getAttribute('src') || '';
                 if (AD_NETWORK_HOSTS.some(h => src.includes(h))) candidates.push(el);
             });
 
-            // 3) 표준 광고 크기 이미지
             document.querySelectorAll('img').forEach(el => {
                 const w = parseInt(el.getAttribute('width')) || el.naturalWidth;
                 const h = parseInt(el.getAttribute('height')) || el.naturalHeight;
@@ -2232,7 +2021,7 @@
             });
         }
 
-        // ─── 드래그 핸들링 ─────────────────────
+        // 드래그: 위치 저장 GM_setValue 제거 (메모리 한정)
         attachDragHandlers() {
             const tool = this.dom.tool;
             if (!tool) return;
@@ -2272,11 +2061,9 @@
                     const r = tool.getBoundingClientRect();
                     const pos = { x: r.left, y: r.top };
                     if (this.state.scale === 'icon') {
-                        this.state.iconPos = pos;
-                        GM_setValue('picky_icon_pos', pos);
+                        this.state.iconPos = pos;       // 메모리에만 저장 (세션 한정, 새로고침 시 리셋)
                     } else {
                         this.state.panelPos = pos;
-                        GM_setValue('picky_panel_pos', pos);
                     }
                     e.stopPropagation();
                     e.preventDefault();
@@ -2289,7 +2076,6 @@
             tool.addEventListener('pointercancel', onUp);
         }
 
-        // ─── 종료 / 부팅 ──────────────────────
         launch() {
             this.constructUI();
         }
@@ -2316,7 +2102,6 @@
     }
     .picky-icon {
         width: 48px; height: 48px;
-        right: 20px; bottom: 20px;
     }
     .picky-icon-btn {
         width: 100%; height: 100%;
@@ -2330,6 +2115,7 @@
 
     .picky-panel {
         width: 380px;
+        max-width: calc(100vw - 24px);
         background: rgba(28, 30, 38, 0.97);
         border: 1px solid rgba(255,255,255,0.08);
         border-radius: 12px;
@@ -2411,9 +2197,8 @@
         background: #3b82f6; border-radius: 50%; cursor: pointer;
     }
 
-    /* 카드 리스트 (스크롤 영역) */
     .picky-cards-scroll {
-        max-height: 240px;
+        max-height: 260px;
         overflow-y: auto;
         overflow-x: hidden;
         scroll-snap-type: y proximity;
@@ -2523,7 +2308,6 @@
     }
     .picky-toggle input { cursor: pointer; }
 
-    /* 모달 */
     .picky-modal {
         position: fixed; inset: 0;
         background: rgba(0,0,0,0.5);
@@ -2600,7 +2384,6 @@
     }
     .picky-settings-row:last-child { border-bottom: none; }
 
-    /* 토스트 */
     .picky-toast {
         position: fixed;
         bottom: 80px; left: 50%;
@@ -2621,9 +2404,7 @@
     }
     `;
 
-    // ───────────────────────────────────────────────
-    // 페이지 내 글로벌 CSS (하이라이트)
-    // ───────────────────────────────────────────────
+    // 페이지 글로벌 하이라이트 CSS
     const PAGE_CSS = `
     .${HL_CLASS} {
         outline: 2px solid #3b82f6 !important;
@@ -2642,9 +2423,7 @@
         (document.head || document.documentElement).appendChild(s);
     };
 
-    // ───────────────────────────────────────────────
     // 부팅
-    // ───────────────────────────────────────────────
     let inspector = null;
     const boot = () => {
         if (inspector) return;
@@ -2659,7 +2438,6 @@
         boot();
     }
 
-    // 메뉴 명령
     try {
         GM_registerMenuCommand?.('Picky 열기/숨기기', () => {
             if (inspector) { inspector.terminate(); inspector = null; }
@@ -2670,9 +2448,11 @@
             await Blocker.copyFilterText();
         });
         GM_registerMenuCommand?.('위치 초기화', () => {
-            GM_setValue('picky_icon_pos', null);
-            GM_setValue('picky_panel_pos', null);
-            if (inspector) inspector.applyPosition();
+            if (inspector) {
+                inspector.state.iconPos = null;
+                inspector.state.panelPos = null;
+                inspector.applyPosition();
+            }
         });
     } catch (_) {}
 
