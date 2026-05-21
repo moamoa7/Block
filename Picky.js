@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.4.4
+// @version      3.5.0
 // @description  Web Element Inspector & CSS Selector Tool with Ad Block - Mobile Optimized
 // @author       hooray804 (modified)
 // @license      MPL-2.0
@@ -36,7 +36,8 @@
         '#picky-nav-slider, #picky-nav-slider-container, ' +
         '.picky-icon-button, .picky-selector-display, .picky-switch, ' +
         '.picky-slider, [data-no-drag], .picky-modal-content, ' +
-        '.picky-ad-suggest-item, .picky-child-list, .picky-cookie-table';
+        '.picky-ad-suggest-item, .picky-child-list, .picky-cookie-table, ' +
+        '.picky-candidate-card';
 
     const SUPPORTS_HAS = (() => {
         try { return CSS.supports('selector(:has(*))'); }
@@ -71,24 +72,16 @@
     // =========================================================
     class Blocker {
         static init() {
-            if (document.head) {
-                this.enforce();
-            } else {
+            if (document.head) this.enforce();
+            else {
                 const obs = new MutationObserver(() => {
-                    if (document.head) {
-                        this.enforce();
-                        obs.disconnect();
-                    }
+                    if (document.head) { this.enforce(); obs.disconnect(); }
                 });
                 obs.observe(document.documentElement, { childList: true });
             }
         }
-        static fetch() {
-            return GM_getValue("picky_blocked_rules", {})[window.location.hostname] || [];
-        }
-        static fetchAll() {
-            return GM_getValue("picky_blocked_rules", {});
-        }
+        static fetch() { return GM_getValue("picky_blocked_rules", {})[window.location.hostname] || []; }
+        static fetchAll() { return GM_getValue("picky_blocked_rules", {}); }
         static append(sel) {
             if (!sel || /[{}]/.test(sel)) return false;
             const all = GM_getValue("picky_blocked_rules", {});
@@ -155,14 +148,11 @@
                     (document.head || document.documentElement).appendChild(style);
                 }
                 if (aggressive) {
-                    style.textContent = rules.join(", ") +
-                        " { display: none !important; height: 0 !important; min-height: 0 !important; max-height: 0 !important; padding: 0 !important; margin: 0 !important; visibility: hidden !important; }";
+                    style.textContent = rules.join(", ") + " { display: none !important; height: 0 !important; min-height: 0 !important; max-height: 0 !important; padding: 0 !important; margin: 0 !important; visibility: hidden !important; }";
                 } else {
                     style.textContent = rules.join(", ") + " { display: none !important; }";
                 }
-            } else if (style) {
-                style.remove();
-            }
+            } else if (style) style.remove();
         }
         static clear() {
             const all = GM_getValue("picky_blocked_rules", {});
@@ -174,62 +164,42 @@
                 if (s) s.remove();
                 alert("이 사이트의 차단 규칙이 초기화되었습니다. 페이지를 새로고침합니다.");
                 location.reload();
-            } else {
-                alert("저장된 차단 규칙이 없습니다.");
-            }
+            } else alert("저장된 차단 규칙이 없습니다.");
         }
         static getStats() {
             const rules = this.fetch();
             let hidden = 0;
-            rules.forEach(sel => {
-                try { hidden += document.querySelectorAll(sel).length; } catch(e) {}
-            });
+            rules.forEach(sel => { try { hidden += document.querySelectorAll(sel).length; } catch(e) {} });
             const all = this.fetchAll();
-            let totalSites = Object.keys(all).length;
-            let totalRules = 0;
+            let totalSites = Object.keys(all).length, totalRules = 0;
             Object.values(all).forEach(arr => totalRules += arr.length);
             return { ruleCount: rules.length, hiddenCount: hidden, totalSites, totalRules };
         }
         static exportJSON() {
             const all = this.fetchAll();
-            const data = {
-                app: "Picky Advanced",
-                version: "3.4.4",
-                exportDate: new Date().toISOString(),
-                rules: all
-            };
+            const data = { app: "Picky Advanced", version: "3.5.0", exportDate: new Date().toISOString(), rules: all };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `picky-rules-${Date.now()}.json`;
-            a.click();
+            a.href = url; a.download = `picky-rules-${Date.now()}.json`; a.click();
             URL.revokeObjectURL(url);
         }
         static exportUblock() {
             const all = this.fetchAll();
-            let text = "! Picky Advanced Export - " + new Date().toISOString() + "\n";
-            text += "! Paste into uBlock Origin: Dashboard > My filters\n\n";
+            let text = "! Picky Advanced Export - " + new Date().toISOString() + "\n! Paste into uBlock Origin: Dashboard > My filters\n\n";
             let count = 0;
             Object.keys(all).forEach(host => {
-                all[host].forEach(rule => {
-                    text += `${host}##${rule}\n`;
-                    count++;
-                });
+                all[host].forEach(rule => { text += `${host}##${rule}\n`; count++; });
             });
             navigator.clipboard.writeText(text).then(() =>
                 alert(`${count}개 규칙(${Object.keys(all).length}개 사이트)을 uBlock 형식으로 클립보드에 복사했어요.`)
-            ).catch(() => {
-                prompt("복사 실패. 수동으로 복사하세요:", text);
-            });
+            ).catch(() => prompt("복사 실패. 수동으로 복사하세요:", text));
         }
         static importJSON() {
             const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json,.txt';
+            input.type = 'file'; input.accept = '.json,.txt';
             input.onchange = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
+                const file = e.target.files[0]; if (!file) return;
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     try {
@@ -245,17 +215,14 @@
                             if (!merged[host]) merged[host] = [];
                             rules[host].forEach(rule => {
                                 if (typeof rule === 'string' && !merged[host].includes(rule)) {
-                                    merged[host].push(rule);
-                                    added++;
+                                    merged[host].push(rule); added++;
                                 }
                             });
                         });
                         GM_setValue("picky_blocked_rules", merged);
                         this.enforce();
                         alert(`가져오기 완료!\n${Object.keys(rules).length}개 사이트, ${added}개 신규 규칙 추가됨.`);
-                    } catch (err) {
-                        alert("파일 형식 오류: " + err.message);
-                    }
+                    } catch (err) { alert("파일 형식 오류: " + err.message); }
                 };
                 reader.readAsText(file);
             };
@@ -269,10 +236,7 @@
     // MODAL CLASS
     // =========================================================
     class Modal {
-        constructor(container) {
-            this.container = container;
-            this.node = null;
-        }
+        constructor(container) { this.container = container; this.node = null; }
         display(title, body, isHtml = false, extraClass = "") {
             this.dismiss();
             const o = document.createElement("div");
@@ -280,12 +244,8 @@
             o.innerHTML = `<div class="picky-modal-content"><div class="picky-modal-header"><span class="picky-modal-title"></span><button class="picky-icon-button" data-action="closeModal" title="닫기">${ICON_CLOSE}</button></div><div class="picky-modal-body"></div></div>`;
             o.querySelector(".picky-modal-title").textContent = title;
             const b = o.querySelector(".picky-modal-body");
-            if (isHtml) {
-                b.innerHTML = body;
-            } else {
-                b.innerHTML = "<textarea readonly></textarea>";
-                b.querySelector("textarea").textContent = body;
-            }
+            if (isHtml) b.innerHTML = body;
+            else { b.innerHTML = "<textarea readonly></textarea>"; b.querySelector("textarea").textContent = body; }
             this.container.appendChild(o);
             this.node = o;
             this.node.addEventListener("click", e => {
@@ -303,6 +263,390 @@
     }
 
     // =========================================================
+    // SELECTOR STRATEGIES — Pro 모드의 다중 후보 생성기
+    // =========================================================
+    // 각 전략은 { type, icon, label, selector, count, score, hint } 객체를 반환하거나 null
+    class SelectorStrategies {
+        // 유틸: 선택자가 유효하고 페이지에서 매칭하는 요소 수 반환
+        static countMatches(sel) {
+            if (!sel) return 0;
+            try { return document.querySelectorAll(sel).length; } catch(e) { return -1; }
+        }
+        // 유틸: 클래스가 의미 있는지 (난수 해시류 거르기)
+        static isMeaningfulClass(cls) {
+            if (!cls || cls.length < 2) return false;
+            if (/^[a-z0-9_-]{2,}$/i.test(cls) === false) return false;
+            // 너무 짧고 의미 없는 해시 패턴
+            if (/^[a-f0-9]{6,}$/i.test(cls)) return false;
+            if (/^[a-z][a-zA-Z0-9]{0,3}_[a-zA-Z0-9]{4,}$/.test(cls)) return false; // CSS-in-JS 패턴 (예: a4Bx_xY7zP)
+            if (/^[A-Za-z]+__[a-zA-Z0-9]{5,}$/.test(cls) && /[0-9]/.test(cls)) return false;
+            if (cls.length > 40) return false;
+            return true;
+        }
+        // 유틸: 부모 체인 (body 위까지)
+        static parentChain(el) {
+            const chain = [];
+            let cur = el;
+            while (cur && cur.tagName && cur.tagName.toLowerCase() !== "html") {
+                chain.push(cur);
+                cur = cur.parentElement;
+            }
+            return chain;
+        }
+
+        // 안정성 점수 계산 (0~100)
+        static scoreSelector(sel, target, opts = {}) {
+            if (!sel) return 0;
+            const count = this.countMatches(sel);
+            if (count === -1) return 0; // invalid
+            if (count === 0) return 0;
+            // 타깃 미포함 시 0점
+            try {
+                const matches = Array.from(document.querySelectorAll(sel));
+                if (!opts.allowGroup && !matches.includes(target)) return 0;
+                if (opts.allowGroup && !matches.includes(target)) return 0;
+            } catch(e) { return 0; }
+
+            let score = 50;
+            // 매칭 개수
+            if (count === 1) score += 20;
+            else if (count <= 5) score += 10;
+            else if (count <= 20) score += 0;
+            else if (count <= 100) score -= 10;
+            else score -= 25;
+
+            // 선택자 종류 가점
+            if (/\[(data-testid|data-cy|data-test|data-ad-|aria-label|role)/i.test(sel)) score += 25;
+            if (/^#[\w-]+$/.test(sel)) score += 20; // 단순 ID
+            if (/\[id=/i.test(sel)) score += 12;
+            if (/:nth-(child|of-type)/.test(sel)) score -= 12;
+            if (/>/g.test(sel)) {
+                const depth = (sel.match(/>/g) || []).length;
+                if (depth >= 3) score -= depth * 3;
+            }
+            // 길이 보정
+            if (sel.length > 200) score -= 15;
+            else if (sel.length > 120) score -= 8;
+            else if (sel.length < 30) score += 5;
+            // :has() 사용 (모던 브라우저에서만)
+            if (/:has\(/.test(sel) && !SUPPORTS_HAS) score = 0;
+
+            return Math.max(0, Math.min(100, score));
+        }
+
+        static scoreToStars(score) {
+            if (score >= 75) return "★★★";
+            if (score >= 50) return "★★☆";
+            if (score >= 25) return "★☆☆";
+            return "☆☆☆";
+        }
+
+        // ============== 전략 1: 시맨틱 속성 (가장 안정적) ==============
+        static semantic(target) {
+            const priorityAttrs = [
+                "data-testid", "data-test-id", "data-test", "data-cy",
+                "data-ad-slot", "data-ad-client", "data-ad-unit-path", "data-ad-format", "data-ad-status",
+                "data-google-query-id", "data-google-av-cxn",
+                "aria-label", "role", "data-component", "data-module", "data-widget",
+                "name", "alt", "placeholder", "type"
+            ];
+            for (const attr of priorityAttrs) {
+                const val = target.getAttribute(attr);
+                if (!val || val.length > 80) continue;
+                const escaped = val.replace(/"/g, '\\"');
+                const candidates = [
+                    `[${attr}="${escaped}"]`,
+                    `${target.tagName.toLowerCase()}[${attr}="${escaped}"]`
+                ];
+                for (const sel of candidates) {
+                    const score = this.scoreSelector(sel, target);
+                    if (score >= 50) {
+                        const count = this.countMatches(sel);
+                        return {
+                            type: "semantic",
+                            icon: "🪪",
+                            label: "시맨틱 속성",
+                            selector: sel,
+                            count, score,
+                            hint: attr.startsWith("data-ad") ? "광고 슬롯 속성 — 매우 안정적" :
+                                  attr.startsWith("aria") ? "접근성 속성 — 구조 변경에 강함" :
+                                  attr.startsWith("data-test") ? "테스트용 속성 — 거의 안 바뀜" :
+                                  "의미 있는 속성 — 안정성 높음"
+                        };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // ============== 전략 2: 짧고 강력 (단순화) ==============
+        static shortest(target) {
+            const tag = target.tagName.toLowerCase();
+            const candidates = [];
+            // ID 단독
+            if (target.id && /^[A-Za-z][\w-]*$/.test(target.id) && !/^\d/.test(target.id)) {
+                candidates.push(`#${CSS.escape(target.id)}`);
+            }
+            // 의미 있는 클래스 단독
+            if (target.classList) {
+                for (const c of target.classList) {
+                    if (this.isMeaningfulClass(c)) {
+                        candidates.push(`.${CSS.escape(c)}`);
+                        candidates.push(`${tag}.${CSS.escape(c)}`);
+                    }
+                }
+            }
+            // 태그 단독 (희귀한 태그)
+            if (["main", "article", "aside", "nav", "header", "footer"].includes(tag)) {
+                candidates.push(tag);
+            }
+
+            let best = null, bestScore = 0;
+            for (const sel of candidates) {
+                const score = this.scoreSelector(sel, target);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = sel;
+                }
+            }
+            if (!best) return null;
+            const count = this.countMatches(best);
+            return {
+                type: "shortest",
+                icon: "🔑",
+                label: "짧고 강력",
+                selector: best,
+                count, score: bestScore,
+                hint: count === 1 ? "이 요소 하나만 정확히 잡힘" :
+                      `비슷한 요소 ${count}개를 한 번에 차단`
+            };
+        }
+
+        // ============== 전략 3: 클래스 패턴 (BEM/접두어/광고키워드) ==============
+        static classPattern(target) {
+            if (!target.className || typeof target.className !== "string") return null;
+            const tag = target.tagName.toLowerCase();
+            const classes = target.className.trim().split(/\s+/).filter(Boolean);
+            const candidates = [];
+
+            for (const c of classes) {
+                // BEM: block__element--modifier
+                const bem = c.match(/^([a-zA-Z][\w-]*?)(__|--)/);
+                if (bem) {
+                    candidates.push({
+                        sel: `[class*="${bem[1]}${bem[2]}"]`,
+                        hint: `"${bem[1]}${bem[2]}" 접두사를 가진 모든 요소`
+                    });
+                }
+                // 광고 키워드 클래스
+                const adMatch = c.match(/(ad|ads|banner|sponsor|promot|advert)[-_]?[a-zA-Z0-9]*/i);
+                if (adMatch && this.isMeaningfulClass(c)) {
+                    candidates.push({
+                        sel: `[class*="${adMatch[0]}"]`,
+                        hint: `광고성 클래스명 "${adMatch[0]}" 부분일치`
+                    });
+                }
+                // 접두어 패턴 (xxx-yyy)
+                const prefix = c.match(/^([a-zA-Z][a-zA-Z0-9]{2,})-/);
+                if (prefix && this.isMeaningfulClass(c)) {
+                    candidates.push({
+                        sel: `[class*="${prefix[1]}-"]`,
+                        hint: `"${prefix[1]}-" 접두사 부분일치 (광범위)`
+                    });
+                }
+            }
+
+            // data-ad-* 속성도 패턴으로 처리
+            for (const attr of target.attributes) {
+                if (/^data-ad/i.test(attr.name)) {
+                    candidates.push({
+                        sel: `[${attr.name}]`,
+                        hint: `${attr.name} 속성을 가진 모든 요소`
+                    });
+                }
+            }
+
+            let best = null, bestScore = 0;
+            for (const c of candidates) {
+                const count = this.countMatches(c.sel);
+                if (count === -1 || count === 0) continue;
+                try {
+                    if (!Array.from(document.querySelectorAll(c.sel)).includes(target)) continue;
+                } catch(e) { continue; }
+                const score = this.scoreSelector(c.sel, target, { allowGroup: true });
+                // 너무 광범위하면 감점
+                let adjusted = score;
+                if (count > 50) adjusted -= 20;
+                if (count > 200) adjusted = Math.min(adjusted, 15);
+                if (adjusted > bestScore) {
+                    bestScore = adjusted;
+                    best = { ...c, count };
+                }
+            }
+            if (!best) return null;
+            return {
+                type: "pattern",
+                icon: "🎨",
+                label: "클래스 패턴",
+                selector: best.sel,
+                count: best.count, score: bestScore,
+                hint: best.hint + (best.count > 30 ? " — 매우 광범위, 주의" : "")
+            };
+        }
+
+        // ============== 전략 4: 정밀 매칭 (현재 기본 방식 재활용) ==============
+        static precise(target, evaluator) {
+            // 외부에서 주입받은 evaluator 사용 (Inspector.evaluateCss)
+            try {
+                const { selector } = evaluator(target);
+                if (!selector) return null;
+                const count = this.countMatches(selector);
+                const score = this.scoreSelector(selector, target);
+                return {
+                    type: "precise",
+                    icon: "🎯",
+                    label: "정밀 매칭",
+                    selector,
+                    count, score,
+                    hint: count === 1 ? "이 요소 하나만 정확히 잡힘 — 구조 바뀌면 깨질 수 있음"
+                                      : `${count}개 매칭 — 정확도 중심`
+                };
+            } catch(e) { return null; }
+        }
+
+        // ============== 전략 5: 유사 그룹 (형제 중 같은 종류) ==============
+        static similarGroup(target) {
+            const parent = target.parentElement;
+            if (!parent) return null;
+            const tag = target.tagName.toLowerCase();
+            // 부모 + 태그 + 의미 있는 첫 클래스
+            const candidates = [];
+            if (target.classList) {
+                for (const c of target.classList) {
+                    if (!this.isMeaningfulClass(c)) continue;
+                    candidates.push(`${tag}.${CSS.escape(c)}`);
+                }
+            }
+            // 부모 컨텍스트 추가
+            const parentTag = parent.tagName.toLowerCase();
+            let parentSel = parentTag;
+            if (parent.classList && parent.classList.length) {
+                for (const c of parent.classList) {
+                    if (this.isMeaningfulClass(c)) {
+                        parentSel = `${parentTag}.${CSS.escape(c)}`;
+                        break;
+                    }
+                }
+            }
+            for (const c of [...candidates]) {
+                candidates.push(`${parentSel} > ${c}`);
+            }
+
+            let best = null, bestCount = 0;
+            for (const sel of candidates) {
+                const count = this.countMatches(sel);
+                if (count < 2 || count > 50) continue; // 그룹다운 범위
+                try {
+                    const list = Array.from(document.querySelectorAll(sel));
+                    if (!list.includes(target)) continue;
+                } catch(e) { continue; }
+                // 더 큰 그룹 우선 (단, 30개 초과는 감점)
+                const scoreCount = count > 30 ? (60 - count) : count;
+                if (scoreCount > bestCount) {
+                    bestCount = scoreCount;
+                    best = { sel, count };
+                }
+            }
+            if (!best) return null;
+            const score = this.scoreSelector(best.sel, target, { allowGroup: true });
+            return {
+                type: "group",
+                icon: "🌐",
+                label: "유사 그룹",
+                selector: best.sel,
+                count: best.count, score: Math.max(score, 40),
+                hint: `같은 종류 ${best.count}개를 한 번에 차단 (예: 인피드 광고)`
+            };
+        }
+
+        // ============== 전략 6: 컨텐츠 컨테이너 (의미있는 부모로 승격) ==============
+        static container(target) {
+            // 의미 있는 부모: aside, article, section, nav, 또는 ad/banner 키워드 포함 부모
+            const chain = this.parentChain(target).slice(1, 5); // 가까운 부모 4개
+            const adKw = /(ad|ads|banner|sponsor|promot|advert|wrap|container|slot|box)/i;
+            for (const p of chain) {
+                const ptag = p.tagName.toLowerCase();
+                let candidate = null, hint = "";
+                if (["aside", "article", "section", "nav"].includes(ptag)) {
+                    // 의미 있는 클래스가 있으면 결합
+                    let cls = null;
+                    if (p.classList) {
+                        for (const c of p.classList) {
+                            if (this.isMeaningfulClass(c)) { cls = c; break; }
+                        }
+                    }
+                    candidate = cls ? `${ptag}.${CSS.escape(cls)}` : ptag;
+                    hint = `${ptag} 컨테이너 전체로 승격`;
+                }
+                if (!candidate && p.id && /^[A-Za-z][\w-]*$/.test(p.id) && !/^\d/.test(p.id) && adKw.test(p.id)) {
+                    candidate = `#${CSS.escape(p.id)}`;
+                    hint = "광고 컨테이너 ID 발견 — 박스 전체 차단";
+                }
+                if (!candidate && p.className && typeof p.className === "string") {
+                    for (const c of p.className.split(/\s+/)) {
+                        if (adKw.test(c) && this.isMeaningfulClass(c)) {
+                            candidate = `${ptag}.${CSS.escape(c)}`;
+                            hint = `광고성 부모 클래스 "${c}" — 박스 전체 차단`;
+                            break;
+                        }
+                    }
+                }
+                if (candidate) {
+                    const score = this.scoreSelector(candidate, target);
+                    if (score >= 40) {
+                        return {
+                            type: "container",
+                            icon: "📎",
+                            label: "부모 컨테이너",
+                            selector: candidate,
+                            count: this.countMatches(candidate),
+                            score: score + 5,
+                            hint
+                        };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // ============== 전체 후보 생성 ==============
+        static buildAll(target, preciseEvaluator) {
+            const candidates = [
+                this.precise(target, preciseEvaluator),
+                this.semantic(target),
+                this.shortest(target),
+                this.classPattern(target),
+                this.container(target),
+                this.similarGroup(target),
+            ].filter(c => c && c.selector && c.score > 0);
+
+            // 중복 제거 (같은 selector)
+            const seen = new Set();
+            const unique = [];
+            for (const c of candidates) {
+                if (seen.has(c.selector)) continue;
+                seen.add(c.selector);
+                unique.push(c);
+            }
+            // 점수 내림차순
+            unique.sort((a, b) => b.score - a.score);
+            // 최고점 후보에 추천 마크
+            if (unique.length) unique[0].recommended = true;
+            return unique;
+        }
+    }
+
+    // =========================================================
     // INSPECTOR CLASS
     // =========================================================
     class Inspector {
@@ -311,19 +655,19 @@
             this.state = {
                 target: null, originTarget: null, hierarchy: [],
                 queryData: { selector: "", root: document },
+                proCandidates: [], proSelectedIdx: -1, proPreviewNodes: [],
                 mode: "initial", scale: "full", isCollapsed: true,
                 isObscured: false, isQuarantined: false, obscuredNodes: [],
                 displayCache: new WeakMap(), hits: 0,
                 autoDismiss: GM_getValue("picky_auto_close", true),
-                isPro: false,
+                isPro: GM_getValue("picky_pro_mode", false),
                 hoverPreviewNodes: [],
                 adSelectedNodes: [],
-                // ★ 위치를 아이콘과 패널로 분리 저장
-                iconPos: GM_getValue("picky_icon_pos", null),    // 사용자가 옮긴 아이콘 위치 (null=기본 우측 하단)
-                panelPos: GM_getValue("picky_panel_pos", null),  // 사용자가 옮긴 패널 위치 (null=기본 하단 가운데)
+                iconPos: GM_getValue("picky_icon_pos", null),
+                panelPos: GM_getValue("picky_panel_pos", null),
                 isDragging: false,
                 dragDidMove: false,
-                dragTarget: null  // "icon" | "panel"
+                dragTarget: null
             };
             this.config = {
                 useId: true, useClasses: true, classCount: 2, useNthOfType: true,
@@ -337,6 +681,8 @@
             this.overlay = null;
             this.watcher = null;
             this.longPressTimer = null;
+            // 평가기 바인딩 (전략에서 사용)
+            this._preciseEvaluator = (el) => this.evaluateCssBasic(el);
         }
 
         resolveParent(t) {
@@ -362,7 +708,8 @@
             return el;
         }
 
-        evaluateCss(t) {
+        // 기본(비 Pro) 선택자 생성 — 단일 결과
+        evaluateCssBasic(t) {
             const e = this.config;
             if (!t || t.nodeType !== 1) return { selector: "", root: document };
             const reservedClasses = [HL_CLASS, ISO_PATH];
@@ -376,114 +723,20 @@
             else idState = "perfect";
 
             const tg = t.tagName.toLowerCase();
-            const chk = (sel, anyMatch = false) => {
-                try {
-                    const nds = n.querySelectorAll(sel);
-                    return (anyMatch && this.state.isPro)
-                        ? (nds.length > 0 && Array.from(nds).includes(t))
-                        : (nds.length === 1);
-                } catch (err) { return false; }
+            const chk = sel => {
+                try { return n.querySelectorAll(sel).length === 1; } catch(err) { return false; }
             };
-
-            if (this.state.isPro) {
-                const adk = /(ad|banner|sponsor|pop|notice|promot|slot|wing)/i;
-                const jnk = /[_-]?(random|[a-f0-9]{6,}|\d{3,})/i;
-
-                if (["iframe","img","script"].includes(tg)) {
-                    const src = t.getAttribute("src");
-                    if (src && adk.test(src)) {
-                        try {
-                            const fn = new URL(src, window.location.href).pathname.split("/").pop();
-                            if (fn && fn.length > 3) {
-                                const sel = `${tg}[src*="${fn.replace(/"/g, '\\"')}"]`;
-                                if (chk(sel, true)) return { selector: sel, root: n };
-                            }
-                        } catch(err) {}
-                    }
-                }
-
-                if (id && (idState === "dynamic" || adk.test(id))) {
-                    if (jnk.test(id)) {
-                        const m = id.match(/^(.*?)(ad|banner|sponsor|pop|notice|promot|slot|wing)[a-z_-]*/i);
-                        if (m) {
-                            const sel = `${tg}[id^="${m[0].replace(/"/g,'\\"')}"]`;
-                            if (chk(sel, true)) return { selector: sel, root: n };
-                        }
-                    }
-                    const m2 = id.match(adk);
-                    if (m2) {
-                        const sel = `${tg}[id*="${m2[0].replace(/"/g,'\\"')}"]`;
-                        if (chk(sel, true)) return { selector: sel, root: n };
-                    }
-                }
-
-                if (t.className && typeof t.className === "string") {
-                    const cls = t.className.trim().split(/\s+/).filter(Boolean);
-                    for (const c of cls) {
-                        if (adk.test(c)) {
-                            if (jnk.test(c)) {
-                                const m = c.match(/^(.*?)(ad|banner|sponsor|pop|notice|promot|slot|wing)[a-z_-]*/i);
-                                if (m) {
-                                    const sel = `${tg}[class*="${m[0].replace(/"/g,'\\"')}"]`;
-                                    if (chk(sel, true)) return { selector: sel, root: n };
-                                }
-                            } else {
-                                const sel = `${tg}.${CSS.escape(c)}`;
-                                if (chk(sel, true)) return { selector: sel, root: n };
-                            }
-                        }
-                    }
-                }
-
-                const sty = t.getAttribute("style");
-                if (sty && sty.length > 15 && !sty.includes("picky")) {
-                    const cSty = sty.replace(/"/g, '\\"').trim();
-                    const sel = `${tg}[style="${cSty}"]`;
-                    if (chk(sel, true)) return { selector: sel, root: n };
-                }
-
-                let bTg = tg;
-                if (e.useClasses && t.className && typeof t.className === "string") {
-                    const cl = Array.from(t.classList);
-                    for (let c of cl) {
-                        let m = c.match(/^([a-zA-Z0-9_-]+)(__|--)([a-zA-Z0-9_-]{3,10})$/);
-                        if (m) {
-                            bTg += `[class*="${CSS.escape(m[1])}${m[2]}"]`;
-                            break;
-                        } else if (!reservedClasses.includes(c) && !/\d{4,}/.test(c) && !/[a-f0-9]{6,}/i.test(c)) {
-                            let iv = false;
-                            for (let vol of e.volatileClasses) {
-                                if (c.toLowerCase().includes(vol)) { iv = true; break; }
-                            }
-                            if (!iv) { bTg += `.${CSS.escape(c)}`; break; }
-                        }
-                    }
-                }
-
-                if (SUPPORTS_HAS) {
-                    const adLnk = t.querySelector('a[href*="/ad/"],a[href*="/ads/"],a[href*="/click/"],a[href*="sponsor"],a[href*="banner"]');
-                    if (adLnk) {
-                        let adSel = "a";
-                        const hr = adLnk.getAttribute("href");
-                        const mh = hr.match(/\/(ads?|click|sponsor|banner)[_/]/i);
-                        if (mh) adSel += `[href*="${mh[0]}"]`;
-                        else adSel += `[href*="${hr.split("?")[0].substring(0, 20)}"]`;
-                        const sH = `${bTg}:has(${adSel})`;
-                        if (chk(sH, true)) return { selector: sH, root: n };
-                    }
-                }
-            }
 
             if (e.useId && idState === "perfect") {
                 const eId = CSS.escape(id);
-                if (chk(`#${eId}`, true)) return { selector: `#${eId}`, root: n };
+                if (chk(`#${eId}`)) return { selector: `#${eId}`, root: n };
             }
 
-            for (let k = 0; k < e.reliableAttrs.length; k++) {
-                const oA = e.reliableAttrs[k], sA = t.getAttribute(oA);
+            for (const oA of e.reliableAttrs) {
+                const sA = t.getAttribute(oA);
                 if (sA) {
                     const sel = `[${oA}="${sA.replace(/"/g, '\\"')}"]`;
-                    if (chk(sel, true)) return { selector: sel, root: n };
+                    if (chk(sel)) return { selector: sel, root: n };
                 }
             }
 
@@ -495,23 +748,18 @@
                     if (tT === "body" || tT === "html") break;
                     let l = tT;
                     if (e.useClasses) {
-                        const cl = Array.from(a.classList), cf = [], at = [];
-                        for (let cn of cl) {
+                        const cl = Array.from(a.classList), cf = [];
+                        for (const cn of cl) {
                             if (reservedClasses.includes(cn)) continue;
-                            if (this.state.isPro) {
-                                let m = cn.match(/^([a-zA-Z0-9_-]+)(__|--)([a-zA-Z0-9_-]{3,10})$/);
-                                if (m) { at.push(`[class*="${CSS.escape(m[1])}${m[2]}"]`); continue; }
-                            }
                             if (!cn || /\d{4,}/.test(cn) || /[a-f0-9]{6,}/i.test(cn)) continue;
                             let isV = false;
-                            for (let vol of e.volatileClasses) {
+                            for (const vol of e.volatileClasses) {
                                 if (cn.toLowerCase().includes(vol)) { isV = true; break; }
                             }
                             if (!isV || includeVolatile) cf.push(cn);
                         }
                         const nn = cf.slice(0, e.classCount);
                         if (nn.length > 0) l += "." + nn.map(x => CSS.escape(x)).join(".");
-                        if (this.state.isPro && at.length > 0) l += at.join("");
                     }
                     if (e.useNthOfType) {
                         const pr = this.resolveParent(a);
@@ -526,7 +774,7 @@
                     s.unshift(l);
                     if (e.intelligentMode) {
                         const cs = s.join(" > ");
-                        if (chk(cs, true)) return cs;
+                        if (chk(cs)) return cs;
                     }
                     a = this.resolveParent(a);
                     dp++;
@@ -535,38 +783,62 @@
             };
 
             let d = cFn(t, false);
-            if (chk(d, true)) return { selector: d, root: n };
-
+            if (chk(d)) return { selector: d, root: n };
             if (e.intelligentMode) {
                 if (e.useId && idState === "dynamic") {
                     const eS = `${tg}#${CSS.escape(id)}`;
-                    if (chk(eS, true)) return { selector: eS, root: n };
+                    if (chk(eS)) return { selector: eS, root: n };
                 }
                 let iF = cFn(t, true);
-                if (chk(iF, true)) return { selector: iF, root: n };
+                if (chk(iF)) return { selector: iF, root: n };
             }
             return { selector: d || cFn(t, true), root: n };
         }
 
+        // Pro 모드: 다중 후보 생성
+        evaluateProCandidates(target) {
+            if (!target) return [];
+            return SelectorStrategies.buildAll(target, this._preciseEvaluator);
+        }
+
         refreshMetrics() {
-            if (!this.state.target) { this.state.hits = 0; return; }
-            this.state.queryData = this.evaluateCss(this.state.target);
-            const { selector: sel, root: rt } = this.state.queryData;
-            if (sel) {
-                try { this.state.hits = rt.querySelectorAll(sel).length; }
-                catch (er) { this.state.hits = 0; }
-                if (this.dom.match) this.dom.match.textContent = `${this.state.hits}개 일치`;
-                if (this.dom.disp) {
-                    let txt = sel;
-                    if (this.config.shadowDomSupport && rt instanceof ShadowRoot) txt += " (in Shadow DOM)";
-                    this.dom.disp.textContent = txt;
+            if (!this.state.target) { this.state.hits = 0; this.state.proCandidates = []; return; }
+            if (this.state.isPro) {
+                // Pro: 후보 목록 생성
+                this.state.proCandidates = this.evaluateProCandidates(this.state.target);
+                // 추천 후보를 기본 선택자로
+                const picked = this.state.proCandidates.find(c => c.recommended) || this.state.proCandidates[0];
+                if (picked) {
+                    this.state.queryData = { selector: picked.selector, root: document };
+                    this.state.hits = picked.count;
+                    this.state.proSelectedIdx = this.state.proCandidates.indexOf(picked);
+                } else {
+                    this.state.queryData = this.evaluateCssBasic(this.state.target);
+                    this.state.hits = this.countMatches(this.state.queryData.selector);
+                    this.state.proSelectedIdx = -1;
                 }
-            } else this.state.hits = 0;
+            } else {
+                this.state.queryData = this.evaluateCssBasic(this.state.target);
+                this.state.hits = this.countMatches(this.state.queryData.selector);
+                this.state.proCandidates = [];
+                this.state.proSelectedIdx = -1;
+            }
+            if (this.dom.match) this.dom.match.textContent = `${this.state.hits}개 일치`;
+            if (this.dom.disp) {
+                let txt = this.state.queryData.selector;
+                if (this.config.shadowDomSupport && this.state.queryData.root instanceof ShadowRoot) txt += " (in Shadow DOM)";
+                this.dom.disp.textContent = txt;
+            }
+        }
+
+        countMatches(sel) {
+            if (!sel) return 0;
+            try { return document.querySelectorAll(sel).length; } catch(e) { return 0; }
         }
 
         fetchStylesheet() {
             return `:host{--pk-pri:#007aff;--pk-on-pri:#fff;--pk-pri-cont:#007aff;--pk-on-pri-cont:#fff;--pk-sec-cont:#e9e9eb;--pk-on-sec-cont:#1d1d1f;--pk-surf-var:#f0f0f2;--pk-on-surf-var:#333;--pk-outl:#d1d1d6;--pk-surf:#f9f9f9;--pk-on-surf:#1d1d1f;--pk-succ:#34c759;--pk-err:#ff3b30;--pk-warn:#ff9500;all:initial;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;position:fixed;top:0;left:0;z-index:2147483647;width:0;height:0}
-            #${TOOL_ID}{position:fixed;z-index:2147483646;width:calc(100% - 24px);max-width:420px;background:rgba(248,248,248,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid rgba(0,0,0,.1);padding:10px 12px 12px;box-sizing:border-box;transition:opacity .4s;user-select:none;-webkit-user-select:none;font-size:14px;color:#000;opacity:0}
+            #${TOOL_ID}{position:fixed;z-index:2147483646;width:calc(100% - 24px);max-width:460px;background:rgba(248,248,248,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid rgba(0,0,0,.1);padding:10px 12px 12px;box-sizing:border-box;transition:opacity .4s;user-select:none;-webkit-user-select:none;font-size:14px;color:#000;opacity:0;max-height:90vh;overflow-y:auto}
             #${TOOL_ID}.visible{opacity:1}
             #${TOOL_ID}.dragging{transition:none!important;opacity:.85;cursor:grabbing!important}
             #${TOOL_ID} .picky-drag-handle{display:flex;align-items:center;justify-content:center;width:100%;height:18px;margin-bottom:4px;cursor:grab;color:var(--pk-on-surf-var);opacity:.4;border-radius:8px;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -598,7 +870,7 @@
             #${TOOL_ID} button.copied{background-color:var(--pk-succ);color:#fff}
             #${TOOL_ID} button.warn{background-color:var(--pk-warn);color:#fff}
             #${TOOL_ID} button.danger{background-color:var(--pk-err);color:#fff}
-            #${TOOL_ID}.minimized{width:36px!important;height:36px!important;border-radius:50%!important;padding:0!important;cursor:pointer;touch-action:none;display:flex!important;align-items:center!important;justify-content:center!important;background:rgba(255,255,255,.95)!important;overflow:hidden;max-width:36px!important}
+            #${TOOL_ID}.minimized{width:36px!important;height:36px!important;border-radius:50%!important;padding:0!important;cursor:pointer;touch-action:none;display:flex!important;align-items:center!important;justify-content:center!important;background:rgba(255,255,255,.95)!important;overflow:hidden;max-width:36px!important;max-height:36px!important}
             #${TOOL_ID}.minimized .picky-content,#${TOOL_ID}.minimized .picky-drag-handle{display:none!important}
             #${TOOL_ID} .picky-maximize-button{display:none}
             #${TOOL_ID}.minimized .picky-maximize-button{display:flex!important;width:100%!important;height:100%!important;align-items:center!important;justify-content:center!important;padding:0!important;margin:0!important;border-radius:50%!important;background:transparent!important}
@@ -618,6 +890,25 @@
             #${TOOL_ID} .picky-slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background-color:#fff;transition:.4s;border-radius:50%}
             #${TOOL_ID} input:checked+.picky-slider{background-color:var(--pk-pri)}
             #${TOOL_ID} input:checked+.picky-slider:before{transform:translateX(20px)}
+            /* ===== Pro 후보 카드 ===== */
+            #${TOOL_ID} .picky-pro-section{background:linear-gradient(135deg,rgba(0,122,255,.08),rgba(52,199,89,.06));border:1px solid rgba(0,122,255,.2);border-radius:12px;padding:8px;margin-bottom:10px}
+            #${TOOL_ID} .picky-pro-header{font-size:11px;font-weight:600;color:var(--pk-pri);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+            #${TOOL_ID} .picky-pro-header .picky-pro-hint{font-weight:400;color:var(--pk-on-surf-var);font-size:10px}
+            #${TOOL_ID} .picky-candidate-list{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto}
+            #${TOOL_ID} .picky-candidate-card{background:rgba(255,255,255,.7);border:1.5px solid var(--pk-outl);border-radius:10px;padding:8px 10px;cursor:pointer;transition:all .15s;position:relative}
+            #${TOOL_ID} .picky-candidate-card:hover{background:rgba(255,255,255,.95);border-color:var(--pk-pri);transform:translateY(-1px)}
+            #${TOOL_ID} .picky-candidate-card.selected{background:rgba(0,122,255,.12);border-color:var(--pk-pri);border-width:2px;padding:7px 9px}
+            #${TOOL_ID} .picky-candidate-card.recommended::after{content:"추천";position:absolute;top:6px;right:8px;background:var(--pk-succ);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px}
+            #${TOOL_ID} .picky-cand-top{display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap}
+            #${TOOL_ID} .picky-cand-icon{font-size:13px}
+            #${TOOL_ID} .picky-cand-label{font-size:12px;font-weight:600;color:var(--pk-on-surf)}
+            #${TOOL_ID} .picky-cand-stars{font-size:10px;color:var(--pk-warn);letter-spacing:1px}
+            #${TOOL_ID} .picky-cand-count{font-size:10px;color:var(--pk-pri);background:rgba(0,122,255,.1);padding:1px 6px;border-radius:6px;font-weight:600}
+            #${TOOL_ID} .picky-cand-count.warn{color:var(--pk-warn);background:rgba(255,149,0,.12)}
+            #${TOOL_ID} .picky-cand-count.danger{color:var(--pk-err);background:rgba(255,59,48,.12)}
+            #${TOOL_ID} .picky-cand-sel{font-family:'SF Mono','Menlo',monospace;font-size:10.5px;color:var(--pk-on-surf);background:rgba(0,0,0,.04);padding:3px 5px;border-radius:4px;word-break:break-all;margin:3px 0;max-height:4em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+            #${TOOL_ID} .picky-cand-hint{font-size:10.5px;color:var(--pk-on-surf-var);line-height:1.3}
+            #${TOOL_ID} .picky-pro-empty{padding:12px;text-align:center;color:var(--pk-on-surf-var);font-size:12px}
             .picky-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:2147483647;backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);opacity:0;transition:opacity .3s}
             .picky-modal-overlay.visible{opacity:1}
             .picky-modal-overlay.picky-ads-modal{background:rgba(0,0,0,.2)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;pointer-events:none}
@@ -665,7 +956,8 @@
             .picky-ad-suggest-score{background:var(--pk-warn);color:#fff;padding:2px 6px;border-radius:8px;font-size:11px;font-weight:600;min-width:24px;text-align:center}
             .picky-rule-preview-hover{outline:3px solid orange!important;outline-offset:2px!important;background:rgba(255,165,0,.15)!important;box-shadow:0 0 0 9999px rgba(0,0,0,.25)!important;scroll-margin:80px!important}
             .picky-ad-selected-mark{outline:3px solid #34c759!important;outline-offset:2px!important;background:rgba(52,199,89,.18)!important;scroll-margin:80px!important}
-            .picky-ad-selected-mark.picky-rule-preview-hover{outline:3px solid #ffcc00!important;background:rgba(255,204,0,.2)!important}`;
+            .picky-ad-selected-mark.picky-rule-preview-hover{outline:3px solid #ffcc00!important;background:rgba(255,204,0,.2)!important}
+            .picky-pro-preview-hover{outline:3px solid #007aff!important;outline-offset:2px!important;background:rgba(0,122,255,.12)!important;box-shadow:0 0 0 9999px rgba(0,0,0,.2)!important;scroll-margin:80px!important}`;
         }
 
         embedGlobalCSS() {
@@ -675,7 +967,8 @@
             html.${ISO_BODY} .${ISO_PATH} *{visibility:visible!important}
             .picky-rule-preview-hover{outline:3px solid orange!important;outline-offset:2px!important;background:rgba(255,165,0,.15)!important;box-shadow:0 0 0 9999px rgba(0,0,0,.25)!important}
             .picky-ad-selected-mark{outline:3px solid #34c759!important;outline-offset:2px!important;background:rgba(52,199,89,.18)!important}
-            .picky-ad-selected-mark.picky-rule-preview-hover{outline:3px solid #ffcc00!important;background:rgba(255,204,0,.2)!important}`;
+            .picky-ad-selected-mark.picky-rule-preview-hover{outline:3px solid #ffcc00!important;background:rgba(255,204,0,.2)!important}
+            .picky-pro-preview-hover{outline:3px solid #007aff!important;outline-offset:2px!important;background:rgba(0,122,255,.12)!important;box-shadow:0 0 0 9999px rgba(0,0,0,.2)!important}`;
             const a = document.createElement("style");
             a.id = `${TOOL_ID}-global-style`;
             a.textContent = e;
@@ -725,49 +1018,29 @@
                 }
             });
             this.watcher.observe(document.documentElement, { childList: true });
-
-            // 창 크기 변경 시 위치 보정
             window.addEventListener("resize", () => this.applyPosition());
         }
 
-        // ★ 위치 적용: 아이콘은 iconPos(기본 우측 하단), 패널은 panelPos(기본 하단 가운데)
         applyPosition() {
             const t = this.dom.tool;
             if (!t) return;
-
-            // 일단 모든 inline 위치 스타일 초기화
-            t.style.left = "";
-            t.style.top = "";
-            t.style.right = "";
-            t.style.bottom = "";
-            t.style.transform = "";
-
+            t.style.left = ""; t.style.top = ""; t.style.right = ""; t.style.bottom = ""; t.style.transform = "";
             if (this.state.isCollapsed) {
-                // ========== 아이콘 위치 ==========
                 if (this.state.iconPos) {
                     const { x, y } = this.clampPos(this.state.iconPos, 36, 36);
-                    t.style.left = x + "px";
-                    t.style.top = y + "px";
+                    t.style.left = x + "px"; t.style.top = y + "px";
                 } else {
-                    // 기본: 우측 하단
-                    t.style.right = "20px";
-                    t.style.bottom = "20px";
+                    t.style.right = "20px"; t.style.bottom = "20px";
                 }
             } else {
-                // ========== 패널 위치 ==========
-                // 실제 크기를 측정해야 정확한 clamp가 가능. 다음 프레임에서 측정.
                 if (this.state.panelPos) {
                     requestAnimationFrame(() => {
                         const rect = t.getBoundingClientRect();
                         const { x, y } = this.clampPos(this.state.panelPos, rect.width || 300, rect.height || 200);
-                        t.style.left = x + "px";
-                        t.style.top = y + "px";
+                        t.style.left = x + "px"; t.style.top = y + "px";
                     });
                 } else {
-                    // 기본: 화면 하단 가운데
-                    t.style.left = "50%";
-                    t.style.bottom = "12px";
-                    t.style.transform = "translateX(-50%)";
+                    t.style.left = "50%"; t.style.bottom = "12px"; t.style.transform = "translateX(-50%)";
                 }
             }
         }
@@ -775,10 +1048,7 @@
         clampPos(pos, w, h) {
             const maxX = Math.max(0, window.innerWidth - w);
             const maxY = Math.max(0, window.innerHeight - h);
-            return {
-                x: Math.max(0, Math.min(pos.x, maxX)),
-                y: Math.max(0, Math.min(pos.y, maxY))
-            };
+            return { x: Math.max(0, Math.min(pos.x, maxX)), y: Math.max(0, Math.min(pos.y, maxY)) };
         }
 
         render() {
@@ -791,9 +1061,7 @@
             this.dom.shield.style.display = (this.state.mode !== "initial" && this.state.mode !== "selected") || this.state.isCollapsed ? "none" : "block";
 
             let dragHandle = "";
-            if (!this.state.isCollapsed) {
-                dragHandle = `<div class="picky-drag-handle" title="드래그로 이동">${ICON_DRAG}</div>`;
-            }
+            if (!this.state.isCollapsed) dragHandle = `<div class="picky-drag-handle" title="드래그로 이동">${ICON_DRAG}</div>`;
 
             let e = "";
             if (this.state.isCollapsed) {
@@ -808,26 +1076,75 @@
             if (this.state.mode === "selected") {
                 this.attachRefs();
                 this.refreshMetrics();
+                if (this.state.isPro) this.renderProCandidates();
             }
 
             this.attachDragHandlers();
             if (this.state.isCollapsed) this.attachLongPressOnDot();
         }
 
-        // ========== 드래그 핸들러 ==========
-        // 아이콘 드래그 → iconPos 저장
-        // 패널 드래그 → panelPos 저장 (서로 영향 없음)
+        // Pro 후보 카드 렌더링 (선택 시 컨테이너만 갱신해서 깜박임 최소화)
+        renderProCandidates() {
+            const container = this.dom.tool.querySelector(".picky-pro-section");
+            if (!container) return;
+            const list = container.querySelector(".picky-candidate-list");
+            if (!list) return;
+            const cands = this.state.proCandidates;
+            if (!cands.length) {
+                list.innerHTML = `<div class="picky-pro-empty">이 요소에 대한 후보를 찾을 수 없어요.</div>`;
+                return;
+            }
+            list.innerHTML = cands.map((c, i) => {
+                const stars = SelectorStrategies.scoreToStars(c.score);
+                const countClass = c.count === 1 ? "" : c.count > 30 ? "danger" : c.count > 5 ? "warn" : "";
+                const selectedClass = (i === this.state.proSelectedIdx) ? " selected" : "";
+                const recClass = c.recommended ? " recommended" : "";
+                return `<div class="picky-candidate-card${selectedClass}${recClass}" data-cand-idx="${i}" data-action="pickCand">
+                    <div class="picky-cand-top">
+                        <span class="picky-cand-icon">${c.icon}</span>
+                        <span class="picky-cand-label">${esc(c.label)}</span>
+                        <span class="picky-cand-stars" title="안정성">${stars}</span>
+                        <span class="picky-cand-count ${countClass}">${c.count}개</span>
+                    </div>
+                    <div class="picky-cand-sel">${esc(c.selector)}</div>
+                    <div class="picky-cand-hint">${esc(c.hint)}</div>
+                </div>`;
+            }).join("");
+
+            // 호버/터치 시 페이지 미리보기
+            list.querySelectorAll(".picky-candidate-card").forEach(card => {
+                const idx = parseInt(card.dataset.candIdx, 10);
+                card.addEventListener("mouseenter", () => this.previewProCandidate(idx));
+                card.addEventListener("mouseleave", () => this.clearProPreview());
+                card.addEventListener("touchstart", () => this.previewProCandidate(idx), { passive: true });
+            });
+        }
+
+        previewProCandidate(idx) {
+            this.clearProPreview();
+            const c = this.state.proCandidates[idx];
+            if (!c) return;
+            try {
+                const nodes = document.querySelectorAll(c.selector);
+                nodes.forEach(el => {
+                    el.classList.add("picky-pro-preview-hover");
+                    this.state.proPreviewNodes.push(el);
+                });
+                if (nodes[0]) nodes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch(e) {}
+        }
+        clearProPreview() {
+            this.state.proPreviewNodes.forEach(el => el.classList.remove("picky-pro-preview-hover"));
+            this.state.proPreviewNodes = [];
+        }
+
         attachDragHandlers() {
             const t = this.dom.tool;
             if (!t) return;
-
             const isInteractive = (target) => {
                 if (!target || target.nodeType !== 1) return false;
-                try {
-                    return !!target.closest(NO_DRAG_SELECTOR);
-                } catch(e) { return false; }
+                try { return !!target.closest(NO_DRAG_SELECTOR); } catch(e) { return false; }
             };
-
             const start = (clientX, clientY) => {
                 const rect = t.getBoundingClientRect();
                 this.state.isDragging = true;
@@ -842,21 +1159,13 @@
                 const dx = Math.abs(clientX - this.state.dragStart.x);
                 const dy = Math.abs(clientY - this.state.dragStart.y);
                 if (dx > 5 || dy > 5) this.state.dragDidMove = true;
-
                 let nx = clientX - this.state.dragOffset.x;
                 let ny = clientY - this.state.dragOffset.y;
                 const rect = t.getBoundingClientRect();
-                const maxX = window.innerWidth - rect.width;
-                const maxY = window.innerHeight - rect.height;
-                nx = Math.max(0, Math.min(nx, maxX));
-                ny = Math.max(0, Math.min(ny, maxY));
-
-                // 직접 위치 갱신 (transform/right/bottom 모두 무력화)
-                t.style.left = nx + "px";
-                t.style.top = ny + "px";
-                t.style.right = "auto";
-                t.style.bottom = "auto";
-                t.style.transform = "none";
+                nx = Math.max(0, Math.min(nx, window.innerWidth - rect.width));
+                ny = Math.max(0, Math.min(ny, window.innerHeight - rect.height));
+                t.style.left = nx + "px"; t.style.top = ny + "px";
+                t.style.right = "auto"; t.style.bottom = "auto"; t.style.transform = "none";
             };
             const end = () => {
                 if (!this.state.isDragging) return;
@@ -866,24 +1175,18 @@
                     const rect = t.getBoundingClientRect();
                     const pos = { x: rect.left, y: rect.top };
                     if (this.state.dragTarget === "icon") {
-                        this.state.iconPos = pos;
-                        GM_setValue("picky_icon_pos", pos);
+                        this.state.iconPos = pos; GM_setValue("picky_icon_pos", pos);
                     } else {
-                        this.state.panelPos = pos;
-                        GM_setValue("picky_panel_pos", pos);
+                        this.state.panelPos = pos; GM_setValue("picky_panel_pos", pos);
                     }
                 }
                 this.state.dragTarget = null;
             };
-
-            // 마우스
             const onMouseDown = (e) => {
                 if (e.button !== undefined && e.button !== 0) return;
                 if (!this.state.isCollapsed) {
-                    // 펼친 상태: 드래그 핸들에서만
                     if (!e.target.closest(".picky-drag-handle")) return;
                 } else {
-                    // 최소화: 인터랙티브 가드 (점 SVG 위는 OK)
                     if (isInteractive(e.target) && !e.target.closest(".picky-maximize-button")) return;
                 }
                 e.preventDefault();
@@ -893,17 +1196,12 @@
                     document.removeEventListener("mousemove", mm, true);
                     document.removeEventListener("mouseup", mu, true);
                     end();
-                    if (this.state.dragDidMove) {
-                        ev.stopPropagation();
-                        ev.preventDefault();
-                    }
+                    if (this.state.dragDidMove) { ev.stopPropagation(); ev.preventDefault(); }
                 };
                 document.addEventListener("mousemove", mm, true);
                 document.addEventListener("mouseup", mu, true);
             };
             t.addEventListener("mousedown", onMouseDown);
-
-            // 터치
             const onTouchStart = (e) => {
                 if (!this.state.isCollapsed) {
                     if (!e.target.closest(".picky-drag-handle")) return;
@@ -928,12 +1226,7 @@
         attachLongPressOnDot() {
             const t = this.dom.tool;
             if (!t) return;
-            const cancel = () => {
-                if (this.longPressTimer) {
-                    clearTimeout(this.longPressTimer);
-                    this.longPressTimer = null;
-                }
-            };
+            const cancel = () => { if (this.longPressTimer) { clearTimeout(this.longPressTimer); this.longPressTimer = null; } };
             const startLP = () => {
                 cancel();
                 this.longPressTimer = setTimeout(() => {
@@ -949,17 +1242,9 @@
                     this.suggestAds();
                 }, 600);
             };
-            t.addEventListener("mousedown", e => {
-                if (!this.state.isCollapsed) return;
-                startLP();
-            });
-            t.addEventListener("touchstart", e => {
-                if (!this.state.isCollapsed) return;
-                startLP();
-            }, { passive: true });
-            ["mouseup","mouseleave","touchend","touchcancel","touchmove"].forEach(ev =>
-                t.addEventListener(ev, cancel)
-            );
+            t.addEventListener("mousedown", e => { if (!this.state.isCollapsed) return; startLP(); });
+            t.addEventListener("touchstart", e => { if (!this.state.isCollapsed) return; startLP(); }, { passive: true });
+            ["mouseup","mouseleave","touchend","touchcancel","touchmove"].forEach(ev => t.addEventListener(ev, cancel));
         }
 
         getFullLayout() {
@@ -981,6 +1266,17 @@
         getSelLayout() {
             const t = this.calcSliderLimits();
             const slider = `<div id="picky-nav-slider-container" data-no-drag><label for="picky-nav-slider" style="font-size:11px;color:var(--pk-on-surf-var)">요소 탐색 (← 상위 / 하위 →)</label><input type="range" id="picky-nav-slider" min="${t.min}" max="${t.max}" value="${t.val}" data-no-drag></div>`;
+
+            // Pro 모드일 때만 후보 카드 섹션 추가
+            const proSection = this.state.isPro ? `
+            <div class="picky-pro-section">
+                <div class="picky-pro-header">
+                    <span>⚡ Pro 모드 — 차단 전략 선택</span>
+                    <span class="picky-pro-hint">호버로 미리보기 · 카드 클릭으로 선택</span>
+                </div>
+                <div class="picky-candidate-list"></div>
+            </div>` : "";
+
             return `<div class="picky-header">
                 <div class="picky-header-title clickable" data-action="goHome" title="홈으로">${ICON_HOME}<span>요소 선택됨</span></div>
                 <div class="picky-header-actions">
@@ -991,9 +1287,10 @@
                     <button class="picky-icon-button" data-action="minimize" title="최소화">${ICON_CLOSE}</button>
                 </div></div>
             <div class="picky-selector-box">
-                <div class="picky-selector-box-title"><span>CSS 선택자 (탭=직접 편집)</span><span class="picky-match-count"></span></div>
+                <div class="picky-selector-box-title"><span>${this.state.isPro ? "선택한 차단 규칙" : "CSS 선택자 (탭=직접 편집)"}</span><span class="picky-match-count"></span></div>
                 <div class="picky-selector-display" data-action="editSelector"></div>
             </div>
+            ${proSection}
             ${slider}
             <div class="picky-btn-group-label">탐색 / 액션</div>
             <div class="picky-btn-group" style="grid-template-columns:repeat(3,1fr)">
@@ -1037,7 +1334,8 @@
             <div class="picky-setting-item"><span>복사 후 자동 닫기</span><label class="picky-switch"><input type="checkbox" data-action="toggleAutoClose" ${this.state.autoDismiss ? "checked" : ""}><span class="picky-slider"></span></label></div>
             <div class="picky-setting-item"><span>차단 활성화</span><label class="picky-switch"><input type="checkbox" data-action="toggleBlockingSwitch" ${enabled ? "checked" : ""}><span class="picky-slider"></span></label></div>
             <div class="picky-setting-item"><span>공격적 차단 (공간 제거)</span><label class="picky-switch"><input type="checkbox" data-action="toggleAggressive" ${aggressive ? "checked" : ""}><span class="picky-slider"></span></label></div>
-            <div class="picky-setting-title">선택자 생성 규칙</div>
+            <div class="picky-setting-item"><span>⚡ Pro 모드 (다중 후보)</span><label class="picky-switch"><input type="checkbox" data-action="toggleProSwitch" ${this.state.isPro ? "checked" : ""}><span class="picky-slider"></span></label></div>
+            <div class="picky-setting-title">선택자 생성 규칙 (기본 모드)</div>
             <div class="picky-setting-item"><span>지능형 모드</span><label class="picky-switch"><input type="checkbox" data-cfg-key="intelligentMode" ${t.intelligentMode ? "checked" : ""}><span class="picky-slider"></span></label></div>
             <div class="picky-manual-settings" ${e}>
                 <div class="picky-setting-item"><span>ID 사용 (#id)</span><label class="picky-switch"><input type="checkbox" data-cfg-key="useId" ${t.useId ? "checked" : ""}><span class="picky-slider"></span></label></div>
@@ -1122,6 +1420,7 @@
                 this.state.target = s;
                 this.setFocus(this.state.target);
                 this.refreshMetrics();
+                if (this.state.isPro) this.renderProCandidates();
             }
         }
 
@@ -1179,21 +1478,22 @@
             });
         }
 
-        // ★ 닫기: 패널 상태는 모두 초기화. 아이콘 위치는 이전에 사용자가 옮긴 iconPos 그대로 (또는 기본 우측 하단).
         minimizeUI() {
             this.purge();
             this.clearRulePreview();
             this.clearAdSelections();
+            this.clearProPreview();
             this.overlay?.dismiss();
             this.dropFocus(this.state.target);
             this.state.target = null;
             this.state.originTarget = null;
             this.state.hierarchy = [];
+            this.state.proCandidates = [];
             this.state.mode = "initial";
             this.state.scale = "full";
             this.state.isCollapsed = true;
             this.render();
-            this.applyPosition();  // 아이콘 위치(iconPos 또는 기본 우측 하단)로 복귀
+            this.applyPosition();
         }
 
         triggerAction(t) {
@@ -1218,13 +1518,10 @@
             const actions = {
                 minimize: () => this.minimizeUI(),
                 terminate: () => {
-                    if (confirm("Picky를 완전히 종료할까요? 다시 사용하려면 페이지를 새로고침해야 합니다.")) {
-                        this.terminate(true);
-                    }
+                    if (confirm("Picky를 완전히 종료할까요? 다시 사용하려면 페이지를 새로고침해야 합니다.")) this.terminate(true);
                 },
                 cycleSize: () => {
                     if (this.state.isCollapsed) {
-                        // 아이콘 → 펼침 (패널은 항상 자기 위치 규칙대로)
                         this.state.isCollapsed = false;
                         this.state.scale = "full";
                         this.render();
@@ -1234,7 +1531,6 @@
                         this.render();
                         this.applyPosition();
                     } else {
-                        // minimal → 최소화(아이콘)
                         this.minimizeUI();
                     }
                 },
@@ -1270,15 +1566,18 @@
                         this.setFocus(this.state.target);
                         if (!this.state.hierarchy.includes(p)) this.rebuildTree(this.state.originTarget);
                         this.refreshMetrics();
+                        if (this.state.isPro) this.renderProCandidates();
                         this.render();
                     }
                 },
                 selChild: () => this.displayChildOptions(),
                 selSimilar: () => {
-                    const q = this.evaluateCss(this.state.target);
+                    const q = this.evaluateCssBasic(this.state.target);
                     const cleaned = q.selector.replace(/:nth-of-type\(\d+\)/g, "");
                     if (this.dom.disp) this.dom.disp.textContent = cleaned + (q.root instanceof ShadowRoot ? " (in Shadow DOM)" : "");
-                    this.refreshMetrics();
+                    this.state.queryData = { selector: cleaned, root: q.root };
+                    this.state.hits = this.countMatches(cleaned);
+                    if (this.dom.match) this.dom.match.textContent = `${this.state.hits}개 일치`;
                 },
                 toggleHide: () => {
                     const { selector, root } = this.state.queryData;
@@ -1309,6 +1608,11 @@
                 },
                 toggleBlockingSwitch: () => { Blocker.toggleEnabled(); this.render(); },
                 toggleAggressive: () => { Blocker.toggleAggressive(); this.render(); },
+                toggleProSwitch: () => {
+                    this.state.isPro = e.checked;
+                    GM_setValue("picky_pro_mode", this.state.isPro);
+                    this.render();
+                },
                 exportJSON: () => Blocker.exportJSON(),
                 exportUblock: () => Blocker.exportUblock(),
                 importJSON: () => Blocker.importJSON(),
@@ -1316,7 +1620,28 @@
                 resetBlocks: () => {
                     if (confirm(`현재 사이트(${window.location.hostname})의 모든 차단 규칙을 삭제하시겠습니까?`)) Blocker.clear();
                 },
-                togglePro: () => { this.state.isPro = !this.state.isPro; this.refreshMetrics(); this.render(); },
+                togglePro: () => {
+                    this.state.isPro = !this.state.isPro;
+                    GM_setValue("picky_pro_mode", this.state.isPro);
+                    this.refreshMetrics();
+                    this.render();
+                },
+                pickCand: () => {
+                    const card = e.closest("[data-cand-idx]");
+                    if (!card) return;
+                    const idx = parseInt(card.dataset.candIdx, 10);
+                    const c = this.state.proCandidates[idx];
+                    if (!c) return;
+                    this.state.proSelectedIdx = idx;
+                    this.state.queryData = { selector: c.selector, root: document };
+                    this.state.hits = c.count;
+                    if (this.dom.disp) this.dom.disp.textContent = c.selector;
+                    if (this.dom.match) this.dom.match.textContent = `${c.count}개 일치`;
+                    // 카드 선택 상태만 갱신 (전체 render 안 해서 깜박임 방지)
+                    this.dom.tool.querySelectorAll(".picky-candidate-card").forEach((el, i) => {
+                        el.classList.toggle("selected", i === idx);
+                    });
+                },
                 toggleIsolate: () => this.toggleIsolation(),
                 copyCSS: () => this.clip(false),
                 copyRule: () => this.clip(true),
@@ -1447,6 +1772,7 @@
                     this.state.target = sel;
                     this.setFocus(this.state.target);
                     this.refreshMetrics();
+                    if (this.state.isPro) this.renderProCandidates();
                 }
                 this.overlay.dismiss();
             });
@@ -1476,9 +1802,7 @@
                     });
                 } catch(err) {}
             });
-            body.addEventListener("mouseout", e => {
-                if (e.target.closest("[data-rule-hover]")) this.clearRulePreview();
-            });
+            body.addEventListener("mouseout", e => { if (e.target.closest("[data-rule-hover]")) this.clearRulePreview(); });
             body.addEventListener("click", e => {
                 const btn = e.target.closest("button[data-rule]");
                 if (!btn) return;
@@ -1502,7 +1826,6 @@
         editSelector() {
             const current = this.state.queryData.selector;
             if (!current) return;
-
             const html = `<div class="picky-edit-modal">
                 <label style="font-size:12px;color:var(--pk-on-surf-var);">CSS 선택자를 직접 편집하세요:</label>
                 <textarea id="picky-edit-textarea" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
@@ -1512,20 +1835,14 @@
                     <button data-edit-action="apply" class="primary" style="background:var(--pk-pri);color:#fff;">적용</button>
                 </div>
             </div>`;
-
             this.overlay.display("선택자 직접 편집", html, true);
             const body = this.overlay.node.querySelector(".picky-modal-body");
             const ta = body.querySelector("#picky-edit-textarea");
             const info = body.querySelector("#picky-edit-match");
             ta.value = current;
-
             const validate = () => {
                 const v = ta.value.trim();
-                if (!v) {
-                    info.textContent = "선택자가 비어 있습니다.";
-                    info.className = "picky-match-info error";
-                    return null;
-                }
+                if (!v) { info.textContent = "선택자가 비어 있습니다."; info.className = "picky-match-info error"; return null; }
                 try {
                     const matches = document.querySelectorAll(v);
                     info.textContent = `✓ 유효함 — ${matches.length}개 요소 일치`;
@@ -1540,20 +1857,13 @@
             validate();
             ta.addEventListener("input", validate);
             setTimeout(() => { ta.focus(); ta.select(); }, 100);
-
             body.addEventListener("click", e => {
                 const btn = e.target.closest("[data-edit-action]");
                 if (!btn) return;
-                if (btn.dataset.editAction === "cancel") {
-                    this.overlay.dismiss();
-                    return;
-                }
+                if (btn.dataset.editAction === "cancel") { this.overlay.dismiss(); return; }
                 if (btn.dataset.editAction === "apply") {
                     const result = validate();
-                    if (!result) {
-                        alert("올바르지 않은 선택자입니다. 수정 후 다시 시도하세요.");
-                        return;
-                    }
+                    if (!result) { alert("올바르지 않은 선택자입니다."); return; }
                     this.state.queryData.selector = result.v;
                     this.state.hits = result.matches.length;
                     if (this.dom.disp) this.dom.disp.textContent = result.v;
@@ -1566,7 +1876,6 @@
                     this.overlay.dismiss();
                 }
             });
-
             ta.addEventListener("keydown", e => {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
@@ -1587,13 +1896,11 @@
                 const id = (el.id || '').toLowerCase();
                 const cls = (typeof el.className === 'string' ? el.className : '').toLowerCase();
                 const src = (el.getAttribute('src') || '').toLowerCase();
-
                 if (adKw.test(id)) { score += 5; reasons.push('id'); }
                 if (adKw.test(cls)) { score += 4; reasons.push('class'); }
                 if (el.tagName === 'IFRAME' && adKw.test(src)) { score += 6; reasons.push('iframe-src'); }
                 if (el.tagName === 'INS') { score += 3; reasons.push('<ins>'); }
                 if (el.querySelector('a[target="_blank"][href*="click"], a[href*="/ads/"], a[href*="/ad/"]')) { score += 3; reasons.push('ad-link'); }
-
                 const rect = el.getBoundingClientRect();
                 if (stdAdSizes.some(([w, h]) => Math.abs(rect.width - w) < 5 && Math.abs(rect.height - h) < 5)) {
                     score += 5; reasons.push('std-ad-size');
@@ -1602,14 +1909,9 @@
                     candidates.push({ el, score, reasons });
                 }
             });
-
             candidates.sort((a, b) => b.score - a.score);
             const top = candidates.slice(0, 20);
-
-            if (top.length === 0) {
-                alert("광고로 의심되는 요소를 찾지 못했어요.");
-                return;
-            }
+            if (top.length === 0) { alert("광고로 의심되는 요소를 찾지 못했어요."); return; }
 
             const html = `<p style="font-size:12px;color:var(--pk-on-surf-var);margin-bottom:10px;line-height:1.5;">📌 항목에 <b>호버/터치</b>하면 페이지에서 <span style="color:#ff9500;font-weight:bold;">주황색</span>으로 표시되고 자동 스크롤됩니다.<br>체크하면 <span style="color:#34c759;font-weight:bold;">초록색</span>으로 고정 표시됩니다.<br>❌ 이 창을 닫으려면 <b style="color:#ff3b30;">우측 상단의 빨간 X 버튼</b>을 누르세요.</p>
             <div style="max-height:50vh;overflow-y:auto;">
@@ -1656,9 +1958,7 @@
                     item.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             });
-            body.addEventListener("mouseout", e => {
-                if (e.target.closest("label[data-idx]")) this.clearRulePreview();
-            });
+            body.addEventListener("mouseout", e => { if (e.target.closest("label[data-idx]")) this.clearRulePreview(); });
             body.addEventListener("touchstart", e => {
                 const lbl = e.target.closest("label[data-idx]");
                 if (!lbl) return;
@@ -1670,38 +1970,30 @@
                     item.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, { passive: true });
-
             body.addEventListener("change", e => {
                 const cb = e.target.closest('input[type=checkbox][data-idx]');
                 if (!cb) return;
                 applyCheckMark(parseInt(cb.dataset.idx, 10), cb.checked);
             });
-
             body.addEventListener("click", e => {
                 const btn = e.target.closest("[data-suggest-action]");
                 if (!btn) return;
                 const act = btn.dataset.suggestAction;
                 if (act === "selectAll") {
-                    body.querySelectorAll('input[type=checkbox][data-idx]').forEach(cb => {
-                        cb.checked = true;
-                        applyCheckMark(parseInt(cb.dataset.idx, 10), true);
-                    });
+                    body.querySelectorAll('input[type=checkbox][data-idx]').forEach(cb => { cb.checked = true; applyCheckMark(parseInt(cb.dataset.idx, 10), true); });
                 } else if (act === "clearSel") {
-                    body.querySelectorAll('input[type=checkbox][data-idx]').forEach(cb => {
-                        cb.checked = false;
-                        applyCheckMark(parseInt(cb.dataset.idx, 10), false);
-                    });
+                    body.querySelectorAll('input[type=checkbox][data-idx]').forEach(cb => { cb.checked = false; applyCheckMark(parseInt(cb.dataset.idx, 10), false); });
                 } else if (act === "closeAds") {
                     this.overlay.dismiss();
                 } else if (act === "blockSelected") {
                     const selected = Array.from(body.querySelectorAll('input[type=checkbox][data-idx]:checked'));
-                    if (selected.length === 0) { alert("선택된 항목이 없어요. 좌측 체크박스를 먼저 체크하세요."); return; }
-                    if (!confirm(`${selected.length}개 요소를 영구 차단하시겠습니까?\n(초록색으로 표시된 요소들)`)) return;
+                    if (selected.length === 0) { alert("선택된 항목이 없어요."); return; }
+                    if (!confirm(`${selected.length}개 요소를 영구 차단하시겠습니까?`)) return;
                     let added = 0;
                     selected.forEach(cb => {
                         const item = top[parseInt(cb.dataset.idx, 10)];
                         if (item) {
-                            const sel = this.evaluateCss(item.el).selector;
+                            const sel = this.evaluateCssBasic(item.el).selector;
                             if (sel && Blocker.append(sel)) added++;
                         }
                     });
@@ -1712,7 +2004,6 @@
                     this.render();
                 }
             });
-
             const originalDismiss = this.overlay.dismiss.bind(this.overlay);
             this.overlay.dismiss = () => {
                 this.clearRulePreview();
@@ -1726,7 +2017,6 @@
             if (!this.state.target) return;
             const t = this.state.target;
             const reserved = [HL_CLASS, ISO_PATH];
-
             const htmlPart = (() => {
                 const c = t.cloneNode(true);
                 c.classList.remove(...reserved);
@@ -1742,10 +2032,9 @@
                 });
                 return out.trim();
             })();
-
             const cssPart = (() => {
                 let s = "/* --- 인라인 스타일 --- */\n";
-                s += t.style.cssText ? `${this.evaluateCss(t).selector} {\n  ${t.style.cssText.replace(/; /g, ";\n  ")}\n}\n\n` : "없음\n\n";
+                s += t.style.cssText ? `${this.evaluateCssBasic(t).selector} {\n  ${t.style.cssText.replace(/; /g, ";\n  ")}\n}\n\n` : "없음\n\n";
                 s += "/* --- 계산된 스타일 (기본값 제외) --- */\n";
                 let cs = "";
                 try {
@@ -1761,9 +2050,8 @@
                         }
                     }
                 } catch(e) {}
-                return s + (cs ? `${this.evaluateCss(t).selector} {\n${cs}}\n` : "추가 계산된 스타일 없음\n");
+                return s + (cs ? `${this.evaluateCssBasic(t).selector} {\n${cs}}\n` : "추가 계산된 스타일 없음\n");
             })();
-
             const jsPart = (() => {
                 let s = "/* --- 인라인 이벤트 핸들러 --- */\n";
                 let found = false;
@@ -1783,7 +2071,6 @@
                 s += scriptHits || "없음\n";
                 return s;
             })();
-
             const html = `<div class="picky-code-tabs">
                 <div class="picky-code-tab active" data-tab="html">HTML</div>
                 <div class="picky-code-tab" data-tab="css">CSS</div>
@@ -1791,7 +2078,6 @@
                 <div class="picky-code-panel active" data-panel="html"><pre>${htmlPart.replace(/</g, "&lt;")}</pre></div>
                 <div class="picky-code-panel" data-panel="css"><pre>${cssPart.replace(/</g, "&lt;")}</pre></div>
                 <div class="picky-code-panel" data-panel="js"><pre>${jsPart.replace(/</g, "&lt;")}</pre></div>`;
-
             this.overlay.display("연관 코드 검사기", html, true);
             const m = this.overlay.node;
             m.querySelectorAll(".picky-code-tab").forEach(tab => {
@@ -1806,10 +2092,8 @@
 
         printSource(type) {
             let title = "", body = "";
-            if (type === "html") {
-                title = "HTML (현재 DOM)";
-                body = document.documentElement.outerHTML;
-            } else if (type === "css") {
+            if (type === "html") { title = "HTML (현재 DOM)"; body = document.documentElement.outerHTML; }
+            else if (type === "css") {
                 title = "CSS (내부 스타일)";
                 body = "/* 동일 출처 스타일시트와 인라인 스타일만 표시됩니다. */\n\n";
                 Array.from(document.styleSheets).forEach(s => {
@@ -1899,12 +2183,8 @@
             this.keyHandler = (e) => {
                 if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') {
                     e.preventDefault();
-                    if (this.state.isCollapsed) {
-                        this.state.isCollapsed = false;
-                        this.state.scale = "full";
-                    } else {
-                        this.state.isCollapsed = true;
-                    }
+                    if (this.state.isCollapsed) { this.state.isCollapsed = false; this.state.scale = "full"; }
+                    else this.state.isCollapsed = true;
                     this.render();
                     this.applyPosition();
                     return;
@@ -1914,8 +2194,7 @@
                     this.minimizeUI();
                     return;
                 }
-                if (this.state.mode === 'selected' && !this.state.isCollapsed
-                    && !e.target.closest('input, textarea')) {
+                if (this.state.mode === 'selected' && !this.state.isCollapsed && !e.target.closest('input, textarea')) {
                     if (e.key === 'ArrowUp') {
                         e.preventDefault();
                         this.triggerAction({ target: { closest: sel => sel === '[data-action]' ? { dataset: { action: 'selParent' } } : null } });
@@ -1929,12 +2208,14 @@
 
             try {
                 GM_registerMenuCommand("🎯 광고 자동 감지", () => {
-                    if (this.state.isCollapsed) {
-                        this.state.isCollapsed = false;
-                        this.render();
-                        this.applyPosition();
-                    }
+                    if (this.state.isCollapsed) { this.state.isCollapsed = false; this.render(); this.applyPosition(); }
                     this.suggestAds();
+                });
+                GM_registerMenuCommand("⚡ Pro 모드 토글", () => {
+                    this.state.isPro = !this.state.isPro;
+                    GM_setValue("picky_pro_mode", this.state.isPro);
+                    alert(this.state.isPro ? "Pro 모드 ON" : "Pro 모드 OFF");
+                    this.render();
                 });
                 GM_registerMenuCommand("📤 규칙 내보내기 (JSON)", () => Blocker.exportJSON());
                 GM_registerMenuCommand("📥 규칙 가져오기", () => Blocker.importJSON());
@@ -1950,13 +2231,11 @@
                     GM_setValue("picky_icon_pos", null);
                     this.state.iconPos = null;
                     this.applyPosition();
-                    alert("아이콘을 우측 하단으로 되돌렸어요.");
                 });
                 GM_registerMenuCommand("📐 패널 위치 초기화", () => {
                     GM_setValue("picky_panel_pos", null);
                     this.state.panelPos = null;
                     this.applyPosition();
-                    alert("패널을 하단 가운데로 되돌렸어요.");
                 });
             } catch(e) {}
         }
@@ -1965,6 +2244,7 @@
             if (purge) this.purge();
             this.clearRulePreview();
             this.clearAdSelections();
+            this.clearProPreview();
             document.removeEventListener("click", this.bindings.nodePick, { capture: true });
             document.removeEventListener("touchstart", this.bindings.selStart, { capture: true });
             document.removeEventListener("touchmove", this.bindings.selMove, { capture: true });
@@ -1987,7 +2267,6 @@
         }
     }
 
-    // === LAUNCH ===
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => new Inspector().launch());
     } else {
