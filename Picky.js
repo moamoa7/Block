@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.6.1
+// @version      3.6.2
 // @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 카드 리스트 UI, 이미지·네트워크·ARIA 고급 전략 지원
 // @author       hooray804
 // @license      MIT
@@ -252,7 +252,7 @@
         exportJSON() {
             const data = {
                 app: 'Picky Advanced',
-                version: '3.6.1',
+                version: '3.6.2',
                 exportDate: new Date().toISOString(),
                 rules: this.fetchAll()
             };
@@ -269,7 +269,7 @@
             const all = this.fetchAll();
             const lines = [
                 '! Title: Picky Advanced Export',
-                `! Version: 3.6.1`,
+                `! Version: 3.6.2`,
                 `! Generated: ${new Date().toISOString()}`,
                 '! Syntax: AdGuard / uBlock Origin compatible',
                 ''
@@ -438,6 +438,10 @@
             return !!this._findImg(el);
         }
 
+        // ───────────────────────────────────────
+        // 셀렉터 "성능 + 정확도" 점수 (0~100)
+        // 점수 의미: 브라우저가 얼마나 빠르고 정확하게 그 요소만 잡는가
+        // ───────────────────────────────────────
         static scoreSelector(sel, el, options = {}) {
             if (!sel) return 0;
             const matches = this.countMatches(sel);
@@ -448,39 +452,73 @@
                 if (el && ![...list].includes(el)) return 0;
             } catch (_) { return 0; }
 
-            let score = 50;
+            // ─── (A) 성능 점수 (최대 60점) ──────
+            // CSS 매칭은 right-to-left이므로 마지막 토큰이 가장 중요
+            let perfScore = 0;
+            const lastSimple = sel.split(/\s|>|\+|~/).pop().trim();
 
-            if (matches === 1) score += 25;
-            else if (matches <= 3) score += 18;
-            else if (matches <= 10) score += 10;
-            else if (matches <= 30) score += 4;
-            else score -= 5;
+            if (/^#[\w\\-]+$/.test(lastSimple)) {
+                perfScore = 60;                              // 순수 ID — 최고속
+            } else if (/^#[\w\\-]+(?:\.[\w\\-]+)+$/.test(lastSimple)) {
+                perfScore = 58;                              // ID + 클래스 — 매우 빠름
+            } else if (/^[a-z]+\.[\w\\-]+$/i.test(lastSimple)) {
+                perfScore = 50;                              // tag.class — 빠름
+            } else if (/^\.[\w\\-]+$/.test(lastSimple)) {
+                perfScore = 48;                              // 단일 클래스 — 빠름
+            } else if (/^\.[\w\\-]+(?:\.[\w\\-]+)+$/.test(lastSimple)) {
+                perfScore = 46;                              // 다중 클래스 — 빠름
+            } else if (/\[[a-z-]+="/i.test(lastSimple)) {
+                perfScore = 38;                              // [attr="val"] 정확 일치
+            } else if (/\[[a-z-]+\^="/i.test(lastSimple)) {
+                perfScore = 34;                              // [attr^="prefix"]
+            } else if (/\[[a-z-]+\$="/i.test(lastSimple)) {
+                perfScore = 32;                              // [attr$="suffix"]
+            } else if (/\[[a-z-]+\*="/i.test(lastSimple)) {
+                perfScore = 26;                              // [attr*="substr"] — 느림
+            } else if (/^[a-z]+$/i.test(lastSimple)) {
+                perfScore = 32;                              // 태그만
+            } else {
+                perfScore = 20;
+            }
 
-            if (sel.length < 30) score += 8;
-            else if (sel.length < 60) score += 3;
-            else if (sel.length > 120) score -= 8;
+            // 비싼 의사 클래스 페널티
+            if (/:has\(/.test(sel)) perfScore -= 12;
+            if (/:nth-of-type|:nth-child/.test(sel)) perfScore -= 6;
+            if (/:nth-of-type\(\d+\).*:nth-of-type/.test(sel)) perfScore -= 6;
 
-            if (/^#[\w-]+$/.test(sel)) score += 12;
-            if (/^#[\w-]+\.[\w-]+/.test(sel)) score += 14;
-            if (/\[data-[\w-]+/.test(sel)) score += 10;
-            if (/\[aria-[\w-]+/.test(sel)) score += 8;
-            if (/:has\(/.test(sel)) score += 6;
-            if (/\[(src|href)\*?=/.test(sel)) score += 7;
+            // 결합자 깊이 페널티
+            const combinatorCount = (sel.match(/[\s>+~]/g) || []).length;
+            if (combinatorCount >= 4) perfScore -= 10;
+            else if (combinatorCount >= 2) perfScore -= 4;
 
-            if (/:nth-of-type\(\d+\).*:nth-of-type/.test(sel)) score -= 8;
-            if (sel.split('>').length > 4) score -= 10;
-            if (/picky-/.test(sel)) return 0;
+            perfScore = Math.max(0, perfScore);
 
-            if (options.bonus) score += options.bonus;
+            // ─── (B) 정확도 점수 (최대 40점) ────
+            let accScore = 0;
+            if (matches === 1) accScore = 40;
+            else if (matches === 2) accScore = 34;
+            else if (matches <= 5) accScore = 28;
+            else if (matches <= 10) accScore = 20;
+            else if (matches <= 30) accScore = 12;
+            else if (matches <= 100) accScore = 6;
+            else accScore = 2;
 
-            return Math.max(0, Math.min(100, score));
+            // ─── (C) 광고 컨텍스트 보너스 ───────
+            let intentBonus = 0;
+            if (/\[(?:data-ad|data-advertisement)/i.test(sel)) intentBonus += 4;
+            if (/aria-label\*?="[^"]*(?:광고|ad|banner)/i.test(sel)) intentBonus += 3;
+            if (options.bonus) intentBonus += options.bonus;
+
+            const total = perfScore + accScore + intentBonus;
+            return Math.max(0, Math.min(100, Math.round(total)));
         }
 
+        // 점수 → 별 등급
         static scoreToStars(score) {
-            if (score >= 80) return '★★★';
-            if (score >= 60) return '★★☆';
-            if (score >= 40) return '★☆☆';
-            return '☆☆☆';
+            if (score >= 85) return '★★★';    // 빠르고 정확
+            if (score >= 65) return '★★☆';    // 쓸 만함
+            if (score >= 40) return '★☆☆';    // 동작은 함
+            return '☆☆☆';                      // 권장 X
         }
 
         // 후보 배열 → 점수 정렬 후 상위 N개를 결과 객체로 변환
@@ -596,29 +634,26 @@
             const candidates = [];
             const parent = anchor.parentElement;
 
-            candidates.push({ sel: `a[href="${CSS.escape(href)}"]`, hint: `더미 href="${href}"`, bonus: 6 });
+            candidates.push({ sel: `a[href="${CSS.escape(href)}"]`, hint: `더미 href="${href}"` });
 
             if (anchor.id && /^[a-zA-Z][\w-]*$/.test(anchor.id)) {
                 candidates.push({
                     sel: `a#${CSS.escape(anchor.id)}[href="${CSS.escape(href)}"]`,
-                    hint: 'ID + 더미 href',
-                    bonus: 8
+                    hint: 'ID + 더미 href'
                 });
             }
             const aClasses = this.meaningfulClasses(anchor);
             for (const c of aClasses.slice(0, 2)) {
                 candidates.push({
                     sel: `a.${CSS.escape(c)}[href="${CSS.escape(href)}"]`,
-                    hint: '클래스 + 더미 href',
-                    bonus: 7
+                    hint: '클래스 + 더미 href'
                 });
             }
 
             if (parent?.id && /^[a-zA-Z][\w-]*$/.test(parent.id)) {
                 candidates.push({
                     sel: `#${CSS.escape(parent.id)} a[href="${CSS.escape(href)}"]`,
-                    hint: '부모 ID 내 더미 href',
-                    bonus: 7
+                    hint: '부모 ID 내 더미 href'
                 });
             }
 
@@ -638,8 +673,8 @@
             for (const c of classes) {
                 const low = c.toLowerCase();
                 if (adKeywords.some(k => low.includes(k))) {
-                    candidates.push({ sel: `[class*="${CSS.escape(c)}"]`, hint: `광고 키워드 부분일치: ${c}`, bonus: 4 });
-                    candidates.push({ sel: `.${CSS.escape(c)}`, hint: `광고 키워드 클래스: ${c}`, bonus: 6 });
+                    candidates.push({ sel: `[class*="${CSS.escape(c)}"]`, hint: `광고 키워드 부분일치: ${c}` });
+                    candidates.push({ sel: `.${CSS.escape(c)}`, hint: `광고 키워드 클래스: ${c}` });
                 }
                 const bem = c.match(/^([a-z][\w-]*?)(?:__|--)/i);
                 if (bem) {
@@ -649,7 +684,7 @@
 
             for (const attr of el.attributes || []) {
                 if (/^data-ad/i.test(attr.name)) {
-                    candidates.push({ sel: `[${attr.name}]`, hint: `광고 데이터 속성: ${attr.name}`, bonus: 8 });
+                    candidates.push({ sel: `[${attr.name}]`, hint: `광고 데이터 속성: ${attr.name}`, bonus: 4 });
                 }
             }
 
@@ -731,16 +766,14 @@
                 if (id && adKeywords.some(k => id.toLowerCase().includes(k))) {
                     candidates.push({
                         sel: `#${CSS.escape(id)}`,
-                        hint: `광고 키워드 ID: ${id}`,
-                        bonus: 8
+                        hint: `광고 키워드 ID: ${id}`
                     });
                 }
                 for (const c of classes) {
                     if (adKeywords.some(k => c.toLowerCase().includes(k))) {
                         candidates.push({
                             sel: `.${CSS.escape(c)}`,
-                            hint: `광고 키워드 컨테이너: ${c}`,
-                            bonus: 6
+                            hint: `광고 키워드 컨테이너: ${c}`
                         });
                     }
                 }
@@ -776,15 +809,13 @@
             if (adHost) {
                 candidates.push({
                     sel: `img[src*="${adHost}"]`,
-                    hint: `광고 네트워크: ${adHost}`,
-                    bonus: 12
+                    hint: `광고 네트워크: ${adHost}`
                 });
             }
             if (host !== location.hostname && !location.hostname.endsWith(host)) {
                 candidates.push({
                     sel: `img[src*="${host}"]`,
-                    hint: `외부 도메인: ${host}`,
-                    bonus: 5
+                    hint: `외부 도메인: ${host}`
                 });
             }
 
@@ -816,16 +847,14 @@
             const candidates = [
                 {
                     sel: `img[width="${matched[0]}"][height="${matched[1]}"]`,
-                    hint: `IAB 표준: ${matched[0]}×${matched[1]}`,
-                    bonus: hasExtLink ? 8 : 4
+                    hint: `IAB 표준: ${matched[0]}×${matched[1]}`
                 }
             ];
 
             if (hasExtLink) {
                 candidates.push({
                     sel: `a[href] > img[width="${matched[0]}"][height="${matched[1]}"]`,
-                    hint: `IAB 크기 + 외부 링크`,
-                    bonus: 12
+                    hint: `IAB 크기 + 외부 링크`
                 });
             }
 
@@ -849,8 +878,8 @@
             if (!matched) return [];
 
             const candidates = [
-                { sel: `a[href*="${matched.kw}"] > img`, hint: matched.desc, bonus: 10 },
-                { sel: `a[href*="${matched.kw}"] img`, hint: `${matched.desc} (자손)`, bonus: 6 }
+                { sel: `a[href*="${matched.kw}"] > img`, hint: matched.desc },
+                { sel: `a[href*="${matched.kw}"] img`, hint: `${matched.desc} (자손)` }
             ];
 
             return this._topN(
@@ -870,7 +899,7 @@
             const matched = AD_PATH_PATTERNS.find(p => src.toLowerCase().includes(p.kw));
             const candidates = [];
             if (matched) {
-                candidates.push({ sel: `img[src*="${matched.kw}"]`, hint: matched.desc, bonus: 6 });
+                candidates.push({ sel: `img[src*="${matched.kw}"]`, hint: matched.desc });
             }
             try {
                 const url = new URL(src, location.href);
@@ -878,8 +907,7 @@
                 if (file && file.length >= 4 && file.length <= 30 && AD_FILE_EXTS.some(e => file.endsWith(e))) {
                     candidates.push({
                         sel: `img[src*="${file}"]`,
-                        hint: `파일명: ${file}`,
-                        bonus: 4
+                        hint: `파일명: ${file}`
                     });
                 }
             } catch (_) {}
@@ -891,7 +919,10 @@
             );
         }
 
-        // ─── 네트워크 필터 ─────────────────────
+        // ───────────────────────────────────────
+        // 네트워크 필터: src가 있으면 광고 여부 무관하게 항상 생성
+        // (uBlock 요소 선택기와 동일한 사용자 경험)
+        // ───────────────────────────────────────
         static networkFilter(el) {
             const targets = [];
             const TAG_SRC = ['IMG', 'IFRAME', 'SCRIPT', 'VIDEO', 'AUDIO', 'SOURCE', 'EMBED'];
@@ -899,107 +930,125 @@
             if (TAG_SRC.includes(el.tagName)) {
                 targets.push(el);
             } else {
-                const inner = el.querySelector?.('img[src], iframe[src], video[src], embed[src]');
+                const inner = el.querySelector?.('img[src], iframe[src], video[src], embed[src], script[src]');
                 if (inner) targets.push(inner);
             }
             if (!targets.length) return [];
 
-            const candidates = [];
-
-            for (const t of targets) {
-                const src = t.getAttribute('src') || t.src;
-                if (!src) continue;
-                let url;
-                try { url = new URL(src, location.href); } catch (_) { continue; }
-                if (!url.hostname || url.protocol === 'data:' || url.protocol === 'blob:') continue;
-
-                const host = url.hostname;
-                const path = url.pathname || '';
-                const isAdHost = AD_NETWORK_HOSTS.some(h => host.includes(h));
-                const isExternal = host !== location.hostname && !location.hostname.endsWith(host);
-
-                if (isAdHost) {
-                    candidates.push({
-                        filter: `||${host}^`,
-                        cssSel: `${t.tagName.toLowerCase()}[src*="${host}"]`,
-                        hint: `광고 호스트 전체 차단: ${host}`,
-                        rawScore: 92
-                    });
-                    candidates.push({
-                        filter: `||${host}^$third-party`,
-                        cssSel: `${t.tagName.toLowerCase()}[src*="${host}"]`,
-                        hint: `광고 호스트 (3rd-party): ${host}`,
-                        rawScore: 88
-                    });
-                }
-
-                const fileName = path.split('/').pop();
-                const adPathMatch = AD_PATH_PATTERNS.find(p => path.toLowerCase().includes(p.kw));
-                if (adPathMatch && fileName) {
-                    candidates.push({
-                        filter: `||${host}${path}`,
-                        cssSel: `${t.tagName.toLowerCase()}[src*="${fileName}"]`,
-                        hint: `광고 경로 정확 매칭: ${adPathMatch.desc}`,
-                        rawScore: 86
-                    });
-                    candidates.push({
-                        filter: `||${host}*${adPathMatch.kw}*`,
-                        cssSel: `${t.tagName.toLowerCase()}[src*="${adPathMatch.kw}"]`,
-                        hint: `광고 키워드 와일드카드: ${adPathMatch.kw}`,
-                        rawScore: 82
-                    });
-                }
-
-                if (isExternal && t.tagName === 'IMG') {
-                    const w = parseInt(t.getAttribute('width')) || t.naturalWidth;
-                    const h = parseInt(t.getAttribute('height')) || t.naturalHeight;
-                    const matchedSize = IAB_AD_SIZES.find(([sw, sh]) =>
-                        Math.abs(sw - w) <= 5 && Math.abs(sh - h) <= 5
-                    );
-                    if (matchedSize) {
-                        candidates.push({
-                            filter: `||${host}^$image`,
-                            cssSel: `img[src*="${host}"]`,
-                            hint: `외부 도메인 이미지 + IAB ${matchedSize[0]}×${matchedSize[1]}`,
-                            rawScore: 80
-                        });
-                    }
-                }
-
-                if (isExternal && fileName && AD_FILE_EXTS.some(e => fileName.toLowerCase().endsWith(e))) {
-                    candidates.push({
-                        filter: `||${host}${path}`,
-                        cssSel: `${t.tagName.toLowerCase()}[src*="${fileName}"]`,
-                        hint: `외부 리소스: ${fileName}`,
-                        rawScore: 70
-                    });
-                }
-            }
-
-            if (!candidates.length) return [];
-
-            // 중복 제거(filter 기준) + 점수순 상위 3개
-            const seen = new Set();
-            candidates.sort((a, b) => b.rawScore - a.rawScore);
             const out = [];
-            for (const c of candidates) {
-                if (seen.has(c.filter)) continue;
-                seen.add(c.filter);
+            const seen = new Set();
+
+            const push = (filter, cssSel, hint, score) => {
+                if (!filter || seen.has(filter)) return;
+                seen.add(filter);
                 out.push({
                     type: 'networkFilter',
                     icon: '🌐',
                     label: '네트워크 필터',
-                    selector: c.cssSel,
-                    filter: c.filter,
+                    selector: cssSel,
+                    filter,
                     isNetwork: true,
-                    matches: this.countMatches(c.cssSel),
-                    score: c.rawScore,
-                    stars: this.scoreToStars(c.rawScore),
-                    hint: c.hint
+                    matches: this.countMatches(cssSel),
+                    score,
+                    stars: this.scoreToStars(score),
+                    hint
                 });
-                if (out.length >= 3) break;
+            };
+
+            for (const t of targets) {
+                const src = t.getAttribute('src') || t.src;
+                if (!src) continue;
+
+                let url;
+                try { url = new URL(src, location.href); } catch (_) { continue; }
+                if (!url.hostname) continue;
+                if (url.protocol === 'data:' || url.protocol === 'blob:') continue;
+
+                const host = url.hostname;
+                const path = url.pathname || '';
+                const fileName = path.split('/').pop() || '';
+                const dirPath = path.substring(0, path.lastIndexOf('/') + 1);
+                const tagLow = t.tagName.toLowerCase();
+                const cssBase = `${tagLow}[src*="${host}"]`;
+                const cssExact = `${tagLow}[src="${CSS.escape(src)}"]`;
+
+                const isAdHost = AD_NETWORK_HOSTS.some(h => host.includes(h));
+                const isExternal = host !== location.hostname && !location.hostname.endsWith(host);
+                const adPathMatch = AD_PATH_PATTERNS.find(p => path.toLowerCase().includes(p.kw));
+
+                // (1) 정확 URL 차단 — 항상 생성, 가장 좁은 범위
+                push(
+                    `||${host}${path}`,
+                    cssExact,
+                    `정확 URL 차단: ${fileName || path}`,
+                    isAdHost ? 92 : (isExternal ? 80 : 72)
+                );
+
+                // (2) 호스트 전체 차단 — 항상 생성, 가장 강력
+                push(
+                    `||${host}^`,
+                    cssBase,
+                    isAdHost
+                        ? `광고 호스트 전체 차단: ${host}`
+                        : (isExternal ? `외부 도메인 전체 차단: ${host}` : `자사 도메인 차단: ${host}`),
+                    isAdHost ? 95 : (isExternal ? 78 : 50)
+                );
+
+                // (3) 디렉토리 차단 — 경로가 의미있을 때
+                if (dirPath && dirPath.length > 1 && dirPath !== '/') {
+                    push(
+                        `||${host}${dirPath}*`,
+                        `${tagLow}[src*="${dirPath}"]`,
+                        `디렉토리 차단: ${dirPath}`,
+                        isAdHost ? 88 : (adPathMatch ? 82 : 68)
+                    );
+                }
+
+                // (4) 광고 경로 패턴 — 광고 키워드가 path에 있을 때
+                if (adPathMatch) {
+                    push(
+                        `||${host}*${adPathMatch.kw}*`,
+                        `${tagLow}[src*="${adPathMatch.kw}"]`,
+                        `광고 키워드 와일드카드: ${adPathMatch.kw}`,
+                        85
+                    );
+                }
+
+                // (5) 호스트 + 리소스 타입 옵션 — 외부 도메인
+                if (isExternal) {
+                    const typeOpt = tagLow === 'img' ? '$image'
+                                  : tagLow === 'iframe' ? '$subdocument'
+                                  : tagLow === 'script' ? '$script'
+                                  : '';
+                    if (typeOpt) {
+                        push(
+                            `||${host}^${typeOpt}`,
+                            cssBase,
+                            `${host} (${typeOpt.slice(1)} 한정)`,
+                            isAdHost ? 90 : 76
+                        );
+                    }
+                    push(
+                        `||${host}^$third-party`,
+                        cssBase,
+                        `${host} (3rd-party 한정)`,
+                        isAdHost ? 88 : 74
+                    );
+                }
+
+                // (6) 파일명 기반 차단 — 의미있는 파일명일 때
+                if (fileName && fileName.length >= 4 && fileName.length <= 50 &&
+                    !/^[0-9a-f]{20,}$/i.test(fileName)) {
+                    push(
+                        `||${host}*/${fileName}`,
+                        `${tagLow}[src$="${fileName}"]`,
+                        `파일명: ${fileName}`,
+                        adPathMatch ? 78 : 62
+                    );
+                }
             }
-            return out;
+
+            return out.sort((a, b) => b.score - a.score);
         }
 
         // ─── 혼합 nth ──────────────────────────
@@ -1017,13 +1066,11 @@
             if (myIdx > 0 && classes.length && sameTagSiblings.length > 1) {
                 candidates.push({
                     sel: `${tag}.${CSS.escape(classes[0])}:nth-of-type(${myIdx})`,
-                    hint: `${myIdx}번째 ${tag}.${classes[0]}`,
-                    bonus: 3
+                    hint: `${myIdx}번째 ${tag}.${classes[0]}`
                 });
                 candidates.push({
                     sel: `${tag}:nth-of-type(${myIdx})`,
-                    hint: `${myIdx}번째 ${tag}`,
-                    bonus: 1
+                    hint: `${myIdx}번째 ${tag}`
                 });
             }
 
@@ -1037,8 +1084,7 @@
                 if (parentIdx > 0 && parentSameTag.length > 1) {
                     candidates.push({
                         sel: `${parentTag}.${CSS.escape(parentClasses[0])}:nth-of-type(${parentIdx}) > ${tag}${classes.length ? '.' + CSS.escape(classes[0]) : ''}`,
-                        hint: `${parentIdx}번째 ${parentTag} 안의 ${tag}`,
-                        bonus: 4
+                        hint: `${parentIdx}번째 ${parentTag} 안의 ${tag}`
                     });
                 }
             }
@@ -1048,8 +1094,7 @@
             if (childIdx > 0 && allSiblings.length > 1 && classes.length) {
                 candidates.push({
                     sel: `.${CSS.escape(classes[0])}:nth-child(${childIdx})`,
-                    hint: `${childIdx}번째 자식`,
-                    bonus: 2
+                    hint: `${childIdx}번째 자식`
                 });
             }
 
@@ -1078,8 +1123,7 @@
                     if (style.replace(/\s/g, '').toLowerCase().includes(sp.kw)) {
                         candidates.push({
                             sel: `${tag}.${CSS.escape(classes[0])}[style*="${sp.kw.split(':')[0]}"]`,
-                            hint: `${sp.desc} + 클래스`,
-                            bonus: 5
+                            hint: `${sp.desc} + 클래스`
                         });
                         break;
                     }
@@ -1098,22 +1142,19 @@
                 if (hasIframe && classes.length) {
                     candidates.push({
                         sel: `${tag}.${CSS.escape(classes[0])}:has(> iframe)`,
-                        hint: 'iframe 직접 자식 + 클래스',
-                        bonus: 7
+                        hint: 'iframe 직접 자식 + 클래스'
                     });
                 } else if (hasIframe) {
                     candidates.push({
                         sel: `${tag}:has(> iframe)`,
-                        hint: 'iframe 직접 자식',
-                        bonus: 4
+                        hint: 'iframe 직접 자식'
                     });
                 }
 
                 if (hasAdImg && classes.length) {
                     candidates.push({
                         sel: `${tag}.${CSS.escape(classes[0])}:has(> img[src*="ad"])`,
-                        hint: '광고 이미지 컨테이너',
-                        bonus: 8
+                        hint: '광고 이미지 컨테이너'
                     });
                 }
             }
@@ -1124,15 +1165,13 @@
                     if (childImg) {
                         candidates.push({
                             sel: `.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}:has(> img)`,
-                            hint: '다중 클래스 + img',
-                            bonus: 5
+                            hint: '다중 클래스 + img'
                         });
                     }
                 }
                 candidates.push({
                     sel: `.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}`,
-                    hint: '다중 클래스 (호환 모드)',
-                    bonus: 2
+                    hint: '다중 클래스 (호환 모드)'
                 });
             }
 
@@ -1141,8 +1180,7 @@
                 const da = dataAttrs[0];
                 candidates.push({
                     sel: `.${CSS.escape(classes[0])}[${da.name}="${CSS.escape(da.value)}"]`,
-                    hint: `${da.name} 속성 결합`,
-                    bonus: 6
+                    hint: `${da.name} 속성 결합`
                 });
             }
 
@@ -1173,19 +1211,16 @@
                     if (matched) {
                         candidates.push({
                             sel: `[aria-label*="${CSS.escape(matched)}"]`,
-                            hint: `aria-label에 "${matched}"`,
-                            bonus: 12
+                            hint: `aria-label에 "${matched}"`
                         });
                         candidates.push({
                             sel: `${tag}[aria-label*="${CSS.escape(matched)}"]`,
-                            hint: `${tag} + aria-label "${matched}"`,
-                            bonus: 10
+                            hint: `${tag} + aria-label "${matched}"`
                         });
                     } else if (ariaLabel.length <= 30) {
                         candidates.push({
                             sel: `${tag}[aria-label="${CSS.escape(ariaLabel)}"]`,
-                            hint: `aria-label="${ariaLabel}"`,
-                            bonus: 4
+                            hint: `aria-label="${ariaLabel}"`
                         });
                     }
                 }
@@ -1193,16 +1228,14 @@
                 if (role && ['banner', 'complementary', 'advertisement'].includes(role)) {
                     candidates.push({
                         sel: `[role="${CSS.escape(role)}"]`,
-                        hint: `role="${role}"`,
-                        bonus: 10
+                        hint: `role="${role}"`
                     });
                 }
 
                 if (ariaLabelledby) {
                     candidates.push({
                         sel: `[aria-labelledby="${CSS.escape(ariaLabelledby)}"]`,
-                        hint: `aria-labelledby 참조`,
-                        bonus: 6
+                        hint: `aria-labelledby 참조`
                     });
                 }
             }
@@ -1215,6 +1248,7 @@
         }
 
         // ─── 전체 후보 빌드 ─────────────────────
+        // 제한 없이 모든 후보 표시, 추천 배지는 항상 점수 1등에게
         static buildAll(el, evaluator) {
             if (!el || !el.tagName) return [];
 
@@ -1265,15 +1299,11 @@
                 unique.push(r);
             }
 
+            // 점수 내림차순 정렬 — 제한 없이 모두 표시
             unique.sort((a, b) => b.score - a.score);
 
-            // ★★★ 추천 기준 강화: 별 3개(80점 이상)만 추천 배지 부여
-            for (const r of unique) {
-                if (r.score >= 80) {
-                    r.recommended = true;
-                    break;
-                }
-            }
+            // 추천 배지는 별 개수와 무관하게 항상 점수 1등에게 부여
+            if (unique.length) unique[0].recommended = true;
 
             return unique;
         }
@@ -1308,7 +1338,7 @@
                 selectedIdx: -1,
                 previewNodes: [],
                 mode: 'initial',
-                scale: 'icon',          // 시작 시 아이콘
+                scale: 'icon',
                 isCollapsed: true,
                 isObscured: false,
                 isQuarantined: false,
@@ -1318,8 +1348,8 @@
                 autoDismiss: GM_getValue('picky_auto_close', true),
                 hoverPreviewNodes: [],
                 adSelectedNodes: [],
-                iconPos: null,           // 저장 안 함 (세션 한정)
-                panelPos: null,          // 저장 안 함 (세션 한정)
+                iconPos: null,
+                panelPos: null,
                 isDragging: false,
                 dragDidMove: false,
                 dragTarget: null
@@ -1380,7 +1410,6 @@
             this.applyPosition();
         }
 
-        // 위치 적용: 아이콘=오른쪽 하단, 패널=가운데 하단
         applyPosition() {
             const tool = this.dom.tool;
             if (!tool) return;
@@ -1447,7 +1476,7 @@
             const agg = Blocker.isAggressive();
             return `
             <div class="picky-head" data-drag="1">
-                <span class="picky-title">Picky <small>v3.6.1</small></span>
+                <span class="picky-title">Picky <small>v3.6.2</small></span>
                 <div class="picky-head-btns">
                     <button class="picky-btn picky-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
                     <button class="picky-btn picky-btn-icon" data-act="cycleSize" title="최소화">${ICON_MIN}</button>
@@ -1537,7 +1566,10 @@
                 return;
             }
 
-            wrap.innerHTML = list.map((c, i) => this.renderCard(c, i)).join('');
+            wrap.innerHTML = `
+                <div class="picky-cards-info">총 ${list.length}개 후보 · 점수순 정렬</div>
+                ${list.map((c, i) => this.renderCard(c, i)).join('')}
+            `;
 
             wrap.querySelectorAll('.picky-card').forEach(card => {
                 const idx = parseInt(card.dataset.idx, 10);
@@ -1570,7 +1602,7 @@
                     <span class="picky-card-icon">${c.icon || '•'}</span>
                     <span class="picky-card-label">${esc(c.label)}</span>
                     ${recommended}
-                    <span class="picky-card-stars" title="${c.score}점">${c.stars || ''}</span>
+                    <span class="picky-card-stars" title="${c.score}점 (성능+정확도)">${c.stars || ''}</span>
                 </div>
                 <div class="picky-card-filter" title="AdGuard/uBlock 호환 규칙">${esc(filterText)}</div>
                 <div class="picky-card-css" title="CSS 셀렉터 (참고)">
@@ -1719,7 +1751,7 @@
             }
             this.state.candidates = SelectorStrategies.buildAll(el, this._preciseEvaluator);
 
-            // 추천(별 3개)이 있으면 그것을, 없으면 첫 번째(점수 최고)를 기본 선택
+            // 추천(점수 1등)을 기본 선택
             let idx = this.state.candidates.findIndex(c => c.recommended);
             if (idx < 0 && this.state.candidates.length) idx = 0;
             this.state.selectedIdx = idx;
@@ -1727,6 +1759,7 @@
             if (idx >= 0) {
                 const pick = this.state.candidates[idx];
                 if (!pick.isNetwork) this.state.queryData.selector = pick.selector;
+                else this.state.queryData.selector = pick.selector; // 네트워크도 CSS 참고용은 채워줌
             } else {
                 this.state.queryData.selector = '';
             }
@@ -1780,10 +1813,10 @@
         cycleSize() {
             if (this.state.scale === 'icon') {
                 this.state.scale = 'full';
-                this.state.panelPos = null;  // 패널 열 때마다 가운데 하단
+                this.state.panelPos = null;
             } else {
                 this.state.scale = 'icon';
-                this.state.iconPos = null;   // 아이콘 돌아갈 때 오른쪽 하단
+                this.state.iconPos = null;
                 this.dropFocus();
                 this.clearPreview();
                 if (this.state.mode === 'picking') this.stopPicking();
@@ -1796,7 +1829,6 @@
             switch (act) {
                 case 'cycleSize': this.cycleSize(); break;
                 case 'terminate':
-                    // 완전 종료 대신 아이콘으로 접기
                     this.state.scale = 'icon';
                     this.state.iconPos = null;
                     this.dropFocus();
@@ -1820,7 +1852,10 @@
                 }
                 case 'blockSelected': {
                     const c = this.state.candidates[this.state.selectedIdx];
-                    if (c) this.handleCardAction('block', this.state.selectedIdx);
+                    if (c && !c.isNetwork) this.handleCardAction('block', this.state.selectedIdx);
+                    else if (c && c.isNetwork) {
+                        this.flashToast('네트워크 필터는 차단할 수 없습니다 (필터 복사 사용)');
+                    }
                     else if (this.state.queryData.selector) {
                         if (Blocker.append(this.state.queryData.selector)) {
                             this.flashToast('차단 규칙 추가');
@@ -1935,6 +1970,9 @@
                     <div class="picky-settings-row">
                         <button class="picky-btn" data-ref="undo">↶ 마지막 작업 취소</button>
                     </div>
+                    <div class="picky-settings-row">
+                        <small style="opacity:0.6">별점 기준: 성능(브라우저 매칭 속도) + 정확도(매치 개수). ★★★는 가장 빠르고 정확한 셀렉터입니다.</small>
+                    </div>
                 </div>`;
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => {
                 this.state.iconPos = null;
@@ -2021,7 +2059,6 @@
             });
         }
 
-        // 드래그: 위치 저장 GM_setValue 제거 (메모리 한정)
         attachDragHandlers() {
             const tool = this.dom.tool;
             if (!tool) return;
@@ -2061,7 +2098,7 @@
                     const r = tool.getBoundingClientRect();
                     const pos = { x: r.left, y: r.top };
                     if (this.state.scale === 'icon') {
-                        this.state.iconPos = pos;       // 메모리에만 저장 (세션 한정, 새로고침 시 리셋)
+                        this.state.iconPos = pos;
                     } else {
                         this.state.panelPos = pos;
                     }
@@ -2198,7 +2235,7 @@
     }
 
     .picky-cards-scroll {
-        max-height: 260px;
+        max-height: 320px;
         overflow-y: auto;
         overflow-x: hidden;
         scroll-snap-type: y proximity;
@@ -2210,6 +2247,10 @@
     .picky-cards-scroll::-webkit-scrollbar { width: 6px; }
     .picky-cards-scroll::-webkit-scrollbar-thumb {
         background: rgba(255,255,255,0.2); border-radius: 3px;
+    }
+    .picky-cards-info {
+        font-size: 10px; opacity: 0.55;
+        padding: 4px 6px 8px; text-align: center;
     }
     .picky-cards-empty {
         text-align: center; opacity: 0.4;
@@ -2404,7 +2445,6 @@
     }
     `;
 
-    // 페이지 글로벌 하이라이트 CSS
     const PAGE_CSS = `
     .${HL_CLASS} {
         outline: 2px solid #3b82f6 !important;
@@ -2423,7 +2463,6 @@
         (document.head || document.documentElement).appendChild(s);
     };
 
-    // 부팅
     let inspector = null;
     const boot = () => {
         if (inspector) return;
