@@ -685,6 +685,8 @@ chosun.com#@#[class*="ad-right" i]
 ! - 예외
 ! - - -  조선일보 (https://www.chosun.com/)
 chosun.com#@#[class*="ad-left" i]
+! - - - 잡코리아 (https://www.jobkorea.co.kr/) - 상단부분 날라감
+jobkorea.co.kr#@#[class*="ad-left" i]
 ! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
 !##[class*="Ad"]
 ! - - - 예외 (https://play.google.com/) - 제목 날라감
@@ -2043,12 +2045,14 @@ auction.co.kr##.hp_thema
 ! - 광고 차단? (출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 !gmarket.co.kr##.section__main-banner.section__main
 ! - 배너 이미지 복원 (List KR)
-www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
+!www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
+! - 해외직구 - 배너가 다 지워서 섹션 지움
+gmarket.co.kr##.section__main-overseas
 !
 !
 ! 11번가 (https://www.11st.co.kr/)
 ! - 플러스 상품 삭제 (List-KR) 복원
-search.11st.co.kr#@##section_plusPrd
+!search.11st.co.kr#@##section_plusPrd
 ! - 서치 후 상품 클릭 안됨 해결 (List-kr)
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 search.11st.co.kr#@#[data-log-actionid-area^="focus"]
@@ -2057,6 +2061,15 @@ search.11st.co.kr#@#[data-log-actionid-area^="focus"]
 m.11st.co.kr##.c-bottom-drawer.modal-wrap
 ! - 모바일 하단 안내 차단 후 뿌연거 해걸
 m.11st.co.kr##.fadeIn.animated.dim
+! - 배너삭제로 인한 일부 섹션 삭제
+11st.co.kr###carrier-15492
+11st.co.kr###carrier-9238
+11st.co.kr###carrier-9244
+11st.co.kr###carrier-9253
+11st.co.kr###carrier-9259
+11st.co.kr###carrier-9261
+! - 오늘의 찬스 AD광고 섹션
+11st.co.kr###carrier-9257
 !
 !
 ! 알리 (https://ko.aliexpress.com/)
@@ -2095,6 +2108,8 @@ web.joongna.com##.max-md\:gap-3
 !bananamall.co.kr###pop_gevent
 ! - 배너
 !##[id^="banner_"]
+! - 배너 안지워지는거
+##[id*="pop_" i]
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
@@ -3252,6 +3267,8 @@ wavve.com#@#[id*="main-banner" i]
 ! - 전체 배너
 ! - - -AV탑걸 (https://kr41.topgirl.co/)
 ##[class*="mx-auto" i] [target] img[src]
+! - 에외 - https://www.jobkorea.co.kr/- 이미지 일부 사라짐
+jobkorea.co.kr#@#[class*="mx-auto" i] [target] img[src]
 ! - 영상 하단내 배너 테두리
 !##.vjs-bottom-banner.vjs-bottom-banner-container
 ! 팝업 잔쟁이들
@@ -4447,6 +4464,11 @@ mozatv.com##.tips-box
 [$domain=/^cytv\d+.com/]##.index-wall-left, .index-wall-right
 !
 !
+! 사람인 (https://www.saramin.co.kr/)
+! - 일부 해제 - 사이트 구동 안됨
+saramin.co.kr#@#[class*="banner" i]
+!
+!
 !
 !
 !
@@ -4661,6 +4683,11 @@ ad-script.
 
 
 
+! - 이미지 차단
+||*/popup/*
+||*/popups/*
+
+
 !!! 광역
 
 ! - https://06.avsee.ru/
@@ -4681,6 +4708,10 @@ manhwabang.org##a[target*="target"] img
 
 
 *banner*$image,script,frame
+! - 11번가 - 사이트 구동이 안됨
+@@||*banner*$script,domain=11st.co.kr
+
+
 
 
 !*ad*banner*$image,script
