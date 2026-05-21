@@ -105,12 +105,8 @@
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !
 !
-! - 모든 websocket 차단
-*$websocket,ping
-! - - - 채팅이 필요한곳 제외
-@@||*$websocket,domain=discord.com|play.sooplive.com|chzzk.naver.com|twitch.tv|kick.com|poooo.ml|ok.ru
-!  -- - 차단시 앱 실행이 안되는 곳 제외
-@@||*$websocket,domain=firebaseremoteconfig.googleapis.com|android.apis.google.com|googleapis.com|instagram.com|kakaocdn.net
+! - 모든 ping 차단
+*$ping
 !
 !
 !
@@ -1303,8 +1299,8 @@ poooo.ml#@#.ad
 ! - 시청기록 / 맨위로 따라다니는 버튼
 [$domain=/^tvwiki\d+\.net$/]##.floating-side-btns
 ! - websocket 차단 - 먼지 모르갰지만 재생에 필요한 사이트에 websocket이 켜있어서 막아놓음
-! - - - 티비위키 / 티비몬 / 티비핫 공통 적용 - 모든 websocket 차단으로 변경하여 주석처리
-!||player.bunny-frame.online$websocket
+! - - - 티비위키 / 티비몬 / 티비핫 공통 적용
+||player.bunny-frame.online$websocket
 !
 !
 ! 티비착 (https://tvchak.org/)  (https://tvchak201.com/)  (https://tvchak.live/)
