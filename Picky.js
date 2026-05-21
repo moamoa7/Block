@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.6.5
-// @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 카드 리스트 UI, 실시간 미리보기 + 숨김 토글 + 유일 타겟팅 경로
+// @version      3.6.6
+// @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 카드 리스트 UI, 실시간 미리보기 + 숨김 토글 + 유일 타겟팅 경로 + Shield 픽킹(빈 공간 대응)
 // @author       hooray804
 // @license      MIT
 // @homepage     https://github.com/hooray804/Picky
@@ -62,7 +62,7 @@
         'adform.net', 'smartadserver.com', 'yieldmo.com',
         'mediavine.com', 'adcolony.com', 'mopub.com',
         'adnxs1.com', 'serving-sys.com', 'tapad.com',
-        'bidswitch.net', 'casalemedia.com', 'contextweb.com',
+        'bidswitch.net', 'contextweb.com',
         'dable.io', 'mediacategory.com', 'realclick.co.kr',
         'recopick.com', 'ad.naver.com', 'ader.naver.com',
         'wcs.naver.net', 'ad.daum.net', 'display.ad.daum.net'
@@ -228,7 +228,7 @@
             });
 
             const decl = this.isAggressive()
-                ? 'display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;opacity:0!important;pointer-events:none!important;'
+                ? 'display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;width:0!important;min-width:0!important;max-width:0!important;margin:0!important;padding:0!important;border:0!important;opacity:0!important;pointer-events:none!important;'
                 : 'display:none!important;';
             style.textContent = safe.map(s => `${s}{${decl}}`).join('\n');
         },
@@ -255,7 +255,7 @@
         exportJSON() {
             const data = {
                 app: 'Picky Advanced',
-                version: '3.6.5',
+                version: '3.6.6',
                 exportDate: new Date().toISOString(),
                 rules: this.fetchAll()
             };
@@ -272,7 +272,7 @@
             const all = this.fetchAll();
             const lines = [
                 '! Title: Picky Advanced Export',
-                `! Version: 3.6.5`,
+                `! Version: 3.6.6`,
                 `! Generated: ${new Date().toISOString()}`,
                 '! Syntax: AdGuard / uBlock Origin compatible',
                 ''
@@ -448,6 +448,7 @@
         }
 
         // ── 점수 산정: 성능 + 정확도 + 의도 보너스 ─────────
+        // ★ v3.6.6: 정확 매칭(=)이고 매치=1이면 길이 페널티 면제 + 보너스 → ★★★ 보장
         static scoreSelector(sel, el, options = {}) {
             if (!sel) return 0;
             const matches = this.countMatches(sel);
@@ -496,9 +497,9 @@
 
             perfScore = Math.max(0, perfScore);
 
-            // (B) 정확도 점수 (최대 42점) — 매치=1을 강하게 우대
+            // (B) 정확도 점수 (최대 42점)
             let accScore = 0;
-            if (matches === 1) accScore = 42;       // ★★★ 보장
+            if (matches === 1) accScore = 42;
             else if (matches === 2) accScore = 30;
             else if (matches <= 5) accScore = 22;
             else if (matches <= 10) accScore = 16;
@@ -511,6 +512,12 @@
             if (/\[(?:data-ad|data-advertisement)/i.test(sel)) intentBonus += 4;
             if (/aria-label\*?="[^"]*(?:광고|ad|banner)/i.test(sel)) intentBonus += 3;
             if (options.bonus) intentBonus += options.bonus;
+
+            // (D) ★ 정확 매칭 보너스: [attr="value"]이고 matches===1이면 ★★★ 진입 보장
+            const isExactAttrMatch = /\[(?:src|href|data-[\w-]+|id|name|alt|title|aria-label)="[^"]+"\]/i.test(sel);
+            if (isExactAttrMatch && matches === 1) {
+                intentBonus += 25;  // 긴 URL이어도 ★★★ 임계점(85) 돌파
+            }
 
             const total = perfScore + accScore + intentBonus;
             return Math.max(0, Math.min(100, Math.round(total)));
@@ -553,10 +560,8 @@
             }));
         }
 
-        // ── 한 요소를 표현하는 짧은 simple selector 생성 ──
         static _simpleSelectorFor(el) {
             if (!el || !el.tagName) return '';
-            // ID가 안정적이고 유일하면 ID 우선
             if (el.id && /^[a-zA-Z][\w-]*$/.test(el.id)) {
                 const idSel = `#${CSS.escape(el.id)}`;
                 if (this.countMatches(idSel) === 1) return idSel;
@@ -564,7 +569,6 @@
             const tag = el.tagName.toLowerCase();
             const classes = this.meaningfulClasses(el);
 
-            // tag + 의미있는 클래스 1~2개
             if (classes.length) {
                 let sel = `${tag}.${CSS.escape(classes[0])}`;
                 if (classes.length >= 2) {
@@ -573,7 +577,6 @@
                 return sel;
             }
 
-            // 형제 중 위치
             const parent = el.parentElement;
             if (parent) {
                 const sameTag = Array.from(parent.children).filter(c => c.tagName === el.tagName);
@@ -584,7 +587,6 @@
             return tag;
         }
 
-        // ★ 신규: 부모 체인을 거슬러 올라가며 매치=1이 될 때까지 셀렉터 확장
         static uniqueAncestorPath(el) {
             if (!el || !el.tagName) return [];
 
@@ -604,7 +606,6 @@
                     if (matchCount === 1) {
                         return sel;
                     }
-                    // 유일한 ID 부모 만나면 거기서 멈춤
                     if (cur.id && /^[a-zA-Z][\w-]*$/.test(cur.id) &&
                         this.countMatches(`#${CSS.escape(cur.id)}`) === 1) {
                         return sel;
@@ -629,7 +630,6 @@
                 }
             } catch (_) {}
 
-            // ID 부모 안에서의 짧은 경로
             let p = el.parentElement;
             while (p && p !== document.body) {
                 if (p.id && /^[a-zA-Z][\w-]*$/.test(p.id) &&
@@ -902,7 +902,41 @@
             );
         }
 
-        // ★ 신규: 이미지/미디어가 있으면 광고 여부와 무관하게 항상 CSS 후보 생성
+        // ★ 신규: :has() 기반 부모 컨테이너 — 차단 시 빈 공간 제거 효과
+        static parentContainerOfBlocked(el) {
+            if (!SUPPORTS_HAS) return [];
+            if (!el || !el.parentElement) return [];
+
+            const parent = el.parentElement;
+            if (parent === document.body || parent === document.documentElement) return [];
+
+            const cls = (parent.className && typeof parent.className === 'string' ? parent.className : '').toLowerCase();
+            const id = (parent.id || '').toLowerCase();
+            const hint = /ad|banner|promo|sponsor|wrapper|container|thumb|item|card/i;
+            if (!hint.test(cls) && !hint.test(id)) return [];
+
+            const candidates = [];
+            const parentSimple = this._simpleSelectorFor(parent);
+            const childSimple = this._simpleSelectorFor(el);
+
+            if (parentSimple && childSimple) {
+                candidates.push({
+                    sel: `${parentSimple}:has(> ${childSimple})`,
+                    hint: '부모 컨테이너 (빈 공간 제거)'
+                });
+                candidates.push({
+                    sel: `${parentSimple}:has(${childSimple})`,
+                    hint: '부모 컨테이너 (자손 포함)'
+                });
+            }
+
+            return this._topN(
+                candidates,
+                { type: 'parentContainer', icon: '📦', label: '부모 컨테이너 (:has)' },
+                parent, 2
+            );
+        }
+
         static imgAlwaysCss(el) {
             const img = this._findImg(el);
             if (!img) return [];
@@ -916,13 +950,11 @@
             const fileName = url.pathname.split('/').pop() || '';
             const dirPath = url.pathname.substring(0, url.pathname.lastIndexOf('/') + 1);
 
-            // 1) 정확한 src 매칭 — 가장 정확
             candidates.push({
                 sel: `img[src="${CSS.escape(src)}"]`,
                 hint: '정확한 이미지 URL'
             });
 
-            // 2) 파일명 끝매칭
             if (fileName && fileName.length >= 4 && fileName.length <= 80) {
                 candidates.push({
                     sel: `img[src$="${CSS.escape(fileName)}"]`,
@@ -930,7 +962,6 @@
                 });
             }
 
-            // 3) 디렉토리 부분매칭
             if (dirPath && dirPath.length > 3 && dirPath !== '/') {
                 candidates.push({
                     sel: `img[src*="${CSS.escape(dirPath)}"]`,
@@ -938,7 +969,6 @@
                 });
             }
 
-            // 4) 호스트 부분매칭
             if (url.hostname) {
                 candidates.push({
                     sel: `img[src*="${CSS.escape(url.hostname)}"]`,
@@ -946,7 +976,6 @@
                 });
             }
 
-            // 5) 부모 <a>가 있으면 a > img 조합
             const anchor = this._findAnchor(img);
             if (anchor) {
                 const href = anchor.getAttribute('href') || '';
@@ -970,7 +999,6 @@
                 }
             }
 
-            // 6) 이미지 자체의 의미있는 클래스
             const imgClasses = this.meaningfulClasses(img);
             if (imgClasses.length) {
                 candidates.push({
@@ -979,7 +1007,6 @@
                 });
             }
 
-            // 7) alt 속성
             const alt = img.getAttribute('alt');
             if (alt && alt.length > 0 && alt.length <= 40) {
                 candidates.push({
@@ -1439,12 +1466,13 @@
             const strategies = [
                 () => this.semantic(el),
                 () => this.shortest(el),
-                () => this.uniqueAncestorPath(el),    // ★ 매치=1 보장 경로
+                () => this.uniqueAncestorPath(el),
                 () => this.dummyHref(el),
                 () => this.classPattern(el),
                 () => this.precise(el, evaluator),
                 () => this.similarGroup(el),
                 () => this.container(el),
+                () => this.parentContainerOfBlocked(el),  // ★ 신규: :has() 부모
                 () => this.networkFilter(el),
                 () => this.mixedNth(el),
                 () => this.multiCondition(el),
@@ -1453,7 +1481,7 @@
 
             if (this.isImageRelated(el)) {
                 strategies.push(
-                    () => this.imgAlwaysCss(el),       // ★ 항상 이미지 CSS 후보
+                    () => this.imgAlwaysCss(el),
                     () => this.imgSrcDomain(el),
                     () => this.imgStandardSize(el),
                     () => this.imgInAdLink(el),
@@ -1504,7 +1532,6 @@
             return `${host}##${sel}`;
         }
     }
-
     // ───────────────────────────────────────────────
     // Inspector
     // ───────────────────────────────────────────────
@@ -1539,7 +1566,9 @@
                 panelPos: null,
                 isDragging: false,
                 dragDidMove: false,
-                dragTarget: null
+                dragTarget: null,
+                picking: false,
+                lastHoverEl: null
             };
             this.config = {
                 useId: true, useClasses: true, classCount: 2,
@@ -1548,9 +1577,7 @@
                 maxDepth: 8,
                 shadowDomSupport: false
             };
-            this.overlay = null;
             this.modal = null;
-            this.longPressTimer = null;
             this._preciseEvaluator = (el) => this.evaluateCssBasic(el);
         }
 
@@ -1653,10 +1680,9 @@
             tool.innerHTML = this.getFullLayout();
             this.attachRefs();
             this.renderCandidates();
-            this.restoreSliderState();   // ★ 슬라이더 max/value 복원
+            this.restoreSliderState();
         }
 
-        // ★ render() 후에도 슬라이더(상위/하위)가 유지되도록 복원
         restoreSliderState() {
             const slider = this.dom.slider;
             if (!slider) return;
@@ -1675,7 +1701,7 @@
             const hidingNow = this.state.hiddenPreviewNodes.length > 0;
             return `
             <div class="picky-head" data-drag="1">
-                <span class="picky-title">Picky <small>v3.6.5</small></span>
+                <span class="picky-title">Picky <small>v3.6.6</small></span>
                 <div class="picky-head-btns">
                     <button class="picky-btn picky-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
                     <button class="picky-btn picky-btn-icon" data-act="cycleSize" title="최소화">${ICON_MIN}</button>
@@ -1835,11 +1861,17 @@
 
             if (act === 'block') {
                 if (c.isNetwork) return;
+                const targetEl = document.querySelector(c.selector);
+                const parentEl = targetEl ? targetEl.parentElement : null;
+                const parentRectBefore = parentEl ? parentEl.getBoundingClientRect() : null;
+
                 this.clearHidePreview();
                 if (Blocker.append(c.selector)) {
                     this.flashToast(`차단: ${c.selector.slice(0, 50)}`);
                     this.refreshMetrics();
                     this.render();
+                    // ★ 차단 후 빈 공간 감지
+                    this.checkOrphanSpace(parentEl, parentRectBefore);
                 } else {
                     this.flashToast('이미 등록된 규칙');
                 }
@@ -1860,6 +1892,62 @@
                 await this.copyText(c.selector);
                 this.flashToast('CSS 셀렉터 복사됨');
             }
+        }
+
+        // ★ 차단 후 부모가 빈 공간으로 남는지 감지하고 안내
+        checkOrphanSpace(parent, rectBefore) {
+            if (!parent || !rectBefore) return;
+            setTimeout(() => {
+                if (!parent.isConnected) return;
+                const newRect = parent.getBoundingClientRect();
+                // 자식이 거의 없어졌는데 부모는 30px 이상 차지하면 안내
+                const visibleChildren = Array.from(parent.children).filter(c => {
+                    const r = c.getBoundingClientRect();
+                    return r.width > 1 && r.height > 1;
+                });
+                if (newRect.height > 30 && visibleChildren.length === 0) {
+                    this.showOrphanSpaceToast(parent, newRect);
+                }
+            }, 150);
+        }
+
+        showOrphanSpaceToast(parent, rect) {
+            const existing = this.dom.shadow.querySelector('.picky-orphan-toast');
+            if (existing) existing.remove();
+
+            const sel = SelectorStrategies._simpleSelectorFor(parent);
+            if (!sel) return;
+
+            const toast = document.createElement('div');
+            toast.className = 'picky-orphan-toast';
+            toast.innerHTML = `
+                <div class="picky-orphan-msg">
+                    빈 공간(${Math.round(rect.height)}px)이 남았습니다.<br>
+                    부모도 함께 차단하시겠습니까?
+                </div>
+                <div class="picky-orphan-sel">${esc(sel)}</div>
+                <div class="picky-orphan-btns">
+                    <button class="picky-btn picky-btn-danger" data-orphan="block">⛔ 부모 차단</button>
+                    <button class="picky-btn" data-orphan="ignore">무시</button>
+                </div>
+            `;
+            this.dom.shadow.appendChild(toast);
+            setTimeout(() => toast.classList.add('visible'), 10);
+
+            const dismiss = () => {
+                toast.classList.remove('visible');
+                setTimeout(() => toast.remove(), 200);
+            };
+
+            toast.querySelector('[data-orphan="block"]').addEventListener('click', () => {
+                if (Blocker.append(sel)) {
+                    this.flashToast('부모 컨테이너도 차단됨');
+                    this.refreshMetrics();
+                }
+                dismiss();
+            });
+            toast.querySelector('[data-orphan="ignore"]').addEventListener('click', dismiss);
+            setTimeout(dismiss, 8000);
         }
 
         async copyText(text) {
@@ -1886,7 +1974,6 @@
             }, 1800);
         }
 
-        // ── 호버 미리보기 (점선 outline) ───────────────────
         previewCandidate(idx) {
             this.clearPreview();
             if (idx === this.state.selectedIdx) return;
@@ -1912,7 +1999,6 @@
             this.state.hoverPreviewNodes = [];
         }
 
-        // ── 핀 미리보기 (카드 선택 시 지속) ────────────────
         applyPinnedPreview(selector) {
             this.clearPinnedPreview();
             if (!selector) return;
@@ -1936,7 +2022,6 @@
             this.state.pinnedPreviewNodes = [];
         }
 
-        // ── 숨김 토글 미리보기 (display:none) ─────────────
         applyHidePreview(selector) {
             this.clearHidePreview();
             if (!selector) return 0;
@@ -2075,7 +2160,6 @@
             this.renderCandidates();
             this.setFocus(el);
 
-            // 슬라이더 위치도 새 target에 맞게 갱신
             const hier = this.state.hierarchy;
             if (this.dom.slider && hier && hier.length) {
                 const i = hier.indexOf(el);
@@ -2083,7 +2167,6 @@
             }
         }
 
-        // ★ 이미지처럼 inline 요소는 outline이 잘 안 보이므로 부모도 같이 표시
         setFocus(el) {
             this.dropFocus();
             if (!el) return;
@@ -2110,35 +2193,152 @@
             this.state.previewNodes = [];
         }
 
+        // ★★★ 신규: Shield 기반 픽킹 — 빈 공간, pointer-events:none, <a> 등 모두 우회
         startPicking() {
+            if (this.state.picking) return;
             this.clearHidePreview();
+            this.state.picking = true;
             this.state.mode = 'picking';
-            if (!this.overlay) {
-                this.overlay = (e) => this.onPickClick(e);
-                document.addEventListener('click', this.overlay, true);
-            }
-            this.flashToast('요소를 클릭하세요 (ESC: 취소)');
-            this._escHandler = (e) => { if (e.key === 'Escape') this.stopPicking(); };
-            document.addEventListener('keydown', this._escHandler, true);
+
+            // 전체 화면 투명 shield
+            const shield = document.createElement('div');
+            shield.id = SHIELD_ID;
+            shield.style.cssText = `
+                position: fixed !important;
+                inset: 0 !important;
+                z-index: 2147483645 !important;
+                cursor: crosshair !important;
+                background: transparent !important;
+                pointer-events: auto !important;
+            `;
+            document.documentElement.appendChild(shield);
+            this.dom.shield = shield;
+
+            this._shieldMove = (e) => {
+                shield.style.pointerEvents = 'none';
+                let el = document.elementFromPoint(e.clientX, e.clientY);
+                shield.style.pointerEvents = 'auto';
+
+                if (!el || (el.closest && el.closest(`#${ROOT_ID}`))) return;
+                el = this.refineTargetAtPoint(el, e.clientX, e.clientY);
+
+                if (this.state.lastHoverEl === el) return;
+                if (this.state.lastHoverEl) {
+                    this.state.lastHoverEl.classList.remove('picky-hl-preview');
+                }
+                el.classList.add('picky-hl-preview');
+                this.state.lastHoverEl = el;
+            };
+
+            this._shieldClick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                shield.style.pointerEvents = 'none';
+                let el = document.elementFromPoint(e.clientX, e.clientY);
+                shield.style.pointerEvents = 'auto';
+
+                if (!el || (el.closest && el.closest(`#${ROOT_ID}`))) {
+                    this.stopPicking();
+                    return;
+                }
+
+                // Alt 키: 좌표의 모든 요소 중 면적이 가장 작은 것
+                if (e.altKey) {
+                    shield.style.pointerEvents = 'none';
+                    const stack = document.elementsFromPoint(e.clientX, e.clientY)
+                        .filter(n => n && !n.closest(`#${ROOT_ID}`));
+                    shield.style.pointerEvents = 'auto';
+
+                    if (stack.length) {
+                        el = stack.reduce((a, b) => {
+                            const ra = a.getBoundingClientRect();
+                            const rb = b.getBoundingClientRect();
+                            const areaA = ra.width * ra.height || Infinity;
+                            const areaB = rb.width * rb.height || Infinity;
+                            return areaA <= areaB ? a : b;
+                        });
+                    }
+                } else {
+                    el = this.refineTargetAtPoint(el, e.clientX, e.clientY);
+                }
+
+                if (this.state.lastHoverEl) {
+                    this.state.lastHoverEl.classList.remove('picky-hl-preview');
+                    this.state.lastHoverEl = null;
+                }
+                this.selectNode(el, true);
+                this.stopPicking();
+            };
+
+            this._shieldKey = (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.stopPicking();
+                }
+            };
+
+            shield.addEventListener('mousemove', this._shieldMove);
+            shield.addEventListener('click', this._shieldClick, true);
+            document.addEventListener('keydown', this._shieldKey, true);
+
+            this.flashToast('요소 클릭 (Alt+클릭: 가장 작은 요소, ESC: 취소)');
         }
+
         stopPicking() {
+            if (!this.state.picking) return;
+            this.state.picking = false;
             this.state.mode = 'selected';
-            if (this.overlay) {
-                document.removeEventListener('click', this.overlay, true);
-                this.overlay = null;
+
+            const shield = this.dom.shield;
+            if (shield) {
+                shield.removeEventListener('mousemove', this._shieldMove);
+                shield.removeEventListener('click', this._shieldClick, true);
+                shield.remove();
+                this.dom.shield = null;
             }
-            if (this._escHandler) {
-                document.removeEventListener('keydown', this._escHandler, true);
-                this._escHandler = null;
+            document.removeEventListener('keydown', this._shieldKey, true);
+
+            if (this.state.lastHoverEl) {
+                this.state.lastHoverEl.classList.remove('picky-hl-preview');
+                this.state.lastHoverEl = null;
             }
         }
-        onPickClick(e) {
-            const path = e.composedPath ? e.composedPath() : [e.target];
-            if (path.some(n => n?.id === ROOT_ID)) return;
-            e.preventDefault();
-            e.stopPropagation();
-            this.selectNode(e.target, true);
-            this.stopPicking();
+
+        // ★ 빈 공간 / 너무 큰 요소 클릭 보정
+        refineTargetAtPoint(el, x, y) {
+            if (!el) return el;
+            const r = el.getBoundingClientRect();
+            const vw = window.innerWidth, vh = window.innerHeight;
+            const area = r.width * r.height;
+            const viewportArea = vw * vh;
+
+            // 잡힌 요소가 화면의 60% 이상 → 더 작은 후손 찾기 (body/html/거대 컨테이너)
+            if (area > viewportArea * 0.6 || el.tagName === 'BODY' || el.tagName === 'HTML') {
+                const stack = document.elementsFromPoint(x, y)
+                    .filter(n => n && !n.closest(`#${ROOT_ID}`) && n !== el);
+
+                const candidate = stack.find(n => {
+                    const nr = n.getBoundingClientRect();
+                    return nr.width > 4 && nr.height > 4 &&
+                           nr.width * nr.height < viewportArea * 0.6;
+                });
+                if (candidate) return candidate;
+            }
+
+            // 부모가 <a>이고 자식이 단일 <img>면 이미지 우선 (작은 이미지 픽킹)
+            if (el.tagName === 'A') {
+                const imgs = el.querySelectorAll(':scope > img, :scope img');
+                if (imgs.length === 1) {
+                    const ir = imgs[0].getBoundingClientRect();
+                    if (x >= ir.left && x <= ir.right && y >= ir.top && y <= ir.bottom) {
+                        return imgs[0];
+                    }
+                }
+            }
+
+            return el;
         }
 
         cycleSize() {
@@ -2152,7 +2352,7 @@
                 this.clearPreview();
                 this.clearPinnedPreview();
                 this.clearHidePreview();
-                if (this.state.mode === 'picking') this.stopPicking();
+                if (this.state.picking) this.stopPicking();
             }
             this.render();
             this.applyPosition();
@@ -2168,7 +2368,7 @@
                     this.clearPreview();
                     this.clearPinnedPreview();
                     this.clearHidePreview();
-                    if (this.state.mode === 'picking') this.stopPicking();
+                    if (this.state.picking) this.stopPicking();
                     this.render();
                     this.applyPosition();
                     break;
@@ -2347,11 +2547,15 @@
                     </div>
                     <div class="picky-settings-row">
                         <small style="opacity:0.6">
+                            • <b>Shield 픽킹</b>: 빈 공간, pointer-events:none 요소, &lt;a&gt; 안의 작은 이미지도 정확히 선택<br>
+                            • <b>Alt + 클릭</b>: 좌표의 모든 요소 중 가장 작은 요소 강제 선택<br>
                             • <b>호버 미리보기</b>(노란 점선): 카드에 마우스를 올리면 영역 표시<br>
                             • <b>핀 미리보기</b>(초록 외곽선): 카드 클릭 시 영역 고정 표시<br>
                             • <b>숨김 미리보기</b>(👁): 차단 시 페이지가 어떻게 보일지 즉시 확인 (display:none)<br>
-                            • <b>유일 타겟팅 경로</b>(🎯): 매치=1 보장 절대 경로 — uBlock의 정확한 한 요소 차단과 동일<br>
-                            • 별점: 성능(매칭 속도) + 정확도(매치 개수). ★★★는 가장 빠르고 정확.
+                            • <b>유일 타겟팅 경로</b>(🎯): 매치=1 보장 절대 경로<br>
+                            • <b>부모 컨테이너 :has()</b>: 차단 시 빈 공간까지 제거하는 부모 선택자<br>
+                            • <b>빈 공간 감지</b>: 차단 후 빈 컨테이너가 남으면 자동 안내<br>
+                            • 정확 매칭 셀렉터(<code>[src="..."]</code>)는 길이와 무관하게 ★★★ 보장
                         </small>
                     </div>
                 </div>`;
@@ -2530,9 +2734,7 @@
         color: #e8eaed;
         z-index: 2147483647;
     }
-    .picky-icon {
-        width: 48px; height: 48px;
-    }
+    .picky-icon { width: 48px; height: 48px; }
     .picky-icon-btn {
         width: 100%; height: 100%;
         border: none; border-radius: 50%;
@@ -2557,8 +2759,7 @@
         display: flex; align-items: center; justify-content: space-between;
         padding: 8px 12px;
         background: rgba(0,0,0,0.25);
-        cursor: grab;
-        user-select: none;
+        cursor: grab; user-select: none;
     }
     .picky-head:active { cursor: grabbing; }
     .picky-title { font-weight: 600; font-size: 14px; }
@@ -2582,8 +2783,7 @@
     .picky-btn-icon { padding: 6px; }
     .picky-btn-active {
         background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-        border-color: transparent;
-        color: #fff;
+        border-color: transparent; color: #fff;
     }
     .picky-btn-active:hover { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
     .picky-btn-primary {
@@ -2599,8 +2799,7 @@
     .picky-disp-wrap {
         background: rgba(0,0,0,0.3);
         border-radius: 6px;
-        padding: 8px 10px;
-        margin-bottom: 8px;
+        padding: 8px 10px; margin-bottom: 8px;
     }
     .picky-disp {
         font-family: ui-monospace, "SF Mono", Monaco, monospace;
@@ -2608,13 +2807,11 @@
         word-break: break-all;
         color: #9ecbff;
         line-height: 1.4;
-        max-height: 40px;
-        overflow-y: auto;
+        max-height: 40px; overflow-y: auto;
     }
     .picky-meta {
         display: flex; justify-content: space-between;
-        font-size: 10px; opacity: 0.65;
-        margin-top: 4px;
+        font-size: 10px; opacity: 0.65; margin-top: 4px;
     }
 
     .picky-nav-row {
@@ -2635,8 +2832,7 @@
 
     .picky-cards-scroll {
         max-height: 320px;
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow-y: auto; overflow-x: hidden;
         scroll-snap-type: y proximity;
         margin-bottom: 10px;
         border-radius: 8px;
@@ -2744,9 +2940,7 @@
         border-color: rgba(139, 92, 246, 0.6);
         color: #fff;
     }
-    .picky-card-btn-disabled {
-        opacity: 0.35; cursor: not-allowed;
-    }
+    .picky-card-btn-disabled { opacity: 0.35; cursor: not-allowed; }
     .picky-card-btn-disabled:hover { background: rgba(255,255,255,0.08); }
 
     .picky-action-row {
@@ -2792,9 +2986,7 @@
         cursor: pointer; padding: 4px;
     }
     .picky-modal-body {
-        padding: 14px;
-        overflow-y: auto;
-        font-size: 13px;
+        padding: 14px; overflow-y: auto; font-size: 13px;
     }
     .picky-modal-input {
         width: 100%;
@@ -2803,17 +2995,13 @@
         color: #9ecbff;
         font-family: ui-monospace, monospace;
         font-size: 12px;
-        padding: 8px;
-        border-radius: 6px;
-        margin: 8px 0;
-        resize: vertical;
+        padding: 8px; border-radius: 6px;
+        margin: 8px 0; resize: vertical;
     }
     .picky-modal-meta { font-size: 11px; opacity: 0.7; margin-bottom: 8px; }
     .picky-modal-foot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 
-    .picky-rules-list {
-        max-height: 320px; overflow-y: auto;
-    }
+    .picky-rules-list { max-height: 320px; overflow-y: auto; }
     .picky-rule-item {
         display: flex; justify-content: space-between; align-items: center;
         gap: 8px; padding: 6px 8px;
@@ -2860,11 +3048,45 @@
         opacity: 1;
         transform: translateX(-50%) translateY(0);
     }
+
+    /* ★ 빈 공간 감지 토스트 (사용자 액션 가능) */
+    .picky-orphan-toast {
+        position: fixed;
+        bottom: 120px; left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: rgba(28, 30, 38, 0.98);
+        border: 1px solid rgba(139, 92, 246, 0.6);
+        color: #fff;
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 12px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        opacity: 0;
+        transition: all 0.25s;
+        z-index: 2147483647;
+        max-width: 360px;
+    }
+    .picky-orphan-toast.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    .picky-orphan-msg { margin-bottom: 6px; line-height: 1.4; }
+    .picky-orphan-sel {
+        font-family: ui-monospace, monospace;
+        font-size: 10.5px;
+        color: #9ecbff;
+        background: rgba(0,0,0,0.3);
+        padding: 4px 6px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        word-break: break-all;
+    }
+    .picky-orphan-btns { display: flex; gap: 6px; }
+    .picky-orphan-btns .picky-btn { flex: 1; justify-content: center; }
     `;
 
     // ───────────────────────────────────────────────
-    // 페이지 글로벌 CSS (하이라이트 + 숨김 미리보기)
-    // ★ 강화: outline 두께/명도 키워서 이미지에서도 잘 보이게
+    // 페이지 글로벌 CSS
     // ───────────────────────────────────────────────
     const PAGE_CSS = `
     .${HL_CLASS} {
@@ -2891,10 +3113,14 @@
     .picky-hl-pinned.picky-hl-preview {
         outline: 4px solid #10b981 !important;
     }
-    /* 숨김 토글 미리보기: 차단 시 모습 그대로 시뮬레이션 */
     .${HIDE_CLASS} {
         display: none !important;
+    }
+    /* Shield 픽킹 시 페이지 전체 살짝 어둡게 (선택 모드임을 시각화) */
+    #${SHIELD_ID} {
+        background: rgba(0, 0, 0, 0.02) !important;
     }`;
+
     const injectPageCss = () => {
         if (document.getElementById('picky-page-css')) return;
         const s = document.createElement('style');
