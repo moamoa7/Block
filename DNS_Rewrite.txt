@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260518-rev1
+! Version: 20260521-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -1454,6 +1454,7 @@
 !
 ! ───── 쿠팡 파트너스 광고 ─────
 ||ads-partners.coupang.com^
+||mercury.coupang.com^
 !
 ! ───── Whos.amung.us 방문자 추적 ─────
 ||amung.us^
