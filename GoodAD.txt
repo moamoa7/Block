@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260521
+! Version: 20260522
 !
 !
 !
@@ -648,15 +648,9 @@ etoland.co.kr##body *[class*="list"]:has-text(/(노마십가|인터넷상담|한
 etoland.co.kr##[class*="caption"]:has-text(/(인터넷|보험|상점|핫딜)/), a:has-text(/(인터넷|보험|상점|핫딜)/)
 ! - 애드블럭 감지 해제
 @@||doubleclick.net^$domain=etoland.co.kr
-! - 팝업 차단
-! etoland 팝업/팝언더 차단
+! 에토랜드 팝업 차단 및 페이지 이동 오류 해결 최종 조합
 etoland.co.kr#%#//scriptlet('prevent-window-open')
-!etoland.co.kr#%#//scriptlet('abort-current-inline-script', 'window.open')
-! 좀 더 광범위하게 - 새 창 열기 전부 차단
-!etoland.co.kr#%#//scriptlet('no-window-open-if', '*')
-! - - - uBlock Origin 문법
-etoland.co.kr##+js(nowoif)
-etoland.co.kr##+js(aopr, open)
+etoland.co.kr##+js(noopen-if)
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -2329,6 +2323,9 @@ avsee.ru#@#.tabs
 ! - 영상 오른쪽 배너
 !##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"][src]
 ##iframe[sandbox][src]
+!google.com/recaptcha#@#iframe[sandbox][src]
+mypikpak.com/ko/check-in#@#iframe[sandbox][src]
+
 ! - 일부 영상 재생 차단 방지
 !stb.strp2p.com,hgslave.xyz,ryderjet.com#@#[class*="floating" i]
 !
