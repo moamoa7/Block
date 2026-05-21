@@ -109,6 +109,8 @@
 *$websocket,ping
 ! - - - 채팅이 필요한곳 제외
 @@||*$websocket,domain=discord.com|play.sooplive.com|chzzk.naver.com|twitch.tv|kick.com|poooo.ml|ok.ru
+!  -- - 차단시 앱 실행이 안되는 곳 제외
+@@||*$websocket,domain=firebaseremoteconfig.googleapis.com
 !
 !
 !
