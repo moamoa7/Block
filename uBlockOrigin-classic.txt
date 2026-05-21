@@ -1,11 +1,12 @@
 ! Title: List-KR classic filters list (uBO)
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20593.0
+! Version: 2026.20594.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
 
 !#if ext_ublock
+||adv.imadrep.co.kr^
 ||delivery.pryzmads.com^
 ||barohere.xyz^
 ||ad.adwiser.kr^
@@ -256,6 +257,7 @@
 !
 ! DOMAIN-REFRESHER: END
 
+||serv.ds.kakao.com^
 ||cafe-ads-api.daum.net^
 ||worker.gsr-ads.co.kr^
 ||ad.mojisead.co.kr^
@@ -590,6 +592,9 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 !
 ! DOMAIN-REFRESHER: START
 !
+/newto[0-9]+\.com/##div[class^="basic-banner-"]
+/bookto[0-9]+\.com/##div[class^="basic-banner-"]
+/mato[0-9]+\.com/##div[class^="basic-banner-"]
 /sbxh[0-9]+\.com/##[data-brs][data-br]
 /torrentsee[0-9]+\.com/##.container > div[style^="z-index:999; "]
 !
@@ -607,6 +612,7 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 /^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 /data/banner.json?$domain=~nintendo.*
 
+||static.fmkorea.com/modules/fmad/tpl/*/naver_power_link.
 ||jeongcheogi.edugamja.com/ads/
 ||algumon.com/n/api/ca/list
 ||api.coupangstreaming.com/ads-vod-public/
@@ -1466,6 +1472,9 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 !
 ! DOMAIN-REFRESHER: START
 !
+/\/data\/apms\/banner\//$domain=/mato[0-9]+\.com/
+/\/data\/apms\/banner\//$domain=/newto[0-9]+\.com/
+/\/data\/apms\/banner\//$domain=/bookto[0-9]+\.com/
 /^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\/[a-z0-9-_]+\./$image,domain=/wfwf[0-9]+\.com/
 /^https:\/\/cdn\.xtoon[0-9]+\.com\/collaboration\//$domain=/xtoon[0-9]+\.com/
 /^https:\/\/funbe[0-9]+\.com\/images\//$domain=/funbe[0-9]+\.com/
@@ -1742,6 +1751,7 @@ eegosa.com##section[id*="_ads_"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+ruliweb.com##.ti_reserved_slot[style^="min-height:"]
 etoland.co.kr###list-header + section li.h-fit.min-h-14:not(.border-b-etoDivider-1)
 zod.kr##a[rel="sponsored"]
 zod.kr##.swiper-container.swiper-initialized.swiper-horizontal li[style^="width:"] > a[target]
@@ -3640,7 +3650,7 @@ x86.co.kr,1004lucifer.blogspot.com,te31.com,tistory.com##+js(aopr, adBlockDetect
 plankim.com##+js(acis, ai_adb.init)
 jootc.com,ehpub.co.kr##+js(acis, ai_run_scripts)
 ! fundingchoicesmessages.google.com
-||fundingchoicesmessages.google.com^$domain=damoang.net|maplescouter.com|vivatv.cc|svrforum.com|singingdalong.blogspot.com|goodgag.net|bera.world|sellas.ink|hunigo.com|windowsforum.kr|iteastory.com|snskeyboard.com|rdsong.com|mongri.net|meeco.kr|poketory.com|youthassembly.kr|kr.jugomobile.com|1412.live|pyrasis.com|oceansabyss.com|yongtj.com|dora-guide.com|tailstar.net|creativestudio.kr|gamejay.net|mksports.co.kr|sisamagazine.co.kr|dreamrail.co.kr|tistory.com|gukjenews.com|issuelink.co.kr|webtool.cusis.net|koreaminecraft.net
+||fundingchoicesmessages.google.com^$domain=damoang.net|maplescouter.com|vivatv.cc|svrforum.com|singingdalong.blogspot.com|goodgag.net|bera.world|sellas.ink|hunigo.com|iteastory.com|snskeyboard.com|rdsong.com|mongri.net|meeco.kr|poketory.com|youthassembly.kr|kr.jugomobile.com|1412.live|pyrasis.com|oceansabyss.com|yongtj.com|dora-guide.com|tailstar.net|creativestudio.kr|gamejay.net|mksports.co.kr|sisamagazine.co.kr|dreamrail.co.kr|tistory.com|gukjenews.com|issuelink.co.kr|webtool.cusis.net|koreaminecraft.net
 ! Kakao TV
 /^https:\/\/videoads\.kakao\.com\/adserver\/api\/v[0-9]+\/vmap/$redirect=noop.txt,domain=tv.kakao.com|play-tv.kakao.com|kakaotv.daum.net
 tv.kakao.com,play-tv.kakao.com,kakaotv.daum.net##+js(no-xhr-if, /^https.\/\/videoads\.kakao\.com\/adserver\/api\/v[0-9]{1\,2}\/vmap$/)
@@ -3701,10 +3711,10 @@ dicoall.com#@##rightAd
 litomi.in##+js(trusted-create-html, #juicy-ads-banner > div[data-juicy-ads-slot] > div, <iframe></iframe>)
 litomi.in##ins
 !
-windowsforum.kr##+js(aeld, load, 'setTimeout(function() {')
+windowsforum.kr##+js(set, isAdBlockDisabled, true)
 etoland.co.kr##+js(no-fetch-if, /pagead2.googlesyndication.com|googleads.g.doubleclick.net|googletagservices.com|securepubads.g.doubleclick.net|googleads.g.doubleclick.net|google-analytics.com|googlesyndication.com|doubleclick.net/)
 ||ragmaya.kr/static/rm_adblock_wall.js
-_vercel/insights/script.js$domain=bser-koroshi.vercel.app,redirect=nooptext
+@@_vercel/insights/script.js$domain=bser-koroshi.vercel.app,xmlhttprequest
 algumon.com##div[id^="deal-"].card ~ .bg-base-100:has(> div[style] > div[class^="fallback svelte-"])
 cheatdot.com##+js(nostif, 'window.getComputedStyle(t).display')
 tv.jtbc.co.kr,mvod.jtbc.co.kr,onair.jtbc.co.kr##+js(nostif, 'getComputedStyle(t).getPropertyValue("visibility")')
@@ -3797,7 +3807,7 @@ play.aidungeon.io,tamrieltradecentre.com,downloads.descendant.me,html5.gamedistr
 !
 ! DOMAIN-REFRESHER: START
 !
-/sbxh[0-9]+\.com/##+js(nostif, /[A-Za-z0-9]+ *\( *\) *, *[A-Za-z0-9]+ *\. *[A-Za-z0-9]+ *= *window\.setInterval *\(/)
+/sbxh[0-9]+\.com/##+js(nostif, '/[A-Za-z0-9]+ *\( *\) *, *[A-Za-z0-9]+ *\. *[A-Za-z0-9]+ *= *window\.setInterval *\(/')
 hasha.in##+js(no-fetch-if, adManager.js)
 @@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=hasha.in
 @@||js.wpadmngr.com/static/adManager.js$xmlhttprequest,domain=hasha.in
