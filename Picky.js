@@ -1,651 +1,3 @@
-// ==UserScript==
-// @name         Picky Advanced (Enhanced)
-// @namespace    https://github.com/hooray804/Picky
-// @version      3.5.0
-// @description  Web Element Inspector & CSS Selector Tool with Ad Block - Mobile Optimized
-// @author       hooray804 (modified)
-// @license      MPL-2.0
-// @match        *://*/*
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM.setValue
-// @grant        GM.getValue
-// @grant        GM_registerMenuCommand
-// @run-at       document-start
-// @homepage     https://github.com/hooray804/Picky
-// ==/UserScript==
-
-(function() {
-    "use strict";
-
-    const esc = s => String(s).replace(/[&<>'"]/g, c => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
-    }[c]));
-
-    if (window.self !== window.top) return;
-
-    const TOOL_ID = "picky-tool";
-    const ROOT_ID = "picky-root";
-    const HL_CLASS = "picky-hl";
-    const ISO_BODY = "picky-iso-body";
-    const ISO_PATH = "picky-iso-path";
-    const SHIELD_ID = "picky-shield";
-    const DRAG_THRESHOLD = 14;
-
-    const NO_DRAG_SELECTOR = 'input, button, select, textarea, label, a, ' +
-        '#picky-nav-slider, #picky-nav-slider-container, ' +
-        '.picky-icon-button, .picky-selector-display, .picky-switch, ' +
-        '.picky-slider, [data-no-drag], .picky-modal-content, ' +
-        '.picky-ad-suggest-item, .picky-child-list, .picky-cookie-table, ' +
-        '.picky-candidate-card';
-
-    const SUPPORTS_HAS = (() => {
-        try { return CSS.supports('selector(:has(*))'); }
-        catch(e) { return false; }
-    })();
-
-    let touchMoved = false;
-    let touchStartTarget = null;
-
-    if (document.getElementById(ROOT_ID)) return;
-
-    // === SVG ICONS ===
-    const ICON_CLOSE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
-    const ICON_SETTINGS = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>';
-    const ICON_MIN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13H5v-2h14v2z"/></svg>';
-    const ICON_MAX = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v2H3V3zm0 16h18v2H3v-2zm0-8h18v2H3v-2z"/></svg>';
-    const ICON_BACK = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59z"/></svg>';
-    const ICON_COPY = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
-    const ICON_UP = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14l-6-6z"/></svg>';
-    const ICON_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16l-6-6 1.41-1.41L12 13.17l4.59-4.58L18 10l-6 6z"/></svg>';
-    const ICON_EYE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
-    const ICON_EYE_OFF = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78 3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
-    const ICON_RESET = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>';
-    const ICON_CODE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>';
-    const ICON_DOT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>';
-    const ICON_DRAG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 9H4v2h16V9zM4 15h16v-2H4v2z"/></svg>';
-    const ICON_HOME = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>';
-    const ICON_TARGET = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>';
-
-    // =========================================================
-    // BLOCKER CLASS
-    // =========================================================
-    class Blocker {
-        static init() {
-            if (document.head) this.enforce();
-            else {
-                const obs = new MutationObserver(() => {
-                    if (document.head) { this.enforce(); obs.disconnect(); }
-                });
-                obs.observe(document.documentElement, { childList: true });
-            }
-        }
-        static fetch() { return GM_getValue("picky_blocked_rules", {})[window.location.hostname] || []; }
-        static fetchAll() { return GM_getValue("picky_blocked_rules", {}); }
-        static append(sel) {
-            if (!sel || /[{}]/.test(sel)) return false;
-            const all = GM_getValue("picky_blocked_rules", {});
-            const host = window.location.hostname;
-            if (!all[host]) all[host] = [];
-            if (all[host].includes(sel)) return false;
-            all[host].push(sel);
-            GM_setValue("picky_blocked_rules", all);
-            const history = GM_getValue("picky_history", []);
-            history.push({ host, selector: sel, time: Date.now() });
-            if (history.length > 50) history.shift();
-            GM_setValue("picky_history", history);
-            this.enforce();
-            return true;
-        }
-        static drop(sel) {
-            const all = GM_getValue("picky_blocked_rules", {});
-            const host = window.location.hostname;
-            if (!all[host]) return false;
-            all[host] = all[host].filter(s => s !== sel);
-            if (all[host].length === 0) delete all[host];
-            GM_setValue("picky_blocked_rules", all);
-            this.enforce();
-            return true;
-        }
-        static undoLast() {
-            const history = GM_getValue("picky_history", []);
-            if (history.length === 0) return null;
-            const last = history.pop();
-            GM_setValue("picky_history", history);
-            const all = GM_getValue("picky_blocked_rules", {});
-            if (all[last.host]) {
-                all[last.host] = all[last.host].filter(s => s !== last.selector);
-                if (all[last.host].length === 0) delete all[last.host];
-                GM_setValue("picky_blocked_rules", all);
-                this.enforce();
-            }
-            return last;
-        }
-        static isEnabled() { return GM_getValue("picky_blocking_enabled", true); }
-        static toggleEnabled() {
-            const cur = this.isEnabled();
-            GM_setValue("picky_blocking_enabled", !cur);
-            this.enforce();
-            return !cur;
-        }
-        static isAggressive() { return GM_getValue("picky_aggressive_block", false); }
-        static toggleAggressive() {
-            const cur = this.isAggressive();
-            GM_setValue("picky_aggressive_block", !cur);
-            this.enforce();
-            return !cur;
-        }
-        static enforce() {
-            const rules = this.fetch();
-            const enabled = this.isEnabled();
-            const aggressive = this.isAggressive();
-            const styleId = "picky-blocker-style";
-            let style = document.getElementById(styleId);
-            if (rules.length && enabled) {
-                if (!style) {
-                    style = document.createElement("style");
-                    style.id = styleId;
-                    (document.head || document.documentElement).appendChild(style);
-                }
-                if (aggressive) {
-                    style.textContent = rules.join(", ") + " { display: none !important; height: 0 !important; min-height: 0 !important; max-height: 0 !important; padding: 0 !important; margin: 0 !important; visibility: hidden !important; }";
-                } else {
-                    style.textContent = rules.join(", ") + " { display: none !important; }";
-                }
-            } else if (style) style.remove();
-        }
-        static clear() {
-            const all = GM_getValue("picky_blocked_rules", {});
-            const host = window.location.hostname;
-            if (all[host]) {
-                delete all[host];
-                GM_setValue("picky_blocked_rules", all);
-                const s = document.getElementById("picky-blocker-style");
-                if (s) s.remove();
-                alert("이 사이트의 차단 규칙이 초기화되었습니다. 페이지를 새로고침합니다.");
-                location.reload();
-            } else alert("저장된 차단 규칙이 없습니다.");
-        }
-        static getStats() {
-            const rules = this.fetch();
-            let hidden = 0;
-            rules.forEach(sel => { try { hidden += document.querySelectorAll(sel).length; } catch(e) {} });
-            const all = this.fetchAll();
-            let totalSites = Object.keys(all).length, totalRules = 0;
-            Object.values(all).forEach(arr => totalRules += arr.length);
-            return { ruleCount: rules.length, hiddenCount: hidden, totalSites, totalRules };
-        }
-        static exportJSON() {
-            const all = this.fetchAll();
-            const data = { app: "Picky Advanced", version: "3.5.0", exportDate: new Date().toISOString(), rules: all };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = `picky-rules-${Date.now()}.json`; a.click();
-            URL.revokeObjectURL(url);
-        }
-        static exportUblock() {
-            const all = this.fetchAll();
-            let text = "! Picky Advanced Export - " + new Date().toISOString() + "\n! Paste into uBlock Origin: Dashboard > My filters\n\n";
-            let count = 0;
-            Object.keys(all).forEach(host => {
-                all[host].forEach(rule => { text += `${host}##${rule}\n`; count++; });
-            });
-            navigator.clipboard.writeText(text).then(() =>
-                alert(`${count}개 규칙(${Object.keys(all).length}개 사이트)을 uBlock 형식으로 클립보드에 복사했어요.`)
-            ).catch(() => prompt("복사 실패. 수동으로 복사하세요:", text));
-        }
-        static importJSON() {
-            const input = document.createElement('input');
-            input.type = 'file'; input.accept = '.json,.txt';
-            input.onchange = (e) => {
-                const file = e.target.files[0]; if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    try {
-                        const data = JSON.parse(ev.target.result);
-                        const rules = data.rules || data;
-                        if (typeof rules !== 'object') throw new Error("Invalid format");
-                        const existing = this.fetchAll();
-                        const merge = confirm("기존 규칙을 유지하고 병합할까요?\n[확인] = 병합 / [취소] = 덮어쓰기");
-                        const merged = merge ? { ...existing } : {};
-                        let added = 0;
-                        Object.keys(rules).forEach(host => {
-                            if (!Array.isArray(rules[host])) return;
-                            if (!merged[host]) merged[host] = [];
-                            rules[host].forEach(rule => {
-                                if (typeof rule === 'string' && !merged[host].includes(rule)) {
-                                    merged[host].push(rule); added++;
-                                }
-                            });
-                        });
-                        GM_setValue("picky_blocked_rules", merged);
-                        this.enforce();
-                        alert(`가져오기 완료!\n${Object.keys(rules).length}개 사이트, ${added}개 신규 규칙 추가됨.`);
-                    } catch (err) { alert("파일 형식 오류: " + err.message); }
-                };
-                reader.readAsText(file);
-            };
-            input.click();
-        }
-    }
-
-    Blocker.init();
-
-    // =========================================================
-    // MODAL CLASS
-    // =========================================================
-    class Modal {
-        constructor(container) { this.container = container; this.node = null; }
-        display(title, body, isHtml = false, extraClass = "") {
-            this.dismiss();
-            const o = document.createElement("div");
-            o.className = "picky-modal-overlay" + (extraClass ? " " + extraClass : "");
-            o.innerHTML = `<div class="picky-modal-content"><div class="picky-modal-header"><span class="picky-modal-title"></span><button class="picky-icon-button" data-action="closeModal" title="닫기">${ICON_CLOSE}</button></div><div class="picky-modal-body"></div></div>`;
-            o.querySelector(".picky-modal-title").textContent = title;
-            const b = o.querySelector(".picky-modal-body");
-            if (isHtml) b.innerHTML = body;
-            else { b.innerHTML = "<textarea readonly></textarea>"; b.querySelector("textarea").textContent = body; }
-            this.container.appendChild(o);
-            this.node = o;
-            this.node.addEventListener("click", e => {
-                if (e.target.closest('[data-action="closeModal"]') || e.target === this.node) this.dismiss();
-            });
-            setTimeout(() => this.node.classList.add("visible"), 10);
-        }
-        dismiss() {
-            if (!this.node) return;
-            this.node.classList.remove("visible");
-            const n = this.node;
-            this.node = null;
-            setTimeout(() => n?.remove(), 300);
-        }
-    }
-
-    // =========================================================
-    // SELECTOR STRATEGIES — Pro 모드의 다중 후보 생성기
-    // =========================================================
-    // 각 전략은 { type, icon, label, selector, count, score, hint } 객체를 반환하거나 null
-    class SelectorStrategies {
-        // 유틸: 선택자가 유효하고 페이지에서 매칭하는 요소 수 반환
-        static countMatches(sel) {
-            if (!sel) return 0;
-            try { return document.querySelectorAll(sel).length; } catch(e) { return -1; }
-        }
-        // 유틸: 클래스가 의미 있는지 (난수 해시류 거르기)
-        static isMeaningfulClass(cls) {
-            if (!cls || cls.length < 2) return false;
-            if (/^[a-z0-9_-]{2,}$/i.test(cls) === false) return false;
-            // 너무 짧고 의미 없는 해시 패턴
-            if (/^[a-f0-9]{6,}$/i.test(cls)) return false;
-            if (/^[a-z][a-zA-Z0-9]{0,3}_[a-zA-Z0-9]{4,}$/.test(cls)) return false; // CSS-in-JS 패턴 (예: a4Bx_xY7zP)
-            if (/^[A-Za-z]+__[a-zA-Z0-9]{5,}$/.test(cls) && /[0-9]/.test(cls)) return false;
-            if (cls.length > 40) return false;
-            return true;
-        }
-        // 유틸: 부모 체인 (body 위까지)
-        static parentChain(el) {
-            const chain = [];
-            let cur = el;
-            while (cur && cur.tagName && cur.tagName.toLowerCase() !== "html") {
-                chain.push(cur);
-                cur = cur.parentElement;
-            }
-            return chain;
-        }
-
-        // 안정성 점수 계산 (0~100)
-        static scoreSelector(sel, target, opts = {}) {
-            if (!sel) return 0;
-            const count = this.countMatches(sel);
-            if (count === -1) return 0; // invalid
-            if (count === 0) return 0;
-            // 타깃 미포함 시 0점
-            try {
-                const matches = Array.from(document.querySelectorAll(sel));
-                if (!opts.allowGroup && !matches.includes(target)) return 0;
-                if (opts.allowGroup && !matches.includes(target)) return 0;
-            } catch(e) { return 0; }
-
-            let score = 50;
-            // 매칭 개수
-            if (count === 1) score += 20;
-            else if (count <= 5) score += 10;
-            else if (count <= 20) score += 0;
-            else if (count <= 100) score -= 10;
-            else score -= 25;
-
-            // 선택자 종류 가점
-            if (/\[(data-testid|data-cy|data-test|data-ad-|aria-label|role)/i.test(sel)) score += 25;
-            if (/^#[\w-]+$/.test(sel)) score += 20; // 단순 ID
-            if (/\[id=/i.test(sel)) score += 12;
-            if (/:nth-(child|of-type)/.test(sel)) score -= 12;
-            if (/>/g.test(sel)) {
-                const depth = (sel.match(/>/g) || []).length;
-                if (depth >= 3) score -= depth * 3;
-            }
-            // 길이 보정
-            if (sel.length > 200) score -= 15;
-            else if (sel.length > 120) score -= 8;
-            else if (sel.length < 30) score += 5;
-            // :has() 사용 (모던 브라우저에서만)
-            if (/:has\(/.test(sel) && !SUPPORTS_HAS) score = 0;
-
-            return Math.max(0, Math.min(100, score));
-        }
-
-        static scoreToStars(score) {
-            if (score >= 75) return "★★★";
-            if (score >= 50) return "★★☆";
-            if (score >= 25) return "★☆☆";
-            return "☆☆☆";
-        }
-
-        // ============== 전략 1: 시맨틱 속성 (가장 안정적) ==============
-        static semantic(target) {
-            const priorityAttrs = [
-                "data-testid", "data-test-id", "data-test", "data-cy",
-                "data-ad-slot", "data-ad-client", "data-ad-unit-path", "data-ad-format", "data-ad-status",
-                "data-google-query-id", "data-google-av-cxn",
-                "aria-label", "role", "data-component", "data-module", "data-widget",
-                "name", "alt", "placeholder", "type"
-            ];
-            for (const attr of priorityAttrs) {
-                const val = target.getAttribute(attr);
-                if (!val || val.length > 80) continue;
-                const escaped = val.replace(/"/g, '\\"');
-                const candidates = [
-                    `[${attr}="${escaped}"]`,
-                    `${target.tagName.toLowerCase()}[${attr}="${escaped}"]`
-                ];
-                for (const sel of candidates) {
-                    const score = this.scoreSelector(sel, target);
-                    if (score >= 50) {
-                        const count = this.countMatches(sel);
-                        return {
-                            type: "semantic",
-                            icon: "🪪",
-                            label: "시맨틱 속성",
-                            selector: sel,
-                            count, score,
-                            hint: attr.startsWith("data-ad") ? "광고 슬롯 속성 — 매우 안정적" :
-                                  attr.startsWith("aria") ? "접근성 속성 — 구조 변경에 강함" :
-                                  attr.startsWith("data-test") ? "테스트용 속성 — 거의 안 바뀜" :
-                                  "의미 있는 속성 — 안정성 높음"
-                        };
-                    }
-                }
-            }
-            return null;
-        }
-
-        // ============== 전략 2: 짧고 강력 (단순화) ==============
-        static shortest(target) {
-            const tag = target.tagName.toLowerCase();
-            const candidates = [];
-            // ID 단독
-            if (target.id && /^[A-Za-z][\w-]*$/.test(target.id) && !/^\d/.test(target.id)) {
-                candidates.push(`#${CSS.escape(target.id)}`);
-            }
-            // 의미 있는 클래스 단독
-            if (target.classList) {
-                for (const c of target.classList) {
-                    if (this.isMeaningfulClass(c)) {
-                        candidates.push(`.${CSS.escape(c)}`);
-                        candidates.push(`${tag}.${CSS.escape(c)}`);
-                    }
-                }
-            }
-            // 태그 단독 (희귀한 태그)
-            if (["main", "article", "aside", "nav", "header", "footer"].includes(tag)) {
-                candidates.push(tag);
-            }
-
-            let best = null, bestScore = 0;
-            for (const sel of candidates) {
-                const score = this.scoreSelector(sel, target);
-                if (score > bestScore) {
-                    bestScore = score;
-                    best = sel;
-                }
-            }
-            if (!best) return null;
-            const count = this.countMatches(best);
-            return {
-                type: "shortest",
-                icon: "🔑",
-                label: "짧고 강력",
-                selector: best,
-                count, score: bestScore,
-                hint: count === 1 ? "이 요소 하나만 정확히 잡힘" :
-                      `비슷한 요소 ${count}개를 한 번에 차단`
-            };
-        }
-
-        // ============== 전략 3: 클래스 패턴 (BEM/접두어/광고키워드) ==============
-        static classPattern(target) {
-            if (!target.className || typeof target.className !== "string") return null;
-            const tag = target.tagName.toLowerCase();
-            const classes = target.className.trim().split(/\s+/).filter(Boolean);
-            const candidates = [];
-
-            for (const c of classes) {
-                // BEM: block__element--modifier
-                const bem = c.match(/^([a-zA-Z][\w-]*?)(__|--)/);
-                if (bem) {
-                    candidates.push({
-                        sel: `[class*="${bem[1]}${bem[2]}"]`,
-                        hint: `"${bem[1]}${bem[2]}" 접두사를 가진 모든 요소`
-                    });
-                }
-                // 광고 키워드 클래스
-                const adMatch = c.match(/(ad|ads|banner|sponsor|promot|advert)[-_]?[a-zA-Z0-9]*/i);
-                if (adMatch && this.isMeaningfulClass(c)) {
-                    candidates.push({
-                        sel: `[class*="${adMatch[0]}"]`,
-                        hint: `광고성 클래스명 "${adMatch[0]}" 부분일치`
-                    });
-                }
-                // 접두어 패턴 (xxx-yyy)
-                const prefix = c.match(/^([a-zA-Z][a-zA-Z0-9]{2,})-/);
-                if (prefix && this.isMeaningfulClass(c)) {
-                    candidates.push({
-                        sel: `[class*="${prefix[1]}-"]`,
-                        hint: `"${prefix[1]}-" 접두사 부분일치 (광범위)`
-                    });
-                }
-            }
-
-            // data-ad-* 속성도 패턴으로 처리
-            for (const attr of target.attributes) {
-                if (/^data-ad/i.test(attr.name)) {
-                    candidates.push({
-                        sel: `[${attr.name}]`,
-                        hint: `${attr.name} 속성을 가진 모든 요소`
-                    });
-                }
-            }
-
-            let best = null, bestScore = 0;
-            for (const c of candidates) {
-                const count = this.countMatches(c.sel);
-                if (count === -1 || count === 0) continue;
-                try {
-                    if (!Array.from(document.querySelectorAll(c.sel)).includes(target)) continue;
-                } catch(e) { continue; }
-                const score = this.scoreSelector(c.sel, target, { allowGroup: true });
-                // 너무 광범위하면 감점
-                let adjusted = score;
-                if (count > 50) adjusted -= 20;
-                if (count > 200) adjusted = Math.min(adjusted, 15);
-                if (adjusted > bestScore) {
-                    bestScore = adjusted;
-                    best = { ...c, count };
-                }
-            }
-            if (!best) return null;
-            return {
-                type: "pattern",
-                icon: "🎨",
-                label: "클래스 패턴",
-                selector: best.sel,
-                count: best.count, score: bestScore,
-                hint: best.hint + (best.count > 30 ? " — 매우 광범위, 주의" : "")
-            };
-        }
-
-        // ============== 전략 4: 정밀 매칭 (현재 기본 방식 재활용) ==============
-        static precise(target, evaluator) {
-            // 외부에서 주입받은 evaluator 사용 (Inspector.evaluateCss)
-            try {
-                const { selector } = evaluator(target);
-                if (!selector) return null;
-                const count = this.countMatches(selector);
-                const score = this.scoreSelector(selector, target);
-                return {
-                    type: "precise",
-                    icon: "🎯",
-                    label: "정밀 매칭",
-                    selector,
-                    count, score,
-                    hint: count === 1 ? "이 요소 하나만 정확히 잡힘 — 구조 바뀌면 깨질 수 있음"
-                                      : `${count}개 매칭 — 정확도 중심`
-                };
-            } catch(e) { return null; }
-        }
-
-        // ============== 전략 5: 유사 그룹 (형제 중 같은 종류) ==============
-        static similarGroup(target) {
-            const parent = target.parentElement;
-            if (!parent) return null;
-            const tag = target.tagName.toLowerCase();
-            // 부모 + 태그 + 의미 있는 첫 클래스
-            const candidates = [];
-            if (target.classList) {
-                for (const c of target.classList) {
-                    if (!this.isMeaningfulClass(c)) continue;
-                    candidates.push(`${tag}.${CSS.escape(c)}`);
-                }
-            }
-            // 부모 컨텍스트 추가
-            const parentTag = parent.tagName.toLowerCase();
-            let parentSel = parentTag;
-            if (parent.classList && parent.classList.length) {
-                for (const c of parent.classList) {
-                    if (this.isMeaningfulClass(c)) {
-                        parentSel = `${parentTag}.${CSS.escape(c)}`;
-                        break;
-                    }
-                }
-            }
-            for (const c of [...candidates]) {
-                candidates.push(`${parentSel} > ${c}`);
-            }
-
-            let best = null, bestCount = 0;
-            for (const sel of candidates) {
-                const count = this.countMatches(sel);
-                if (count < 2 || count > 50) continue; // 그룹다운 범위
-                try {
-                    const list = Array.from(document.querySelectorAll(sel));
-                    if (!list.includes(target)) continue;
-                } catch(e) { continue; }
-                // 더 큰 그룹 우선 (단, 30개 초과는 감점)
-                const scoreCount = count > 30 ? (60 - count) : count;
-                if (scoreCount > bestCount) {
-                    bestCount = scoreCount;
-                    best = { sel, count };
-                }
-            }
-            if (!best) return null;
-            const score = this.scoreSelector(best.sel, target, { allowGroup: true });
-            return {
-                type: "group",
-                icon: "🌐",
-                label: "유사 그룹",
-                selector: best.sel,
-                count: best.count, score: Math.max(score, 40),
-                hint: `같은 종류 ${best.count}개를 한 번에 차단 (예: 인피드 광고)`
-            };
-        }
-
-        // ============== 전략 6: 컨텐츠 컨테이너 (의미있는 부모로 승격) ==============
-        static container(target) {
-            // 의미 있는 부모: aside, article, section, nav, 또는 ad/banner 키워드 포함 부모
-            const chain = this.parentChain(target).slice(1, 5); // 가까운 부모 4개
-            const adKw = /(ad|ads|banner|sponsor|promot|advert|wrap|container|slot|box)/i;
-            for (const p of chain) {
-                const ptag = p.tagName.toLowerCase();
-                let candidate = null, hint = "";
-                if (["aside", "article", "section", "nav"].includes(ptag)) {
-                    // 의미 있는 클래스가 있으면 결합
-                    let cls = null;
-                    if (p.classList) {
-                        for (const c of p.classList) {
-                            if (this.isMeaningfulClass(c)) { cls = c; break; }
-                        }
-                    }
-                    candidate = cls ? `${ptag}.${CSS.escape(cls)}` : ptag;
-                    hint = `${ptag} 컨테이너 전체로 승격`;
-                }
-                if (!candidate && p.id && /^[A-Za-z][\w-]*$/.test(p.id) && !/^\d/.test(p.id) && adKw.test(p.id)) {
-                    candidate = `#${CSS.escape(p.id)}`;
-                    hint = "광고 컨테이너 ID 발견 — 박스 전체 차단";
-                }
-                if (!candidate && p.className && typeof p.className === "string") {
-                    for (const c of p.className.split(/\s+/)) {
-                        if (adKw.test(c) && this.isMeaningfulClass(c)) {
-                            candidate = `${ptag}.${CSS.escape(c)}`;
-                            hint = `광고성 부모 클래스 "${c}" — 박스 전체 차단`;
-                            break;
-                        }
-                    }
-                }
-                if (candidate) {
-                    const score = this.scoreSelector(candidate, target);
-                    if (score >= 40) {
-                        return {
-                            type: "container",
-                            icon: "📎",
-                            label: "부모 컨테이너",
-                            selector: candidate,
-                            count: this.countMatches(candidate),
-                            score: score + 5,
-                            hint
-                        };
-                    }
-                }
-            }
-            return null;
-        }
-
-        // ============== 전체 후보 생성 ==============
-        static buildAll(target, preciseEvaluator) {
-            const candidates = [
-                this.precise(target, preciseEvaluator),
-                this.semantic(target),
-                this.shortest(target),
-                this.classPattern(target),
-                this.container(target),
-                this.similarGroup(target),
-            ].filter(c => c && c.selector && c.score > 0);
-
-            // 중복 제거 (같은 selector)
-            const seen = new Set();
-            const unique = [];
-            for (const c of candidates) {
-                if (seen.has(c.selector)) continue;
-                seen.add(c.selector);
-                unique.push(c);
-            }
-            // 점수 내림차순
-            unique.sort((a, b) => b.score - a.score);
-            // 최고점 후보에 추천 마크
-            if (unique.length) unique[0].recommended = true;
-            return unique;
-        }
-    }
-
     // =========================================================
     // INSPECTOR CLASS
     // =========================================================
@@ -681,7 +33,6 @@
             this.overlay = null;
             this.watcher = null;
             this.longPressTimer = null;
-            // 평가기 바인딩 (전략에서 사용)
             this._preciseEvaluator = (el) => this.evaluateCssBasic(el);
         }
 
@@ -708,7 +59,6 @@
             return el;
         }
 
-        // 기본(비 Pro) 선택자 생성 — 단일 결과
         evaluateCssBasic(t) {
             const e = this.config;
             if (!t || t.nodeType !== 1) return { selector: "", root: document };
@@ -795,7 +145,6 @@
             return { selector: d || cFn(t, true), root: n };
         }
 
-        // Pro 모드: 다중 후보 생성
         evaluateProCandidates(target) {
             if (!target) return [];
             return SelectorStrategies.buildAll(target, this._preciseEvaluator);
@@ -804,9 +153,7 @@
         refreshMetrics() {
             if (!this.state.target) { this.state.hits = 0; this.state.proCandidates = []; return; }
             if (this.state.isPro) {
-                // Pro: 후보 목록 생성
                 this.state.proCandidates = this.evaluateProCandidates(this.state.target);
-                // 추천 후보를 기본 선택자로
                 const picked = this.state.proCandidates.find(c => c.recommended) || this.state.proCandidates[0];
                 if (picked) {
                     this.state.queryData = { selector: picked.selector, root: document };
@@ -890,7 +237,6 @@
             #${TOOL_ID} .picky-slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background-color:#fff;transition:.4s;border-radius:50%}
             #${TOOL_ID} input:checked+.picky-slider{background-color:var(--pk-pri)}
             #${TOOL_ID} input:checked+.picky-slider:before{transform:translateX(20px)}
-            /* ===== Pro 후보 카드 ===== */
             #${TOOL_ID} .picky-pro-section{background:linear-gradient(135deg,rgba(0,122,255,.08),rgba(52,199,89,.06));border:1px solid rgba(0,122,255,.2);border-radius:12px;padding:8px;margin-bottom:10px}
             #${TOOL_ID} .picky-pro-header{font-size:11px;font-weight:600;color:var(--pk-pri);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
             #${TOOL_ID} .picky-pro-header .picky-pro-hint{font-weight:400;color:var(--pk-on-surf-var);font-size:10px}
@@ -1083,7 +429,6 @@
             if (this.state.isCollapsed) this.attachLongPressOnDot();
         }
 
-        // Pro 후보 카드 렌더링 (선택 시 컨테이너만 갱신해서 깜박임 최소화)
         renderProCandidates() {
             const container = this.dom.tool.querySelector(".picky-pro-section");
             if (!container) return;
@@ -1111,7 +456,6 @@
                 </div>`;
             }).join("");
 
-            // 호버/터치 시 페이지 미리보기
             list.querySelectorAll(".picky-candidate-card").forEach(card => {
                 const idx = parseInt(card.dataset.candIdx, 10);
                 card.addEventListener("mouseenter", () => this.previewProCandidate(idx));
@@ -1267,7 +611,6 @@
             const t = this.calcSliderLimits();
             const slider = `<div id="picky-nav-slider-container" data-no-drag><label for="picky-nav-slider" style="font-size:11px;color:var(--pk-on-surf-var)">요소 탐색 (← 상위 / 하위 →)</label><input type="range" id="picky-nav-slider" min="${t.min}" max="${t.max}" value="${t.val}" data-no-drag></div>`;
 
-            // Pro 모드일 때만 후보 카드 섹션 추가
             const proSection = this.state.isPro ? `
             <div class="picky-pro-section">
                 <div class="picky-pro-header">
@@ -1637,7 +980,6 @@
                     this.state.hits = c.count;
                     if (this.dom.disp) this.dom.disp.textContent = c.selector;
                     if (this.dom.match) this.dom.match.textContent = `${c.count}개 일치`;
-                    // 카드 선택 상태만 갱신 (전체 render 안 해서 깜박임 방지)
                     this.dom.tool.querySelectorAll(".picky-candidate-card").forEach((el, i) => {
                         el.classList.toggle("selected", i === idx);
                     });
@@ -1889,7 +1231,7 @@
             const candidates = [];
             const stdAdSizes = [[300,250],[728,90],[160,600],[320,50],[300,600],[336,280],[970,250],[468,60]];
 
-            document.querySelectorAll('div, section, iframe, aside, ins').forEach(el => {
+            document.querySelectorAll('div, section, iframe, aside, ins, img').forEach(el => {
                 if (!el.offsetParent && el.tagName !== 'IFRAME') return;
                 let score = 0;
                 const reasons = [];
@@ -1900,6 +1242,10 @@
                 if (adKw.test(cls)) { score += 4; reasons.push('class'); }
                 if (el.tagName === 'IFRAME' && adKw.test(src)) { score += 6; reasons.push('iframe-src'); }
                 if (el.tagName === 'INS') { score += 3; reasons.push('<ins>'); }
+                if (el.tagName === 'IMG') {
+                    if (AD_NETWORK_HOSTS.some(h => src.includes(h))) { score += 6; reasons.push('img-ad-host'); }
+                    if (AD_PATH_PATTERNS.some(p => src.includes(p.kw))) { score += 3; reasons.push('img-ad-path'); }
+                }
                 if (el.querySelector('a[target="_blank"][href*="click"], a[href*="/ads/"], a[href*="/ad/"]')) { score += 3; reasons.push('ad-link'); }
                 const rect = el.getBoundingClientRect();
                 if (stdAdSizes.some(([w, h]) => Math.abs(rect.width - w) < 5 && Math.abs(rect.height - h) < 5)) {
