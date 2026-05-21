@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.4.3
+// @version      3.4.4
 // @description  Web Element Inspector & CSS Selector Tool with Ad Block - Mobile Optimized
 // @author       hooray804 (modified)
 // @license      MPL-2.0
@@ -32,7 +32,6 @@
     const SHIELD_ID = "picky-shield";
     const DRAG_THRESHOLD = 14;
 
-    // 드래그 시작을 무시할 인터랙티브 요소 셀렉터
     const NO_DRAG_SELECTOR = 'input, button, select, textarea, label, a, ' +
         '#picky-nav-slider, #picky-nav-slider-container, ' +
         '.picky-icon-button, .picky-selector-display, .picky-switch, ' +
@@ -195,7 +194,7 @@
             const all = this.fetchAll();
             const data = {
                 app: "Picky Advanced",
-                version: "3.4.3",
+                version: "3.4.4",
                 exportDate: new Date().toISOString(),
                 rules: all
             };
@@ -316,13 +315,15 @@
                 isObscured: false, isQuarantined: false, obscuredNodes: [],
                 displayCache: new WeakMap(), hits: 0,
                 autoDismiss: GM_getValue("picky_auto_close", true),
-                alignment: GM_getValue("picky_alignment", "bottom"),
                 isPro: false,
                 hoverPreviewNodes: [],
                 adSelectedNodes: [],
-                dragPos: GM_getValue("picky_drag_pos", null),
+                // ★ 위치를 아이콘과 패널로 분리 저장
+                iconPos: GM_getValue("picky_icon_pos", null),    // 사용자가 옮긴 아이콘 위치 (null=기본 우측 하단)
+                panelPos: GM_getValue("picky_panel_pos", null),  // 사용자가 옮긴 패널 위치 (null=기본 하단 가운데)
                 isDragging: false,
-                dragDidMove: false
+                dragDidMove: false,
+                dragTarget: null  // "icon" | "panel"
             };
             this.config = {
                 useId: true, useClasses: true, classCount: 2, useNthOfType: true,
@@ -565,12 +566,8 @@
 
         fetchStylesheet() {
             return `:host{--pk-pri:#007aff;--pk-on-pri:#fff;--pk-pri-cont:#007aff;--pk-on-pri-cont:#fff;--pk-sec-cont:#e9e9eb;--pk-on-sec-cont:#1d1d1f;--pk-surf-var:#f0f0f2;--pk-on-surf-var:#333;--pk-outl:#d1d1d6;--pk-surf:#f9f9f9;--pk-on-surf:#1d1d1f;--pk-succ:#34c759;--pk-err:#ff3b30;--pk-warn:#ff9500;all:initial;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;position:fixed;top:0;left:0;z-index:2147483647;width:0;height:0}
-            #${TOOL_ID}{position:fixed;z-index:2147483646;width:calc(100% - 24px);max-width:420px;background:rgba(248,248,248,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid rgba(0,0,0,.1);padding:10px 12px 12px;box-sizing:border-box;transition:opacity .4s,top .4s,bottom .4s,width .3s,height .3s,border-radius .3s;user-select:none;-webkit-user-select:none;font-size:14px;color:#000}
-            #${TOOL_ID}.no-drag-pos.top{left:50%;transform:translateX(-50%);top:-200%;opacity:0}
-            #${TOOL_ID}.no-drag-pos.bottom{left:50%;transform:translateX(-50%);bottom:-200%;opacity:0}
-            #${TOOL_ID}.no-drag-pos.visible.top{top:12px;opacity:1}
-            #${TOOL_ID}.no-drag-pos.visible.bottom{bottom:12px;opacity:1}
-            #${TOOL_ID}.has-drag-pos{transform:none!important;opacity:1}
+            #${TOOL_ID}{position:fixed;z-index:2147483646;width:calc(100% - 24px);max-width:420px;background:rgba(248,248,248,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:20px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid rgba(0,0,0,.1);padding:10px 12px 12px;box-sizing:border-box;transition:opacity .4s;user-select:none;-webkit-user-select:none;font-size:14px;color:#000;opacity:0}
+            #${TOOL_ID}.visible{opacity:1}
             #${TOOL_ID}.dragging{transition:none!important;opacity:.85;cursor:grabbing!important}
             #${TOOL_ID} .picky-drag-handle{display:flex;align-items:center;justify-content:center;width:100%;height:18px;margin-bottom:4px;cursor:grab;color:var(--pk-on-surf-var);opacity:.4;border-radius:8px;touch-action:none;user-select:none;-webkit-user-select:none}
             #${TOOL_ID} .picky-drag-handle:hover{opacity:.8;background:rgba(0,0,0,.04)}
@@ -601,8 +598,7 @@
             #${TOOL_ID} button.copied{background-color:var(--pk-succ);color:#fff}
             #${TOOL_ID} button.warn{background-color:var(--pk-warn);color:#fff}
             #${TOOL_ID} button.danger{background-color:var(--pk-err);color:#fff}
-            #${TOOL_ID}.minimized{width:36px!important;height:36px!important;border-radius:50%!important;padding:0!important;cursor:pointer;touch-action:none;display:flex!important;align-items:center!important;justify-content:center!important;background:rgba(255,255,255,.95)!important;overflow:hidden}
-            #${TOOL_ID}.no-drag-pos.minimized{left:auto!important;right:20px!important;transform:none!important}
+            #${TOOL_ID}.minimized{width:36px!important;height:36px!important;border-radius:50%!important;padding:0!important;cursor:pointer;touch-action:none;display:flex!important;align-items:center!important;justify-content:center!important;background:rgba(255,255,255,.95)!important;overflow:hidden;max-width:36px!important}
             #${TOOL_ID}.minimized .picky-content,#${TOOL_ID}.minimized .picky-drag-handle{display:none!important}
             #${TOOL_ID} .picky-maximize-button{display:none}
             #${TOOL_ID}.minimized .picky-maximize-button{display:flex!important;width:100%!important;height:100%!important;align-items:center!important;justify-content:center!important;padding:0!important;margin:0!important;border-radius:50%!important;background:transparent!important}
@@ -715,13 +711,13 @@
             sh.appendChild(s);
             this.dom.tool = document.createElement("div");
             this.dom.tool.id = TOOL_ID;
-            this.applyPositionClass();
             sh.appendChild(this.dom.tool);
             this.dom.shield = document.createElement("div");
             this.dom.shield.id = SHIELD_ID;
             sh.appendChild(this.dom.shield);
             this.dom.tool.addEventListener("click", this.triggerAction.bind(this));
             this.render();
+            this.applyPosition();
             setTimeout(() => this.dom.tool.classList.add("visible"), 50);
             this.watcher = new MutationObserver(() => {
                 if (!document.documentElement.contains(this.dom.host)) {
@@ -729,27 +725,60 @@
                 }
             });
             this.watcher.observe(document.documentElement, { childList: true });
+
+            // 창 크기 변경 시 위치 보정
+            window.addEventListener("resize", () => this.applyPosition());
         }
 
-        applyPositionClass() {
+        // ★ 위치 적용: 아이콘은 iconPos(기본 우측 하단), 패널은 panelPos(기본 하단 가운데)
+        applyPosition() {
             const t = this.dom.tool;
             if (!t) return;
-            const wasVisible = t.classList.contains("visible");
-            t.classList.remove("top", "bottom", "no-drag-pos", "has-drag-pos");
-            if (this.state.dragPos) {
-                t.classList.add("has-drag-pos");
-                t.style.left = this.state.dragPos.x + "px";
-                t.style.top = this.state.dragPos.y + "px";
-                t.style.right = "auto";
-                t.style.bottom = "auto";
+
+            // 일단 모든 inline 위치 스타일 초기화
+            t.style.left = "";
+            t.style.top = "";
+            t.style.right = "";
+            t.style.bottom = "";
+            t.style.transform = "";
+
+            if (this.state.isCollapsed) {
+                // ========== 아이콘 위치 ==========
+                if (this.state.iconPos) {
+                    const { x, y } = this.clampPos(this.state.iconPos, 36, 36);
+                    t.style.left = x + "px";
+                    t.style.top = y + "px";
+                } else {
+                    // 기본: 우측 하단
+                    t.style.right = "20px";
+                    t.style.bottom = "20px";
+                }
             } else {
-                t.classList.add("no-drag-pos", this.state.alignment);
-                t.style.left = "";
-                t.style.top = "";
-                t.style.right = "";
-                t.style.bottom = "";
+                // ========== 패널 위치 ==========
+                // 실제 크기를 측정해야 정확한 clamp가 가능. 다음 프레임에서 측정.
+                if (this.state.panelPos) {
+                    requestAnimationFrame(() => {
+                        const rect = t.getBoundingClientRect();
+                        const { x, y } = this.clampPos(this.state.panelPos, rect.width || 300, rect.height || 200);
+                        t.style.left = x + "px";
+                        t.style.top = y + "px";
+                    });
+                } else {
+                    // 기본: 화면 하단 가운데
+                    t.style.left = "50%";
+                    t.style.bottom = "12px";
+                    t.style.transform = "translateX(-50%)";
+                }
             }
-            if (wasVisible) t.classList.add("visible");
+        }
+
+        clampPos(pos, w, h) {
+            const maxX = Math.max(0, window.innerWidth - w);
+            const maxY = Math.max(0, window.innerHeight - h);
+            return {
+                x: Math.max(0, Math.min(pos.x, maxX)),
+                y: Math.max(0, Math.min(pos.y, maxY))
+            };
         }
 
         render() {
@@ -785,10 +814,9 @@
             if (this.state.isCollapsed) this.attachLongPressOnDot();
         }
 
-        // ========== 드래그 핸들러 (수정됨) ==========
-        // 최소화 상태: 본체 자체에서만 드래그 시작 가능
-        // 펼친 상태: .picky-drag-handle에서만 드래그 시작 가능
-        // 어느 경우든 인터랙티브 요소(슬라이더/버튼/입력) 위에서는 드래그 무시
+        // ========== 드래그 핸들러 ==========
+        // 아이콘 드래그 → iconPos 저장
+        // 패널 드래그 → panelPos 저장 (서로 영향 없음)
         attachDragHandlers() {
             const t = this.dom.tool;
             if (!t) return;
@@ -800,16 +828,13 @@
                 } catch(e) { return false; }
             };
 
-            const getHandleElement = () => {
-                return this.state.isCollapsed ? t : t.querySelector(".picky-drag-handle");
-            };
-
             const start = (clientX, clientY) => {
                 const rect = t.getBoundingClientRect();
                 this.state.isDragging = true;
                 this.state.dragOffset = { x: clientX - rect.left, y: clientY - rect.top };
                 this.state.dragStart = { x: clientX, y: clientY };
                 this.state.dragDidMove = false;
+                this.state.dragTarget = this.state.isCollapsed ? "icon" : "panel";
                 t.classList.add("dragging");
             };
             const move = (clientX, clientY) => {
@@ -826,12 +851,12 @@
                 nx = Math.max(0, Math.min(nx, maxX));
                 ny = Math.max(0, Math.min(ny, maxY));
 
-                t.classList.remove("no-drag-pos", "top", "bottom");
-                t.classList.add("has-drag-pos");
+                // 직접 위치 갱신 (transform/right/bottom 모두 무력화)
                 t.style.left = nx + "px";
                 t.style.top = ny + "px";
                 t.style.right = "auto";
                 t.style.bottom = "auto";
+                t.style.transform = "none";
             };
             const end = () => {
                 if (!this.state.isDragging) return;
@@ -839,19 +864,26 @@
                 t.classList.remove("dragging");
                 if (this.state.dragDidMove) {
                     const rect = t.getBoundingClientRect();
-                    this.state.dragPos = { x: rect.left, y: rect.top };
-                    GM_setValue("picky_drag_pos", this.state.dragPos);
+                    const pos = { x: rect.left, y: rect.top };
+                    if (this.state.dragTarget === "icon") {
+                        this.state.iconPos = pos;
+                        GM_setValue("picky_icon_pos", pos);
+                    } else {
+                        this.state.panelPos = pos;
+                        GM_setValue("picky_panel_pos", pos);
+                    }
                 }
+                this.state.dragTarget = null;
             };
 
             // 마우스
             const onMouseDown = (e) => {
                 if (e.button !== undefined && e.button !== 0) return;
-                // 펼친 상태에서는 드래그 핸들에서만 시작
                 if (!this.state.isCollapsed) {
+                    // 펼친 상태: 드래그 핸들에서만
                     if (!e.target.closest(".picky-drag-handle")) return;
                 } else {
-                    // 최소화 상태: 인터랙티브 요소(거의 없겠지만) 가드
+                    // 최소화: 인터랙티브 가드 (점 SVG 위는 OK)
                     if (isInteractive(e.target) && !e.target.closest(".picky-maximize-button")) return;
                 }
                 e.preventDefault();
@@ -873,7 +905,6 @@
 
             // 터치
             const onTouchStart = (e) => {
-                // 펼친 상태: 드래그 핸들에서만
                 if (!this.state.isCollapsed) {
                     if (!e.target.closest(".picky-drag-handle")) return;
                 } else {
@@ -913,6 +944,7 @@
                         this.state.isCollapsed = false;
                         this.state.scale = "full";
                         this.render();
+                        this.applyPosition();
                     }
                     this.suggestAds();
                 }, 600);
@@ -1032,10 +1064,8 @@
                 <button data-action="showSource" data-type="js">JS</button>
                 <button data-action="showCookies">🍪 쿠키</button>
                 <button data-action="showFp">🔍 FP</button>
-                <button data-action="resetDragPos">📍 위치초기화</button>
-                <button data-action="moveTop">⬆ 상단</button>
-                <button data-action="moveBottom">⬇ 하단</button>
-                <button data-action="forceCorner">🆘 우하단 강제</button>
+                <button data-action="resetIconPos">📍 아이콘위치 초기화</button>
+                <button data-action="resetPanelPos">📐 패널위치 초기화</button>
                 <button data-action="terminate" class="danger">❌ 완전 종료</button>
             </div>`;
         }
@@ -1046,13 +1076,11 @@
             this.dom.slider = this.dom.tool.querySelector("#picky-nav-slider");
             if (this.dom.slider) {
                 this.dom.slider.addEventListener("input", this.handleSlide.bind(this));
-                // ★ 슬라이더 이벤트가 패널 드래그로 전파되지 않도록 격리
                 const stopBubble = ev => ev.stopPropagation();
                 ["mousedown","mousemove","mouseup","touchstart","touchmove","touchend","pointerdown","pointermove","pointerup","click"].forEach(evt => {
                     this.dom.slider.addEventListener(evt, stopBubble, evt.startsWith("touch") ? { passive: true } : false);
                 });
             }
-            // 슬라이더 컨테이너 전체에도 동일하게 격리
             const sliderContainer = this.dom.tool.querySelector("#picky-nav-slider-container");
             if (sliderContainer) {
                 const stopBubble = ev => ev.stopPropagation();
@@ -1151,16 +1179,7 @@
             });
         }
 
-        forceCornerPos() {
-            this.state.dragPos = {
-                x: window.innerWidth - 52,
-                y: window.innerHeight - 52
-            };
-            GM_setValue("picky_drag_pos", this.state.dragPos);
-            this.applyPositionClass();
-            this.dom.tool?.classList.add("visible");
-        }
-
+        // ★ 닫기: 패널 상태는 모두 초기화. 아이콘 위치는 이전에 사용자가 옮긴 iconPos 그대로 (또는 기본 우측 하단).
         minimizeUI() {
             this.purge();
             this.clearRulePreview();
@@ -1174,17 +1193,7 @@
             this.state.scale = "full";
             this.state.isCollapsed = true;
             this.render();
-
-            requestAnimationFrame(() => {
-                const t = this.dom.tool;
-                if (!t) return;
-                const rect = t.getBoundingClientRect();
-                const oob = rect.right > window.innerWidth - 2
-                         || rect.bottom > window.innerHeight - 2
-                         || rect.left < 2 || rect.top < 2
-                         || rect.width === 0 || rect.height === 0;
-                if (oob) this.forceCornerPos();
-            });
+            this.applyPosition();  // 아이콘 위치(iconPos 또는 기본 우측 하단)로 복귀
         }
 
         triggerAction(t) {
@@ -1213,17 +1222,21 @@
                         this.terminate(true);
                     }
                 },
-                forceCorner: () => { this.forceCornerPos(); alert("UI를 우하단으로 이동했습니다."); },
                 cycleSize: () => {
                     if (this.state.isCollapsed) {
+                        // 아이콘 → 펼침 (패널은 항상 자기 위치 규칙대로)
                         this.state.isCollapsed = false;
                         this.state.scale = "full";
+                        this.render();
+                        this.applyPosition();
                     } else if (this.state.scale === "full") {
                         this.state.scale = "minimal";
+                        this.render();
+                        this.applyPosition();
                     } else {
-                        this.state.isCollapsed = true;
+                        // minimal → 최소화(아이콘)
+                        this.minimizeUI();
                     }
-                    this.render();
                 },
                 showSettings: () => { this.state.mode = "settings"; this.render(); },
                 showSelected: () => { this.state.mode = this.state.target ? "selected" : "initial"; this.render(); },
@@ -1246,6 +1259,7 @@
                     this.state.scale = "full";
                     this.state.isCollapsed = false;
                     this.render();
+                    this.applyPosition();
                 },
                 selParent: () => {
                     this.purge();
@@ -1310,13 +1324,17 @@
                     this.state.autoDismiss = e.checked;
                     GM_setValue("picky_auto_close", this.state.autoDismiss);
                 },
-                moveTop: () => this.shiftUI("top"),
-                moveBottom: () => this.shiftUI("bottom"),
-                resetDragPos: () => {
-                    this.state.dragPos = null;
-                    GM_setValue("picky_drag_pos", null);
-                    this.applyPositionClass();
-                    alert("UI 위치가 기본값으로 초기화되었습니다.");
+                resetIconPos: () => {
+                    this.state.iconPos = null;
+                    GM_setValue("picky_icon_pos", null);
+                    this.applyPosition();
+                    alert("아이콘 위치가 초기화되었습니다 (우측 하단).");
+                },
+                resetPanelPos: () => {
+                    this.state.panelPos = null;
+                    GM_setValue("picky_panel_pos", null);
+                    this.applyPosition();
+                    alert("패널 위치가 초기화되었습니다 (하단 가운데).");
                 },
                 extractUrl: () => this.pullUrl(),
                 extractAttr: () => this.pullAttr(),
@@ -1388,15 +1406,6 @@
                 prompt("복사 실패:", txt);
                 if (this.state.autoDismiss) this.minimizeUI();
             });
-        }
-
-        shiftUI(pos) {
-            this.state.alignment = pos;
-            this.state.dragPos = null;
-            GM_setValue("picky_alignment", pos);
-            GM_setValue("picky_drag_pos", null);
-            this.applyPositionClass();
-            this.dom.tool.classList.add("visible");
         }
 
         pullUrl() {
@@ -1897,6 +1906,7 @@
                         this.state.isCollapsed = true;
                     }
                     this.render();
+                    this.applyPosition();
                     return;
                 }
                 if (e.key === 'Escape' && !this.state.isCollapsed) {
@@ -1919,7 +1929,11 @@
 
             try {
                 GM_registerMenuCommand("🎯 광고 자동 감지", () => {
-                    if (this.state.isCollapsed) { this.state.isCollapsed = false; this.render(); }
+                    if (this.state.isCollapsed) {
+                        this.state.isCollapsed = false;
+                        this.render();
+                        this.applyPosition();
+                    }
                     this.suggestAds();
                 });
                 GM_registerMenuCommand("📤 규칙 내보내기 (JSON)", () => Blocker.exportJSON());
@@ -1932,14 +1946,17 @@
                     const on = Blocker.toggleEnabled();
                     alert(on ? "차단 ON" : "차단 OFF");
                 });
-                GM_registerMenuCommand("📍 UI 위치 초기화", () => {
-                    GM_setValue("picky_drag_pos", null);
-                    this.state.dragPos = null;
-                    this.applyPositionClass();
+                GM_registerMenuCommand("📍 아이콘 위치 초기화", () => {
+                    GM_setValue("picky_icon_pos", null);
+                    this.state.iconPos = null;
+                    this.applyPosition();
+                    alert("아이콘을 우측 하단으로 되돌렸어요.");
                 });
-                GM_registerMenuCommand("🆘 점을 우하단으로 강제 이동", () => {
-                    this.forceCornerPos();
-                    alert("점이 우하단으로 이동했습니다.");
+                GM_registerMenuCommand("📐 패널 위치 초기화", () => {
+                    GM_setValue("picky_panel_pos", null);
+                    this.state.panelPos = null;
+                    this.applyPosition();
+                    alert("패널을 하단 가운데로 되돌렸어요.");
                 });
             } catch(e) {}
         }
