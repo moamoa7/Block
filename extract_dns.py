@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
-DNS Block/Allow List Generator (Domain-aware Intersection)
-- Block list = AdRules DNS List ∩ HaGeZi's Pro.txt
-  * 단순 문자열 교집합이 아닌 "도메인/서브도메인 인식" 교집합 사용.
-    AdRules는 베이스 도메인(example.com) 위주, HaGeZi Pro는 FQDN(sub.example.com)
-    위주로 등록되어 있어서 문자열 교집합이 비정상적으로 작게 나오는 문제 해결.
+DNS Block/Allow List Generator (Union-based)
+- Block list = AdRules DNS List ∪ HaGeZi's Pro.txt
 - Apply: External Whitelist (auto-filtered) → Personal Blocklist → Personal Whitelist
 - Outputs:
     Block_DNS.txt  (||domain^)
@@ -13,8 +10,10 @@ DNS Block/Allow List Generator (Domain-aware Intersection)
 
 Defenses against accidental whitelist of base/tracker domains:
   [1] extract_whitelist_domains() skips lines with $app=/$domain=/$denyallow= modifiers
+      → AdGuard for Android/browser-conditional rules don't pollute DNS whitelist
   [2] WHITELIST_BLACKLIST removes major base domains (google.com, facebook.com, etc.)
   [3] TRACKER_DOMAINS removes specific tracker domains (bat.bing.com, mixpanel.com, etc.)
+      that don't match keyword patterns
   [4] TRACKER_PATTERNS catches keyword-based trackers (adservice.google.*, etc.)
   [5] Personal whitelist (white.txt) is NEVER filtered — user intent is preserved
 """
@@ -62,6 +61,7 @@ OUT_REPORT = OUTPUT_DIR / "Report.txt"
 # 개인 화이트리스트(PERSONAL_WHITE_URLS)에는 적용하지 않음.
 
 # [방어선 2] 본 도메인 블랙리스트
+# 통째로 풀리면 모든 트래커 서브도메인까지 노출되는 도메인.
 WHITELIST_BLACKLIST = {
     # 대형 SNS / 플랫폼 본 도메인
     "google.com",
@@ -78,7 +78,7 @@ WHITELIST_BLACKLIST = {
     "snapchat.com",
     "vk.com",
     "yandex.ru",
-    # 너무 광범위한 인프라 본 도메인
+    # 너무 광범위한 인프라 본 도메인 (서브도메인에 트래커 다수)
     "amazonaws.com",
     "microsoft.com",
     "apple.com",
@@ -96,6 +96,7 @@ WHITELIST_BLACKLIST = {
 }
 
 # [방어선 3] 정확히 매칭되는 트래커 도메인
+# 키워드 패턴으로는 잡히지 않지만 명백한 트래커.
 TRACKER_DOMAINS = {
     # Microsoft 광고
     "bat.bing.com",
@@ -139,7 +140,7 @@ TRACKER_DOMAINS = {
     "ospserver.net",
 }
 
-# [방어선 4] 트래커 키워드
+# [방어선 4] 트래커 키워드 (도메인 어디든 포함되면 의심)
 TRACKER_PATTERNS = [
     # 광고 네트워크 / 분석
     "doubleclick", "googlesyndication", "googleadservices",
@@ -158,13 +159,13 @@ TRACKER_PATTERNS = [
     "bdash-tracking", "bigcattracks", "bmtrck",
     "trackmytarget", "auth-analytics", "auth-analytix",
     "awmonitor", "aumtrack", "arttrk",
-    # 트래킹 키워드
+    # 트래킹 키워드 (도메인 어디든 포함되면 의심)
     ".tracking.", "-tracking.",
     ".tracker.", "-tracker.",
     ".trk.", "-trk.",
     "telemetry.",
     "metrics.",
-    # Facebook 픽셀/광고
+    # Facebook 픽셀/광고 (본 도메인 제외)
     "pixel.facebook", "connect.facebook.net", "an.facebook.com",
 ]
 
@@ -189,14 +190,25 @@ EXCEPTION_KEYWORDS = [
 
 
 def is_tracker_domain(domain: str) -> bool:
-    """외부 화이트리스트에서 제거할 도메인 판별."""
+    """외부 화이트리스트에서 제거할 도메인 판별.
+
+    우선순위:
+      1. WHITELIST_BLACKLIST (본 도메인)        → 트래커
+      2. TRACKER_DOMAINS (정확 매칭)             → 트래커
+      3. EXCEPTION_KEYWORDS (인프라 보호)        → 트래커 아님
+      4. TRACKER_PATTERNS (키워드 매칭)          → 트래커
+    """
     d = domain.lower()
+    # 1. 본 도메인 블랙리스트
     if d in WHITELIST_BLACKLIST:
         return True
+    # 2. 정확히 매칭되는 트래커 도메인 (예외보다 우선)
     if d in TRACKER_DOMAINS:
         return True
+    # 3. 예외 키워드 (인프라 보호)
     if any(kw in d for kw in EXCEPTION_KEYWORDS):
         return False
+    # 4. 트래커 키워드
     return any(kw in d for kw in TRACKER_PATTERNS)
 
 
@@ -206,19 +218,6 @@ DOMAIN_RE = re.compile(r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?\
 
 def is_valid_domain(d: str) -> bool:
     return bool(DOMAIN_RE.match(d.lower()))
-
-
-def parent_domains(domain: str) -> set:
-    """도메인의 자기 자신 + 모든 상위 도메인 (TLD 단독은 제외).
-
-    예: 'a.b.example.com' →
-        {'a.b.example.com', 'b.example.com', 'example.com'}
-    """
-    parts = domain.split(".")
-    if len(parts) < 2:
-        return {domain}
-    # i=0: 자기 자신, ... , i=len-2: 마지막 2단계(example.com)
-    return {".".join(parts[i:]) for i in range(len(parts) - 1)}
 
 
 def fetch(url: str, retries: int = 3, timeout: int = 30) -> str:
@@ -297,6 +296,8 @@ def extract_whitelist_domains(text: str) -> set:
 
     [방어선 1] $app=, $domain=, $denyallow= modifier가 있는 라인은
                앱별/사이트별 조건부 규칙이므로 DNS 레벨에서 의미 없음.
+               통째로 도메인이 풀리는 사고(예: google.com$app=com.vkontakte.android)를
+               방지하기 위해 건너뜀.
     """
     out = set()
     for line in text.splitlines():
@@ -314,7 +315,7 @@ def extract_whitelist_domains(text: str) -> set:
                 out.add(d)
             continue
 
-        # AdGuard SDNS exclusions 형식: ||domain^
+        # AdGuard SDNS exclusions 형식: ||domain^ (이 파일에서는 화이트리스트로 동작)
         m = re.match(r"^\|\|([a-z0-9\-\.]+)\^", s)
         if m:
             if "$app=" in s or "$domain=" in s or "$denyallow=" in s:
@@ -324,12 +325,14 @@ def extract_whitelist_domains(text: str) -> set:
                 out.add(d)
             continue
 
+        # 일반 도메인 형식에서도 modifier가 있는 라인은 건너뜀
+        # 예: google.com$app=com.vkontakte.android (AdGuard for Android 앱별 규칙)
         if "$app=" in s or "$domain=" in s or "$denyallow=" in s:
             continue
 
         # 일반 도메인 (한 줄에 도메인 하나)
         first = s.split()[0]
-        first = first.split("$")[0]
+        first = first.split("$")[0]   # 혹시 남아있는 modifier 제거
         first = first.split("#")[0].strip()
         if is_valid_domain(first.lower()):
             out.add(first.lower())
@@ -343,39 +346,6 @@ def fetch_filter_set(url: str, label: str, report: list) -> set:
     return s
 
 
-def domain_aware_intersection(primary: set, secondary: set):
-    """도메인/서브도메인 인식 교집합.
-
-    한쪽의 도메인이 다른 쪽 도메인의 동일/상위 도메인이면 교집합으로 인정.
-    예: primary='example.com', secondary='sub.example.com' → 둘 다 교집합에 포함.
-
-    반환: (intersection_set, stats_dict)
-    """
-    # 각 집합을 "자기 자신 + 모든 상위 도메인"으로 확장
-    primary_expanded = set()
-    for d in primary:
-        primary_expanded |= parent_domains(d)
-
-    secondary_expanded = set()
-    for d in secondary:
-        secondary_expanded |= parent_domains(d)
-
-    # primary 도메인 중에서 secondary 또는 그 상위에 매칭되는 것
-    match_from_primary = primary & secondary_expanded
-    # secondary 도메인 중에서 primary 또는 그 상위에 매칭되는 것
-    match_from_secondary = secondary & primary_expanded
-
-    intersection = match_from_primary | match_from_secondary
-
-    stats = {
-        "strict": len(primary & secondary),
-        "from_primary": len(match_from_primary),
-        "from_secondary": len(match_from_secondary),
-        "total": len(intersection),
-    }
-    return intersection, stats
-
-
 # ---------- Main ----------
 def main():
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -385,30 +355,23 @@ def main():
     report.append(f"Generated: {ts}")
     report.append("=" * 60)
 
-    # 1. 기본 차단 = AdRules DNS List ∩ HaGeZi Pro (도메인 인식 교집합)
+    # 1. 기본 차단 = AdRules DNS List ∪ HaGeZi Pro (합집합)
     report.append("\n[1] Reference Filters")
     primary_set = fetch_filter_set(PRIMARY_FILTER_URL, "Primary (AdRules DNS List)", report)
     secondary_set = fetch_filter_set(SECONDARY_FILTER_URL, "Secondary (HaGeZi Pro)", report)
 
-    if primary_set and secondary_set:
-        base_block_set, stats = domain_aware_intersection(primary_set, secondary_set)
-        report.append(
-            f"[Intersection (domain-aware)] {stats['total']:,} domains"
-        )
-        report.append(
-            f"  - Strict string overlap : {stats['strict']:,}"
-        )
-        report.append(
-            f"  - From primary (AdRules): {stats['from_primary']:,} "
-            f"(primary domain matched secondary or its parent)"
-        )
-        report.append(
-            f"  - From secondary (HaGeZi): {stats['from_secondary']:,} "
-            f"(secondary domain matched primary or its parent)"
-        )
+    if primary_set or secondary_set:
+        base_block_set = primary_set | secondary_set
+        overlap = len(primary_set & secondary_set)
+        only_primary = len(primary_set - secondary_set)
+        only_secondary = len(secondary_set - primary_set)
+        report.append(f"[Union] {len(base_block_set):,} domains")
+        report.append(f"  - Overlap (in both)    : {overlap:,}")
+        report.append(f"  - Only in AdRules      : {only_primary:,}")
+        report.append(f"  - Only in HaGeZi Pro   : {only_secondary:,}")
     else:
-        base_block_set = primary_set or secondary_set
-        report.append(f"[Fallback - single source] {len(base_block_set):,} domains")
+        base_block_set = set()
+        report.append("[ERROR] Both reference filters failed to load")
 
     # 2. 외부 화이트리스트 로드
     report.append("\n[2] External Whitelist Sources")
@@ -420,13 +383,14 @@ def main():
         report.append(f"  - {short_name(url)}: {len(domains):,} extracted")
     report.append(f"[External Whitelist Total] {len(white_set):,} domains")
 
-    # 2-1. 트래커 자동 필터 (외부 화이트리스트에만 적용)
+    # 2-1. ★ 트래커 자동 필터 (외부 화이트리스트에만 적용)
     before = len(white_set)
     removed_trackers = {d for d in white_set if is_tracker_domain(d)}
     white_set -= removed_trackers
     after = len(white_set)
     report.append(f"\n[Tracker Auto-Filter] Removed {before - after:,} trackers from external whitelist")
     if removed_trackers:
+        # 카테고리별로 분리해서 보고
         blacklist_hits = sorted(d for d in removed_trackers if d in WHITELIST_BLACKLIST)
         domain_hits = sorted(d for d in removed_trackers
                              if d in TRACKER_DOMAINS and d not in WHITELIST_BLACKLIST)
@@ -483,7 +447,7 @@ def main():
     overridden = step2 & personal_white_set
     report.append(f"  Step 3 (- personal white): {len(final_block_set):,}  (whitelist override: {len(overridden):,})")
 
-    # 6. 화이트리스트 출력
+    # 6. 화이트리스트 출력 = 외부 화이트(필터링 후) + 개인 화이트, 단 개인 블록과 충돌하면 외부는 제외
     final_white_set = (white_set - personal_block_set) | personal_white_set
     report.append(f"\n[6] Final Whitelist: {len(final_white_set):,} domains")
 
@@ -499,7 +463,7 @@ def main():
         f.write(f"! Title: Personal Block List (DNS)\n")
         f.write(f"! Homepage: https://github.com/moamoa7/adblock\n")
         f.write(f"! Generated: {ts}\n")
-        f.write(f"! Method: (AdRules DNS List ∩ HaGeZi Pro, domain-aware) - ExtWhite + PersonalBlock - PersonalWhite\n")
+        f.write(f"! Method: (AdRules DNS List ∪ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite\n")
         f.write(f"! Block Rules: {len(final_block_set):,}\n!\n")
         for d in sorted(final_block_set):
             f.write(f"||{d}^\n")
