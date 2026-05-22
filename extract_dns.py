@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 DNS Block/Allow List Generator (Intersection-based)
-- Block list = AdGuard DNS Filter (15.txt) ∩ HaGeZi's Pro.txt
+- Block list = AdRules DNS List ∩ HaGeZi's Pro.txt
 - Apply: External Whitelist (auto-filtered) → Personal Blocklist → Personal Whitelist
 - Outputs:
     Block_DNS.txt  (||domain^)
@@ -357,7 +357,7 @@ def main():
 
     # 1. 기본 차단 = AdRules DNS List ∩ HaGeZi Pro
     report.append("\n[1] Reference Filters")
-    primary_set = fetch_filter_set(PRIMARY_FILTER_URL, "Primary (AdGuard 15.txt)", report)
+    primary_set = fetch_filter_set(PRIMARY_FILTER_URL, "Primary (AdRules DNS List)", report)
     secondary_set = fetch_filter_set(SECONDARY_FILTER_URL, "Secondary (HaGeZi Pro)", report)
 
     if primary_set and secondary_set:
@@ -457,7 +457,7 @@ def main():
         f.write(f"! Title: Personal Block List (DNS)\n")
         f.write(f"! Homepage: https://github.com/moamoa7/adblock\n")
         f.write(f"! Generated: {ts}\n")
-        f.write(f"! Method: (AdGuard DNS ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite\n")
+        f.write(f"! Method: (AdRules DNS List ∩ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite\n")
         f.write(f"! Block Rules: {len(final_block_set):,}\n!\n")
         for d in sorted(final_block_set):
             f.write(f"||{d}^\n")
