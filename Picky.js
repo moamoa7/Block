@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.6.7
-// @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 카드 리스트 UI, 실시간 미리보기 + 숨김 토글 + 유일 타겟팅 경로 + Shield 픽킹(빈 공간 대응) + 모바일 드래그 개선
+// @version      3.6.8
+// @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 카드 리스트 UI, 실시간 미리보기 + 숨김 토글 + 유일 타겟팅 경로 + Shield 픽킹 + 모바일 드래그 개선 + 전체 규칙 뷰어
 // @author       hooray804
 // @license      MIT
 // @homepage     https://github.com/hooray804/Picky
@@ -20,9 +20,6 @@
 
     if (window.top !== window.self) return;
 
-    // ───────────────────────────────────────────────
-    // 코어 ID / 클래스 / 상수
-    // ───────────────────────────────────────────────
     const TOOL_ID    = 'picky-tool-root';
     const ROOT_ID    = 'picky-shadow-host';
     const HL_CLASS   = 'picky-hl';
@@ -49,9 +46,6 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-    // ───────────────────────────────────────────────
-    // 광고 관련 상수
-    // ───────────────────────────────────────────────
     const AD_NETWORK_HOSTS = [
         'doubleclick.net', 'googlesyndication.com', 'googleadservices.com',
         'adservice.google.com', 'adservice.google.co.kr', 'adsystem.com',
@@ -115,9 +109,6 @@
 
     const AD_FILE_EXTS = ['.gif', '.jpg', '.jpeg', '.png', '.webp', '.svg'];
 
-    // ───────────────────────────────────────────────
-    // SVG 아이콘
-    // ───────────────────────────────────────────────
     const ICON_CLOSE   = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
     const ICON_SET     = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19.14 12.94a7.96 7.96 0 000-1.88l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.61-.22l-2.39.96a8.13 8.13 0 00-1.62-.94l-.36-2.54A.5.5 0 0014 2h-4a.5.5 0 00-.5.42l-.36 2.54c-.58.24-1.12.56-1.62.94l-2.39-.96a.5.5 0 00-.61.22L2.6 8.48a.5.5 0 00.12.64l2.03 1.58a7.96 7.96 0 000 1.88L2.72 14.16a.5.5 0 00-.12.64l1.92 3.32a.5.5 0 00.61.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54A.5.5 0 0010 22h4a.5.5 0 00.5-.42l.36-2.54a8.13 8.13 0 001.62-.94l2.39.96a.5.5 0 00.61-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1112 8.5a3.5 3.5 0 010 7z"/></svg>';
     const ICON_MIN     = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 13H5v-2h14v2z"/></svg>';
@@ -129,10 +120,8 @@
     const ICON_TARGET  = '<svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="3" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2" d="M12 4v3M12 17v3M4 12h3M17 12h3"/></svg>';
     const ICON_EYE     = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zM12 17a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>';
     const ICON_EYE_OFF = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
+    const ICON_GLOBE   = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>';
 
-    // ───────────────────────────────────────────────
-    // Blocker
-    // ───────────────────────────────────────────────
     const Blocker = {
         STYLE_ID: 'picky-block-style',
         KEY_RULES: 'picky_rules_v2',
@@ -167,6 +156,50 @@
             this.enforce();
         },
 
+        // ★ v3.6.8: 특정 호스트의 규칙 직접 조작
+        saveForHost(host, rules) {
+            const all = this.fetchAll();
+            if (!rules || !rules.length) {
+                delete all[host];
+            } else {
+                all[host] = rules;
+            }
+            GM_setValue(this.KEY_RULES, JSON.stringify(all));
+            this.enforce();
+        },
+
+        dropFromHost(host, sel) {
+            const all = this.fetchAll();
+            if (!all[host]) return;
+            all[host] = all[host].filter(r => r !== sel);
+            if (!all[host].length) delete all[host];
+            GM_setValue(this.KEY_RULES, JSON.stringify(all));
+            this.enforce();
+            this.pushHistory({ act: 'del', sel, host, ts: Date.now() });
+        },
+
+        clearHost(host) {
+            const all = this.fetchAll();
+            const removed = all[host] || [];
+            delete all[host];
+            GM_setValue(this.KEY_RULES, JSON.stringify(all));
+            this.enforce();
+            for (const sel of removed) {
+                this.pushHistory({ act: 'del', sel, host, ts: Date.now() });
+            }
+        },
+
+        clearAll() {
+            const all = this.fetchAll();
+            for (const host of Object.keys(all)) {
+                for (const sel of (all[host] || [])) {
+                    this.pushHistory({ act: 'del', sel, host, ts: Date.now() });
+                }
+            }
+            GM_setValue(this.KEY_RULES, JSON.stringify({}));
+            this.enforce();
+        },
+
         append(sel) {
             if (!sel || typeof sel !== 'string') return false;
             const rules = this.fetch();
@@ -188,8 +221,24 @@
             const last = hist.pop();
             if (!last) return null;
             GM_setValue(this.KEY_HIST, JSON.stringify(hist));
-            if (last.act === 'add') this.drop(last.sel);
-            else if (last.act === 'del') this.append(last.sel);
+            if (last.act === 'add') {
+                // 원래 호스트에서 제거
+                const all = this.fetchAll();
+                if (all[last.host]) {
+                    all[last.host] = all[last.host].filter(r => r !== last.sel);
+                    if (!all[last.host].length) delete all[last.host];
+                    GM_setValue(this.KEY_RULES, JSON.stringify(all));
+                    this.enforce();
+                }
+            } else if (last.act === 'del') {
+                const all = this.fetchAll();
+                if (!all[last.host]) all[last.host] = [];
+                if (!all[last.host].includes(last.sel)) {
+                    all[last.host].push(last.sel);
+                }
+                GM_setValue(this.KEY_RULES, JSON.stringify(all));
+                this.enforce();
+            }
             return last;
         },
 
@@ -255,7 +304,7 @@
         exportJSON() {
             const data = {
                 app: 'Picky Advanced',
-                version: '3.6.7',
+                version: '3.6.8',
                 exportDate: new Date().toISOString(),
                 rules: this.fetchAll()
             };
@@ -272,7 +321,7 @@
             const all = this.fetchAll();
             const lines = [
                 '! Title: Picky Advanced Export',
-                `! Version: 3.6.7`,
+                `! Version: 3.6.8`,
                 `! Generated: ${new Date().toISOString()}`,
                 '! Syntax: AdGuard / uBlock Origin compatible',
                 ''
@@ -331,9 +380,6 @@
     };
     Blocker.init();
 
-    // ───────────────────────────────────────────────
-    // Modal
-    // ───────────────────────────────────────────────
     class Modal {
         constructor(container) {
             this.container = container;
@@ -381,9 +427,6 @@
         }
     }
 
-    // ───────────────────────────────────────────────
-    // SelectorStrategies
-    // ───────────────────────────────────────────────
     class SelectorStrategies {
 
         static countMatches(sel, root = document) {
@@ -1773,9 +1816,6 @@
         }
     }
 
-    // ───────────────────────────────────────────────
-    // Inspector
-    // ───────────────────────────────────────────────
     class Inspector {
         constructor() {
             this.dom = {
@@ -1792,31 +1832,17 @@
                 mode: 'initial',
                 scale: 'icon',
                 isCollapsed: true,
-                isObscured: false,
-                isQuarantined: false,
-                obscuredNodes: [],
-                displayCache: new WeakMap(),
-                hits: 0,
-                autoDismiss: GM_getValue('picky_auto_close', true),
                 hoverPreviewNodes: [],
                 pinnedPreviewNodes: [],
                 hiddenPreviewNodes: [],
                 hiddenSelector: null,
-                adSelectedNodes: [],
                 iconPos: null,
                 panelPos: null,
-                isDragging: false,
-                dragDidMove: false,
-                dragTarget: null,
                 picking: false,
-                lastHoverEl: null
-            };
-            this.config = {
-                useId: true, useClasses: true, classCount: 2,
-                useNthOfType: true,
-                intelligentMode: true,
-                maxDepth: 8,
-                shadowDomSupport: false
+                lastHoverEl: null,
+                // ★ v3.6.8: 전체 규칙 뷰어 상태
+                allRulesCollapsed: new Set(),  // 접힌 사이트 목록
+                allRulesSearch: ''
             };
             this.modal = null;
             this._preciseEvaluator = (el) => this.evaluateCssBasic(el);
@@ -1942,8 +1968,9 @@
             const hidingNow = this.state.hiddenPreviewNodes.length > 0;
             return `
             <div class="picky-head" data-drag="1">
-                <span class="picky-title">Picky <small>v3.6.7</small></span>
+                <span class="picky-title">Picky <small>v3.6.8</small></span>
                 <div class="picky-head-btns">
+                    <button class="picky-btn picky-btn-icon" data-act="showAllRules" title="전체 규칙 뷰어">${ICON_GLOBE}</button>
                     <button class="picky-btn picky-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
                     <button class="picky-btn picky-btn-icon" data-act="cycleSize" title="최소화">${ICON_MIN}</button>
                     <button class="picky-btn picky-btn-icon" data-act="terminate" title="아이콘으로 접기">${ICON_CLOSE}</button>
@@ -1987,7 +2014,7 @@
                     </button>
                     <button class="picky-btn" data-act="copySelected" title="CSS 복사">${ICON_COPY}</button>
                     <button class="picky-btn" data-act="editSelector" title="편집">${ICON_EDIT}</button>
-                    <button class="picky-btn" data-act="showRules" title="규칙 목록">📋</button>
+                    <button class="picky-btn" data-act="showRules" title="현재 사이트 규칙">📋</button>
                 </div>
 
                 <div class="picky-toggle-row">
@@ -2653,6 +2680,7 @@
                 }
                 case 'editSelector': this.editSelector(); break;
                 case 'showRules': this.showRules(); break;
+                case 'showAllRules': this.showAllRules(); break;  // ★ v3.6.8
                 case 'toggleEnabled': Blocker.toggleEnabled(); this.refreshMetrics(); break;
                 case 'toggleAggressive': Blocker.toggleAggressive(); break;
             }
@@ -2715,7 +2743,7 @@
 
         showRules() {
             const rules = Blocker.fetch();
-            const body = this.modal.display(`차단 규칙 (${rules.length})`, '', true);
+            const body = this.modal.display(`현재 사이트 규칙 (${rules.length})`, '', true);
             body.innerHTML = `
                 <div class="picky-rules-list">
                     ${rules.length ? rules.map((r, i) => `
@@ -2725,9 +2753,10 @@
                         </div>`).join('') : '<div class="picky-cards-empty">등록된 규칙이 없습니다</div>'}
                 </div>
                 <div class="picky-modal-foot">
+                    <button class="picky-btn" data-ref="openAll">🌐 전체 규칙 보기</button>
                     <button class="picky-btn" data-ref="exportFilter">📋 AdGuard 필터 복사</button>
                     <button class="picky-btn" data-ref="exportJson">📥 JSON 내보내기</button>
-                    <button class="picky-btn picky-btn-danger" data-ref="clear">전체 삭제</button>
+                    <button class="picky-btn picky-btn-danger" data-ref="clear">현재 사이트 전체 삭제</button>
                 </div>`;
             body.querySelectorAll('[data-ridx]').forEach(b => {
                 b.addEventListener('click', () => {
@@ -2735,6 +2764,9 @@
                     this.showRules();
                     this.refreshMetrics();
                 });
+            });
+            body.querySelector('[data-ref="openAll"]').addEventListener('click', () => {
+                this.showAllRules();
             });
             body.querySelector('[data-ref="exportFilter"]').addEventListener('click', async () => {
                 await Blocker.copyFilterText();
@@ -2752,6 +2784,218 @@
             });
         }
 
+        // ★★★ v3.6.8: 전체 규칙 뷰어
+        showAllRules() {
+            const body = this.modal.display('🌐 전체 규칙 뷰어', '', true, 'picky-modal-wide');
+            this._renderAllRulesContent(body);
+        }
+
+        _renderAllRulesContent(body) {
+            const all = Blocker.fetchAll();
+            const currentHost = Blocker.host();
+            const hosts = Object.keys(all).sort((a, b) => {
+                // 현재 사이트를 맨 위로
+                if (a === currentHost) return -1;
+                if (b === currentHost) return 1;
+                return a.localeCompare(b);
+            });
+
+            let totalRules = 0;
+            for (const h of hosts) totalRules += (all[h] || []).length;
+
+            const search = (this.state.allRulesSearch || '').toLowerCase().trim();
+
+            // 검색 필터링
+            const filteredHosts = hosts.filter(host => {
+                if (!search) return true;
+                if (host.toLowerCase().includes(search)) return true;
+                return (all[host] || []).some(r => r.toLowerCase().includes(search));
+            });
+
+            const noRules = totalRules === 0;
+            const noMatch = !noRules && filteredHosts.length === 0;
+
+            body.innerHTML = `
+                <div class="picky-allrules-toolbar">
+                    <input type="text" class="picky-allrules-search" placeholder="🔍 사이트/규칙 검색..." value="${esc(this.state.allRulesSearch || '')}">
+                    <span class="picky-allrules-summary">${hosts.length}개 사이트 · ${totalRules}개 규칙</span>
+                </div>
+                <div class="picky-allrules-list">
+                    ${noRules
+                        ? '<div class="picky-cards-empty">등록된 규칙이 없습니다</div>'
+                        : noMatch
+                            ? '<div class="picky-cards-empty">검색 결과가 없습니다</div>'
+                            : filteredHosts.map(host => this._renderHostGroup(host, all[host] || [], currentHost, search)).join('')
+                    }
+                </div>
+                <div class="picky-modal-foot">
+                    <button class="picky-btn" data-ref="expandAll">▼ 모두 펼치기</button>
+                    <button class="picky-btn" data-ref="collapseAll">▲ 모두 접기</button>
+                    <button class="picky-btn" data-ref="exportFilter">📋 AdGuard 필터 복사</button>
+                    <button class="picky-btn" data-ref="exportJson">📥 JSON 내보내기</button>
+                    <button class="picky-btn picky-btn-danger" data-ref="clearAll">⚠ 전체 삭제</button>
+                </div>
+            `;
+
+            // 검색 입력
+            const searchInput = body.querySelector('.picky-allrules-search');
+            searchInput.addEventListener('input', (e) => {
+                this.state.allRulesSearch = e.target.value;
+                this._renderAllRulesContent(body);
+                // 검색창 포커스 복원
+                const newInput = body.querySelector('.picky-allrules-search');
+                if (newInput) {
+                    newInput.focus();
+                    const len = newInput.value.length;
+                    newInput.setSelectionRange(len, len);
+                }
+            });
+
+            // 사이트 헤더 클릭 (접기/펼치기)
+            body.querySelectorAll('[data-host-toggle]').forEach(h => {
+                h.addEventListener('click', (e) => {
+                    if (e.target.closest('button')) return;
+                    const host = h.dataset.hostToggle;
+                    if (this.state.allRulesCollapsed.has(host)) {
+                        this.state.allRulesCollapsed.delete(host);
+                    } else {
+                        this.state.allRulesCollapsed.add(host);
+                    }
+                    this._renderAllRulesContent(body);
+                });
+            });
+
+            // 사이트 전체 삭제
+            body.querySelectorAll('[data-host-clear]').forEach(b => {
+                b.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const host = b.dataset.hostClear;
+                    const count = (all[host] || []).length;
+                    if (confirm(`"${host}" 의 ${count}개 규칙을 모두 삭제할까요?`)) {
+                        Blocker.clearHost(host);
+                        this.flashToast(`${host} 규칙 ${count}개 삭제됨`);
+                        this._renderAllRulesContent(body);
+                        this.refreshMetrics();
+                    }
+                });
+            });
+
+            // 사이트 규칙 복사
+            body.querySelectorAll('[data-host-copy]').forEach(b => {
+                b.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const host = b.dataset.hostCopy;
+                    const rules = all[host] || [];
+                    const text = rules.map(r =>
+                        host === 'global' ? `##${r}` : `${host}##${r}`
+                    ).join('\n');
+                    await this.copyText(text);
+                    this.flashToast(`${host} 규칙 ${rules.length}개 복사됨`);
+                });
+            });
+
+            // 개별 규칙 삭제
+            body.querySelectorAll('[data-rule-del]').forEach(b => {
+                b.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const host = b.dataset.host;
+                    const sel = b.dataset.ruleDel;
+                    Blocker.dropFromHost(host, sel);
+                    this.flashToast('규칙 삭제됨');
+                    this._renderAllRulesContent(body);
+                    this.refreshMetrics();
+                });
+            });
+
+            // 개별 규칙 복사
+            body.querySelectorAll('[data-rule-copy]').forEach(b => {
+                b.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const host = b.dataset.host;
+                    const sel = b.dataset.ruleCopy;
+                    const text = host === 'global' ? `##${sel}` : `${host}##${sel}`;
+                    await this.copyText(text);
+                    this.flashToast('규칙 복사됨');
+                });
+            });
+
+            // 푸터 버튼
+            body.querySelector('[data-ref="expandAll"]').addEventListener('click', () => {
+                this.state.allRulesCollapsed.clear();
+                this._renderAllRulesContent(body);
+            });
+            body.querySelector('[data-ref="collapseAll"]').addEventListener('click', () => {
+                this.state.allRulesCollapsed = new Set(hosts);
+                this._renderAllRulesContent(body);
+            });
+            body.querySelector('[data-ref="exportFilter"]').addEventListener('click', async () => {
+                await Blocker.copyFilterText();
+                this.flashToast('AdGuard/uBlock 필터 복사됨');
+            });
+            body.querySelector('[data-ref="exportJson"]').addEventListener('click', () => {
+                Blocker.exportJSON();
+                this.flashToast('JSON 파일 다운로드');
+            });
+            body.querySelector('[data-ref="clearAll"]').addEventListener('click', () => {
+                if (confirm(`정말 모든 사이트의 ${totalRules}개 규칙을 삭제할까요? 이 작업은 ↶ 마지막 작업 취소로 되돌릴 수 있지만 시간이 걸립니다.`)) {
+                    Blocker.clearAll();
+                    this.flashToast('모든 규칙 삭제됨');
+                    this._renderAllRulesContent(body);
+                    this.refreshMetrics();
+                }
+            });
+        }
+
+        _renderHostGroup(host, rules, currentHost, search) {
+            const isCurrent = host === currentHost;
+            const isCollapsed = this.state.allRulesCollapsed.has(host);
+
+            // 검색어가 있을 때 규칙 필터링
+            const visibleRules = search
+                ? rules.filter(r => r.toLowerCase().includes(search) || host.toLowerCase().includes(search))
+                : rules;
+
+            // 검색어 강조 함수
+            const highlight = (text) => {
+                if (!search) return esc(text);
+                const lower = text.toLowerCase();
+                const idx = lower.indexOf(search);
+                if (idx < 0) return esc(text);
+                return esc(text.slice(0, idx)) +
+                    `<mark class="picky-search-hl">${esc(text.slice(idx, idx + search.length))}</mark>` +
+                    esc(text.slice(idx + search.length));
+            };
+
+            return `
+                <div class="picky-host-group ${isCurrent ? 'is-current' : ''} ${isCollapsed ? 'is-collapsed' : ''}">
+                    <div class="picky-host-header" data-host-toggle="${esc(host)}">
+                        <span class="picky-host-toggle-icon">${isCollapsed ? '▶' : '▼'}</span>
+                        <span class="picky-host-name">${highlight(host)}</span>
+                        ${isCurrent ? '<span class="picky-host-current-badge">현재</span>' : ''}
+                        <span class="picky-host-count">${rules.length}개${search && visibleRules.length !== rules.length ? ` (${visibleRules.length}개 일치)` : ''}</span>
+                        <div class="picky-host-actions">
+                            <button class="picky-btn picky-btn-icon" data-host-copy="${esc(host)}" title="이 사이트 규칙 모두 복사">${ICON_COPY}</button>
+                            <button class="picky-btn picky-btn-icon picky-btn-danger-icon" data-host-clear="${esc(host)}" title="이 사이트 규칙 전체 삭제">${ICON_CLOSE}</button>
+                        </div>
+                    </div>
+                    ${isCollapsed ? '' : `
+                        <div class="picky-host-rules">
+                            ${visibleRules.length === 0
+                                ? '<div class="picky-host-empty">일치하는 규칙 없음</div>'
+                                : visibleRules.map(r => `
+                                    <div class="picky-rule-item">
+                                        <code title="${esc(r)}">${highlight(r)}</code>
+                                        <button class="picky-btn picky-btn-icon" data-rule-copy="${esc(r)}" data-host="${esc(host)}" title="규칙 복사">${ICON_COPY}</button>
+                                        <button class="picky-btn picky-btn-icon" data-rule-del="${esc(r)}" data-host="${esc(host)}" title="삭제">${ICON_CLOSE}</button>
+                                    </div>
+                                `).join('')
+                            }
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
         showSettings() {
             const body = this.modal.display('설정', '', true);
             const stats = Blocker.getStats();
@@ -2760,6 +3004,9 @@
                     <div class="picky-settings-row">
                         <span>전체 통계</span>
                         <span>${stats.totalSites}개 사이트 / ${stats.totalRules}개 규칙</span>
+                    </div>
+                    <div class="picky-settings-row">
+                        <button class="picky-btn" data-ref="openAll">🌐 전체 규칙 뷰어 열기</button>
                     </div>
                     <div class="picky-settings-row">
                         <button class="picky-btn" data-ref="resetPos">위치 초기화</button>
@@ -2773,6 +3020,7 @@
                     </div>
                     <div class="picky-settings-row">
                         <small style="opacity:0.6">
+                            • <b>🌐 전체 규칙 뷰어</b>(v3.6.8): 모든 사이트의 규칙을 그룹화해서 보기 · 검색 · 접기/펼치기 · 사이트별/개별 삭제<br>
                             • <b>모바일 드래그 개선</b>: 아이콘/패널 헤더를 끌어도 페이지가 따라 움직이지 않음<br>
                             • <b>Shield 픽킹</b>: 빈 공간, pointer-events:none 요소, &lt;a&gt; 안의 작은 이미지도 정확히 선택<br>
                             • <b>Alt + 클릭</b>: 좌표의 모든 요소 중 가장 작은 요소 강제 선택<br>
@@ -2786,6 +3034,9 @@
                         </small>
                     </div>
                 </div>`;
+            body.querySelector('[data-ref="openAll"]').addEventListener('click', () => {
+                this.showAllRules();
+            });
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => {
                 this.state.iconPos = null;
                 this.state.panelPos = null;
@@ -2880,7 +3131,6 @@
             });
         }
 
-        // ★★★ v3.6.7: 모바일 드래그 개선 — touch-action + preventDefault + passive:false
         attachDragHandlers() {
             const tool = this.dom.tool;
             if (!tool) return;
@@ -2900,7 +3150,6 @@
                 tool.style.right = 'auto';
                 tool.style.bottom = 'auto';
                 try { tool.setPointerCapture?.(e.pointerId); } catch (_) {}
-                // ★ 모바일: 드래그 시작 시 페이지 스크롤/줌 기본 동작 차단
                 if (e.pointerType === 'touch' && e.cancelable) {
                     e.preventDefault();
                 }
@@ -2911,7 +3160,6 @@
                 const dy = e.clientY - startY;
                 if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) moved = true;
                 if (moved) {
-                    // ★ 모바일: 페이지가 같이 스크롤되는 것 방지
                     if (e.cancelable) e.preventDefault();
                     const w = tool.offsetWidth, h = tool.offsetHeight;
                     const p = this.clampPos(startLeft + dx, startTop + dy, w, h);
@@ -2935,7 +3183,6 @@
                 }
                 try { tool.releasePointerCapture?.(e.pointerId); } catch (_) {}
             };
-            // ★ passive:false 로 등록해야 preventDefault 가 효과를 발휘함
             tool.addEventListener('pointerdown', onDown, { passive: false });
             tool.addEventListener('pointermove', onMove, { passive: false });
             tool.addEventListener('pointerup', onUp, { passive: false });
@@ -2956,10 +3203,6 @@
         }
     }
 
-    // ───────────────────────────────────────────────
-    // Picky CSS (Shadow DOM 내부)
-    // ★ v3.6.7: 모바일 터치 동작 분리 — touch-action 설정
-    // ───────────────────────────────────────────────
     const PICKY_CSS = `
     :host, * { box-sizing: border-box; }
     .picky-tool {
@@ -2968,12 +3211,9 @@
         font-size: 13px;
         color: #e8eaed;
         z-index: 2147483647;
-        touch-action: none;          /* ★ 모바일: 기본 스크롤/줌 차단 (드래그 영역) */
+        touch-action: none;
     }
-    .picky-icon {
-        width: 48px; height: 48px;
-        touch-action: none;          /* ★ 아이콘 전체 드래그 가능 */
-    }
+    .picky-icon { width: 48px; height: 48px; touch-action: none; }
     .picky-icon-btn {
         width: 100%; height: 100%;
         border: none; border-radius: 50%;
@@ -2994,14 +3234,14 @@
         box-shadow: 0 20px 60px rgba(0,0,0,.45);
         backdrop-filter: blur(8px);
         overflow: hidden;
-        touch-action: auto;          /* ★ 패널 내부는 기본적으로 자유롭게 (자식 요소가 따로 제어) */
+        touch-action: auto;
     }
     .picky-head {
         display: flex; align-items: center; justify-content: space-between;
         padding: 8px 12px;
         background: rgba(0,0,0,0.25);
         cursor: grab; user-select: none;
-        touch-action: none;          /* ★ 헤더는 드래그 전용 — 페이지 따라 움직임 방지 */
+        touch-action: none;
     }
     .picky-head:active { cursor: grabbing; }
     .picky-title { font-weight: 600; font-size: 14px; }
@@ -3020,7 +3260,7 @@
         color: #e8eaed; border-radius: 6px;
         cursor: pointer; font-size: 12px;
         transition: all 0.15s;
-        touch-action: manipulation;  /* ★ 버튼 탭 지연 제거 */
+        touch-action: manipulation;
     }
     .picky-btn:hover { background: rgba(255,255,255,0.15); }
     .picky-btn-icon { padding: 6px; }
@@ -3038,6 +3278,13 @@
         background: linear-gradient(135deg, #ef4444, #b91c1c);
         border-color: transparent;
     }
+    .picky-btn-danger-icon {
+        color: #fca5a5;
+    }
+    .picky-btn-danger-icon:hover {
+        background: rgba(239, 68, 68, 0.2);
+        color: #fff;
+    }
 
     .picky-disp-wrap {
         background: rgba(0,0,0,0.3);
@@ -3051,7 +3298,7 @@
         color: #9ecbff;
         line-height: 1.4;
         max-height: 40px; overflow-y: auto;
-        touch-action: pan-y;         /* ★ 셀렉터 표시 영역 세로 스크롤 허용 */
+        touch-action: pan-y;
     }
     .picky-meta {
         display: flex; justify-content: space-between;
@@ -3067,11 +3314,11 @@
         -webkit-appearance: none; appearance: none;
         height: 4px; background: rgba(255,255,255,0.15);
         border-radius: 2px; outline: none;
-        touch-action: pan-x;         /* ★ 슬라이더는 가로 조작만 */
+        touch-action: pan-x;
     }
     .picky-slider::-webkit-slider-thumb {
         -webkit-appearance: none; appearance: none;
-        width: 18px; height: 18px;   /* ★ 모바일 터치 친화 크기 확대 */
+        width: 18px; height: 18px;
         background: #3b82f6; border-radius: 50%; cursor: pointer;
     }
     .picky-slider::-moz-range-thumb {
@@ -3088,7 +3335,7 @@
         border-radius: 8px;
         background: rgba(0,0,0,0.2);
         padding: 6px;
-        touch-action: pan-y;         /* ★ 카드 리스트는 세로 스크롤만 허용 */
+        touch-action: pan-y;
         -webkit-overflow-scrolling: touch;
     }
     .picky-cards-scroll::-webkit-scrollbar { width: 6px; }
@@ -3251,6 +3498,11 @@
         display: flex; flex-direction: column;
         color: #e8eaed;
     }
+    .picky-modal-wide .picky-modal-card {
+        max-width: 720px;
+        width: 95%;
+        max-height: 85vh;
+    }
     .picky-modal-head {
         display: flex; justify-content: space-between; align-items: center;
         padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -3265,7 +3517,7 @@
     .picky-modal-body {
         padding: 14px; overflow-y: auto; font-size: 13px;
         color: #e8eaed;
-        touch-action: pan-y;         /* ★ 모달 본문은 세로 스크롤 허용 */
+        touch-action: pan-y;
         -webkit-overflow-scrolling: touch;
     }
     .picky-modal-body code {
@@ -3287,7 +3539,7 @@
         padding: 8px; border-radius: 6px;
         margin: 8px 0; resize: vertical;
         -webkit-text-fill-color: #9ecbff;
-        touch-action: auto;          /* ★ 입력란 자유롭게 */
+        touch-action: auto;
     }
     .picky-modal-meta { font-size: 11px; opacity: 0.7; margin-bottom: 8px; }
     .picky-modal-foot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
@@ -3306,6 +3558,133 @@
     .picky-rule-item code {
         font-size: 11px; color: #9ecbff;
         word-break: break-all; flex: 1;
+    }
+
+    /* ★★★ v3.6.8: 전체 규칙 뷰어 스타일 */
+    .picky-allrules-toolbar {
+        display: flex; gap: 8px; align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .picky-allrules-search {
+        flex: 1;
+        background: rgba(0,0,0,0.35);
+        border: 1px solid rgba(255,255,255,0.15);
+        color: #e8eaed;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        outline: none;
+        -webkit-text-fill-color: #e8eaed;
+    }
+    .picky-allrules-search:focus {
+        border-color: rgba(59, 130, 246, 0.6);
+        background: rgba(0,0,0,0.5);
+    }
+    .picky-allrules-summary {
+        font-size: 11px; opacity: 0.65;
+        white-space: nowrap;
+    }
+    .picky-allrules-list {
+        max-height: 56vh;
+        overflow-y: auto;
+        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
+        padding-right: 4px;
+    }
+    .picky-allrules-list::-webkit-scrollbar { width: 6px; }
+    .picky-allrules-list::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.2); border-radius: 3px;
+    }
+    .picky-host-group {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        overflow: hidden;
+        transition: border-color 0.15s;
+    }
+    .picky-host-group:hover {
+        border-color: rgba(255,255,255,0.15);
+    }
+    .picky-host-group.is-current {
+        border-color: rgba(16, 185, 129, 0.5);
+        background: rgba(16, 185, 129, 0.06);
+    }
+    .picky-host-header {
+        display: flex; align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(0,0,0,0.2);
+        cursor: pointer;
+        user-select: none;
+        touch-action: manipulation;
+        transition: background 0.15s;
+    }
+    .picky-host-header:hover {
+        background: rgba(0,0,0,0.35);
+    }
+    .picky-host-group.is-current .picky-host-header {
+        background: rgba(16, 185, 129, 0.12);
+    }
+    .picky-host-toggle-icon {
+        font-size: 10px;
+        opacity: 0.6;
+        width: 12px;
+        transition: opacity 0.15s;
+    }
+    .picky-host-name {
+        font-weight: 600;
+        font-size: 13px;
+        word-break: break-all;
+        flex: 1;
+    }
+    .picky-host-current-badge {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: #fff;
+        font-size: 9px;
+        padding: 2px 7px;
+        border-radius: 8px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .picky-host-count {
+        font-size: 11px;
+        opacity: 0.6;
+        white-space: nowrap;
+    }
+    .picky-host-actions {
+        display: flex;
+        gap: 4px;
+        margin-left: 4px;
+    }
+    .picky-host-rules {
+        padding: 8px 10px;
+        background: rgba(0,0,0,0.15);
+    }
+    .picky-host-rules .picky-rule-item {
+        background: rgba(255,255,255,0.04);
+        margin-bottom: 4px;
+    }
+    .picky-host-rules .picky-rule-item:last-child {
+        margin-bottom: 0;
+    }
+    .picky-host-rules .picky-rule-item code {
+        font-size: 10.5px;
+        line-height: 1.4;
+    }
+    .picky-host-empty {
+        text-align: center;
+        padding: 12px;
+        opacity: 0.4;
+        font-size: 11px;
+    }
+    .picky-search-hl {
+        background: rgba(251, 191, 36, 0.4);
+        color: #fde68a;
+        border-radius: 2px;
+        padding: 0 1px;
     }
 
     .picky-ad-list {
@@ -3385,9 +3764,6 @@
     .picky-orphan-btns .picky-btn { flex: 1; justify-content: center; }
     `;
 
-    // ───────────────────────────────────────────────
-    // 페이지 글로벌 CSS
-    // ───────────────────────────────────────────────
     const PAGE_CSS = `
     .${HL_CLASS} {
         outline: 3px solid #3b82f6 !important;
@@ -3418,7 +3794,7 @@
     }
     #${SHIELD_ID} {
         background: rgba(0, 0, 0, 0.02) !important;
-        touch-action: none !important;     /* ★ Shield 모드도 페이지 따라 움직임 방지 */
+        touch-action: none !important;
     }`;
 
     const injectPageCss = () => {
@@ -3447,6 +3823,15 @@
         GM_registerMenuCommand?.('Picky 열기/숨기기', () => {
             if (inspector) { inspector.terminate(); inspector = null; }
             else boot();
+        });
+        GM_registerMenuCommand?.('전체 규칙 뷰어 열기', () => {
+            if (!inspector) boot();
+            if (inspector) {
+                if (inspector.state.scale === 'icon') {
+                    inspector.cycleSize();
+                }
+                inspector.showAllRules();
+            }
         });
         GM_registerMenuCommand?.('규칙 JSON 내보내기', () => Blocker.exportJSON());
         GM_registerMenuCommand?.('AdGuard 필터 복사', async () => {
