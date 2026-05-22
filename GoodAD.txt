@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260522
+! Version: 20260523
 !
 !
 !
@@ -633,7 +633,10 @@ fmkorea.com###fm_alert
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! - - - - - - - - 신버젼
 ! - 팝업
-etoland.co.kr##.fixed
+!etoland.co.kr##.fixed
+##[class^="fixed" i]
+!##.fixed
+
 ! - 네이버 광고 차단 (모바일)
 etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
 ! - 게시물 목록 상단 배너 공간 (모바일)
@@ -643,6 +646,10 @@ etoland.co.kr##article.w-full:has(> ul.mx-\[5px\])
 etoland.co.kr##div[class*="min-h-"]:has(> script)
 ! - 개별 게시물 댓글 하단과 히트글 사이 빈 공간 (모바일)
 etoland.co.kr##div.my-4.flex:has(> script)
+! - 게시물 하단 배너 공백
+! - - - SLR (https://www.slrclub.com/) 하단 배너 공백
+!##.adsbyadop
+##[class*="adsbyadop" i]
 ! - 게시물내 광고글
 ! - - - PC
 etoland.co.kr##li:has(img[src*="/ad"])
@@ -1064,9 +1071,6 @@ slrclub.com##[class="notice"]
 !theqoo.net#@#.notice
 ! - - - 예외 (공지글 제목 안보임
 !cineaste.co.kr#@#.notice
-! - 하단 배너 공백
-! - - - https://etoland.co.kr/ 하단 배너 공백
-!##.adsbyadop
 ##[class*="adsbyadop" i]
 ! - 메인 남겨진 여백 공간
 www.slrclub.com###section3
@@ -2269,7 +2273,7 @@ pedia.watcha.com##.adFixed
 !
 ! AVseeTV (https://06.avsee.ru/)
 ! - 배너 이미지
-||*.avsee.ru/imgs/*
+||avsee.ru/imgs/$image
 ! - 메인 배너
 !##[class="title"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
 !##[class="title"]:has(a[target*="blank"] img[src*=".gif"])
@@ -4493,6 +4497,11 @@ m.wikitree.co.kr##section.section:nth-of-type(3)
 m.wikitree.co.kr###wikitree_image1_bottom
 !
 !
+! 야동 투어 (https://xn--2q1bl84a3e140c.com/)  (https://ydtour34.sbs/)
+! - 광고 영상 차단
+||media.goatanalytics.xyz/videos/*
+!
+!
 !
 !
 !
@@ -4528,7 +4537,7 @@ m.wikitree.co.kr###wikitree_image1_bottom
 !
 */ad/*
 @@*/ad/*$domain=avsee.ru|linkareer.com
-
+!
 !
 */Ad/*
 !
@@ -4673,6 +4682,10 @@ ad-script.
 naver_power
 !
 !
+! -팝업창 닫고난 후 뿌옇거나 클릭이 안되는 문제
+!##.hidden
+##[class^="hidden" i]
+!
 !
 !
 !
@@ -4728,7 +4741,7 @@ naver_power
 i-boss.co.kr,~avsee.ru##a[target*="blank"] > img[src*=".gif"]
 
 
-특이
+! - 특이
 ! - - - 만화방 (https://manhwabang.org/)
 manhwabang.org##a[target*="target"] img
 
