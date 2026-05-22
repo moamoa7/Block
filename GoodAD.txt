@@ -4439,9 +4439,9 @@ modded-1.com#@#[class*="ad-container" i]
 ! - 배너 이미지
 ! - - - 달달티비 (https://www.dadtv2.com/)
 ! - - - 별별티비 / 달달티비
-||images2.imgbox.com^
+||images2.imgbox.com^$image
 ! - - - 별별티비
-||img.smartnote.blog/pp3/2026-03-15/*
+||img.smartnote.blog/pp3/2026-03-15/*$image
 ! - 배너 공간
 [$domain=/^www.bbtv\d+.com/]###pagetop > div > .el-row
 [$domain=/^www.bbtv\d+.com/]###detailtop > div > .el-row
