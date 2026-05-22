@@ -4259,7 +4259,7 @@ semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 fc-info.com##[class*="videoContainer"]
 !
 !
-! 야동티비 (https://yadongtv86.com/)
+! 야동티비 (https://yadongtv87.com/)
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
 ![$domain=/^yadongtv\d+.com/]##[class*="popup-"]
 !
@@ -4493,9 +4493,9 @@ hearheart.com##.mb-6.relative
 ! - 기사 내 오른쪽 필요없는것들
 wikitree.co.kr##div.content_right_inner
 ! - 메인 빈공간 (모바일)
-wikitree.co.kr##section.section:nth-of-type(3)
+m.wikitree.co.kr##section.section:nth-of-type(3)
 ! - 기사내 빈공간 (모바일)
-wikitree.co.kr###wikitree_image1_bottom
+m.wikitree.co.kr###wikitree_image1_bottom
 !
 !
 !
