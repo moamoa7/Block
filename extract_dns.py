@@ -26,7 +26,7 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 
 # ---------- Configuration ----------
-PRIMARY_FILTER_URL = "https://filters.adtidy.org/windows/filters/15.txt"
+PRIMARY_FILTER_URL = "https://raw.githubusercontent.com/Cats-Team/AdRules/main/dns.txt"
 SECONDARY_FILTER_URL = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/pro.txt"
 
 EXCLUSION_URLS = [
@@ -239,7 +239,7 @@ def fetch(url: str, retries: int = 3, timeout: int = 30) -> str:
 
 def short_name(url: str) -> str:
     mapping = [
-        ("filters/15.txt", "AdGuard DNS Filter (15.txt)"),
+        ("main/dns.txt", "AdRules DNS List"),
         ("hagezi/dns-blocklists", "HaGeZi DNS Pro"),
         ("AdGuardSDNSFilter", "AdGuard SDNS Exclusions"),
         ("HttpsExclusions/master/exclusions/banks", "AdGuard HTTPS Banks"),
@@ -355,7 +355,7 @@ def main():
     report.append(f"Generated: {ts}")
     report.append("=" * 60)
 
-    # 1. 기본 차단 = AdGuard DNS Filter ∩ HaGeZi Pro
+    # 1. 기본 차단 = AdRules DNS List ∩ HaGeZi Pro
     report.append("\n[1] Reference Filters")
     primary_set = fetch_filter_set(PRIMARY_FILTER_URL, "Primary (AdGuard 15.txt)", report)
     secondary_set = fetch_filter_set(SECONDARY_FILTER_URL, "Secondary (HaGeZi Pro)", report)
