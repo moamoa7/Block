@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.6.8
-// @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 카드 리스트 UI, 실시간 미리보기 + 숨김 토글 + 유일 타겟팅 경로 + Shield 픽킹 + 모바일 드래그 개선 + 전체 규칙 뷰어
+// @version      3.7.0
+// @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 전체 규칙 뷰어, 모바일 완전 대응 (터치 픽킹, 동적 viewport, 44px 타겟, 좌표 보정)
 // @author       hooray804
 // @license      MIT
 // @homepage     https://github.com/hooray804/Picky
@@ -29,6 +29,13 @@
     const HIDE_CLASS = 'picky-hidden-preview';
     const DRAG_THRESHOLD = 6;
 
+    // ★ v3.7.0: 모바일 감지
+    const IS_TOUCH = (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+    const IS_MOBILE = IS_TOUCH && Math.min(window.innerWidth, window.innerHeight) < 768;
+
+    // ★ v3.7.0: Shield 픽킹 시 조준점 오프셋 (손가락이 가리는 부분 보정)
+    const SHIELD_AIM_OFFSET_Y = IS_TOUCH ? -40 : 0;
+
     const NO_DRAG_SELECTOR = [
         'input', 'textarea', 'select', 'button', 'a',
         '[role="slider"]', '[contenteditable="true"]',
@@ -45,6 +52,11 @@
     const esc = (s) => String(s ?? '')
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    // ★ v3.7.0: 진동 피드백 (지원하는 모바일에서만)
+    const vibrate = (ms = 15) => {
+        try { navigator.vibrate?.(ms); } catch (_) {}
+    };
 
     const AD_NETWORK_HOSTS = [
         'doubleclick.net', 'googlesyndication.com', 'googleadservices.com',
@@ -121,6 +133,7 @@
     const ICON_EYE     = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zM12 17a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>';
     const ICON_EYE_OFF = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
     const ICON_GLOBE   = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>';
+    const ICON_CHECK   = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
 
     const Blocker = {
         STYLE_ID: 'picky-block-style',
@@ -132,8 +145,14 @@
         async init() {
             const apply = () => this.enforce();
             if (document.documentElement) apply();
+            // ★ v3.7.0: 디바운스 적용
+            let timer = null;
             new MutationObserver(() => {
-                if (document.head && !document.getElementById(this.STYLE_ID)) apply();
+                if (timer) return;
+                timer = setTimeout(() => {
+                    timer = null;
+                    if (document.head && !document.getElementById(this.STYLE_ID)) apply();
+                }, 200);
             }).observe(document.documentElement, { childList: true, subtree: true });
         },
 
@@ -156,7 +175,6 @@
             this.enforce();
         },
 
-        // ★ v3.6.8: 특정 호스트의 규칙 직접 조작
         saveForHost(host, rules) {
             const all = this.fetchAll();
             if (!rules || !rules.length) {
@@ -222,7 +240,6 @@
             if (!last) return null;
             GM_setValue(this.KEY_HIST, JSON.stringify(hist));
             if (last.act === 'add') {
-                // 원래 호스트에서 제거
                 const all = this.fetchAll();
                 if (all[last.host]) {
                     all[last.host] = all[last.host].filter(r => r !== last.sel);
@@ -297,14 +314,14 @@
         },
 
         toCosmetic(sel, scope = 'host') {
-            if (scope === 'global') return `##${sel}`;
+            if (scope === 'global' || !this.host()) return `##${sel}`;
             return `${this.host()}##${sel}`;
         },
 
         exportJSON() {
             const data = {
                 app: 'Picky Advanced',
-                version: '3.6.8',
+                version: '3.7.0',
                 exportDate: new Date().toISOString(),
                 rules: this.fetchAll()
             };
@@ -321,7 +338,7 @@
             const all = this.fetchAll();
             const lines = [
                 '! Title: Picky Advanced Export',
-                `! Version: 3.6.8`,
+                `! Version: 3.7.0`,
                 `! Generated: ${new Date().toISOString()}`,
                 '! Syntax: AdGuard / uBlock Origin compatible',
                 ''
@@ -385,6 +402,7 @@
             this.container = container;
             this.node = null;
             this._onDismiss = null;
+            this._vvHandler = null;
         }
 
         display(title, body, isHtml = false, extraClass = '', onDismiss = null) {
@@ -411,6 +429,20 @@
             (this.container || document.body).appendChild(wrap);
             requestAnimationFrame(() => wrap.classList.add('visible'));
             this.node = wrap;
+
+            // ★ v3.7.0: visualViewport로 모달 높이 동적 조정 (가상키보드 대응)
+            if (window.visualViewport) {
+                const card = wrap.querySelector('.picky-modal-card');
+                this._vvHandler = () => {
+                    if (!card) return;
+                    const vh = window.visualViewport.height;
+                    card.style.maxHeight = Math.min(vh - 16, vh * 0.95) + 'px';
+                };
+                this._vvHandler();
+                window.visualViewport.addEventListener('resize', this._vvHandler);
+                window.visualViewport.addEventListener('scroll', this._vvHandler);
+            }
+
             return bodyEl;
         }
 
@@ -420,6 +452,13 @@
             n.classList.remove('visible');
             setTimeout(() => n.remove(), 200);
             this.node = null;
+
+            if (this._vvHandler && window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', this._vvHandler);
+                window.visualViewport.removeEventListener('scroll', this._vvHandler);
+                this._vvHandler = null;
+            }
+
             if (typeof this._onDismiss === 'function') {
                 try { this._onDismiss(); } catch (_) {}
                 this._onDismiss = null;
@@ -503,29 +542,17 @@
             let perfScore = 0;
             const lastSimple = sel.split(/\s|>|\+|~/).pop().trim();
 
-            if (/^#[\w\\-]+$/.test(lastSimple)) {
-                perfScore = 60;
-            } else if (/^#[\w\\-]+(?:\.[\w\\-]+)+$/.test(lastSimple)) {
-                perfScore = 58;
-            } else if (/^[a-z]+\.[\w\\-]+$/i.test(lastSimple)) {
-                perfScore = 50;
-            } else if (/^\.[\w\\-]+$/.test(lastSimple)) {
-                perfScore = 48;
-            } else if (/^\.[\w\\-]+(?:\.[\w\\-]+)+$/.test(lastSimple)) {
-                perfScore = 46;
-            } else if (/\[[a-z-]+="/i.test(lastSimple)) {
-                perfScore = 38;
-            } else if (/\[[a-z-]+\^="/i.test(lastSimple)) {
-                perfScore = 34;
-            } else if (/\[[a-z-]+\$="/i.test(lastSimple)) {
-                perfScore = 32;
-            } else if (/\[[a-z-]+\*="/i.test(lastSimple)) {
-                perfScore = 26;
-            } else if (/^[a-z]+$/i.test(lastSimple)) {
-                perfScore = 32;
-            } else {
-                perfScore = 20;
-            }
+            if (/^#[\w\\-]+$/.test(lastSimple)) perfScore = 60;
+            else if (/^#[\w\\-]+(?:\.[\w\\-]+)+$/.test(lastSimple)) perfScore = 58;
+            else if (/^[a-z]+\.[\w\\-]+$/i.test(lastSimple)) perfScore = 50;
+            else if (/^\.[\w\\-]+$/.test(lastSimple)) perfScore = 48;
+            else if (/^\.[\w\\-]+(?:\.[\w\\-]+)+$/.test(lastSimple)) perfScore = 46;
+            else if (/\[[a-z-]+="/i.test(lastSimple)) perfScore = 38;
+            else if (/\[[a-z-]+\^="/i.test(lastSimple)) perfScore = 34;
+            else if (/\[[a-z-]+\$="/i.test(lastSimple)) perfScore = 32;
+            else if (/\[[a-z-]+\*="/i.test(lastSimple)) perfScore = 26;
+            else if (/^[a-z]+$/i.test(lastSimple)) perfScore = 32;
+            else perfScore = 20;
 
             if (/:has\(/.test(sel)) perfScore -= 12;
             if (/:nth-of-type|:nth-child/.test(sel)) perfScore -= 6;
@@ -556,9 +583,7 @@
             if (options.bonus) intentBonus += options.bonus;
 
             const isExactAttrMatch = /\[(?:src|href|data-[\w-]+|id|name|alt|title|aria-label)="[^"]+"\]/i.test(sel);
-            if (isExactAttrMatch && matches === 1) {
-                intentBonus += 25;
-            }
+            if (isExactAttrMatch && matches === 1) intentBonus += 25;
 
             const total = perfScore + accScore + intentBonus;
             return Math.max(0, Math.min(100, Math.round(total)));
@@ -612,9 +637,7 @@
 
             if (classes.length) {
                 let sel = `${tag}.${CSS.escape(classes[0])}`;
-                if (classes.length >= 2) {
-                    sel += `.${CSS.escape(classes[1])}`;
-                }
+                if (classes.length >= 2) sel += `.${CSS.escape(classes[1])}`;
                 return sel;
             }
 
@@ -630,7 +653,6 @@
 
         static uniqueAncestorPath(el) {
             if (!el || !el.tagName) return [];
-
             const candidates = [];
 
             const buildPath = (combinator) => {
@@ -757,9 +779,7 @@
                     let segment;
                     if (classes.length) {
                         segment = `${tag}.${CSS.escape(classes[0])}`;
-                        if (classes.length >= 2) {
-                            segment += `.${CSS.escape(classes[1])}`;
-                        }
+                        if (classes.length >= 2) segment += `.${CSS.escape(classes[1])}`;
                     } else if (sameTagSiblings.length > 1) {
                         segment = `${tag}:nth-of-type(${nthIdx})`;
                     } else {
@@ -767,15 +787,11 @@
                     }
 
                     buildingPath += ` > ${segment}`;
-
                     const cnt = this.countMatches(buildingPath);
 
                     if (node === el) {
                         if (cnt === 1) {
-                            candidates.push({
-                                sel: buildingPath,
-                                hint: `ID 루트 경로 (매치 1개)`
-                            });
+                            candidates.push({ sel: buildingPath, hint: `ID 루트 경로 (매치 1개)` });
                         } else if (cnt > 1) {
                             if (classes.length && sameTagSiblings.length > 1) {
                                 const refined = buildingPath.replace(
@@ -783,19 +799,13 @@
                                     `${tag}.${CSS.escape(classes[0])}:nth-of-type(${nthIdx})`
                                 );
                                 if (this.countMatches(refined) === 1) {
-                                    candidates.push({
-                                        sel: refined,
-                                        hint: `ID 루트 경로 + 위치 (매치 1개)`
-                                    });
+                                    candidates.push({ sel: refined, hint: `ID 루트 경로 + 위치 (매치 1개)` });
                                 }
                             }
                             if (!classes.length || sameTagSiblings.length > 1) {
                                 const nthOnly = buildingPath.replace(/[^>]+$/, ` ${tag}:nth-of-type(${nthIdx})`);
                                 if (this.countMatches(nthOnly) === 1) {
-                                    candidates.push({
-                                        sel: nthOnly,
-                                        hint: `ID 루트 경로 (형제 위치)`
-                                    });
+                                    candidates.push({ sel: nthOnly, hint: `ID 루트 경로 (형제 위치)` });
                                 }
                             }
                         }
@@ -823,19 +833,13 @@
                 }
 
                 if (!allMeaningful && this.countMatches(forcedPath) === 1) {
-                    candidates.push({
-                        sel: forcedPath,
-                        hint: 'ID 루트 + 위치 기반 (uBlock 호환)'
-                    });
+                    candidates.push({ sel: forcedPath, hint: 'ID 루트 + 위치 기반 (uBlock 호환)' });
                 }
 
                 const lastTag = el.tagName.toLowerCase();
                 const allSameTag = idAncestor.querySelectorAll(lastTag);
                 if (allSameTag.length === 1) {
-                    candidates.push({
-                        sel: `${idSel} ${lastTag}`,
-                        hint: `ID 내 유일한 ${lastTag}`
-                    });
+                    candidates.push({ sel: `${idSel} ${lastTag}`, hint: `ID 내 유일한 ${lastTag}` });
                 }
             }
 
@@ -849,7 +853,6 @@
         static fullChainWithNth(el) {
             if (!el || !el.tagName) return [];
             const candidates = [];
-
             const parts = [];
             let cur = el;
             let depth = 0;
@@ -857,24 +860,17 @@
             while (cur && cur.tagName && depth < 10) {
                 const tag = cur.tagName.toLowerCase();
                 if (tag === 'body' || tag === 'html') break;
-
                 let piece = tag;
-
                 const classes = this.meaningfulClasses(cur);
-                if (classes.length > 0) {
-                    piece += '.' + CSS.escape(classes[0]);
-                }
-
+                if (classes.length > 0) piece += '.' + CSS.escape(classes[0]);
                 const parent = cur.parentElement;
                 if (parent) {
-                    const sameTag = Array.from(parent.children)
-                        .filter(c => c.tagName === cur.tagName);
+                    const sameTag = Array.from(parent.children).filter(c => c.tagName === cur.tagName);
                     if (sameTag.length > 1) {
                         const nth = sameTag.indexOf(cur) + 1;
                         piece += `:nth-of-type(${nth})`;
                     }
                 }
-
                 parts.unshift(piece);
 
                 const chain = parts.join(' > ');
@@ -902,7 +898,6 @@
                     }
                     break;
                 }
-
                 cur = parent;
                 depth++;
             }
@@ -927,8 +922,7 @@
             return this._topN(
                 candidates,
                 { type: 'fullChain', icon: '🎯', label: '체인 위치 식별 (uBlock 호환)' },
-                el,
-                3
+                el, 3
             );
         }
 
@@ -955,11 +949,7 @@
                 candidates.push(...variants);
             }
 
-            return this._topN(
-                candidates,
-                { type: 'semantic', icon: '🏷️', label: '의미있는 속성' },
-                el, 2
-            );
+            return this._topN(candidates, { type: 'semantic', icon: '🏷️', label: '의미있는 속성' }, el, 2);
         }
 
         static shortest(el) {
@@ -997,11 +987,7 @@
                 candidates.push({ sel: tag, hint: '태그만' });
             }
 
-            return this._topN(
-                candidates,
-                { type: 'shortest', icon: '✨', label: '가장 짧은 셀렉터' },
-                el, 2
-            );
+            return this._topN(candidates, { type: 'shortest', icon: '✨', label: '가장 짧은 셀렉터' }, el, 2);
         }
 
         static dummyHref(el) {
@@ -1028,7 +1014,6 @@
                     hint: '클래스 + 더미 href'
                 });
             }
-
             if (parent?.id && /^[a-zA-Z][\w-]*$/.test(parent.id)) {
                 candidates.push({
                     sel: `#${CSS.escape(parent.id)} a[href="${CSS.escape(href)}"]`,
@@ -1036,11 +1021,7 @@
                 });
             }
 
-            return this._topN(
-                candidates,
-                { type: 'dummyHref', icon: '🔗', label: '더미 링크 (광고 클릭 패턴)' },
-                el, 2
-            );
+            return this._topN(candidates, { type: 'dummyHref', icon: '🔗', label: '더미 링크 (광고 클릭 패턴)' }, el, 2);
         }
 
         static classPattern(el) {
@@ -1066,11 +1047,7 @@
                 }
             }
 
-            return this._topN(
-                candidates,
-                { type: 'classPattern', icon: '📎', label: '클래스 패턴' },
-                el, 2
-            );
+            return this._topN(candidates, { type: 'classPattern', icon: '📎', label: '클래스 패턴' }, el, 2);
         }
 
         static precise(el, evaluator) {
@@ -1119,18 +1096,13 @@
                 });
             }
 
-            return this._topN(
-                candidates,
-                { type: 'similarGroup', icon: '👥', label: '유사 그룹' },
-                el, 2
-            );
+            return this._topN(candidates, { type: 'similarGroup', icon: '👥', label: '유사 그룹' }, el, 2);
         }
 
         static container(el) {
             const chain = this.parentChain(el, 4);
             const adKeywords = ['ad', 'ads', 'banner', 'sponsor', 'promo', 'advertisement'];
             const containerTags = ['section', 'aside', 'article', 'nav', 'header', 'footer'];
-
             const candidates = [];
 
             for (const p of chain) {
@@ -1139,32 +1111,19 @@
                 const tag = p.tagName.toLowerCase();
 
                 if (id && adKeywords.some(k => id.toLowerCase().includes(k))) {
-                    candidates.push({
-                        sel: `#${CSS.escape(id)}`,
-                        hint: `광고 키워드 ID: ${id}`
-                    });
+                    candidates.push({ sel: `#${CSS.escape(id)}`, hint: `광고 키워드 ID: ${id}` });
                 }
                 for (const c of classes) {
                     if (adKeywords.some(k => c.toLowerCase().includes(k))) {
-                        candidates.push({
-                            sel: `.${CSS.escape(c)}`,
-                            hint: `광고 키워드 컨테이너: ${c}`
-                        });
+                        candidates.push({ sel: `.${CSS.escape(c)}`, hint: `광고 키워드 컨테이너: ${c}` });
                     }
                 }
                 if (containerTags.includes(tag) && classes.length) {
-                    candidates.push({
-                        sel: `${tag}.${CSS.escape(classes[0])}`,
-                        hint: `시맨틱 컨테이너: ${tag}`
-                    });
+                    candidates.push({ sel: `${tag}.${CSS.escape(classes[0])}`, hint: `시맨틱 컨테이너: ${tag}` });
                 }
             }
 
-            return this._topN(
-                candidates,
-                { type: 'container', icon: '🎨', label: '부모 컨테이너' },
-                el, 2
-            );
+            return this._topN(candidates, { type: 'container', icon: '🎨', label: '부모 컨테이너' }, el, 2);
         }
 
         static parentContainerOfBlocked(el) {
@@ -1194,11 +1153,7 @@
                 });
             }
 
-            return this._topN(
-                candidates,
-                { type: 'parentContainer', icon: '📦', label: '부모 컨테이너 (:has)' },
-                parent, 2
-            );
+            return this._topN(candidates, { type: 'parentContainer', icon: '📦', label: '부모 컨테이너 (:has)' }, parent, 2);
         }
 
         static imgAlwaysCss(el) {
@@ -1214,30 +1169,16 @@
             const fileName = url.pathname.split('/').pop() || '';
             const dirPath = url.pathname.substring(0, url.pathname.lastIndexOf('/') + 1);
 
-            candidates.push({
-                sel: `img[src="${CSS.escape(src)}"]`,
-                hint: '정확한 이미지 URL'
-            });
+            candidates.push({ sel: `img[src="${CSS.escape(src)}"]`, hint: '정확한 이미지 URL' });
 
             if (fileName && fileName.length >= 4 && fileName.length <= 80) {
-                candidates.push({
-                    sel: `img[src$="${CSS.escape(fileName)}"]`,
-                    hint: `파일명 끝매칭: ${fileName}`
-                });
+                candidates.push({ sel: `img[src$="${CSS.escape(fileName)}"]`, hint: `파일명 끝매칭: ${fileName}` });
             }
-
             if (dirPath && dirPath.length > 3 && dirPath !== '/') {
-                candidates.push({
-                    sel: `img[src*="${CSS.escape(dirPath)}"]`,
-                    hint: `디렉토리: ${dirPath}`
-                });
+                candidates.push({ sel: `img[src*="${CSS.escape(dirPath)}"]`, hint: `디렉토리: ${dirPath}` });
             }
-
             if (url.hostname) {
-                candidates.push({
-                    sel: `img[src*="${CSS.escape(url.hostname)}"]`,
-                    hint: `호스트: ${url.hostname}`
-                });
+                candidates.push({ sel: `img[src*="${CSS.escape(url.hostname)}"]`, hint: `호스트: ${url.hostname}` });
             }
 
             const anchor = this._findAnchor(img);
@@ -1256,34 +1197,21 @@
                 }
                 const aClasses = this.meaningfulClasses(anchor);
                 if (aClasses.length) {
-                    candidates.push({
-                        sel: `a.${CSS.escape(aClasses[0])} > img`,
-                        hint: `링크 클래스: .${aClasses[0]}`
-                    });
+                    candidates.push({ sel: `a.${CSS.escape(aClasses[0])} > img`, hint: `링크 클래스: .${aClasses[0]}` });
                 }
             }
 
             const imgClasses = this.meaningfulClasses(img);
             if (imgClasses.length) {
-                candidates.push({
-                    sel: `img.${CSS.escape(imgClasses[0])}`,
-                    hint: `이미지 클래스: .${imgClasses[0]}`
-                });
+                candidates.push({ sel: `img.${CSS.escape(imgClasses[0])}`, hint: `이미지 클래스: .${imgClasses[0]}` });
             }
 
             const alt = img.getAttribute('alt');
             if (alt && alt.length > 0 && alt.length <= 40) {
-                candidates.push({
-                    sel: `img[alt="${CSS.escape(alt)}"]`,
-                    hint: `alt="${alt}"`
-                });
+                candidates.push({ sel: `img[alt="${CSS.escape(alt)}"]`, hint: `alt="${alt}"` });
             }
 
-            return this._topN(
-                candidates,
-                { type: 'imgAlwaysCss', icon: '🖼️', label: '이미지 CSS 셀렉터' },
-                img, 4
-            );
+            return this._topN(candidates, { type: 'imgAlwaysCss', icon: '🖼️', label: '이미지 CSS 셀렉터' }, img, 4);
         }
 
         static imgSrcDomain(el) {
@@ -1300,29 +1228,18 @@
             const candidates = [];
             const adHost = AD_NETWORK_HOSTS.find(h => host.includes(h));
             if (adHost) {
-                candidates.push({
-                    sel: `img[src*="${adHost}"]`,
-                    hint: `광고 네트워크: ${adHost}`
-                });
+                candidates.push({ sel: `img[src*="${adHost}"]`, hint: `광고 네트워크: ${adHost}` });
             }
             if (host !== location.hostname && !location.hostname.endsWith(host)) {
-                candidates.push({
-                    sel: `img[src*="${host}"]`,
-                    hint: `외부 도메인: ${host}`
-                });
+                candidates.push({ sel: `img[src*="${host}"]`, hint: `외부 도메인: ${host}` });
             }
 
-            return this._topN(
-                candidates,
-                { type: 'imgSrcDomain', icon: '🖼️', label: '광고 도메인 이미지' },
-                img, 2
-            );
+            return this._topN(candidates, { type: 'imgSrcDomain', icon: '🖼️', label: '광고 도메인 이미지' }, img, 2);
         }
 
         static imgStandardSize(el) {
             const img = this._findImg(el);
             if (!img) return [];
-
             const w = parseInt(img.getAttribute('width')) || img.naturalWidth || img.width;
             const h = parseInt(img.getAttribute('height')) || img.naturalHeight || img.height;
             if (!w || !h) return [];
@@ -1337,12 +1254,8 @@
                 (() => { try { return new URL(anchor.href).hostname !== location.hostname; } catch (_) { return false; } })();
 
             const candidates = [
-                {
-                    sel: `img[width="${matched[0]}"][height="${matched[1]}"]`,
-                    hint: `IAB 표준: ${matched[0]}×${matched[1]}`
-                }
+                { sel: `img[width="${matched[0]}"][height="${matched[1]}"]`, hint: `IAB 표준: ${matched[0]}×${matched[1]}` }
             ];
-
             if (hasExtLink) {
                 candidates.push({
                     sel: `a[href] > img[width="${matched[0]}"][height="${matched[1]}"]`,
@@ -1350,11 +1263,7 @@
                 });
             }
 
-            return this._topN(
-                candidates,
-                { type: 'imgStandardSize', icon: '📐', label: '표준 광고 크기' },
-                img, 2
-            );
+            return this._topN(candidates, { type: 'imgStandardSize', icon: '📐', label: '표준 광고 크기' }, img, 2);
         }
 
         static imgInAdLink(el) {
@@ -1373,11 +1282,7 @@
                 { sel: `a[href*="${matched.kw}"] img`, hint: `${matched.desc} (자손)` }
             ];
 
-            return this._topN(
-                candidates,
-                { type: 'imgInAdLink', icon: '🔗', label: '광고 링크 내 이미지' },
-                img, 2
-            );
+            return this._topN(candidates, { type: 'imgInAdLink', icon: '🔗', label: '광고 링크 내 이미지' }, img, 2);
         }
 
         static imgPathPattern(el) {
@@ -1395,27 +1300,19 @@
                 const url = new URL(src, location.href);
                 const file = url.pathname.split('/').pop();
                 if (file && file.length >= 4 && file.length <= 30 && AD_FILE_EXTS.some(e => file.endsWith(e))) {
-                    candidates.push({
-                        sel: `img[src*="${file}"]`,
-                        hint: `파일명: ${file}`
-                    });
+                    candidates.push({ sel: `img[src*="${file}"]`, hint: `파일명: ${file}` });
                 }
             } catch (_) {}
 
-            return this._topN(
-                candidates,
-                { type: 'imgPathPattern', icon: '📦', label: '이미지 경로 패턴' },
-                img, 2
-            );
+            return this._topN(candidates, { type: 'imgPathPattern', icon: '📦', label: '이미지 경로 패턴' }, img, 2);
         }
 
         static networkFilter(el) {
             const targets = [];
             const TAG_SRC = ['IMG', 'IFRAME', 'SCRIPT', 'VIDEO', 'AUDIO', 'SOURCE', 'EMBED'];
 
-            if (TAG_SRC.includes(el.tagName)) {
-                targets.push(el);
-            } else {
+            if (TAG_SRC.includes(el.tagName)) targets.push(el);
+            else {
                 const inner = el.querySelector?.('img[src], iframe[src], video[src], embed[src], script[src]');
                 if (inner) targets.push(inner);
             }
@@ -1428,23 +1325,16 @@
                 if (!filter || seen.has(filter)) return;
                 seen.add(filter);
                 out.push({
-                    type: 'networkFilter',
-                    icon: '🌐',
-                    label: '네트워크 필터',
-                    selector: cssSel,
-                    filter,
-                    isNetwork: true,
+                    type: 'networkFilter', icon: '🌐', label: '네트워크 필터',
+                    selector: cssSel, filter, isNetwork: true,
                     matches: this.countMatches(cssSel),
-                    score,
-                    stars: this.scoreToStars(score),
-                    hint
+                    score, stars: this.scoreToStars(score), hint
                 });
             };
 
             for (const t of targets) {
                 const src = t.getAttribute('src') || t.src;
                 if (!src) continue;
-
                 let url;
                 try { url = new URL(src, location.href); } catch (_) { continue; }
                 if (!url.hostname) continue;
@@ -1462,69 +1352,32 @@
                 const isExternal = host !== location.hostname && !location.hostname.endsWith(host);
                 const adPathMatch = AD_PATH_PATTERNS.find(p => path.toLowerCase().includes(p.kw));
 
-                push(
-                    `||${host}${path}`,
-                    cssExact,
-                    `정확 URL 차단: ${fileName || path}`,
-                    isAdHost ? 92 : (isExternal ? 80 : 72)
-                );
-
-                push(
-                    `||${host}^`,
-                    cssBase,
-                    isAdHost
-                        ? `광고 호스트 전체 차단: ${host}`
-                        : (isExternal ? `외부 도메인 전체 차단: ${host}` : `자사 도메인 차단: ${host}`),
-                    isAdHost ? 95 : (isExternal ? 78 : 50)
-                );
+                push(`||${host}${path}`, cssExact, `정확 URL 차단: ${fileName || path}`, isAdHost ? 92 : (isExternal ? 80 : 72));
+                push(`||${host}^`, cssBase,
+                    isAdHost ? `광고 호스트 전체 차단: ${host}` : (isExternal ? `외부 도메인 전체 차단: ${host}` : `자사 도메인 차단: ${host}`),
+                    isAdHost ? 95 : (isExternal ? 78 : 50));
 
                 if (dirPath && dirPath.length > 1 && dirPath !== '/') {
-                    push(
-                        `||${host}${dirPath}*`,
-                        `${tagLow}[src*="${dirPath}"]`,
-                        `디렉토리 차단: ${dirPath}`,
-                        isAdHost ? 88 : (adPathMatch ? 82 : 68)
-                    );
+                    push(`||${host}${dirPath}*`, `${tagLow}[src*="${dirPath}"]`, `디렉토리 차단: ${dirPath}`,
+                        isAdHost ? 88 : (adPathMatch ? 82 : 68));
                 }
-
                 if (adPathMatch) {
-                    push(
-                        `||${host}*${adPathMatch.kw}*`,
-                        `${tagLow}[src*="${adPathMatch.kw}"]`,
-                        `광고 키워드 와일드카드: ${adPathMatch.kw}`,
-                        85
-                    );
+                    push(`||${host}*${adPathMatch.kw}*`, `${tagLow}[src*="${adPathMatch.kw}"]`,
+                        `광고 키워드 와일드카드: ${adPathMatch.kw}`, 85);
                 }
-
                 if (isExternal) {
                     const typeOpt = tagLow === 'img' ? '$image'
                                   : tagLow === 'iframe' ? '$subdocument'
-                                  : tagLow === 'script' ? '$script'
-                                  : '';
+                                  : tagLow === 'script' ? '$script' : '';
                     if (typeOpt) {
-                        push(
-                            `||${host}^${typeOpt}`,
-                            cssBase,
-                            `${host} (${typeOpt.slice(1)} 한정)`,
-                            isAdHost ? 90 : 76
-                        );
+                        push(`||${host}^${typeOpt}`, cssBase, `${host} (${typeOpt.slice(1)} 한정)`, isAdHost ? 90 : 76);
                     }
-                    push(
-                        `||${host}^$third-party`,
-                        cssBase,
-                        `${host} (3rd-party 한정)`,
-                        isAdHost ? 88 : 74
-                    );
+                    push(`||${host}^$third-party`, cssBase, `${host} (3rd-party 한정)`, isAdHost ? 88 : 74);
                 }
-
                 if (fileName && fileName.length >= 4 && fileName.length <= 50 &&
                     !/^[0-9a-f]{20,}$/i.test(fileName)) {
-                    push(
-                        `||${host}*/${fileName}`,
-                        `${tagLow}[src$="${fileName}"]`,
-                        `파일명: ${fileName}`,
-                        adPathMatch ? 78 : 62
-                    );
+                    push(`||${host}*/${fileName}`, `${tagLow}[src$="${fileName}"]`, `파일명: ${fileName}`,
+                        adPathMatch ? 78 : 62);
                 }
             }
 
@@ -1534,7 +1387,6 @@
         static mixedNth(el) {
             const parent = el.parentElement;
             if (!parent) return [];
-
             const tag = el.tagName.toLowerCase();
             const classes = this.meaningfulClasses(el);
             const candidates = [];
@@ -1547,16 +1399,12 @@
                     sel: `${tag}.${CSS.escape(classes[0])}:nth-of-type(${myIdx})`,
                     hint: `${myIdx}번째 ${tag}.${classes[0]}`
                 });
-                candidates.push({
-                    sel: `${tag}:nth-of-type(${myIdx})`,
-                    hint: `${myIdx}번째 ${tag}`
-                });
+                candidates.push({ sel: `${tag}:nth-of-type(${myIdx})`, hint: `${myIdx}번째 ${tag}` });
             }
 
             const parentClasses = this.meaningfulClasses(parent);
             if (parent.parentElement && parentClasses.length) {
-                const parentSameTag = Array.from(parent.parentElement.children)
-                    .filter(c => c.tagName === parent.tagName);
+                const parentSameTag = Array.from(parent.parentElement.children).filter(c => c.tagName === parent.tagName);
                 const parentIdx = parentSameTag.indexOf(parent) + 1;
                 const parentTag = parent.tagName.toLowerCase();
 
@@ -1577,11 +1425,7 @@
                 });
             }
 
-            return this._topN(
-                candidates,
-                { type: 'mixedNth', icon: '🧩', label: '혼합 위치 셀렉터' },
-                el, 2
-            );
+            return this._topN(candidates, { type: 'mixedNth', icon: '🧩', label: '혼합 위치 셀렉터' }, el, 2);
         }
 
         static multiCondition(el) {
@@ -1623,10 +1467,7 @@
                         hint: 'iframe 직접 자식 + 클래스'
                     });
                 } else if (hasIframe) {
-                    candidates.push({
-                        sel: `${tag}:has(> iframe)`,
-                        hint: 'iframe 직접 자식'
-                    });
+                    candidates.push({ sel: `${tag}:has(> iframe)`, hint: 'iframe 직접 자식' });
                 }
 
                 if (hasAdImg && classes.length) {
@@ -1662,11 +1503,7 @@
                 });
             }
 
-            return this._topN(
-                candidates,
-                { type: 'multiCondition', icon: '🔧', label: '다중 조건 조합' },
-                el, 2
-            );
+            return this._topN(candidates, { type: 'multiCondition', icon: '🔧', label: '다중 조건 조합' }, el, 2);
         }
 
         static ariaLabel(el) {
@@ -1686,42 +1523,21 @@
                 if (ariaLabel) {
                     const matched = ARIA_AD_KEYWORDS.find(k => ariaLabel.includes(k));
                     if (matched) {
-                        candidates.push({
-                            sel: `[aria-label*="${CSS.escape(matched)}"]`,
-                            hint: `aria-label에 "${matched}"`
-                        });
-                        candidates.push({
-                            sel: `${tag}[aria-label*="${CSS.escape(matched)}"]`,
-                            hint: `${tag} + aria-label "${matched}"`
-                        });
+                        candidates.push({ sel: `[aria-label*="${CSS.escape(matched)}"]`, hint: `aria-label에 "${matched}"` });
+                        candidates.push({ sel: `${tag}[aria-label*="${CSS.escape(matched)}"]`, hint: `${tag} + aria-label "${matched}"` });
                     } else if (ariaLabel.length <= 30) {
-                        candidates.push({
-                            sel: `${tag}[aria-label="${CSS.escape(ariaLabel)}"]`,
-                            hint: `aria-label="${ariaLabel}"`
-                        });
+                        candidates.push({ sel: `${tag}[aria-label="${CSS.escape(ariaLabel)}"]`, hint: `aria-label="${ariaLabel}"` });
                     }
                 }
-
                 if (role && ['banner', 'complementary', 'advertisement'].includes(role)) {
-                    candidates.push({
-                        sel: `[role="${CSS.escape(role)}"]`,
-                        hint: `role="${role}"`
-                    });
+                    candidates.push({ sel: `[role="${CSS.escape(role)}"]`, hint: `role="${role}"` });
                 }
-
                 if (ariaLabelledby) {
-                    candidates.push({
-                        sel: `[aria-labelledby="${CSS.escape(ariaLabelledby)}"]`,
-                        hint: `aria-labelledby 참조`
-                    });
+                    candidates.push({ sel: `[aria-labelledby="${CSS.escape(ariaLabelledby)}"]`, hint: `aria-labelledby 참조` });
                 }
             }
 
-            return this._topN(
-                candidates,
-                { type: 'ariaLabel', icon: '♿', label: 'ARIA / 접근성' },
-                el, 2
-            );
+            return this._topN(candidates, { type: 'ariaLabel', icon: '♿', label: 'ARIA / 접근성' }, el, 2);
         }
 
         static buildAll(el, evaluator) {
@@ -1799,15 +1615,12 @@
             });
 
             if (unique.length) unique[0].recommended = true;
-
             return unique;
         }
 
         static toAdGuardRule(candidate, scope = 'host') {
             if (!candidate) return '';
-            if (candidate.isNetwork && candidate.filter) {
-                return candidate.filter;
-            }
+            if (candidate.isNetwork && candidate.filter) return candidate.filter;
             const sel = candidate.selector;
             if (!sel) return '';
             const host = location.hostname || '';
@@ -1820,14 +1633,14 @@
         constructor() {
             this.dom = {
                 host: null, shadow: null, tool: null,
-                shield: null, disp: null, match: null, slider: null,
+                shield: null, shieldAim: null, shieldConfirm: null,
+                disp: null, match: null, slider: null,
                 cardsScroll: null
             };
             this.state = {
                 target: null, originTarget: null, hierarchy: [],
                 queryData: { selector: '', root: document },
-                candidates: [],
-                selectedIdx: -1,
+                candidates: [], selectedIdx: -1,
                 previewNodes: [],
                 mode: 'initial',
                 scale: 'icon',
@@ -1836,16 +1649,16 @@
                 pinnedPreviewNodes: [],
                 hiddenPreviewNodes: [],
                 hiddenSelector: null,
-                iconPos: null,
-                panelPos: null,
+                iconPos: null, panelPos: null,
                 picking: false,
                 lastHoverEl: null,
-                // ★ v3.6.8: 전체 규칙 뷰어 상태
-                allRulesCollapsed: new Set(),  // 접힌 사이트 목록
+                pickCandidate: null,  // ★ v3.7.0: 모바일 픽킹용 후보
+                allRulesCollapsed: new Set(),
                 allRulesSearch: ''
             };
             this.modal = null;
             this._preciseEvaluator = (el) => this.evaluateCssBasic(el);
+            this._onResize = null;
         }
 
         evaluateCssBasic(el) {
@@ -1887,8 +1700,16 @@
             this.render();
             this.attachDragHandlers();
             this.applyPosition();
+
+            // ★ v3.7.0: 회전/리사이즈 시 위치 보정
+            this._onResize = () => {
+                this.applyPosition();
+            };
+            window.addEventListener('resize', this._onResize);
+            window.addEventListener('orientationchange', this._onResize);
         }
 
+        // ★ v3.7.0: 저장된 좌표가 화면 밖이면 보정
         applyPosition() {
             const tool = this.dom.tool;
             if (!tool) return;
@@ -1899,11 +1720,17 @@
             tool.style.bottom = '';
             tool.style.transform = '';
 
+            // 강제 reflow로 크기 계산
+            const w = tool.offsetWidth || (this.state.scale === 'icon' ? 48 : 380);
+            const h = tool.offsetHeight || (this.state.scale === 'icon' ? 48 : 400);
+
             if (this.state.scale === 'icon') {
                 const pos = this.state.iconPos;
                 if (pos && typeof pos.x === 'number') {
-                    tool.style.left = pos.x + 'px';
-                    tool.style.top = pos.y + 'px';
+                    const clamped = this.clampPos(pos.x, pos.y, w, h);
+                    tool.style.left = clamped.x + 'px';
+                    tool.style.top = clamped.y + 'px';
+                    this.state.iconPos = clamped;
                 } else {
                     tool.style.right = '20px';
                     tool.style.bottom = '20px';
@@ -1911,8 +1738,10 @@
             } else {
                 const pos = this.state.panelPos;
                 if (pos && typeof pos.x === 'number') {
-                    tool.style.left = pos.x + 'px';
-                    tool.style.top = pos.y + 'px';
+                    const clamped = this.clampPos(pos.x, pos.y, w, h);
+                    tool.style.left = clamped.x + 'px';
+                    tool.style.top = clamped.y + 'px';
+                    this.state.panelPos = clamped;
                 } else {
                     tool.style.left = '50%';
                     tool.style.bottom = '20px';
@@ -1968,7 +1797,7 @@
             const hidingNow = this.state.hiddenPreviewNodes.length > 0;
             return `
             <div class="picky-head" data-drag="1">
-                <span class="picky-title">Picky <small>v3.6.8</small></span>
+                <span class="picky-title">Picky <small>v3.7.0</small></span>
                 <div class="picky-head-btns">
                     <button class="picky-btn picky-btn-icon" data-act="showAllRules" title="전체 규칙 뷰어">${ICON_GLOBE}</button>
                     <button class="picky-btn picky-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -2063,14 +1892,16 @@
             }
 
             wrap.innerHTML = `
-                <div class="picky-cards-info">총 ${list.length}개 후보 · 점수순 · 호버:미리보기 · 클릭:핀 · 👁:숨김 토글</div>
+                <div class="picky-cards-info">총 ${list.length}개 후보 · 점수순 · ${IS_TOUCH ? '탭:선택' : '호버:미리보기 · 클릭:핀'} · 👁:숨김</div>
                 ${list.map((c, i) => this.renderCard(c, i)).join('')}
             `;
 
             wrap.querySelectorAll('.picky-card').forEach(card => {
                 const idx = parseInt(card.dataset.idx, 10);
-                card.addEventListener('mouseenter', () => this.previewCandidate(idx));
-                card.addEventListener('mouseleave', () => this.clearPreview());
+                if (!IS_TOUCH) {
+                    card.addEventListener('mouseenter', () => this.previewCandidate(idx));
+                    card.addEventListener('mouseleave', () => this.clearPreview());
+                }
                 card.addEventListener('click', (e) => {
                     if (e.target.closest('button')) return;
                     if (e.target.closest('[data-card-act]')) return;
@@ -2102,16 +1933,15 @@
                     ${recommended}
                     <span class="picky-card-stars" title="${c.score}점 (성능+정확도)">${c.stars || ''}</span>
                 </div>
-                <div class="picky-card-css" title="클릭하면 CSS 복사" data-card-act="copyCssQuick">
+                <div class="picky-card-css" title="${IS_TOUCH ? '탭하면 CSS 복사' : '클릭하면 CSS 복사'}" data-card-act="copyCssQuick">
                     <span class="picky-card-css-label">CSS:</span>
                     <span class="picky-card-css-text">${esc(c.selector)}</span>
                     <span class="picky-card-matches">·${c.matches}개</span>
                 </div>
-                <div class="picky-card-filter-clickable" title="클릭하면 필터 복사" data-card-act="copyFilterQuick">
+                <div class="picky-card-filter-clickable" title="${IS_TOUCH ? '탭하면 필터 복사' : '클릭하면 필터 복사'}" data-card-act="copyFilterQuick">
                     <span class="picky-card-css-label">필터:</span>
                     <span class="picky-card-css-text">${esc(filterText)}</span>
                 </div>
-
                 <div class="picky-card-hint">${esc(c.hint || '')}</div>
                 <div class="picky-card-btns">
                     ${isNet
@@ -2140,6 +1970,7 @@
 
                 this.clearHidePreview();
                 if (Blocker.append(c.selector)) {
+                    vibrate(20);
                     this.flashToast(`차단: ${c.selector.slice(0, 50)}`);
                     this.refreshMetrics();
                     this.render();
@@ -2151,6 +1982,7 @@
                 if (c.isNetwork) return;
                 const result = this.toggleHidePreview(c.selector);
                 if (result.hidden) {
+                    vibrate(15);
                     this.flashToast(`${result.count}개 요소 숨김 (미리보기)`);
                 } else {
                     this.flashToast('숨김 해제됨');
@@ -2218,6 +2050,7 @@
 
             toast.querySelector('[data-orphan="block"]').addEventListener('click', () => {
                 if (Blocker.append(sel)) {
+                    vibrate(20);
                     this.flashToast('부모 컨테이너도 차단됨');
                     this.refreshMetrics();
                 }
@@ -2318,7 +2151,6 @@
 
             this.clearPreview();
             this.clearPinnedPreview();
-
             return applied.length;
         }
 
@@ -2354,7 +2186,6 @@
             if (this.state.hiddenSelector !== c.selector) {
                 this.applyPinnedPreview(c.selector);
             }
-
             this.refreshMetrics();
             this.renderCandidates();
         }
@@ -2368,7 +2199,6 @@
                 const n = sel ? SelectorStrategies.countMatches(sel) : 0;
                 match.textContent = `매치 ${n}개`;
             }
-
             const stats = Blocker.getStats();
             const statsEl = this.dom.tool?.querySelector('.picky-stats');
             if (statsEl) statsEl.textContent = `규칙 ${stats.ruleCount}개 (전체 ${stats.totalRules})`;
@@ -2459,80 +2289,153 @@
             this.state.previewNodes = [];
         }
 
+        // ★★★ v3.7.0: 모바일 완전 대응 Shield 픽킹
         startPicking() {
             if (this.state.picking) return;
             this.clearHidePreview();
             this.state.picking = true;
             this.state.mode = 'picking';
+            this.state.pickCandidate = null;
+
+            // 패널을 일시 축소(모바일에서 가림 최소화)
+            if (IS_MOBILE && this.state.scale === 'full') {
+                this._wasFullBeforePick = true;
+                this.state.scale = 'icon';
+                this.render();
+                this.applyPosition();
+            }
 
             const shield = document.createElement('div');
             shield.id = SHIELD_ID;
-            shield.style.cssText = `
-                position: fixed !important;
-                inset: 0 !important;
-                z-index: 2147483645 !important;
-                cursor: crosshair !important;
-                background: transparent !important;
-                pointer-events: auto !important;
-                touch-action: none !important;
-            `;
             document.documentElement.appendChild(shield);
             this.dom.shield = shield;
 
-            this._shieldMove = (e) => {
+            // 조준점 인디케이터 (모바일)
+            if (IS_TOUCH) {
+                const aim = document.createElement('div');
+                aim.className = 'picky-aim';
+                aim.innerHTML = '<div class="picky-aim-cross"></div>';
+                shield.appendChild(aim);
+                this.dom.shieldAim = aim;
+
+                // "이 요소 선택" 확정 버튼
+                const confirm = document.createElement('div');
+                confirm.className = 'picky-shield-confirm';
+                confirm.innerHTML = `
+                    <div class="picky-shield-msg">손가락으로 요소를 가리키세요 (조준점이 위쪽으로 표시됩니다)</div>
+                    <div class="picky-shield-btns">
+                        <button class="picky-btn picky-btn-primary" data-shield="confirm" disabled>${ICON_CHECK} 이 요소 선택</button>
+                        <button class="picky-btn" data-shield="cancel">${ICON_CLOSE} 취소</button>
+                    </div>
+                `;
+                shield.appendChild(confirm);
+                this.dom.shieldConfirm = confirm;
+
+                confirm.querySelector('[data-shield="confirm"]').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (this.state.pickCandidate) {
+                        const el = this.state.pickCandidate;
+                        this.cleanupShieldHl();
+                        vibrate(25);
+                        this.selectNode(el, true);
+                        this.stopPicking();
+                    }
+                });
+                confirm.querySelector('[data-shield="cancel"]').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.stopPicking();
+                });
+            }
+
+            // ★ pointer 이벤트 통합 (마우스/터치/펜 모두 지원)
+            const pickAt = (x, y) => {
                 shield.style.pointerEvents = 'none';
-                let el = document.elementFromPoint(e.clientX, e.clientY);
+                if (this.dom.shieldAim) this.dom.shieldAim.style.pointerEvents = 'none';
+                if (this.dom.shieldConfirm) this.dom.shieldConfirm.style.pointerEvents = 'none';
+
+                const aimX = x;
+                const aimY = y + SHIELD_AIM_OFFSET_Y;  // 모바일은 손가락 위쪽
+
+                let el = document.elementFromPoint(aimX, aimY);
+
                 shield.style.pointerEvents = 'auto';
+                if (this.dom.shieldAim) this.dom.shieldAim.style.pointerEvents = 'none';
+                if (this.dom.shieldConfirm) this.dom.shieldConfirm.style.pointerEvents = 'auto';
 
-                if (!el || (el.closest && el.closest(`#${ROOT_ID}`))) return;
-                el = this.refineTargetAtPoint(el, e.clientX, e.clientY);
+                if (!el || (el.closest && el.closest(`#${ROOT_ID}`))) return null;
+                el = this.refineTargetAtPoint(el, aimX, aimY);
+                return el;
+            };
 
+            this._shieldMove = (e) => {
+                const el = pickAt(e.clientX, e.clientY);
+
+                // 조준점 위치 업데이트
+                if (this.dom.shieldAim) {
+                    const aimX = e.clientX;
+                    const aimY = e.clientY + SHIELD_AIM_OFFSET_Y;
+                    this.dom.shieldAim.style.left = aimX + 'px';
+                    this.dom.shieldAim.style.top = aimY + 'px';
+                }
+
+                if (!el) return;
                 if (this.state.lastHoverEl === el) return;
                 if (this.state.lastHoverEl) {
                     this.state.lastHoverEl.classList.remove('picky-hl-preview');
                 }
                 el.classList.add('picky-hl-preview');
                 this.state.lastHoverEl = el;
+                this.state.pickCandidate = el;
+
+                // 모바일: "이 요소 선택" 버튼 활성화 + 정보 갱신
+                if (this.dom.shieldConfirm) {
+                    const btn = this.dom.shieldConfirm.querySelector('[data-shield="confirm"]');
+                    if (btn) btn.disabled = false;
+                    const msg = this.dom.shieldConfirm.querySelector('.picky-shield-msg');
+                    if (msg) {
+                        const tag = el.tagName.toLowerCase();
+                        const id = el.id ? `#${el.id}` : '';
+                        const cls = SelectorStrategies.meaningfulClasses(el).slice(0, 2).map(c => '.' + c).join('');
+                        msg.innerHTML = `<code>${esc(tag + id + cls)}</code>`;
+                    }
+                }
             };
 
-            this._shieldClick = (e) => {
-                e.preventDefault();
+            this._shieldDown = (e) => {
+                // 확정 버튼 영역은 무시
+                if (e.target.closest('.picky-shield-confirm')) return;
+                if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
 
-                shield.style.pointerEvents = 'none';
-                let el = document.elementFromPoint(e.clientX, e.clientY);
-                shield.style.pointerEvents = 'auto';
+                // PC: 즉시 선택 / 모바일: pointermove와 동일하게 후보 갱신
+                if (!IS_TOUCH) {
+                    let el = pickAt(e.clientX, e.clientY);
+                    if (!el) { this.stopPicking(); return; }
 
-                if (!el || (el.closest && el.closest(`#${ROOT_ID}`))) {
-                    this.stopPicking();
-                    return;
-                }
-
-                if (e.altKey) {
-                    shield.style.pointerEvents = 'none';
-                    const stack = document.elementsFromPoint(e.clientX, e.clientY)
-                        .filter(n => n && !n.closest(`#${ROOT_ID}`));
-                    shield.style.pointerEvents = 'auto';
-
-                    if (stack.length) {
-                        el = stack.reduce((a, b) => {
-                            const ra = a.getBoundingClientRect();
-                            const rb = b.getBoundingClientRect();
-                            const areaA = ra.width * ra.height || Infinity;
-                            const areaB = rb.width * rb.height || Infinity;
-                            return areaA <= areaB ? a : b;
-                        });
+                    if (e.altKey) {
+                        shield.style.pointerEvents = 'none';
+                        const stack = document.elementsFromPoint(e.clientX, e.clientY)
+                            .filter(n => n && !n.closest(`#${ROOT_ID}`));
+                        shield.style.pointerEvents = 'auto';
+                        if (stack.length) {
+                            el = stack.reduce((a, b) => {
+                                const ra = a.getBoundingClientRect();
+                                const rb = b.getBoundingClientRect();
+                                const areaA = ra.width * ra.height || Infinity;
+                                const areaB = rb.width * rb.height || Infinity;
+                                return areaA <= areaB ? a : b;
+                            });
+                        }
                     }
+                    this.cleanupShieldHl();
+                    this.selectNode(el, true);
+                    this.stopPicking();
                 } else {
-                    el = this.refineTargetAtPoint(el, e.clientX, e.clientY);
+                    // 모바일은 move와 동일하게 처리
+                    this._shieldMove(e);
                 }
-
-                if (this.state.lastHoverEl) {
-                    this.state.lastHoverEl.classList.remove('picky-hl-preview');
-                    this.state.lastHoverEl = null;
-                }
-                this.selectNode(el, true);
-                this.stopPicking();
             };
 
             this._shieldKey = (e) => {
@@ -2543,36 +2446,55 @@
                 }
             };
 
-            shield.addEventListener('mousemove', this._shieldMove);
-            shield.addEventListener('click', this._shieldClick, true);
+            shield.addEventListener('pointermove', this._shieldMove, { passive: false });
+            shield.addEventListener('pointerdown', this._shieldDown, { passive: false });
             document.addEventListener('keydown', this._shieldKey, true);
 
-            this.flashToast('요소 클릭 (Alt+클릭: 가장 작은 요소, ESC: 취소)');
+            if (IS_TOUCH) {
+                this.flashToast('손가락을 화면에서 움직여 요소를 가리키세요');
+            } else {
+                this.flashToast('요소 클릭 (Alt+클릭: 가장 작은 요소, ESC: 취소)');
+            }
+            vibrate(10);
         }
 
-        stopPicking() {
-            if (!this.state.picking) return;
-            this.state.picking = false;
-            this.state.mode = 'selected';
-
-            const shield = this.dom.shield;
-            if (shield) {
-                shield.removeEventListener('mousemove', this._shieldMove);
-                shield.removeEventListener('click', this._shieldClick, true);
-                shield.remove();
-                this.dom.shield = null;
-            }
-            document.removeEventListener('keydown', this._shieldKey, true);
-
+        cleanupShieldHl() {
             if (this.state.lastHoverEl) {
                 this.state.lastHoverEl.classList.remove('picky-hl-preview');
                 this.state.lastHoverEl = null;
             }
         }
 
+        stopPicking() {
+            if (!this.state.picking) return;
+            this.state.picking = false;
+            this.state.mode = 'selected';
+            this.state.pickCandidate = null;
+
+            const shield = this.dom.shield;
+            if (shield) {
+                shield.removeEventListener('pointermove', this._shieldMove);
+                shield.removeEventListener('pointerdown', this._shieldDown);
+                shield.remove();
+                this.dom.shield = null;
+                this.dom.shieldAim = null;
+                this.dom.shieldConfirm = null;
+            }
+            document.removeEventListener('keydown', this._shieldKey, true);
+
+            this.cleanupShieldHl();
+
+            // 패널 복원
+            if (this._wasFullBeforePick) {
+                this._wasFullBeforePick = false;
+                this.state.scale = 'full';
+                this.render();
+                this.applyPosition();
+            }
+        }
+
         refineTargetAtPoint(el, x, y) {
             if (!el) return el;
-
             if (el.tagName === 'BODY' || el.tagName === 'HTML') {
                 const stack = document.elementsFromPoint(x, y)
                     .filter(n => n && !n.closest(`#${ROOT_ID}`) && n !== el &&
@@ -2580,7 +2502,6 @@
                 if (stack.length) return stack[0];
                 return el;
             }
-
             if (el.tagName === 'A') {
                 const imgs = el.querySelectorAll(':scope > img, :scope img');
                 if (imgs.length === 1) {
@@ -2590,7 +2511,6 @@
                     }
                 }
             }
-
             return el;
         }
 
@@ -2647,6 +2567,7 @@
                     } else if (this.state.queryData.selector) {
                         this.clearHidePreview();
                         if (Blocker.append(this.state.queryData.selector)) {
+                            vibrate(20);
                             this.flashToast('차단 규칙 추가');
                             this.refreshMetrics();
                         }
@@ -2656,10 +2577,7 @@
                 case 'toggleHideSelected': {
                     const c = this.state.candidates[this.state.selectedIdx];
                     const sel = (c && !c.isNetwork) ? c.selector : this.state.queryData.selector;
-                    if (!sel) {
-                        this.flashToast('선택된 규칙이 없습니다');
-                        break;
-                    }
+                    if (!sel) { this.flashToast('선택된 규칙이 없습니다'); break; }
                     if (c && c.isNetwork) {
                         this.flashToast('네트워크 필터는 페이지 숨김 미리보기 불가');
                         break;
@@ -2680,7 +2598,7 @@
                 }
                 case 'editSelector': this.editSelector(); break;
                 case 'showRules': this.showRules(); break;
-                case 'showAllRules': this.showAllRules(); break;  // ★ v3.6.8
+                case 'showAllRules': this.showAllRules(); break;
                 case 'toggleEnabled': Blocker.toggleEnabled(); this.refreshMetrics(); break;
                 case 'toggleAggressive': Blocker.toggleAggressive(); break;
             }
@@ -2694,7 +2612,7 @@
                     셀렉터를 수정하면 페이지에 핀(초록 외곽선) 미리보기가 즉시 표시됩니다.<br>
                     👁 숨김을 누르면 해당 요소를 페이지에서 일시 숨겨 차단 후 모습을 확인할 수 있습니다.
                 </div>
-                <textarea class="picky-modal-input" rows="3">${esc(cur)}</textarea>
+                <textarea class="picky-modal-input" rows="3" autocapitalize="off" autocorrect="off" spellcheck="false">${esc(cur)}</textarea>
                 <div class="picky-modal-meta" data-ref="prev">매치 0개</div>
                 <div class="picky-modal-foot">
                     <button class="picky-btn" data-ref="apply">적용</button>
@@ -2734,6 +2652,7 @@
                 const v = ta.value.trim();
                 this.clearHidePreview();
                 if (v && Blocker.append(v)) {
+                    vibrate(20);
                     this.flashToast('차단 규칙 추가');
                     this.refreshMetrics();
                 }
@@ -2765,16 +2684,12 @@
                     this.refreshMetrics();
                 });
             });
-            body.querySelector('[data-ref="openAll"]').addEventListener('click', () => {
-                this.showAllRules();
-            });
+            body.querySelector('[data-ref="openAll"]').addEventListener('click', () => this.showAllRules());
             body.querySelector('[data-ref="exportFilter"]').addEventListener('click', async () => {
                 await Blocker.copyFilterText();
                 this.flashToast('AdGuard/uBlock 필터 복사됨');
             });
-            body.querySelector('[data-ref="exportJson"]').addEventListener('click', () => {
-                Blocker.exportJSON();
-            });
+            body.querySelector('[data-ref="exportJson"]').addEventListener('click', () => Blocker.exportJSON());
             body.querySelector('[data-ref="clear"]').addEventListener('click', () => {
                 if (confirm('이 사이트의 모든 규칙을 삭제할까요?')) {
                     Blocker.clear();
@@ -2784,7 +2699,6 @@
             });
         }
 
-        // ★★★ v3.6.8: 전체 규칙 뷰어
         showAllRules() {
             const body = this.modal.display('🌐 전체 규칙 뷰어', '', true, 'picky-modal-wide');
             this._renderAllRulesContent(body);
@@ -2794,7 +2708,6 @@
             const all = Blocker.fetchAll();
             const currentHost = Blocker.host();
             const hosts = Object.keys(all).sort((a, b) => {
-                // 현재 사이트를 맨 위로
                 if (a === currentHost) return -1;
                 if (b === currentHost) return 1;
                 return a.localeCompare(b);
@@ -2804,8 +2717,6 @@
             for (const h of hosts) totalRules += (all[h] || []).length;
 
             const search = (this.state.allRulesSearch || '').toLowerCase().trim();
-
-            // 검색 필터링
             const filteredHosts = hosts.filter(host => {
                 if (!search) return true;
                 if (host.toLowerCase().includes(search)) return true;
@@ -2817,7 +2728,7 @@
 
             body.innerHTML = `
                 <div class="picky-allrules-toolbar">
-                    <input type="text" class="picky-allrules-search" placeholder="🔍 사이트/규칙 검색..." value="${esc(this.state.allRulesSearch || '')}">
+                    <input type="text" class="picky-allrules-search" placeholder="🔍 사이트/규칙 검색..." value="${esc(this.state.allRulesSearch || '')}" autocapitalize="off" autocorrect="off" spellcheck="false">
                     <span class="picky-allrules-summary">${hosts.length}개 사이트 · ${totalRules}개 규칙</span>
                 </div>
                 <div class="picky-allrules-list">
@@ -2837,12 +2748,10 @@
                 </div>
             `;
 
-            // 검색 입력
             const searchInput = body.querySelector('.picky-allrules-search');
             searchInput.addEventListener('input', (e) => {
                 this.state.allRulesSearch = e.target.value;
                 this._renderAllRulesContent(body);
-                // 검색창 포커스 복원
                 const newInput = body.querySelector('.picky-allrules-search');
                 if (newInput) {
                     newInput.focus();
@@ -2851,7 +2760,6 @@
                 }
             });
 
-            // 사이트 헤더 클릭 (접기/펼치기)
             body.querySelectorAll('[data-host-toggle]').forEach(h => {
                 h.addEventListener('click', (e) => {
                     if (e.target.closest('button')) return;
@@ -2865,7 +2773,6 @@
                 });
             });
 
-            // 사이트 전체 삭제
             body.querySelectorAll('[data-host-clear]').forEach(b => {
                 b.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -2880,21 +2787,17 @@
                 });
             });
 
-            // 사이트 규칙 복사
             body.querySelectorAll('[data-host-copy]').forEach(b => {
                 b.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const host = b.dataset.hostCopy;
                     const rules = all[host] || [];
-                    const text = rules.map(r =>
-                        host === 'global' ? `##${r}` : `${host}##${r}`
-                    ).join('\n');
+                    const text = rules.map(r => host === 'global' ? `##${r}` : `${host}##${r}`).join('\n');
                     await this.copyText(text);
                     this.flashToast(`${host} 규칙 ${rules.length}개 복사됨`);
                 });
             });
 
-            // 개별 규칙 삭제
             body.querySelectorAll('[data-rule-del]').forEach(b => {
                 b.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -2907,7 +2810,6 @@
                 });
             });
 
-            // 개별 규칙 복사
             body.querySelectorAll('[data-rule-copy]').forEach(b => {
                 b.addEventListener('click', async (e) => {
                     e.stopPropagation();
@@ -2919,7 +2821,6 @@
                 });
             });
 
-            // 푸터 버튼
             body.querySelector('[data-ref="expandAll"]').addEventListener('click', () => {
                 this.state.allRulesCollapsed.clear();
                 this._renderAllRulesContent(body);
@@ -2937,7 +2838,7 @@
                 this.flashToast('JSON 파일 다운로드');
             });
             body.querySelector('[data-ref="clearAll"]').addEventListener('click', () => {
-                if (confirm(`정말 모든 사이트의 ${totalRules}개 규칙을 삭제할까요? 이 작업은 ↶ 마지막 작업 취소로 되돌릴 수 있지만 시간이 걸립니다.`)) {
+                if (confirm(`정말 모든 사이트의 ${totalRules}개 규칙을 삭제할까요?`)) {
                     Blocker.clearAll();
                     this.flashToast('모든 규칙 삭제됨');
                     this._renderAllRulesContent(body);
@@ -2950,12 +2851,10 @@
             const isCurrent = host === currentHost;
             const isCollapsed = this.state.allRulesCollapsed.has(host);
 
-            // 검색어가 있을 때 규칙 필터링
             const visibleRules = search
                 ? rules.filter(r => r.toLowerCase().includes(search) || host.toLowerCase().includes(search))
                 : rules;
 
-            // 검색어 강조 함수
             const highlight = (text) => {
                 if (!search) return esc(text);
                 const lower = text.toLowerCase();
@@ -3006,6 +2905,10 @@
                         <span>${stats.totalSites}개 사이트 / ${stats.totalRules}개 규칙</span>
                     </div>
                     <div class="picky-settings-row">
+                        <span>환경</span>
+                        <span>${IS_TOUCH ? '📱 터치' : '🖱️ 마우스'} · ${window.innerWidth}×${window.innerHeight}</span>
+                    </div>
+                    <div class="picky-settings-row">
                         <button class="picky-btn" data-ref="openAll">🌐 전체 규칙 뷰어 열기</button>
                     </div>
                     <div class="picky-settings-row">
@@ -3020,23 +2923,18 @@
                     </div>
                     <div class="picky-settings-row">
                         <small style="opacity:0.6">
-                            • <b>🌐 전체 규칙 뷰어</b>(v3.6.8): 모든 사이트의 규칙을 그룹화해서 보기 · 검색 · 접기/펼치기 · 사이트별/개별 삭제<br>
-                            • <b>모바일 드래그 개선</b>: 아이콘/패널 헤더를 끌어도 페이지가 따라 움직이지 않음<br>
-                            • <b>Shield 픽킹</b>: 빈 공간, pointer-events:none 요소, &lt;a&gt; 안의 작은 이미지도 정확히 선택<br>
-                            • <b>Alt + 클릭</b>: 좌표의 모든 요소 중 가장 작은 요소 강제 선택<br>
-                            • <b>호버 미리보기</b>(노란 점선): 카드에 마우스를 올리면 영역 표시<br>
-                            • <b>핀 미리보기</b>(초록 외곽선): 카드 클릭 시 영역 고정 표시<br>
-                            • <b>숨김 미리보기</b>(👁): 차단 시 페이지가 어떻게 보일지 즉시 확인 (display:none)<br>
+                            • <b>v3.7.0 모바일 완전 대응</b>: 터치 픽킹(조준점+확정버튼), 동적 viewport, 44px 터치 타겟, 좌표 자동 보정, 회전 대응, 진동 피드백<br>
+                            • <b>Shield 픽킹 (터치)</b>: 손가락 위치보다 위쪽을 가리키는 조준점, "이 요소 선택" 버튼으로 확정<br>
+                            • <b>Shield 픽킹 (마우스)</b>: 클릭 즉시 선택, Alt+클릭으로 가장 작은 요소 강제 선택<br>
+                            • <b>전체 규칙 뷰어</b>: 모든 사이트의 규칙을 그룹화해서 보기 · 검색 · 접기/펼치기<br>
+                            • <b>호버 미리보기</b>(노란 점선) / <b>핀 미리보기</b>(초록 외곽선) / <b>숨김 미리보기</b>(👁)<br>
                             • <b>유일 타겟팅 경로</b>(🎯): 매치=1 보장 절대 경로<br>
-                            • <b>부모 컨테이너 :has()</b>: 차단 시 빈 공간까지 제거하는 부모 선택자<br>
-                            • <b>빈 공간 감지</b>: 차단 후 빈 컨테이너가 남으면 자동 안내<br>
+                            • <b>부모 컨테이너 :has()</b>: 차단 시 빈 공간까지 제거<br>
                             • 정확 매칭 셀렉터(<code>[src="..."]</code>)는 길이와 무관하게 ★★★ 보장
                         </small>
                     </div>
                 </div>`;
-            body.querySelector('[data-ref="openAll"]').addEventListener('click', () => {
-                this.showAllRules();
-            });
+            body.querySelector('[data-ref="openAll"]').addEventListener('click', () => this.showAllRules());
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => {
                 this.state.iconPos = null;
                 this.state.panelPos = null;
@@ -3126,21 +3024,25 @@
                     this.modal.dismiss();
                     this.selectNode(el, true);
                 });
-                item.addEventListener('mouseenter', () => el.classList.add('picky-hl-preview'));
-                item.addEventListener('mouseleave', () => el.classList.remove('picky-hl-preview'));
+                if (!IS_TOUCH) {
+                    item.addEventListener('mouseenter', () => el.classList.add('picky-hl-preview'));
+                    item.addEventListener('mouseleave', () => el.classList.remove('picky-hl-preview'));
+                }
             });
         }
 
+        // ★★★ v3.7.0: 개선된 드래그 핸들러 (모바일 클릭 충돌 해결)
         attachDragHandlers() {
             const tool = this.dom.tool;
             if (!tool) return;
-            let startX = 0, startY = 0, startLeft = 0, startTop = 0, moved = false, active = false;
+            let startX = 0, startY = 0, startLeft = 0, startTop = 0, moved = false, active = false, pointerId = null;
 
             const onDown = (e) => {
                 if (e.target.closest(NO_DRAG_SELECTOR)) return;
                 if (this.state.scale !== 'icon' && !e.target.closest('[data-drag="1"]')) return;
                 active = true;
                 moved = false;
+                pointerId = e.pointerId;
                 const r = tool.getBoundingClientRect();
                 startX = e.clientX; startY = e.clientY;
                 startLeft = r.left; startTop = r.top;
@@ -3149,16 +3051,17 @@
                 tool.style.top = startTop + 'px';
                 tool.style.right = 'auto';
                 tool.style.bottom = 'auto';
-                try { tool.setPointerCapture?.(e.pointerId); } catch (_) {}
-                if (e.pointerType === 'touch' && e.cancelable) {
-                    e.preventDefault();
-                }
+                // ★ 핵심: pointerdown에서는 preventDefault 하지 않음 → 클릭 이벤트 유지
             };
             const onMove = (e) => {
                 if (!active) return;
                 const dx = e.clientX - startX;
                 const dy = e.clientY - startY;
-                if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) moved = true;
+                if (!moved && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+                    moved = true;
+                    // 드래그 임계값 초과 시점부터 캡처
+                    try { tool.setPointerCapture?.(pointerId); } catch (_) {}
+                }
                 if (moved) {
                     if (e.cancelable) e.preventDefault();
                     const w = tool.offsetWidth, h = tool.offsetHeight;
@@ -3181,9 +3084,19 @@
                     e.stopPropagation();
                     if (e.cancelable) e.preventDefault();
                 }
-                try { tool.releasePointerCapture?.(e.pointerId); } catch (_) {}
+                try { tool.releasePointerCapture?.(pointerId); } catch (_) {}
+                pointerId = null;
             };
-            tool.addEventListener('pointerdown', onDown, { passive: false });
+            // 드래그 중 click 이벤트 차단 (드래그가 클릭으로 잘못 인식되지 않도록)
+            tool.addEventListener('click', (e) => {
+                if (moved) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    moved = false;
+                }
+            }, true);
+
+            tool.addEventListener('pointerdown', onDown, { passive: true });
             tool.addEventListener('pointermove', onMove, { passive: false });
             tool.addEventListener('pointerup', onUp, { passive: false });
             tool.addEventListener('pointercancel', onUp, { passive: false });
@@ -3198,11 +3111,17 @@
             this.clearPinnedPreview();
             this.clearHidePreview();
             this.stopPicking?.();
+            if (this._onResize) {
+                window.removeEventListener('resize', this._onResize);
+                window.removeEventListener('orientationchange', this._onResize);
+                this._onResize = null;
+            }
             if (this.dom.host) this.dom.host.remove();
             this.dom = {};
         }
     }
 
+    // ★★★ v3.7.0: 모바일 최적화된 PICKY_CSS
     const PICKY_CSS = `
     :host, * { box-sizing: border-box; }
     .picky-tool {
@@ -3211,11 +3130,13 @@
         font-size: 13px;
         color: #e8eaed;
         z-index: 2147483647;
-        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
     }
     .picky-icon { width: 48px; height: 48px; touch-action: none; }
     .picky-icon-btn {
         width: 100%; height: 100%;
+        min-width: 44px; min-height: 44px;
         border: none; border-radius: 50%;
         background: linear-gradient(135deg, #3b82f6, #1e40af);
         color: #fff; cursor: pointer;
@@ -3227,20 +3148,21 @@
 
     .picky-panel {
         width: 380px;
-        max-width: calc(100vw - 24px);
+        max-width: calc(100vw - 16px);
         background: rgba(28, 30, 38, 0.97);
         border: 1px solid rgba(255,255,255,0.08);
         border-radius: 12px;
         box-shadow: 0 20px 60px rgba(0,0,0,.45);
         backdrop-filter: blur(8px);
         overflow: hidden;
-        touch-action: auto;
     }
     .picky-head {
         display: flex; align-items: center; justify-content: space-between;
         padding: 8px 12px;
         background: rgba(0,0,0,0.25);
-        cursor: grab; user-select: none;
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
         touch-action: none;
     }
     .picky-head:active { cursor: grabbing; }
@@ -3261,30 +3183,26 @@
         cursor: pointer; font-size: 12px;
         transition: all 0.15s;
         touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     }
     .picky-btn:hover { background: rgba(255,255,255,0.15); }
-    .picky-btn-icon { padding: 6px; }
+    .picky-btn:active { background: rgba(255,255,255,0.22); }
+    .picky-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .picky-btn-icon { padding: 6px; min-width: 32px; min-height: 32px; justify-content: center; }
     .picky-btn-active {
         background: linear-gradient(135deg, #8b5cf6, #6d28d9);
         border-color: transparent; color: #fff;
     }
-    .picky-btn-active:hover { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
     .picky-btn-primary {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         border-color: transparent; justify-content: center;
     }
-    .picky-btn-primary:hover { background: linear-gradient(135deg, #4b8bf6, #3573f6); }
     .picky-btn-danger {
         background: linear-gradient(135deg, #ef4444, #b91c1c);
         border-color: transparent;
     }
-    .picky-btn-danger-icon {
-        color: #fca5a5;
-    }
-    .picky-btn-danger-icon:hover {
-        background: rgba(239, 68, 68, 0.2);
-        color: #fff;
-    }
+    .picky-btn-danger-icon { color: #fca5a5; }
+    .picky-btn-danger-icon:hover { background: rgba(239, 68, 68, 0.2); color: #fff; }
 
     .picky-disp-wrap {
         background: rgba(0,0,0,0.3);
@@ -3299,32 +3217,31 @@
         line-height: 1.4;
         max-height: 40px; overflow-y: auto;
         touch-action: pan-y;
+        overscroll-behavior: contain;
+        user-select: text;
+        -webkit-user-select: text;
     }
     .picky-meta {
         display: flex; justify-content: space-between;
         font-size: 10px; opacity: 0.65; margin-top: 4px;
     }
 
-    .picky-nav-row {
-        display: flex; align-items: center; gap: 6px;
-        margin-bottom: 10px;
-    }
+    .picky-nav-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
     .picky-slider {
         flex: 1;
         -webkit-appearance: none; appearance: none;
-        height: 4px; background: rgba(255,255,255,0.15);
-        border-radius: 2px; outline: none;
+        height: 6px; background: rgba(255,255,255,0.15);
+        border-radius: 3px; outline: none;
         touch-action: pan-x;
     }
     .picky-slider::-webkit-slider-thumb {
         -webkit-appearance: none; appearance: none;
-        width: 18px; height: 18px;
+        width: 22px; height: 22px;
         background: #3b82f6; border-radius: 50%; cursor: pointer;
     }
     .picky-slider::-moz-range-thumb {
-        width: 18px; height: 18px;
-        background: #3b82f6; border-radius: 50%; cursor: pointer;
-        border: none;
+        width: 22px; height: 22px;
+        background: #3b82f6; border-radius: 50%; cursor: pointer; border: none;
     }
 
     .picky-cards-scroll {
@@ -3337,19 +3254,14 @@
         padding: 6px;
         touch-action: pan-y;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
     }
     .picky-cards-scroll::-webkit-scrollbar { width: 6px; }
     .picky-cards-scroll::-webkit-scrollbar-thumb {
         background: rgba(255,255,255,0.2); border-radius: 3px;
     }
-    .picky-cards-info {
-        font-size: 10px; opacity: 0.55;
-        padding: 4px 6px 8px; text-align: center;
-    }
-    .picky-cards-empty {
-        text-align: center; opacity: 0.4;
-        padding: 24px 12px; font-size: 12px;
-    }
+    .picky-cards-info { font-size: 10px; opacity: 0.55; padding: 4px 6px 8px; text-align: center; }
+    .picky-cards-empty { text-align: center; opacity: 0.4; padding: 24px 12px; font-size: 12px; }
     .picky-card {
         background: rgba(255,255,255,0.04);
         border: 1px solid rgba(255,255,255,0.08);
@@ -3361,43 +3273,30 @@
         transition: all 0.15s;
         touch-action: manipulation;
     }
-    .picky-card:hover {
-        background: rgba(255,255,255,0.08);
-        border-color: rgba(59, 130, 246, 0.4);
-    }
+    .picky-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(59, 130, 246, 0.4); }
     .picky-card.is-selected {
         background: rgba(16, 185, 129, 0.18);
         border-color: rgba(16, 185, 129, 0.7);
         box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.4);
     }
-    .picky-card.is-network {
-        background: rgba(168, 85, 247, 0.08);
-        border-color: rgba(168, 85, 247, 0.3);
-    }
+    .picky-card.is-network { background: rgba(168, 85, 247, 0.08); border-color: rgba(168, 85, 247, 0.3); }
     .picky-card.is-selected.is-network {
-        background: rgba(16, 185, 129, 0.18);
-        border-color: rgba(16, 185, 129, 0.7);
+        background: rgba(16, 185, 129, 0.18); border-color: rgba(16, 185, 129, 0.7);
     }
     .picky-card.is-hiding {
         background: rgba(139, 92, 246, 0.18);
         border-color: rgba(139, 92, 246, 0.7);
         box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.5);
     }
-    .picky-card-head {
-        display: flex; align-items: center; gap: 6px;
-        margin-bottom: 4px;
-    }
+    .picky-card-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
     .picky-card-icon { font-size: 14px; }
     .picky-card-label { font-weight: 600; font-size: 12px; flex: 1; }
-    .picky-card-stars {
-        font-size: 10px; color: #fbbf24; letter-spacing: 1px;
-    }
+    .picky-card-stars { font-size: 10px; color: #fbbf24; letter-spacing: 1px; }
     .picky-badge {
         background: linear-gradient(135deg, #f59e0b, #d97706);
         color: #fff; font-size: 9px; padding: 1px 6px;
         border-radius: 8px; font-weight: 700;
     }
-    .picky-card-filter,
     .picky-card-filter-clickable {
         font-family: ui-monospace, "SF Mono", Monaco, monospace;
         font-size: 11px;
@@ -3408,15 +3307,12 @@
         word-break: break-all;
         margin-bottom: 4px;
         line-height: 1.4;
-    }
-    .picky-card-filter-clickable {
         cursor: copy;
-        transition: background 0.15s;
         touch-action: manipulation;
+        user-select: text;
+        -webkit-user-select: text;
     }
-    .picky-card-filter-clickable:hover {
-        background: rgba(139, 92, 246, 0.25);
-    }
+    .picky-card-filter-clickable:hover { background: rgba(139, 92, 246, 0.25); }
     .picky-card-css {
         font-size: 10.5px;
         font-family: ui-monospace, monospace;
@@ -3424,29 +3320,26 @@
         margin-bottom: 4px;
         word-break: break-all;
         cursor: copy;
-        transition: background 0.15s;
         padding: 3px 5px;
         border-radius: 4px;
         touch-action: manipulation;
+        user-select: text;
+        -webkit-user-select: text;
     }
-    .picky-card-css:hover {
-        background: rgba(59, 130, 246, 0.2);
-    }
+    .picky-card-css:hover { background: rgba(59, 130, 246, 0.2); }
     .picky-card-css-label { color: #6ee7b7; margin-right: 4px; }
     .picky-card-css-text { color: #9ecbff; }
     .picky-card-matches { opacity: 0.55; margin-left: 4px; }
-    .picky-card-hint {
-        font-size: 10px; opacity: 0.55; margin-bottom: 6px;
-    }
+    .picky-card-hint { font-size: 10px; opacity: 0.55; margin-bottom: 6px; }
     .picky-card-btns { display: flex; gap: 4px; flex-wrap: wrap; }
     .picky-card-btn {
         flex: 1;
-        padding: 4px 6px;
+        padding: 6px 6px;
         background: rgba(255,255,255,0.08);
         border: 1px solid rgba(255,255,255,0.1);
         color: #e8eaed; border-radius: 4px;
         cursor: pointer; font-size: 10.5px;
-        min-width: 0;
+        min-width: 0; min-height: 32px;
         display: inline-flex; align-items: center; justify-content: center; gap: 3px;
         touch-action: manipulation;
     }
@@ -3459,14 +3352,10 @@
         color: #fff;
     }
     .picky-card-btn-disabled { opacity: 0.35; cursor: not-allowed; }
-    .picky-card-btn-disabled:hover { background: rgba(255,255,255,0.08); }
 
-    .picky-action-row {
-        display: flex; gap: 6px; margin-bottom: 8px;
-        flex-wrap: wrap;
-    }
-    .picky-action-row .picky-btn-danger { flex: 1; justify-content: center; min-width: 70px; }
-    .picky-action-row .picky-btn { justify-content: center; }
+    .picky-action-row { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+    .picky-action-row .picky-btn { justify-content: center; min-height: 36px; }
+    .picky-action-row .picky-btn-danger { flex: 1; min-width: 70px; }
 
     .picky-toggle-row {
         display: flex; gap: 12px; font-size: 11px;
@@ -3476,9 +3365,11 @@
         display: inline-flex; align-items: center; gap: 5px;
         cursor: pointer;
         touch-action: manipulation;
+        min-height: 32px;
     }
-    .picky-toggle input { cursor: pointer; }
+    .picky-toggle input { cursor: pointer; width: 18px; height: 18px; }
 
+    /* ★ v3.7.0: 모달 — 동적 viewport 지원 */
     .picky-modal {
         position: fixed; inset: 0;
         background: rgba(0,0,0,0.5);
@@ -3494,7 +3385,9 @@
         border: 1px solid rgba(255,255,255,0.1);
         border-radius: 10px;
         max-width: 520px; width: 90%;
-        max-height: 80vh; overflow: hidden;
+        max-height: 80vh;
+        max-height: 80dvh;
+        overflow: hidden;
         display: flex; flex-direction: column;
         color: #e8eaed;
     }
@@ -3502,16 +3395,18 @@
         max-width: 720px;
         width: 95%;
         max-height: 85vh;
+        max-height: 85dvh;
     }
     .picky-modal-head {
         display: flex; justify-content: space-between; align-items: center;
         padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);
-        color: #e8eaed;
     }
-    .picky-modal-title { font-weight: 600; color: #e8eaed; }
+    .picky-modal-title { font-weight: 600; }
     .picky-modal-x {
         background: transparent; border: none; color: #e8eaed;
-        cursor: pointer; padding: 4px;
+        cursor: pointer; padding: 8px;
+        min-width: 36px; min-height: 36px;
+        display: flex; align-items: center; justify-content: center;
         touch-action: manipulation;
     }
     .picky-modal-body {
@@ -3519,35 +3414,42 @@
         color: #e8eaed;
         touch-action: pan-y;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        flex: 1;
     }
     .picky-modal-body code {
         color: #9ecbff;
         background: rgba(0,0,0,0.3);
         padding: 1px 4px;
         border-radius: 3px;
+        user-select: text;
+        -webkit-user-select: text;
     }
     .picky-modal-body small { color: #c0c4cc; }
-    .picky-modal-body b,
-    .picky-modal-body strong { color: #fbbf24; }
+    .picky-modal-body b, .picky-modal-body strong { color: #fbbf24; }
     .picky-modal-input {
         width: 100%;
         background: rgba(0,0,0,0.3);
         border: 1px solid rgba(255,255,255,0.1);
         color: #9ecbff;
         font-family: ui-monospace, monospace;
-        font-size: 12px;
-        padding: 8px; border-radius: 6px;
+        font-size: 14px;
+        padding: 10px; border-radius: 6px;
         margin: 8px 0; resize: vertical;
         -webkit-text-fill-color: #9ecbff;
         touch-action: auto;
+        user-select: text;
+        -webkit-user-select: text;
     }
     .picky-modal-meta { font-size: 11px; opacity: 0.7; margin-bottom: 8px; }
     .picky-modal-foot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .picky-modal-foot .picky-btn { min-height: 36px; }
 
     .picky-rules-list {
         max-height: 320px; overflow-y: auto;
         touch-action: pan-y;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
     }
     .picky-rule-item {
         display: flex; justify-content: space-between; align-items: center;
@@ -3558,9 +3460,11 @@
     .picky-rule-item code {
         font-size: 11px; color: #9ecbff;
         word-break: break-all; flex: 1;
+        user-select: text;
+        -webkit-user-select: text;
     }
 
-    /* ★★★ v3.6.8: 전체 규칙 뷰어 스타일 */
+    /* 전체 규칙 뷰어 */
     .picky-allrules-toolbar {
         display: flex; gap: 8px; align-items: center;
         margin-bottom: 10px;
@@ -3572,30 +3476,26 @@
         background: rgba(0,0,0,0.35);
         border: 1px solid rgba(255,255,255,0.15);
         color: #e8eaed;
-        padding: 6px 10px;
+        padding: 8px 12px;
         border-radius: 6px;
-        font-size: 12px;
+        font-size: 14px;
         outline: none;
         -webkit-text-fill-color: #e8eaed;
+        min-height: 36px;
     }
     .picky-allrules-search:focus {
         border-color: rgba(59, 130, 246, 0.6);
         background: rgba(0,0,0,0.5);
     }
-    .picky-allrules-summary {
-        font-size: 11px; opacity: 0.65;
-        white-space: nowrap;
-    }
+    .picky-allrules-summary { font-size: 11px; opacity: 0.65; white-space: nowrap; }
     .picky-allrules-list {
         max-height: 56vh;
+        max-height: 56dvh;
         overflow-y: auto;
         touch-action: pan-y;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
         padding-right: 4px;
-    }
-    .picky-allrules-list::-webkit-scrollbar { width: 6px; }
-    .picky-allrules-list::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.2); border-radius: 3px;
     }
     .picky-host-group {
         background: rgba(255,255,255,0.03);
@@ -3603,83 +3503,37 @@
         border-radius: 8px;
         margin-bottom: 8px;
         overflow: hidden;
-        transition: border-color 0.15s;
-    }
-    .picky-host-group:hover {
-        border-color: rgba(255,255,255,0.15);
     }
     .picky-host-group.is-current {
         border-color: rgba(16, 185, 129, 0.5);
         background: rgba(16, 185, 129, 0.06);
     }
     .picky-host-header {
-        display: flex; align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 12px;
         background: rgba(0,0,0,0.2);
         cursor: pointer;
         user-select: none;
+        -webkit-user-select: none;
         touch-action: manipulation;
-        transition: background 0.15s;
+        min-height: 44px;
     }
-    .picky-host-header:hover {
-        background: rgba(0,0,0,0.35);
-    }
-    .picky-host-group.is-current .picky-host-header {
-        background: rgba(16, 185, 129, 0.12);
-    }
-    .picky-host-toggle-icon {
-        font-size: 10px;
-        opacity: 0.6;
-        width: 12px;
-        transition: opacity 0.15s;
-    }
-    .picky-host-name {
-        font-weight: 600;
-        font-size: 13px;
-        word-break: break-all;
-        flex: 1;
-    }
+    .picky-host-header:hover { background: rgba(0,0,0,0.35); }
+    .picky-host-group.is-current .picky-host-header { background: rgba(16, 185, 129, 0.12); }
+    .picky-host-toggle-icon { font-size: 10px; opacity: 0.6; width: 12px; }
+    .picky-host-name { font-weight: 600; font-size: 13px; word-break: break-all; flex: 1; }
     .picky-host-current-badge {
         background: linear-gradient(135deg, #10b981, #059669);
-        color: #fff;
-        font-size: 9px;
-        padding: 2px 7px;
-        border-radius: 8px;
-        font-weight: 700;
-        white-space: nowrap;
+        color: #fff; font-size: 9px; padding: 2px 7px;
+        border-radius: 8px; font-weight: 700; white-space: nowrap;
     }
-    .picky-host-count {
-        font-size: 11px;
-        opacity: 0.6;
-        white-space: nowrap;
-    }
-    .picky-host-actions {
-        display: flex;
-        gap: 4px;
-        margin-left: 4px;
-    }
-    .picky-host-rules {
-        padding: 8px 10px;
-        background: rgba(0,0,0,0.15);
-    }
-    .picky-host-rules .picky-rule-item {
-        background: rgba(255,255,255,0.04);
-        margin-bottom: 4px;
-    }
-    .picky-host-rules .picky-rule-item:last-child {
-        margin-bottom: 0;
-    }
-    .picky-host-rules .picky-rule-item code {
-        font-size: 10.5px;
-        line-height: 1.4;
-    }
-    .picky-host-empty {
-        text-align: center;
-        padding: 12px;
-        opacity: 0.4;
-        font-size: 11px;
-    }
+    .picky-host-count { font-size: 11px; opacity: 0.6; white-space: nowrap; }
+    .picky-host-actions { display: flex; gap: 4px; margin-left: 4px; }
+    .picky-host-rules { padding: 8px 10px; background: rgba(0,0,0,0.15); }
+    .picky-host-rules .picky-rule-item { background: rgba(255,255,255,0.04); margin-bottom: 4px; }
+    .picky-host-rules .picky-rule-item:last-child { margin-bottom: 0; }
+    .picky-host-rules .picky-rule-item code { font-size: 10.5px; line-height: 1.4; }
+    .picky-host-empty { text-align: center; padding: 12px; opacity: 0.4; font-size: 11px; }
     .picky-search-hl {
         background: rgba(251, 191, 36, 0.4);
         color: #fde68a;
@@ -3691,31 +3545,33 @@
         max-height: 340px; overflow-y: auto;
         touch-action: pan-y;
         -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
     }
     .picky-ad-item {
         display: flex; justify-content: space-between; align-items: center;
-        padding: 6px 8px;
+        padding: 8px;
         background: rgba(255,255,255,0.04);
         border-radius: 5px; margin-bottom: 4px;
         touch-action: manipulation;
+        min-height: 44px;
     }
     .picky-ad-item:hover { background: rgba(59,130,246,0.15); }
-    .picky-ad-item code { font-size: 11px; color: #9ecbff; }
+    .picky-ad-item code { font-size: 11px; color: #9ecbff; user-select: text; -webkit-user-select: text; }
 
     .picky-settings-row {
         display: flex; gap: 8px; align-items: center;
-        padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
         flex-wrap: wrap;
-        color: #e8eaed;
     }
     .picky-settings-row:last-child { border-bottom: none; }
+    .picky-settings-row .picky-btn { min-height: 36px; }
 
     .picky-toast {
         position: fixed;
         bottom: 80px; left: 50%;
         transform: translateX(-50%) translateY(20px);
         background: rgba(17, 24, 39, 0.95);
-        color: #fff; padding: 8px 16px;
+        color: #fff; padding: 10px 18px;
         border-radius: 20px;
         font-size: 12px;
         box-shadow: 0 4px 16px rgba(0,0,0,0.4);
@@ -3723,11 +3579,9 @@
         transition: all 0.25s;
         z-index: 2147483647;
         pointer-events: none;
+        max-width: 90vw;
     }
-    .picky-toast.visible {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
+    .picky-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     .picky-orphan-toast {
         position: fixed;
@@ -3743,12 +3597,10 @@
         opacity: 0;
         transition: all 0.25s;
         z-index: 2147483647;
-        max-width: 360px;
+        max-width: calc(100vw - 32px);
+        width: 360px;
     }
-    .picky-orphan-toast.visible {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
+    .picky-orphan-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
     .picky-orphan-msg { margin-bottom: 6px; line-height: 1.4; }
     .picky-orphan-sel {
         font-family: ui-monospace, monospace;
@@ -3761,7 +3613,136 @@
         word-break: break-all;
     }
     .picky-orphan-btns { display: flex; gap: 6px; }
-    .picky-orphan-btns .picky-btn { flex: 1; justify-content: center; }
+    .picky-orphan-btns .picky-btn { flex: 1; justify-content: center; min-height: 36px; }
+
+    /* ★★★ v3.7.0: Shield 픽킹 모바일 UI */
+    #${SHIELD_ID} {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483645 !important;
+        cursor: crosshair !important;
+        background: rgba(0, 0, 0, 0.02) !important;
+        pointer-events: auto !important;
+        touch-action: none !important;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .picky-aim {
+        position: absolute;
+        width: 0; height: 0;
+        pointer-events: none;
+        z-index: 2147483646;
+    }
+    .picky-aim-cross {
+        position: absolute;
+        left: -16px; top: -16px;
+        width: 32px; height: 32px;
+        border: 2px solid #ef4444;
+        border-radius: 50%;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.6), inset 0 0 0 1px rgba(255,255,255,0.4);
+    }
+    .picky-aim-cross::before,
+    .picky-aim-cross::after {
+        content: '';
+        position: absolute;
+        background: #ef4444;
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.6);
+    }
+    .picky-aim-cross::before {
+        left: 50%; top: -8px;
+        width: 2px; height: 8px;
+        transform: translateX(-50%);
+    }
+    .picky-aim-cross::after {
+        left: -8px; top: 50%;
+        width: 8px; height: 2px;
+        transform: translateY(-50%);
+    }
+    .picky-shield-confirm {
+        position: fixed;
+        bottom: 16px; left: 50%;
+        transform: translateX(-50%);
+        background: rgba(17, 24, 39, 0.98);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 12px;
+        padding: 12px 14px;
+        z-index: 2147483647;
+        pointer-events: auto;
+        max-width: calc(100vw - 24px);
+        width: 360px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        touch-action: manipulation;
+    }
+    .picky-shield-msg {
+        font-size: 12px;
+        color: #e8eaed;
+        margin-bottom: 8px;
+        word-break: break-all;
+        line-height: 1.4;
+        text-align: center;
+    }
+    .picky-shield-msg code {
+        background: rgba(0,0,0,0.4);
+        color: #9ecbff;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+    }
+    .picky-shield-btns {
+        display: flex; gap: 8px;
+    }
+    .picky-shield-btns .picky-btn {
+        flex: 1;
+        justify-content: center;
+        min-height: 44px;
+        font-size: 13px;
+        padding: 8px 12px;
+    }
+
+    /* ★★★ v3.7.0: 모바일 전용 미디어 쿼리 */
+    @media (max-width: 600px) {
+        .picky-panel {
+            width: calc(100vw - 16px);
+            max-width: calc(100vw - 16px);
+        }
+        .picky-cards-scroll { max-height: 38vh; max-height: 38dvh; }
+        .picky-disp { max-height: 60px; }
+        .picky-card-css, .picky-card-filter-clickable {
+            font-size: 12px; padding: 6px 8px;
+        }
+        .picky-card-btn { padding: 8px 6px; font-size: 11.5px; min-height: 36px; }
+        .picky-action-row .picky-btn { padding: 8px 10px; min-height: 40px; font-size: 13px; }
+        .picky-btn-icon { min-width: 40px; min-height: 40px; padding: 8px; }
+        .picky-modal-card {
+            max-width: calc(100vw - 16px);
+            max-height: 90vh;
+            max-height: 90dvh;
+        }
+        .picky-modal-wide .picky-modal-card {
+            max-width: 100vw;
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            max-height: 100vh;
+            max-height: 100dvh;
+            border-radius: 0;
+        }
+        .picky-modal-wide .picky-modal-body { padding: 10px; }
+        .picky-allrules-toolbar { flex-direction: column; gap: 6px; align-items: stretch; }
+        .picky-allrules-summary { font-size: 10.5px; text-align: right; }
+        .picky-host-header { padding: 12px; gap: 8px; min-height: 48px; }
+        .picky-host-name { font-size: 13.5px; }
+        .picky-modal-wide .picky-modal-foot {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .picky-modal-wide .picky-modal-foot .picky-btn-danger { grid-column: 1 / -1; }
+    }
+    @media (max-width: 380px) {
+        .picky-card-btns { gap: 3px; }
+        .picky-card-btn { font-size: 10.5px; padding: 6px 4px; }
+        .picky-toggle-row { flex-direction: column; gap: 6px; }
+    }
     `;
 
     const PAGE_CSS = `
@@ -3791,10 +3772,6 @@
     }
     .${HIDE_CLASS} {
         display: none !important;
-    }
-    #${SHIELD_ID} {
-        background: rgba(0, 0, 0, 0.02) !important;
-        touch-action: none !important;
     }`;
 
     const injectPageCss = () => {
@@ -3827,16 +3804,12 @@
         GM_registerMenuCommand?.('전체 규칙 뷰어 열기', () => {
             if (!inspector) boot();
             if (inspector) {
-                if (inspector.state.scale === 'icon') {
-                    inspector.cycleSize();
-                }
+                if (inspector.state.scale === 'icon') inspector.cycleSize();
                 inspector.showAllRules();
             }
         });
         GM_registerMenuCommand?.('규칙 JSON 내보내기', () => Blocker.exportJSON());
-        GM_registerMenuCommand?.('AdGuard 필터 복사', async () => {
-            await Blocker.copyFilterText();
-        });
+        GM_registerMenuCommand?.('AdGuard 필터 복사', async () => { await Blocker.copyFilterText(); });
         GM_registerMenuCommand?.('위치 초기화', () => {
             if (inspector) {
                 inspector.state.iconPos = null;
