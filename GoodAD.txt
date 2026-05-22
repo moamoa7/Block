@@ -1646,25 +1646,14 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 !
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
-! - 배너 이미지
-||i.toonflix.app/board_uploads/^$image
-! - 팝업
-! - - - PC
-![$domain=/^sbxh\d+.com/]##[class*="-po"]:has(img)
-! - - - 모바일
-![$domain=/^sbxh\d+.com/]##div.n45v4i:nth-of-type(5)
-![$domain=/^sbxh\d+.com/]##[data-pm-ov="1"]:style(opacity: 0 !important; pointer-events: none !important; position: absolute !important; z-index: -9999 !important;)
-[$domain=/^sbxh\d+.com/]##[data-pm-ov="1"]:style(opacity: 0; pointer-events: none; position: absolute; z-index: -9999;)
-! - 상단 배너 및 개별 목록 배너 전체 공간 제거
-!##[aria-label*="배너"]
-![$domain=/^sbxh\d+.com/]##[aria-label*='배너']:style(opacity: 0 !important; pointer-events: none !important; position: absolute !important; z-index: -9999 !important;)
-[$domain=/^sbxh\d+.com/]##[aria-label*='배너']:style(opacity: 0; pointer-events: none; position: absolute; z-index: -9999;)
-! - generichide 예외 (요소숨김 끄기와 동일 효과)
-!@@||sbxh1.com^$generichide
-!@@||sbxh2.com^$generichide
-!@@||sbxh3.com^$generichide
 ! - Number.isFinite 무력화 (DevTools 감지 우회)
 [$domain=/^sbxh\d+.com/]##+js(set, Number.isFinite, noopFunc)
+! - 배너 이미지
+||i.toonflix.app/board_uploads/$image
+! - 팝업
+[$domain=/^sbxh\d+.com/]##[data-pm-ov="1"]
+! - 상단 배너 및 개별 목록 배너 전체 공간 제거
+[$domain=/^sbxh\d+.com/]##[aria-label*='배너']
 !
 !
 ! 무료툰 (https://foc94.com/)
@@ -4439,13 +4428,13 @@ modded-1.com#@#[class*="ad-container" i]
 [$domain=/^lrtv\d+.com/],[$domain=/^vitv\d+.com/]##.yk-container3
 !
 !
-! 별별티비 (https://www.bbtv86.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! 별별티비 (https://bbtv86.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 배너 이미지
 ! - - - 달달티비 (https://www.dadtv2.com/)
 ! - - - 별별티비 / 달달티비
-||images2.imgbox.com^$image
+||images2.imgbox.com$image
 ! - - - 별별티비
-||img.smartnote.blog/pp3/2026-03-15/^$image
+||img.smartnote.blog/pp3/2026-03-15/$image
 ! - 배너 공간
 [$domain=/^bbtv/]###pagetop > div > .el-row
 [$domain=/^bbtv/]###detailtop > div > .el-row
