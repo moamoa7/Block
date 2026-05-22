@@ -1664,7 +1664,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! [3] 공통 규칙 (유블록 & 애드가드 동시 호환)
 ! ==========================================
 !-  안티 애드블록 스크립트가 실행하는 반복 타이머(setInterval) 자체를 저격해서 아예 시작도 못 하게 잠가버림
-[$domain=/^sbxh\d+\.com$/]##+js(nosiif, , 700)
+![$domain=/^sbxh\d+\.com$/]##+js(nosiif, , 700)
 !
 !
 ! 무료툰 (https://foc94.com/)
@@ -4474,6 +4474,29 @@ mozatv.com##.tips-box
 saramin.co.kr#@#[class*="banner" i]
 !
 !
+! 히어하트 (https://hearheart.com/)
+! - 배너 상단
+hearheart.com##.mb-6.relative
+!
+!
+! 뉴토끼 / 마나토끼 / 북토끼 
+! - 이미지
+||newto*.com/data/editor/*
+||newto*.com/data/apms/*
+||mato*.com/data/editor/*
+||mato*.com/data/apms/*
+||bookto*.com/data/editor/*
+||bookto*.com/data/apms/*
+!
+!
+! 위키트리 (https://www.wikitree.co.kr/)
+! - 기사 내 오른쪽 필요없는것들
+wikitree.co.kr##div.content_right_inner
+! - 메인 빈공간 (모바일)
+wikitree.co.kr##section.section:nth-of-type(3)
+! - 기사내 빈공간 (모바일)
+wikitree.co.kr###wikitree_image1_bottom
+!
 !
 !
 !
@@ -4609,9 +4632,6 @@ ad-script.
 ! - https://shopping.naver.com/
 ^advertisement^
 @@^advertisement^$domain=linkareer.com
-
-
-
 !
 !
 ##[id*="popup_banner" i]
@@ -4653,6 +4673,9 @@ ad-script.
 !
 !
 ##iframe[src*="ads" i]
+!
+!
+naver_power
 !
 !
 !
