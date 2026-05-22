@@ -1,11 +1,11 @@
 DNS Blocklist Build Report
-Generated: 2026-05-22 11:35:14 UTC
+Generated: 2026-05-22 14:06:47 UTC
 ============================================================
 
 [1] Reference Filters
-[Primary (AdGuard 15.txt)] 162,080 domains
-[Secondary (HaGeZi Pro)] 198,449 domains
-[Intersection] 85,552 domains
+[Primary (AdGuard 15.txt)] 162,121 domains
+[Secondary (HaGeZi Pro)] 95,952 domains
+[Intersection] 24,866 domains
 
 [2] External Whitelist Sources
   - AdGuard SDNS Exclusions: 542 extracted
@@ -16,13 +16,13 @@ Generated: 2026-05-22 11:35:14 UTC
   - AdGuard HTTPS Firefox: 18 extracted
   - AdGuard HTTPS Windows: 7 extracted
   - AdGuard HTTPS Mac: 11 extracted
-  - HaGeZi DNS Pro: 1,571 extracted
+  - HaGeZi DNS Pro: 1,392 extracted
   - Discord Official Domains: 43 extracted
   - anudeepND Whitelist: 191 extracted
   - DandelionSprout AGH Whitelist: 285 extracted
-[External Whitelist Total] 6,760 domains
+[External Whitelist Total] 6,581 domains
 
-[Tracker Auto-Filter] Removed 171 trackers from external whitelist
+[Tracker Auto-Filter] Removed 163 trackers from external whitelist
   [Blacklist hits] 8 base domains:
     - amazonaws.com
     - apple.com
@@ -66,7 +66,7 @@ Generated: 2026-05-22 11:35:14 UTC
     - visualwebsiteoptimizer.com
     - xg4ken.com
     - zdbb.net
-  [Pattern hits] 130 domains (sample first 30):
+  [Pattern hits] 122 domains (sample first 30):
     - 2mdn.net
     - a1.adform.net
     - ad.admitad.com
@@ -89,15 +89,15 @@ Generated: 2026-05-22 11:35:14 UTC
     - adservice.google.com
     - adservice.google.com.ar
     - adservice.google.com.au
-    - adservice.google.com.bd
     - adservice.google.com.br
     - adservice.google.com.co
     - adservice.google.com.gt
     - adservice.google.com.mx
-    - adservice.google.com.np
-    - adservice.google.com.om
     - adservice.google.com.pe
-    ... and 100 more
+    - adservice.google.com.ph
+    - adservice.google.com.pk
+    - adservice.google.com.tr
+    ... and 92 more
 
 [3] Personal Blocklist
   - Personal Blocklist: 51 domains
@@ -108,8 +108,8 @@ Generated: 2026-05-22 11:35:14 UTC
 [Personal Whitelist Total] 13 domains
 
 [5] Apply Priority Rules
-  Step 1 (base - external whitelist): 85,545
-  Step 2 (+ personal block): 85,590  (forced added: 45)
-  Step 3 (- personal white): 85,590  (whitelist override: 0)
+  Step 1 (base - external whitelist): 24,859
+  Step 2 (+ personal block): 24,904  (forced added: 45)
+  Step 3 (- personal white): 24,904  (whitelist override: 0)
 
-[6] Final Whitelist: 6,596 domains
+[6] Final Whitelist: 6,425 domains
