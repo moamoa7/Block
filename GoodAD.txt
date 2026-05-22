@@ -1654,7 +1654,13 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 상단 이미지
 !|i.toonflix.app/board_uploads/*
 ! - 상단 배너 및 개별 목록 배너 전체 공간 제거
-!##[aria-label*="배너"]
+##[aria-label*="배너"]
+! - generichide 예외 (요소숨김 끄기와 동일 효과)
+@@||sbxh1.com^$generichide
+@@||sbxh2.com^$generichide
+@@||sbxh3.com^$generichide
+! - Number.isFinite 무력화 (DevTools 감지 우회)
+[$domain=/^sbxh\d+.com/]##+js(set, Number.isFinite, noopFunc)
 !
 !
 ! 무료툰 (https://foc94.com/)
@@ -4430,9 +4436,15 @@ modded-1.com#@#[class*="ad-container" i]
 !
 !
 ! 별별티비 (https://www.bbtv86.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
-! - 배너
+! - 배너 이미지
+! - - - 별별티비 / 달달티비
+||images2.imgbox.com
+! - - - 별별티비
+||img.smartnote.blog/pp3/2026-03-15/*
 ! - - - 달달티비 (https://www.dadtv2.com/)
-[$domain=/^www.dadtv\d+.com/],[$domain=/^www.bbtv\d+.com/]##[class*="el-row"] [target]
+[$domain=/^www.bbtv\d+.com/]###pagetop > div > .el-row
+[$domain=/^www.bbtv\d+.com/]###detailtop > div > .el-row
+
 !
 !
 ! 도도티비 (https://www.dodotv.tv/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
