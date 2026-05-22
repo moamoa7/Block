@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-22 14:06:47 UTC
+! Generated: 2026-05-22 16:39:19 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,425
+! Exception Rules: 6,426
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -1366,6 +1366,7 @@
 @@||die-raiffeisenbank.de^
 @@||die-vrbank.de^
 @@||diebank.de^
+@@||diehard.yandex.ru^
 @@||difi.no^
 @@||digid.nl^
 @@||digio.com.br^
