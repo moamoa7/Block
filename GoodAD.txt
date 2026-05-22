@@ -4443,11 +4443,8 @@ modded-1.com#@#[class*="ad-container" i]
 ! - - - 별별티비
 ||img.smartnote.blog/pp3/2026-03-15/$image
 ! - 배너 공간
-[$domain=/^www.bbtv\d+.com/]###pagetop > div > .el-row
-[$domain=/^www.bbtv\d+.com/]###detailtop > div > .el-row
-[$domain=/^bbtv\d+.com/]##div.el-row
-[$domain=/^bbtv\d+.com/]##div.el-row
-[$domain=/^bbtv\d+.com/]###detailtop > div:nth-of-type(1)
+[$domain=/^bbtv/]###pagetop > div > .el-row
+[$domain=/^bbtv/]###detailtop > div > .el-row
 !
 !
 ! 도도티비 (https://www.dodotv.tv/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
