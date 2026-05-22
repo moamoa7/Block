@@ -491,6 +491,12 @@
             if (/:nth-of-type|:nth-child/.test(sel)) perfScore -= 6;
             if (/:nth-of-type\(\d+\).*:nth-of-type/.test(sel)) perfScore -= 6;
 
+            // ★ 짧은 셀렉터 가점 (uBlock 스타일 선호)
+            if (sel.length <= 35) perfScore += 10;
+            else if (sel.length <= 60) perfScore += 4;
+            else if (sel.length >= 100) perfScore -= 8;
+
+
             const combinatorCount = (sel.match(/[\s>+~]/g) || []).length;
             if (combinatorCount >= 4) perfScore -= 10;
             else if (combinatorCount >= 2) perfScore -= 4;
@@ -588,86 +594,369 @@
         }
 
         static uniqueAncestorPath(el) {
-            if (!el || !el.tagName) return [];
+    if (!el || !el.tagName) return [];
 
-            const candidates = [];
+    const candidates = [];
 
-            const buildPath = (combinator) => {
-                const parts = [this._simpleSelectorFor(el)];
-                let cur = el.parentElement;
-                let depth = 0;
-                const maxDepth = 8;
+    // ── (A) 자손 결합자(공백)로 매치=1까지 확장
+    const buildPath = (combinator) => {
+        const parts = [this._simpleSelectorFor(el)];
+        let cur = el.parentElement;
+        let depth = 0;
+        const maxDepth = 10;
 
-                while (cur && cur !== document.body && cur !== document.documentElement && depth < maxDepth) {
-                    const segment = this._simpleSelectorFor(cur);
-                    parts.unshift(segment);
-                    const sel = parts.join(combinator === '>' ? ' > ' : ' ');
-                    const matchCount = this.countMatches(sel);
-                    if (matchCount === 1) {
-                        return sel;
-                    }
-                    if (cur.id && /^[a-zA-Z][\w-]*$/.test(cur.id) &&
-                        this.countMatches(`#${CSS.escape(cur.id)}`) === 1) {
-                        return sel;
-                    }
-                    cur = cur.parentElement;
-                    depth++;
+        while (cur && cur !== document.body && cur !== document.documentElement && depth < maxDepth) {
+            const segment = this._simpleSelectorFor(cur);
+            parts.unshift(segment);
+            const sel = parts.join(combinator === '>' ? ' > ' : ' ');
+            const matchCount = this.countMatches(sel);
+            if (matchCount === 1) return sel;
+            if (cur.id && /^[a-zA-Z][\w-]*$/.test(cur.id) &&
+                this.countMatches(`#${CSS.escape(cur.id)}`) === 1) {
+                return sel;
+            }
+            cur = cur.parentElement;
+            depth++;
+        }
+        return parts.join(combinator === '>' ? ' > ' : ' ');
+    };
+
+    try {
+        const descPath = buildPath(' ');
+        if (descPath && this.countMatches(descPath) >= 1) {
+            candidates.push({ sel: descPath, hint: '유일 경로 (자손)' });
+        }
+    } catch (_) {}
+
+    try {
+        const childPath = buildPath('>');
+        if (childPath && this.countMatches(childPath) >= 1) {
+            candidates.push({ sel: childPath, hint: '유일 경로 (직계 자식)' });
+        }
+    } catch (_) {}
+
+    // ── (B) ★ NEW: 가장 가까운 ID 조상부터 직계 자식 경로 (uBlock 스타일)
+    // 의미있는 클래스/ID가 없는 빈 div에도 효과적
+    let idAncestor = null;
+    let idAncestorDistance = 0;
+    let p = el.parentElement;
+    let d = 1;
+    while (p && p !== document.body && d <= 15) {
+        if (p.id && /^[a-zA-Z][\w-]*$/.test(p.id) &&
+            this.countMatches(`#${CSS.escape(p.id)}`) === 1) {
+            idAncestor = p;
+            idAncestorDistance = d;
+            break;
+        }
+        p = p.parentElement;
+        d++;
+    }
+
+    if (idAncestor) {
+        // ID 조상 → el 까지의 직계 자식 체인을 단계별로 시도
+        const chain = [];
+        let cur = el;
+        while (cur && cur !== idAncestor) {
+            chain.unshift(cur);
+            cur = cur.parentElement;
+        }
+
+        // 단계별로 경로 추가 (짧은 것부터 긴 것까지)
+        // 예: #content > div, #content > article > div, ...
+        const idSel = `#${CSS.escape(idAncestor.id)}`;
+        let buildingPath = idSel;
+
+        // ★ NEW: 짧은 유일 경로 우선 탐색 (uBlock 스타일)
+// chain의 뒤쪽부터 시작해서, 점점 조상을 붙여가며 매치=1이 되는 최단 경로를 찾는다
+{
+    // ★ NEW: 짧은 유일 경로 우선 탐색 (uBlock 스타일)
+{
+    const tailParts = chain.map(node => {
+        const tag = node.tagName.toLowerCase();
+        const classes = this.meaningfulClasses(node);
+        if (classes.length) {
+            let seg = `${tag}.${CSS.escape(classes[0])}`;
+            if (classes.length >= 2) seg += `.${CSS.escape(classes[1])}`;
+            return seg;
+        }
+        return tag;  // 빈 요소는 nth 없이 그냥 tag
+    });
+
+    // 자식 결합자: 뒤에서부터 합쳐서 매치≥1인 가장 짧은 셀렉터 찾기
+    // el을 반드시 포함하면서, 의미있는 클래스가 segment에 하나라도 있는 경우만 채택
+    for (let take = 1; take <= tailParts.length; take++) {
+        const sub = tailParts.slice(tailParts.length - take).join(' > ');
+        const cnt = this.countMatches(sub);
+        if (cnt === 0) continue;
+
+        // 매치된 노드 중에 el이 포함되어야 유효
+        try {
+            const matched = document.querySelectorAll(sub);
+            if (![...matched].includes(el)) continue;
+        } catch (_) { continue; }
+
+        // 의미있는 클래스가 segment 중 하나라도 있어야 (그냥 "div > div" 같은 건 제외)
+        const hasClass = tailParts.slice(tailParts.length - take)
+            .some(p => p.includes('.'));
+        if (!hasClass) continue;
+
+        candidates.push({
+            sel: sub,
+            hint: cnt === 1
+                ? `최단 유일 경로 (${take}단계)`
+                : `최단 그룹 경로 (${take}단계, ${cnt}개 매치)`
+        });
+        break;
+    }
+
+    // 자손 결합자 버전도 (더 짧을 때만)
+    for (let take = 1; take <= tailParts.length; take++) {
+        const sub = tailParts.slice(tailParts.length - take).join(' ');
+        const cnt = this.countMatches(sub);
+        if (cnt === 0) continue;
+
+        try {
+            const matched = document.querySelectorAll(sub);
+            if (![...matched].includes(el)) continue;
+        } catch (_) { continue; }
+
+        const hasClass = tailParts.slice(tailParts.length - take)
+            .some(p => p.includes('.'));
+        if (!hasClass) continue;
+
+        candidates.push({
+            sel: sub,
+            hint: cnt === 1
+                ? `최단 유일 경로 (자손, ${take}단계)`
+                : `최단 그룹 경로 (자손, ${take}단계, ${cnt}개 매치)`
+        });
+        break;
+    }
+  }
+}
+
+        for (let i = 0; i < chain.length; i++) {
+            const node = chain[i];
+            const parent = node.parentElement;
+            const tag = node.tagName.toLowerCase();
+            const classes = this.meaningfulClasses(node);
+
+            // 동일 부모 내 같은 태그 형제 위치 계산
+            const sameTagSiblings = Array.from(parent.children).filter(c => c.tagName === node.tagName);
+            const nthIdx = sameTagSiblings.indexOf(node) + 1;
+
+            // 우선순위:
+            //   tag.class > tag.class:nth-of-type(n) > tag:nth-of-type(n) > tag
+            let segment;
+            if (classes.length) {
+                segment = `${tag}.${CSS.escape(classes[0])}`;
+                if (classes.length >= 2) {
+                    segment += `.${CSS.escape(classes[1])}`;
                 }
-                return parts.join(combinator === '>' ? ' > ' : ' ');
-            };
+            } else if (sameTagSiblings.length > 1) {
+                segment = `${tag}:nth-of-type(${nthIdx})`;
+            } else {
+                segment = tag;
+            }
 
-            try {
-                const descPath = buildPath(' ');
-                if (descPath && this.countMatches(descPath) >= 1) {
-                    candidates.push({ sel: descPath, hint: '유일 경로 (자손)' });
-                }
-            } catch (_) {}
+            buildingPath += ` > ${segment}`;
 
-            try {
-                const childPath = buildPath('>');
-                if (childPath && this.countMatches(childPath) >= 1) {
-                    candidates.push({ sel: childPath, hint: '유일 경로 (직계 자식)' });
-                }
-            } catch (_) {}
+            // 매치 수 확인 후 후보로 추가
+            const cnt = this.countMatches(buildingPath);
 
-            let p = el.parentElement;
-            while (p && p !== document.body) {
-                if (p.id && /^[a-zA-Z][\w-]*$/.test(p.id) &&
-                    this.countMatches(`#${CSS.escape(p.id)}`) === 1) {
-                    const tag = el.tagName.toLowerCase();
-                    const allSameTag = p.querySelectorAll(tag);
-                    const idx = Array.from(allSameTag).indexOf(el) + 1;
-                    if (idx > 0) {
-                        if (allSameTag.length === 1) {
+            // 마지막 요소(=el)에 도달했고 매치 ≥ 1이면 후보 추가
+            if (node === el) {
+                if (cnt === 1) {
+                    candidates.push({
+                        sel: buildingPath,
+                        hint: `ID 루트 경로 (매치 1개)`
+                    });
+                } else if (cnt > 1) {
+                    // 매치가 여러 개면 nth-of-type으로 좁혀서 다시 시도
+                    if (classes.length && sameTagSiblings.length > 1) {
+                        const refined = buildingPath.replace(
+                            new RegExp(`${tag}\\.${CSS.escape(classes[0]).replace(/\\/g, '\\\\')}(?:\\.[^\\s>]+)?$`),
+                            `${tag}.${CSS.escape(classes[0])}:nth-of-type(${nthIdx})`
+                        );
+                        if (this.countMatches(refined) === 1) {
                             candidates.push({
-                                sel: `#${CSS.escape(p.id)} ${tag}`,
-                                hint: `ID 내 유일한 ${tag}`
-                            });
-                        } else {
-                            candidates.push({
-                                sel: `#${CSS.escape(p.id)} ${tag}:nth-of-type(${idx})`,
-                                hint: `ID 내 ${idx}번째 ${tag}`
+                                sel: refined,
+                                hint: `ID 루트 경로 + 위치 (매치 1개)`
                             });
                         }
                     }
-                    const classes = this.meaningfulClasses(el);
-                    if (classes.length) {
-                        candidates.push({
-                            sel: `#${CSS.escape(p.id)} ${tag}.${CSS.escape(classes[0])}`,
-                            hint: `ID 내 ${tag}.${classes[0]}`
-                        });
+                    // 형제 위치만으로 좁히기
+                    if (!classes.length || sameTagSiblings.length > 1) {
+                        const nthOnly = buildingPath.replace(/[^>]+$/, ` ${tag}:nth-of-type(${nthIdx})`);
+                        if (this.countMatches(nthOnly) === 1) {
+                            candidates.push({
+                                sel: nthOnly,
+                                hint: `ID 루트 경로 (형제 위치)`
+                            });
+                        }
                     }
-                    break;
                 }
-                p = p.parentElement;
             }
-
-            return this._topN(
-                candidates,
-                { type: 'uniquePath', icon: '🎯', label: '유일 타겟팅 경로' },
-                el, 3
-            );
         }
+
+        // ── 추가: 클래스/ID 없는 빈 요소를 위한 강제 nth-of-type 경로
+        // chain 전체를 무조건 nth-of-type으로 표현 (uBlock의 fallback과 동일)
+        let forcedPath = idSel;
+        let allMeaningful = true;
+        for (const node of chain) {
+            const parent = node.parentElement;
+            const tag = node.tagName.toLowerCase();
+            const sameTagSiblings = Array.from(parent.children).filter(c => c.tagName === node.tagName);
+            const nthIdx = sameTagSiblings.indexOf(node) + 1;
+            const classes = this.meaningfulClasses(node);
+
+            if (classes.length) {
+                forcedPath += ` > ${tag}.${CSS.escape(classes[0])}`;
+            } else if (sameTagSiblings.length > 1) {
+                forcedPath += ` > ${tag}:nth-of-type(${nthIdx})`;
+                allMeaningful = false;
+            } else {
+                forcedPath += ` > ${tag}`;
+                allMeaningful = false;
+            }
+        }
+
+        if (!allMeaningful && this.countMatches(forcedPath) === 1) {
+            candidates.push({
+                sel: forcedPath,
+                hint: 'ID 루트 + 위치 기반 (uBlock 호환)'
+            });
+        }
+
+        // 단순 케이스: ID 내 유일 태그
+        const lastTag = el.tagName.toLowerCase();
+        const allSameTag = idAncestor.querySelectorAll(lastTag);
+        if (allSameTag.length === 1) {
+            candidates.push({
+                sel: `${idSel} ${lastTag}`,
+                hint: `ID 내 유일한 ${lastTag}`
+            });
+        }
+    }
+
+    return this._topN(
+        candidates,
+        { type: 'uniquePath', icon: '🎯', label: '유일 타겟팅 경로' },
+        el, 4   // ← 후보 개수도 3→4로 증가
+    );
+}
+
+// ★ uBlock 스타일: 의미 있는 조상에 :nth-of-type 부여
+// 클릭한 요소가 빈 컨테이너거나 클래스가 없을 때,
+// 가장 가까운 "클래스 있는 조상"을 찾아서 그 조상의 형제 위치로 단일 식별
+static fullChainWithNth(el) {
+    if (!el || !el.tagName) return [];
+    const candidates = [];
+
+    const parts = [];
+    let cur = el;
+    let depth = 0;
+
+    while (cur && cur.tagName && depth < 10) {
+        const tag = cur.tagName.toLowerCase();
+        if (tag === 'body' || tag === 'html') break;
+
+        let piece = tag;
+
+        // 의미있는 클래스가 있으면 붙임
+        const classes = this.meaningfulClasses(cur);
+        if (classes.length > 0) {
+            piece += '.' + CSS.escape(classes[0]);
+        }
+
+        // ★ 핵심: 부모 안에서 같은 태그가 여러 개면 nth-of-type 부여
+        //   (클래스 유무와 무관하게)
+        const parent = cur.parentElement;
+        if (parent) {
+            const sameTag = Array.from(parent.children)
+                .filter(c => c.tagName === cur.tagName);
+            if (sameTag.length > 1) {
+                const nth = sameTag.indexOf(cur) + 1;
+                piece += `:nth-of-type(${nth})`;
+            }
+        }
+
+        parts.unshift(piece);
+
+        // 체인이 unique가 되었을 때
+const chain = parts.join(' > ');
+if (this.countMatches(chain) === 1) {
+    // 클릭 요소가 "콘텐츠 없는 빈 컨테이너" 인지 판단
+    // (클래스 유무가 아니라, 실제 내용이 있는지 기준)
+    const isEmpty = !el.textContent.trim() && el.children.length === 0;
+
+    // 광고 슬롯 패턴 클래스 (tv, ad, banner 등) 를 가진 빈 컨테이너는
+    // 더 확실히 "빈 슬롯" 으로 간주
+    const adSlotHint = /\b(tv|ad|ads|banner|slot|widget|sponsor|promo)\b/i;
+    const looksLikeAdSlot = el.className && adSlotHint.test(el.className);
+    const treatAsEmpty = isEmpty || (el.children.length === 0 && looksLikeAdSlot);
+
+    candidates.push({
+        sel: chain,
+        hint: '체인 + nth (정확한 요소)',
+        bonus: treatAsEmpty ? 5 : 12
+    });
+
+    if (parts.length >= 2) {
+        const parentOnly = parts.slice(0, -1).join(' > ');
+        if (this.countMatches(parentOnly) === 1) {
+            candidates.push({
+                sel: parentOnly,
+                hint: '부모 단독 (박스째 숨김, uBlock 호환)',
+                bonus: treatAsEmpty ? 18 : 9
+            });
+        }
+    }
+    break;
+}
+
+
+
+
+        cur = parent;
+        depth++;
+    }
+
+// 루프 끝나도 후보가 비었으면, 마지막 시점의 parts 로 부모 단독만 시도
+if (candidates.length === 0 && parts.length >= 2) {
+    for (let cut = parts.length - 1; cut >= 1; cut--) {
+        const upper = parts.slice(0, cut).join(' > ');
+        if (this.countMatches(upper) === 1) {
+            const node = document.querySelector(upper);
+            if (node && node.contains(el)) {
+                candidates.push({
+                    sel: upper,
+                    hint: `상위 ${parts.length - cut}단계 단독 (박스째 숨김)`,
+                    bonus: 14
+                });
+                break;
+            }
+        }
+    }
+}
+
+return this._topN(
+    candidates,
+    { type: 'fullChain', icon: '🎯', label: '체인 위치 식별 (uBlock 호환)' },
+    el,
+    3
+);
+
+
+    return this._topN(
+        candidates,
+        { type: 'fullChain', icon: '🎯', label: '체인 위치 식별 (uBlock 호환)' },
+        el,
+        2
+    );
+}
+
+
 
         static semantic(el) {
             const priority = [
@@ -730,7 +1019,10 @@
                 });
             }
 
-            if (!candidates.length) candidates.push({ sel: tag, hint: '태그만' });
+            // 태그만 단독은 매치가 적을 때만 (5개 이하)
+if (!candidates.length && this.countMatches(tag) <= 5) {
+    candidates.push({ sel: tag, hint: '태그만' });
+}
 
             return this._topN(
                 candidates,
@@ -1466,6 +1758,7 @@
             const strategies = [
                 () => this.semantic(el),
                 () => this.shortest(el),
+                () => this.fullChainWithNth(el),
                 () => this.uniqueAncestorPath(el),
                 () => this.dummyHref(el),
                 () => this.classPattern(el),
@@ -1502,22 +1795,43 @@
                 } catch (_) {}
             }
 
-            const filtered = results.filter(r => !/picky-/.test(r.selector));
+            const filtered = results.filter(r => {
+    if (/picky-/.test(r.selector)) return false;
+    let nodes;
+    try { nodes = document.querySelectorAll(r.selector); }
+    catch (_) { return false; }
+    if (nodes.length === 0) return false;
+    const hitsTarget = Array.from(nodes).some(n => n === el || n.contains(el));
+    if (!hitsTarget) return false;
+    r.matches = nodes.length;
+    r.exactMatch = (nodes.length === 1);
+    return true;
+});
 
-            const seen = new Set();
-            const unique = [];
-            for (const r of filtered) {
-                const key = `${r.selector}|${r.filter || ''}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                unique.push(r);
-            }
+// 중복 제거
+const seen = new Set();
+const unique = [];
+for (const r of filtered) {
+    const key = `${r.selector}|${r.filter || ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(r);
+}
 
-            unique.sort((a, b) => b.score - a.score);
+// ★ 단일 정렬: exactMatch 우선 → bonus → score → matches 적은 순
+unique.sort((a, b) => {
+    if (a.exactMatch && !b.exactMatch) return -1;
+    if (b.exactMatch && !a.exactMatch) return 1;
+    const ba = a.bonus ?? 0, bb = b.bonus ?? 0;
+    if (ba !== bb) return bb - ba;
+    if (b.score !== a.score) return b.score - a.score;
+    return a.matches - b.matches;
+});
 
-            if (unique.length) unique[0].recommended = true;
+if (unique.length) unique[0].recommended = true;
 
-            return unique;
+return unique;
+
         }
 
         static toAdGuardRule(candidate, scope = 'host') {
@@ -1805,6 +2119,7 @@
                 card.addEventListener('mouseleave', () => this.clearPreview());
                 card.addEventListener('click', (e) => {
                     if (e.target.closest('button')) return;
+                    if (e.target.closest('[data-card-act]')) return;  // ← 이 줄 추가
                     this.selectCandidate(idx);
                 });
             });
@@ -1833,12 +2148,16 @@
                     ${recommended}
                     <span class="picky-card-stars" title="${c.score}점 (성능+정확도)">${c.stars || ''}</span>
                 </div>
-                <div class="picky-card-filter" title="AdGuard/uBlock 호환 규칙">${esc(filterText)}</div>
-                <div class="picky-card-css" title="CSS 셀렉터 (참고)">
-                    <span class="picky-card-css-label">CSS:</span>
-                    <span class="picky-card-css-text">${esc(c.selector)}</span>
-                    <span class="picky-card-matches">·${c.matches}개</span>
-                </div>
+                <div class="picky-card-css" title="클릭하면 CSS 복사" data-card-act="copyCssQuick">
+    <span class="picky-card-css-label">CSS:</span>
+    <span class="picky-card-css-text">${esc(c.selector)}</span>
+    <span class="picky-card-matches">·${c.matches}개</span>
+</div>
+<div class="picky-card-filter-clickable" title="클릭하면 필터 복사" data-card-act="copyFilterQuick">
+    <span class="picky-card-css-label">필터:</span>
+    <span class="picky-card-css-text">${esc(filterText)}</span>
+</div>
+
                 <div class="picky-card-hint">${esc(c.hint || '')}</div>
                 <div class="picky-card-btns">
                     ${isNet
@@ -1855,7 +2174,7 @@
             </div>`;
         }
 
-        async handleCardAction(act, idx) {
+                async handleCardAction(act, idx) {
             const c = this.state.candidates[idx];
             if (!c) return;
 
@@ -1870,7 +2189,6 @@
                     this.flashToast(`차단: ${c.selector.slice(0, 50)}`);
                     this.refreshMetrics();
                     this.render();
-                    // ★ 차단 후 빈 공간 감지
                     this.checkOrphanSpace(parentEl, parentRectBefore);
                 } else {
                     this.flashToast('이미 등록된 규칙');
@@ -1891,8 +2209,16 @@
             } else if (act === 'copyCss') {
                 await this.copyText(c.selector);
                 this.flashToast('CSS 셀렉터 복사됨');
+            } else if (act === 'copyCssQuick') {
+                await this.copyText(c.selector);
+                this.flashToast('CSS 복사됨: ' + c.selector.slice(0, 40));
+            } else if (act === 'copyFilterQuick') {
+                const text = SelectorStrategies.toAdGuardRule(c);
+                await this.copyText(text);
+                this.flashToast('필터 복사됨');
             }
         }
+
 
         // ★ 차단 후 부모가 빈 공간으로 남는지 감지하고 안내
         checkOrphanSpace(parent, rectBefore) {
@@ -1975,22 +2301,23 @@
         }
 
         previewCandidate(idx) {
-            this.clearPreview();
-            if (idx === this.state.selectedIdx) return;
-            const c = this.state.candidates[idx];
-            if (!c || !c.selector) return;
-            if (this.state.hiddenSelector === c.selector) return;
+    this.clearPreview();
+    if (idx === this.state.selectedIdx) return;
+    const c = this.state.candidates[idx];
+    if (!c || !c.selector) return;
+    if (this.state.hiddenSelector === c.selector) return;
 
-            let nodes = [];
-            try { nodes = Array.from(document.querySelectorAll(c.selector)); }
-            catch (_) { return; }
-            for (const n of nodes) {
-                if (n.closest && n.closest(`#${ROOT_ID}`)) continue;
-                n.classList.add('picky-hl-preview');
-            }
-            this.state.hoverPreviewNodes = nodes;
-            if (nodes[0]) nodes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+    let nodes = [];
+    try { nodes = Array.from(document.querySelectorAll(c.selector)); }
+    catch (_) { return; }
+    for (const n of nodes) {
+        if (n.closest && n.closest(`#${ROOT_ID}`)) continue;
+        n.classList.add('picky-hl-preview');
+    }
+    this.state.hoverPreviewNodes = nodes;
+    // ★ scrollIntoView 제거됨
+}
+
 
         clearPreview() {
             for (const n of this.state.hoverPreviewNodes) {
@@ -2070,21 +2397,19 @@
         }
 
         selectCandidate(idx) {
-            this.state.selectedIdx = idx;
-            const c = this.state.candidates[idx];
-            if (!c) return;
-            this.state.queryData.selector = c.selector;
+    this.state.selectedIdx = idx;
+    const c = this.state.candidates[idx];
+    if (!c) return;
+    this.state.queryData.selector = c.selector;
 
-            if (this.state.hiddenSelector !== c.selector) {
-                this.applyPinnedPreview(c.selector);
-                if (this.state.pinnedPreviewNodes[0]) {
-                    this.state.pinnedPreviewNodes[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }
+    if (this.state.hiddenSelector !== c.selector) {
+        this.applyPinnedPreview(c.selector);
+    }
 
-            this.refreshMetrics();
-            this.renderCandidates();
-        }
+    this.refreshMetrics();
+    this.renderCandidates();
+}
+
 
         refreshMetrics() {
             const disp = this.dom.disp;
@@ -2102,29 +2427,24 @@
         }
 
         calcSliderLimits() {
-            if (!this.state.originTarget) return;
-            const upChain = [];
-            let cur = this.state.originTarget.parentElement;
-            while (cur && cur !== document.body) {
-                upChain.push(cur);
-                cur = cur.parentElement;
-                if (upChain.length > 20) break;
-            }
-            const downChain = [];
-            let d = this.state.originTarget;
-            while (d.firstElementChild) {
-                downChain.push(d.firstElementChild);
-                d = d.firstElementChild;
-                if (downChain.length > 20) break;
-            }
-            this.state.hierarchy = [...upChain.reverse(), this.state.originTarget, ...downChain];
-            const slider = this.dom.slider;
-            if (slider) {
-                slider.min = 0;
-                slider.max = this.state.hierarchy.length - 1;
-                slider.value = upChain.length;
-            }
-        }
+    if (!this.state.originTarget) return;
+    const upChain = [];
+    let cur = this.state.originTarget.parentElement;
+    while (cur && cur !== document.body) {
+        upChain.push(cur);
+        cur = cur.parentElement;
+        if (upChain.length > 20) break;
+    }
+    // ★ downChain 제거: originTarget이 hierarchy의 마지막
+    this.state.hierarchy = [...upChain.reverse(), this.state.originTarget];
+    const slider = this.dom.slider;
+    if (slider) {
+        slider.min = 0;
+        slider.max = this.state.hierarchy.length - 1;
+        slider.value = this.state.hierarchy.length - 1;  // ★ 끝 = 1단계
+    }
+}
+
 
         handleSlide(idx) {
             const node = this.state.hierarchy[idx];
@@ -2133,39 +2453,43 @@
         }
 
         selectNode(el, updateOrigin = true) {
-            if (!el || !el.tagName) return;
-            this.clearHidePreview();
-            this.clearPinnedPreview();
+    if (!el || !el.tagName) return;
+    this.clearHidePreview();
+    this.clearPinnedPreview();
 
-            this.state.target = el;
-            if (updateOrigin) {
-                this.state.originTarget = el;
-                this.calcSliderLimits();
-            }
-            this.state.candidates = SelectorStrategies.buildAll(el, this._preciseEvaluator);
+    this.state.target = el;
+    if (updateOrigin) {
+        this.state.originTarget = el;
+        this.calcSliderLimits();  // ★ 여기서 이미 slider.value 설정됨
+    }
+    this.state.candidates = SelectorStrategies.buildAll(el, this._preciseEvaluator);
 
-            let idx = this.state.candidates.findIndex(c => c.recommended);
-            if (idx < 0 && this.state.candidates.length) idx = 0;
-            this.state.selectedIdx = idx;
+    let idx = this.state.candidates.findIndex(c => c.recommended);
+    if (idx < 0 && this.state.candidates.length) idx = 0;
+    this.state.selectedIdx = idx;
 
-            if (idx >= 0) {
-                const pick = this.state.candidates[idx];
-                this.state.queryData.selector = pick.selector;
-                this.applyPinnedPreview(pick.selector);
-            } else {
-                this.state.queryData.selector = '';
-            }
+    if (idx >= 0) {
+    const pick = this.state.candidates[idx];
+    this.state.queryData.selector = pick.selector;
+    this.applyPinnedPreview(pick.selector);
+    // ★ 자동 선택 시에는 스크롤하지 않음 — 이미 사용자가 그 위치를 보고 있음
+}
 
-            this.refreshMetrics();
-            this.renderCandidates();
-            this.setFocus(el);
 
-            const hier = this.state.hierarchy;
-            if (this.dom.slider && hier && hier.length) {
-                const i = hier.indexOf(el);
-                if (i >= 0) this.dom.slider.value = i;
-            }
+    this.refreshMetrics();
+    this.renderCandidates();
+    this.setFocus(el);
+
+    // ★ updateOrigin=false (slider 이동에 의한 호출) 일 때만 슬라이더 값 동기화
+    if (!updateOrigin) {
+        const hier = this.state.hierarchy;
+        if (this.dom.slider && hier && hier.length) {
+            const i = hier.indexOf(el);
+            if (i >= 0) this.dom.slider.value = i;
         }
+    }
+}
+
 
         setFocus(el) {
             this.dropFocus();
@@ -2308,38 +2632,31 @@
 
         // ★ 빈 공간 / 너무 큰 요소 클릭 보정
         refineTargetAtPoint(el, x, y) {
-            if (!el) return el;
-            const r = el.getBoundingClientRect();
-            const vw = window.innerWidth, vh = window.innerHeight;
-            const area = r.width * r.height;
-            const viewportArea = vw * vh;
+    if (!el) return el;
 
-            // 잡힌 요소가 화면의 60% 이상 → 더 작은 후손 찾기 (body/html/거대 컨테이너)
-            if (area > viewportArea * 0.6 || el.tagName === 'BODY' || el.tagName === 'HTML') {
-                const stack = document.elementsFromPoint(x, y)
-                    .filter(n => n && !n.closest(`#${ROOT_ID}`) && n !== el);
+    // BODY/HTML만 받았을 때는 후손 탐색 (그 외엔 건드리지 않음)
+    if (el.tagName === 'BODY' || el.tagName === 'HTML') {
+        const stack = document.elementsFromPoint(x, y)
+            .filter(n => n && !n.closest(`#${ROOT_ID}`) && n !== el &&
+                         n.tagName !== 'BODY' && n.tagName !== 'HTML');
+        if (stack.length) return stack[0];
+        return el;
+    }
 
-                const candidate = stack.find(n => {
-                    const nr = n.getBoundingClientRect();
-                    return nr.width > 4 && nr.height > 4 &&
-                           nr.width * nr.height < viewportArea * 0.6;
-                });
-                if (candidate) return candidate;
+    // 부모가 <a>이고 자식이 단일 <img>면 이미지 우선
+    if (el.tagName === 'A') {
+        const imgs = el.querySelectorAll(':scope > img, :scope img');
+        if (imgs.length === 1) {
+            const ir = imgs[0].getBoundingClientRect();
+            if (x >= ir.left && x <= ir.right && y >= ir.top && y <= ir.bottom) {
+                return imgs[0];
             }
-
-            // 부모가 <a>이고 자식이 단일 <img>면 이미지 우선 (작은 이미지 픽킹)
-            if (el.tagName === 'A') {
-                const imgs = el.querySelectorAll(':scope > img, :scope img');
-                if (imgs.length === 1) {
-                    const ir = imgs[0].getBoundingClientRect();
-                    if (x >= ir.left && x <= ir.right && y >= ir.top && y <= ir.bottom) {
-                        return imgs[0];
-                    }
-                }
-            }
-
-            return el;
         }
+    }
+
+    return el;
+}
+
 
         cycleSize() {
             if (this.state.scale === 'icon') {
@@ -2381,10 +2698,11 @@
                     break;
                 }
                 case 'navDown': {
-                    const c = this.resolveChildren(this.state.target)[0];
-                    if (c) this.selectNode(c, false);
-                    break;
-                }
+    const c = this.resolveChildren(this.state.target)[0];
+    if (c) this.selectNode(c, true);  // ★ true로 변경 — hierarchy 재구성
+    break;
+}
+
                 case 'blockSelected': {
                     const c = this.state.candidates[this.state.selectedIdx];
                     if (c && !c.isNetwork) {
@@ -2647,7 +2965,6 @@
                 item.querySelector('[data-aact="pick"]').addEventListener('click', () => {
                     this.modal.dismiss();
                     this.selectNode(el, true);
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 });
                 item.addEventListener('mouseenter', () => el.classList.add('picky-hl-preview'));
                 item.addEventListener('mouseleave', () => el.classList.remove('picky-hl-preview'));
@@ -2897,7 +3214,8 @@
         color: #fff; font-size: 9px; padding: 1px 6px;
         border-radius: 8px; font-weight: 700;
     }
-    .picky-card-filter {
+    .picky-card-filter,
+    .picky-card-filter-clickable {
         font-family: ui-monospace, "SF Mono", Monaco, monospace;
         font-size: 11px;
         color: #c4b5fd;
@@ -2908,12 +3226,26 @@
         margin-bottom: 4px;
         line-height: 1.4;
     }
+    .picky-card-filter-clickable {
+        cursor: copy;
+        transition: background 0.15s;
+    }
+    .picky-card-filter-clickable:hover {
+        background: rgba(139, 92, 246, 0.25);
+    }
     .picky-card-css {
         font-size: 10.5px;
         font-family: ui-monospace, monospace;
         opacity: 0.75;
         margin-bottom: 4px;
         word-break: break-all;
+        cursor: copy;
+        transition: background 0.15s;
+        padding: 3px 5px;
+        border-radius: 4px;
+    }
+    .picky-card-css:hover {
+        background: rgba(59, 130, 246, 0.2);
     }
     .picky-card-css-label { color: #6ee7b7; margin-right: 4px; }
     .picky-card-css-text { color: #9ecbff; }
@@ -2966,6 +3298,7 @@
         display: flex; align-items: center; justify-content: center;
         z-index: 2147483647;
         opacity: 0; transition: opacity 0.2s;
+        color: #e8eaed;
     }
     .picky-modal.visible { opacity: 1; }
     .picky-modal-card {
@@ -2975,19 +3308,31 @@
         max-width: 520px; width: 90%;
         max-height: 80vh; overflow: hidden;
         display: flex; flex-direction: column;
+        color: #e8eaed;
     }
     .picky-modal-head {
         display: flex; justify-content: space-between; align-items: center;
         padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);
+        color: #e8eaed;
     }
-    .picky-modal-title { font-weight: 600; }
+    .picky-modal-title { font-weight: 600; color: #e8eaed; }
     .picky-modal-x {
         background: transparent; border: none; color: #e8eaed;
         cursor: pointer; padding: 4px;
     }
     .picky-modal-body {
         padding: 14px; overflow-y: auto; font-size: 13px;
+        color: #e8eaed;
     }
+    .picky-modal-body code {
+        color: #9ecbff;
+        background: rgba(0,0,0,0.3);
+        padding: 1px 4px;
+        border-radius: 3px;
+    }
+    .picky-modal-body small { color: #c0c4cc; }
+    .picky-modal-body b,
+    .picky-modal-body strong { color: #fbbf24; }
     .picky-modal-input {
         width: 100%;
         background: rgba(0,0,0,0.3);
@@ -2997,6 +3342,7 @@
         font-size: 12px;
         padding: 8px; border-radius: 6px;
         margin: 8px 0; resize: vertical;
+        -webkit-text-fill-color: #9ecbff;
     }
     .picky-modal-meta { font-size: 11px; opacity: 0.7; margin-bottom: 8px; }
     .picky-modal-foot { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
@@ -3027,6 +3373,7 @@
         display: flex; gap: 8px; align-items: center;
         padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
         flex-wrap: wrap;
+        color: #e8eaed;
     }
     .picky-settings-row:last-child { border-bottom: none; }
 
@@ -3120,6 +3467,8 @@
     #${SHIELD_ID} {
         background: rgba(0, 0, 0, 0.02) !important;
     }`;
+
+
 
     const injectPageCss = () => {
         if (document.getElementById('picky-page-css')) return;
