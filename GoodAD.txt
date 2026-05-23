@@ -1661,21 +1661,6 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! ===== SBXH/뉴토끼 광고 차단 우회 =====
 @@||sbxh*.com^$generichide
 
-! 광고 영역 전부 (부모 컨테이너 포함)
-[$domain=/^sbxh\d+.com/]##[data-brs]
-[$domain=/^sbxh\d+.com/]##[data-pm-ov="1"]
-[$domain=/^sbxh\d+.com/]##[data-br="1"]
-[$domain=/^sbxh\d+.com/]##[data-bs="1"]
-[$domain=/^sbxh\d+.com/]##[data-bp="1"]
-
-! 차단 감지/추적 스크립트
-||sbxh*.com/init/block.js^
-||sbxh*.com/init/fp.js^
-||sbxh*.com/init/pid.js^
-||whoas.xyz^
-
-! - Number.isFinite 무력화 (DevTools 감지 우회)
-![$domain=/^sbxh\d+.com/]##+js(set, Number.isFinite, noopFunc)
 ! - 배너 이미지
 ||i.toonflix.app/board_uploads/$image
 ! - 팝업
