@@ -318,8 +318,8 @@ sooplive.com##.message_player_wrap
 !##.event_tooltip
 ! - 영상 (https://play.sooplive.com)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
-!##.buffering
-##[class*="buffering" i]
+!##[class*="buffering" i]
+##.buffering
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (kr: List-KR Classic)
 ! - - - SOOP(아프리카TV) 서버에서 광고에 사용되는 이미지나 스크립트 파일들을 가져오지 못하게 길목을 막으라
 ||static.sooplive.com/asset/service/ad/
