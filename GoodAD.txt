@@ -1658,12 +1658,18 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
 
+! ===== SBXH/뉴토끼 광고 차단 우회 =====
 @@||sbxh*.com^$generichide
+
+! 광고/팝업 DOM 숨김
 [$domain=/^sbxh\d+.com/]##[data-pm-ov="1"], [data-br="1"], [data-bs="1"], [data-bp="1"]
-[$domain=/^sbxh\d+.com/]##[data-mbr="1"], [data-mbs="1"], [data-mbp="1"], [data-mpm-ov="1"]
-[$domain=/^sbxh\d+.com/]##[data-m-br="1"], [data-m-bs="1"], [data-m-bp="1"]
-[$domain=/^sbxh\d+.com/]##[data-mob="1"], [data-mobile-ad="1"]
-[$domain=/^sbxh\d+.com/]##[data-br="1"]:upward(1), [data-bs="1"]:upward(1), [data-bp="1"]:upward(1), [data-pm-ov="1"]:upward(1)
+
+! 차단 감지/추적 스크립트 막기
+||sbxh*.com/init/block.js^
+||sbxh*.com/init/fp.js^
+||sbxh*.com/init/pid.js^
+||whoas.xyz^
+
 ! - Number.isFinite 무력화 (DevTools 감지 우회)
 ![$domain=/^sbxh\d+.com/]##+js(set, Number.isFinite, noopFunc)
 ! - 배너 이미지
