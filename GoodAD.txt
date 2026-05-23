@@ -109,8 +109,8 @@
 !
 !
 ! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
-!##.grecaptcha-badge
-##[class*="grecaptcha-badge" i]
+!##[class*="grecaptcha-badge" i]
+##.grecaptcha-badge
 !
 !
 ! 카카오TV (https://tv.kakao.com/)
@@ -413,7 +413,7 @@ cinety.sooplive.com#@#div[class*="banner" i]
 !
 ! 치지직 (https://chzzk.naver.com/)
 ! - 팝업
-##[class^="popup" i]
+!##[class^="popup" i]
 ! - 광고 차단 프로그램을 사용 중이신가요? 팝업
 !chzzk.naver.com##div[style]:has-text(/광고 차단|확장 프로그램/)
 !chzzk.naver.com##body:has(div:has-text(/광고 차단|확장 프로그램/)):style(pointer-events: auto !important; overflow: auto !important;)
@@ -592,8 +592,8 @@ dcinside.com##.refresher-toast
 ! 배너 (오른쪽 위 /게시글 하단 댓글 사이 배너 )
 ! - - -  웃대 (https://web.humoruniv.com/) 왼쪽 배너 / 하단 배너
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
-!##.adsbygoogle
-##[class*="adsbygoogle" i]
+!##[class*="adsbygoogle" i]
+##.adsbygoogle
 !##[id*="google_ads"]
 ! - - - 파워 링크
 !##[class*="ad_"] [style]
@@ -620,14 +620,14 @@ dcinside.com##.refresher-toast
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
-!##.adpost
-##[class*="adpost" i]
+!##[class*="adpost" i]
+##.adpost
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
 ! - 기타
-!##.kakao_ad_area
-##[class*="kakao_ad_area" i]
+!##[class*="kakao_ad_area" i]
+##.kakao_ad_area
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
@@ -648,8 +648,8 @@ etoland.co.kr##div[class*="min-h-"]:has(> script)
 etoland.co.kr##div.my-4.flex:has(> script)
 ! - 게시물 하단 배너 공백
 ! - - - SLR (https://www.slrclub.com/) 하단 배너 공백
-!##.adsbyadop
-##[class*="adsbyadop" i]
+!##[class*="adsbyadop" i]
+##.adsbyadop
 ! - 게시물내 광고글
 ! - - - PC
 etoland.co.kr##li:has(img[src*="/ad"])
@@ -674,8 +674,10 @@ theqoo.net##.theqoo-counter
 !- - - ##.ad-right2 처리 후 남는 공간
 inven.co.kr##.commu-right > div
 ! - 게시물 본문 상단 오른쪽 배너
-!##.googleSubjectAd
-##[class*="googlesubjectad" i]
+!##[class*="googlesubjectad" i]
+##.googleSubjectAd
+! - 오른쪽 혜택.이이마트
+inven.co.kr###right-imart-benefits
 ! - 게시물 하단 작성자 프로필
 inven.co.kr###inventory-skin-800
 ! - 로딩 없애기
@@ -686,17 +688,19 @@ inven.co.kr#@#.ad
 ! - 게시물 전체 배너
 ##[src*=".ads/" i]
 ! -오른쪽 배너
-##[class*="ad-right" i]
+##.ad-right2
+!##[class*="ad-right" i]
 ! - 예외
 ! - - -  조선일보 (https://www.chosun.com/)
-chosun.com#@#[class*="ad-right" i]
+!chosun.com#@#[class*="ad-right" i]
 ! -왼쪽 배너
-##[class*="ad-left" i]
+##.ad-left
+!##[class*="ad-left" i]
 ! - 예외
 ! - - -  조선일보 (https://www.chosun.com/)
-chosun.com#@#[class*="ad-left" i]
+!chosun.com#@#[class*="ad-left" i]
 ! - - - 잡코리아 (https://www.jobkorea.co.kr/) - 상단부분 날라감
-jobkorea.co.kr#@#[class*="ad-left" i]
+!jobkorea.co.kr#@#[class*="ad-left" i]
 ! - 게시물 제목 옆 배너 / 하단 배너 (댓글 위 배너)
 !##[class*="Ad"]
 ! - - - 예외 (https://play.google.com/) - 제목 날라감
@@ -726,9 +730,8 @@ inven.co.kr##.inven-games.menuGroup
 !inven.co.kr##.mo-board-list
 ! - 게시판 상단 배너 공간
 !##[class="ad-header"]
-!##.ad-header
-##[class*="ad-header" i]
-
+!##[class*="ad-header" i]
+##.ad-header
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
 inven.co.kr##.inven-float-alarm
 ! - 게시글 하단 안내창 (모바일)
@@ -740,8 +743,8 @@ inven.co.kr###invenAppSuggestion
 !
 ! 엠팍 (https://mlbpark.donga.com/)
 ! - 상단 배너
-!##.top_ad
-##[class*="top_ad" i]
+!##[class*="top_ad" i]
+##.top_ad
 ! - 오른쪽 배너
 !##.big_banner
 ##[class*="big_banner" i]
@@ -757,11 +760,11 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ! - 본문 한줄 광고?(투표?)
 mlbpark.donga.com##.inner_article
 ! - 본문하단 광고
-!##.naver_power
-##[class*="naver_power" i]
+!##[class*="naver_power" i]
+##.naver_power
 ! - 댓글 하단 광고
-!##.naver_place
-##[class*="naver_place" i]
+!##[class*="naver_place" i]
+##.naver_place
 ! - ||content-loader.com^ 해제 (사이트 깨짐) ( RK’s ZeroHosts — Network Filters 필터 차단 해제 )
 @@||content-loader.com^
 !
@@ -942,7 +945,8 @@ humorpick.com##.ie-center.ie-zone > p
 ! - 상단 팝업
 dpg.danawa.com##[class="floatbnr_btm"]
 ! - 스폰서 pick
-##[class*="sponsor" i]
+!##[class*="sponsor" i]
+!##ul[class*="sponsor" i]
 !
 !
 ! 나무위키 (https://namu.wiki/)
@@ -1071,7 +1075,7 @@ slrclub.com##[class="notice"]
 !theqoo.net#@#.notice
 ! - - - 예외 (공지글 제목 안보임
 !cineaste.co.kr#@#.notice
-##[class*="adsbyadop" i]
+!##[class*="adsbyadop" i]
 ! - 메인 남겨진 여백 공간
 www.slrclub.com###section3
 !
@@ -1703,8 +1707,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 메인 상단 배너
 yna.co.kr##.header01
 !  - 배너
-!##.ads-box
 ##[class*="ads-box" i]
+##.ads-box
 !- 메인 필요없는 부분
 !yna.co.kr##.main-ynalounge01.content03
 ! - 메인 오른쪽 필요없는 부분
@@ -2107,7 +2111,7 @@ web.joongna.com##.max-md\:gap-3
 ! - 배너
 !##[id^="banner_"]
 ! - 배너 안지워지는거
-##[id*="pop_" i]
+bananamall.co.kr##[id*="pop_" i]
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
@@ -3264,15 +3268,15 @@ wavve.com#@#[id*="main-banner" i]
 ! 야동공장 (https://yagong91.com/)
 ! - 전체 배너
 ! - - -AV탑걸 (https://kr41.topgirl.co/)
-##[class*="mx-auto" i] [target] img[src]
+##div[class*="mx-auto" i] [target] img[src]
 ! - 에외 - https://www.jobkorea.co.kr/- 이미지 일부 사라짐
-jobkorea.co.kr#@#[class*="mx-auto" i] [target] img[src]
+jobkorea.co.kr#@#div[class*="mx-auto" i] [target] img[src]
 ! - 영상 하단내 배너 테두리
 !##.vjs-bottom-banner.vjs-bottom-banner-container
 ! 팝업 잔쟁이들
 ##div[x-data="popups()"]
 ! - 박스 배너
-##[class*="border"]:has(> a[target*="_blank"])
+##div[class*="border"]:has(> a[target*="_blank"])
 ! - - 예외
 ! - - - https://kilho.net/ - 내용 안보임
 !kilho.net#@#[class*="border"]:has(> a[href][target*="_blank"])
@@ -4283,29 +4287,28 @@ noonnu.cc##.is-visible.is-active.justify-center.items-center.flex.splide__slide
 ! 오르비 (https://orbi.kr/)
 ! - 배너 및 상단 빈 공간
 !##div[id*="ads"]
-orbi.kr##[id*="ads" i]
+orbi.kr##div[id*="ads" i]
 !##div[id^="ads-"]
 !##[id^="ads-" i]
 !##div[x-data="advertisement"]
-##[x-data="advertisement" i]
+##div[x-data="advertisement" i]
 ! - https://gemini.google.com/ - 안나옴
 !##[style*="banner"]
-!#div[style*="/new-banners/"]
-##[style*="/new-banners/" i]
+##div[style*="/new-banners/" i]
 ! - 오른쪽 빈 배너?
+!##[class*="label-banner" i]
 !##.label-banner
-##[class*="label-banner" i]
 !
 ! BRIC (https://www.ibric.org/)
 ! - 상단 배너
-!##.top-banner-box
-##[class*="top-banner-box" i]
+!##[class*="top-banner-box" i]
+##.top-banner-box
 !
 !
 ! 아정당 (https://www.ajd.co.kr/)
 ! - 상단 배너
-!##.banner-link
-ajd.co.kr##[class*="banner-link" i]
+!ajd.co.kr##[class*="banner-link" i]
+ajd.co.kr##.banner-link
 ! - 상단 배너 공간
 ajd.co.kr##.on.top-banner-slider
 ! -하단 상담하기 (따라 다니는거)
@@ -4314,8 +4317,8 @@ ajd.co.kr##.active.bottom-floating
 !
 ! 알구몬 (https://www.algumon.com/)
 ! - 오른쪽 배너 공간
-!##.right-ad-sidebar
 ##[class*="ad-sidebar" i]
+##.right-ad-sidebar
 ! - 중간 배너 공간
 ! - - -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 algumon.com##div:has([data-tip^='파트너스'], div[style*='height'], ins):is(.card, .deal-2col)
@@ -4324,15 +4327,16 @@ algumon.com##div:has([data-tip^='파트너스'], div[style*='height'], ins):is(.
 ! 뉴덕 (https://newduck.net/)
 ! - 상단 / 중간 / 왼쪽 하단 배너
 !newduck.net##.code-content-top
-!##.kakao_ad_area
-##[class*="kakao_ad_area" i]
+!##[class*="kakao_ad_area" i]
+##.kakao_ad_area
 ! - 공지사항 아래 빈공간
 newduck.net##.code-list-top
 ! - 게시물 하단 배너 (댓글 바로 위)
-##.custom-banner
+!##.custom-banner
 ! - 최하단 파워링크
-!##.powerlink
-##[class*="powerlink" i]
+!##[class*="powerlink" i]
+##.powerlink
+
 !
 !
 ! 이슈야 (https://www.issuya.com/)
@@ -4349,8 +4353,8 @@ issuya.com##body:style(pointer-events: auto !important; overflow: auto !importan
 !
 ! https://dvdprime.com/
 ! - 상단 배너
-!###top_banner
-##[id="top_banner" i]
+!##[id="top_banner" i]
+###top_banner
 ! - 오른쪽 배너
 dvdprime.com###sidebar_container
 ! - 왼쪽 하단 배너
@@ -4635,20 +4639,23 @@ ad-script.
 !
 !
 ! - https://www.yna.co.kr/
-##[class*="popup-mobile" i]
+!##[class*="popup-mobile" i]
 !##[class*="popup-mo" i]
 ! - 제외
 ! - 연합뉴스 (https://www.yna.co.kr/) - 기사 댓글보기 클릭시 오른쪽 사이드 안열림
 !yna.co.kr#@#[class*="popup-mo" i]
 !
 !
-##[class*="popup-event" i]
+!##[class*="popup-event" i]
 !
 !
 ##[id^="top-banner" i]
 !
 !
-##[alt$="스폰"]
+##[alt*="스폰"]
+!
+!
+!##[alt*="혜택"]
 !
 !
 ! - https://shopping.naver.com/
@@ -4702,7 +4709,7 @@ naver_power
 !
 ! -팝업창 닫고난 후 뿌옇거나 클릭이 안되는 문제
 !##.hidden
-##[class^="hidden" i]
+!##div[class^="hidden" i]
 !
 !
 !
@@ -4740,16 +4747,61 @@ naver_power
 
 
 
-||*/popup/*
-||*/popups/*
+!||*/popup/*
+!||*/popups/*
+||*pop*up*
 
 ##div[class*="popup" i]
-#@#div[class*="popup" i]
 ##ins[class*="popup" i]
 ##aside[class*="popup" i]
+##ul[class*="popup" i]
 ##iframe[class*="popup" i]
 ##a[class*="popup" i]
 ##img[class*="popup" i]
+##section[class*="popup" i]
+##article[class*="popup" i]
+##li[class*="popup" i]
+##p[class*="popup" i]
+
+
+##div[class*="sponsor" i]
+##ins[class*="sponsor" i]
+##aside[class*="sponsor" i]
+##ul[class*="sponsor" i]
+##iframe[class*="sponsor" i]
+##a[class*="sponsor" i]
+##img[class*="sponsor" i]
+##section[class*="sponsor" i]
+##article[class*="sponsor" i]
+##li[class*="sponsor" i]
+##p[class*="sponsor" i]
+
+
+##div[class*="hidden" i]
+##ins[class*="hidden" i]
+##aside[class*="hidden" i]
+##ul[class*="hidden" i]
+##iframe[class*="hidden" i]
+##a[class*="hidden" i]
+##img[class*="hidden" i]
+##section[class*="hidden" i]
+##article[class*="hidden" i]
+##li[class*="hidden" i]
+##p[class*="hidden" i]
+
+
+
+##div[class*="banner" i]
+##ins[class*="banner" i]
+##aside[class*="banner" i]
+##ul[class*="banner" i]
+##iframe[class*="banner" i]
+##a[class*="banner" i]
+##img[class*="banner" i]
+##section[class*="banner" i]
+##article[class*="banner" i]
+##li[class*="banner" i]
+##p[class*="banner" i]
 
 
 
@@ -4793,9 +4845,14 @@ manhwabang.org##a[target*="target"] img
 [$domain=/^tkor/],[$domain=/^funbe/]#@#div[class*="banner" i]
 ##ins[class*="banner" i]
 ##aside[class*="banner" i]
+##ul[class*="banner" i]
 ##iframe[class*="banner" i]
 ##a[class*="banner" i]
 ##img[class*="banner" i]
+##section[class*="banner" i]
+##article[class*="banner" i]
+##li[class*="banner" i]
+##p[class*="banner" i]
 
 
 
