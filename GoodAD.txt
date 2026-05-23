@@ -1563,7 +1563,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !
 ! 모애니 (https://moeni.live/)
 ! - 배너
-##.basic-banner-4
+!##.basic-banner-4
 !
 !
 ! 헤븐넷 (https://hellven.net/)
@@ -1657,6 +1657,9 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 !
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
+
+@@||sbxh*.com^$generichide
+[$domain=/^sbxh\d+.com/]##[data-pm-ov="1"], [data-br="1"], [data-bs="1"], [data-bp="1"]
 ! - Number.isFinite 무력화 (DevTools 감지 우회)
 ![$domain=/^sbxh\d+.com/]##+js(set, Number.isFinite, noopFunc)
 ! - 배너 이미지
@@ -4498,13 +4501,13 @@ saramin.co.kr#@#div[class*="banner" i]
 hearheart.com##.mb-6.relative
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼 
+! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto06.com/) (https://mato06.com/) (https://bookto06.com/)
 ! - 이미지
-||newto*.com/data/editor/*
+! - - - 뉴토끼 (https://newto06.com/)
 ||newto*.com/data/apms/*
-||mato*.com/data/editor/*
+! - - - 마나토끼 (https://mato06.com/)
 ||mato*.com/data/apms/*
-||bookto*.com/data/editor/*
+! - - - 북토끼 (https://bookto06.com/)
 ||bookto*.com/data/apms/*
 !
 !
@@ -4810,7 +4813,7 @@ diningcode.com#@#div[class*="popup" i]
 #@#img[src*="ads" i]
 
 
-##div[class*="hidden" i]
+!##div[class*="hidden" i]
 ! - 예외
 ! - https://missav.ws/ - 이미지 안보임
 
@@ -4831,7 +4834,7 @@ missav123.com#@#div[class*="hidden" i]
 
 
 
-##div[class*="banner" i]
+!##div[class*="banner" i]
 ##ins[class*="banner" i]
 ##aside[class*="banner" i]
 ##ul[class*="banner" i]
