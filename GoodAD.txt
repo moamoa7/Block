@@ -1662,11 +1662,11 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 @@||sbxh*.com^$generichide
 
 ! - 배너 이미지
-||i.toonflix.app/board_uploads/$image
+!||i.toonflix.app/board_uploads/$images
 ! - 팝업
-[$domain=/^sbxh\d+.com/]##[data-pm-ov="1"]
+![$domain=/^sbxh\d+.com/]##[data-pm-ov="1"]
 ! - 상단 배너 및 개별 목록 배너 전체 공간 제거
-[$domain=/^sbxh\d+.com/]##[aria-label*='배너']
+![$domain=/^sbxh\d+.com/]##[aria-label*='배너']
 !
 !
 ! 무료툰 (https://foc94.com/)
