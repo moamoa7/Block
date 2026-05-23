@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SBXH/뉴토끼 광고·팝업 우회 최종판
 // @namespace    violentmonkey.user.script
-// @version      4.4
+// @version      4.4.1
 // @description  뉴토끼 (sbxh*.com) 광고 차단 감지/팝업 모달 완벽 우회 — PC+모바일
 // @include      /^https?:\/\/([^/]+\.)?sbxh\d+\.com\//
 // @run-at       document-start
@@ -121,21 +121,48 @@
     const BLOCK_IDS = ["init-block", "init-fp", "init-pid"];
     const LEGIT_MODAL_IDS = ["auth-modal", "search-modal"];
 
-    const removeIfPopup = (el) => {
+    const hideIfPopup = (el) => {
         if (!el || el.nodeType !== 1) return;
-        if (LEGIT_MODAL_IDS.includes(el.id)) return;  // 정상 모달은 제외
+        if (LEGIT_MODAL_IDS.includes(el.id)) return;
 
         try {
+            let shouldHide = false;
+
             // data-pm-ov 마커
             if (el.hasAttribute && el.hasAttribute('data-pm-ov')) {
-                el.remove();
-                return;
+                shouldHide = true;
             }
-            // BlockListModal / PopupModal 추정 클래스
-            const cls = ((el.className || '') + '').toLowerCase();
-            const elId = (el.id || '').toLowerCase();
-            if (/block-?list|block-?modal|popup-?modal|popupmodal|blocklistmodal/i.test(cls + ' ' + elId)) {
-                el.remove();
+
+            // 클래스/id 키워드
+            if (!shouldHide) {
+                const cls = ((el.className || '') + '').toLowerCase();
+                const elId = (el.id || '').toLowerCase();
+                if (/block-?list|block-?modal|popup-?modal|popupmodal|blocklistmodal/i.test(cls + ' ' + elId)) {
+                    shouldHide = true;
+                }
+            }
+
+            if (shouldHide) {
+                // remove() 대신 강제 숨김 (React 호환)
+                el.style.cssText = `
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                    position: absolute !important;
+                    width: 0 !important;
+                    height: 0 !important;
+                    overflow: hidden !important;
+                    z-index: -9999 !important;
+                `;
+                // 클릭 가능한 자식들도 무력화
+                if (el.querySelectorAll) {
+                    el.querySelectorAll('a, button').forEach(child => {
+                        child.style.pointerEvents = 'none';
+                        child.removeAttribute('href');
+                        child.disabled = true;
+                    });
+                }
             }
         } catch (_) {}
     };
