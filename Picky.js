@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.7.0
+// @version      3.7.1
 // @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 전체 규칙 뷰어, 모바일 완전 대응 (터치 픽킹, 동적 viewport, 44px 타겟, 좌표 보정)
 // @author       hooray804
 // @license      MIT
@@ -29,11 +29,8 @@
     const HIDE_CLASS = 'picky-hidden-preview';
     const DRAG_THRESHOLD = 6;
 
-    // ★ v3.7.0: 모바일 감지
     const IS_TOUCH = (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
     const IS_MOBILE = IS_TOUCH && Math.min(window.innerWidth, window.innerHeight) < 768;
-
-    // ★ v3.7.0: Shield 픽킹 시 조준점 오프셋 (손가락이 가리는 부분 보정)
     const SHIELD_AIM_OFFSET_Y = IS_TOUCH ? -40 : 0;
 
     const NO_DRAG_SELECTOR = [
@@ -53,7 +50,6 @@
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-    // ★ v3.7.0: 진동 피드백 (지원하는 모바일에서만)
     const vibrate = (ms = 15) => {
         try { navigator.vibrate?.(ms); } catch (_) {}
     };
@@ -145,7 +141,6 @@
         async init() {
             const apply = () => this.enforce();
             if (document.documentElement) apply();
-            // ★ v3.7.0: 디바운스 적용
             let timer = null;
             new MutationObserver(() => {
                 if (timer) return;
@@ -321,7 +316,7 @@
         exportJSON() {
             const data = {
                 app: 'Picky Advanced',
-                version: '3.7.0',
+                version: '3.7.1',
                 exportDate: new Date().toISOString(),
                 rules: this.fetchAll()
             };
@@ -338,7 +333,7 @@
             const all = this.fetchAll();
             const lines = [
                 '! Title: Picky Advanced Export',
-                `! Version: 3.7.0`,
+                `! Version: 3.7.1`,
                 `! Generated: ${new Date().toISOString()}`,
                 '! Syntax: AdGuard / uBlock Origin compatible',
                 ''
@@ -430,7 +425,6 @@
             requestAnimationFrame(() => wrap.classList.add('visible'));
             this.node = wrap;
 
-            // ★ v3.7.0: visualViewport로 모달 높이 동적 조정 (가상키보드 대응)
             if (window.visualViewport) {
                 const card = wrap.querySelector('.picky-modal-card');
                 this._vvHandler = () => {
@@ -1652,13 +1646,14 @@
                 iconPos: null, panelPos: null,
                 picking: false,
                 lastHoverEl: null,
-                pickCandidate: null,  // ★ v3.7.0: 모바일 픽킹용 후보
+                pickCandidate: null,
                 allRulesCollapsed: new Set(),
                 allRulesSearch: ''
             };
             this.modal = null;
             this._preciseEvaluator = (el) => this.evaluateCssBasic(el);
             this._onResize = null;
+            this._wasFullBeforePick = false;
         }
 
         evaluateCssBasic(el) {
@@ -1701,7 +1696,6 @@
             this.attachDragHandlers();
             this.applyPosition();
 
-            // ★ v3.7.0: 회전/리사이즈 시 위치 보정
             this._onResize = () => {
                 this.applyPosition();
             };
@@ -1709,7 +1703,6 @@
             window.addEventListener('orientationchange', this._onResize);
         }
 
-        // ★ v3.7.0: 저장된 좌표가 화면 밖이면 보정
         applyPosition() {
             const tool = this.dom.tool;
             if (!tool) return;
@@ -1720,7 +1713,6 @@
             tool.style.bottom = '';
             tool.style.transform = '';
 
-            // 강제 reflow로 크기 계산
             const w = tool.offsetWidth || (this.state.scale === 'icon' ? 48 : 380);
             const h = tool.offsetHeight || (this.state.scale === 'icon' ? 48 : 400);
 
@@ -1797,7 +1789,7 @@
             const hidingNow = this.state.hiddenPreviewNodes.length > 0;
             return `
             <div class="picky-head" data-drag="1">
-                <span class="picky-title">Picky <small>v3.7.0</small></span>
+                <span class="picky-title">Picky <small>v3.7.1</small></span>
                 <div class="picky-head-btns">
                     <button class="picky-btn picky-btn-icon" data-act="showAllRules" title="전체 규칙 뷰어">${ICON_GLOBE}</button>
                     <button class="picky-btn picky-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -1913,6 +1905,15 @@
                     e.stopPropagation();
                     const idx = parseInt(btn.closest('.picky-card').dataset.idx, 10);
                     const act = btn.dataset.cardAct;
+                    this.handleCardAction(act, idx);
+                });
+            });
+            // CSS/필터 텍스트 영역 클릭으로 복사
+            wrap.querySelectorAll('[data-card-act="copyCssQuick"], [data-card-act="copyFilterQuick"]').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(el.closest('.picky-card').dataset.idx, 10);
+                    const act = el.dataset.cardAct;
                     this.handleCardAction(act, idx);
                 });
             });
@@ -2289,7 +2290,7 @@
             this.state.previewNodes = [];
         }
 
-        // ★★★ v3.7.0: 모바일 완전 대응 Shield 픽킹
+        // ★★★ v3.7.1: Shield 픽킹 (인라인 스타일 강제 + Light DOM PAGE_CSS 백업)
         startPicking() {
             if (this.state.picking) return;
             this.clearHidePreview();
@@ -2297,7 +2298,7 @@
             this.state.mode = 'picking';
             this.state.pickCandidate = null;
 
-            // 패널을 일시 축소(모바일에서 가림 최소화)
+            // 모바일에서 패널이 펼쳐진 상태면 일시적으로 아이콘으로 축소
             if (IS_MOBILE && this.state.scale === 'full') {
                 this._wasFullBeforePick = true;
                 this.state.scale = 'icon';
@@ -2305,71 +2306,187 @@
                 this.applyPosition();
             }
 
+            // Shield 생성 + 인라인 스타일 강제 (사이트 CSS가 덮어쓸 수 없도록)
             const shield = document.createElement('div');
             shield.id = SHIELD_ID;
+            shield.style.cssText = `
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                z-index: 2147483645 !important;
+                cursor: crosshair !important;
+                background: rgba(0, 0, 0, 0.02) !important;
+                pointer-events: auto !important;
+                touch-action: none !important;
+                -webkit-tap-highlight-color: transparent !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+            `;
             document.documentElement.appendChild(shield);
             this.dom.shield = shield;
 
-            // 조준점 인디케이터 (모바일)
-            if (IS_TOUCH) {
-                const aim = document.createElement('div');
-                aim.className = 'picky-aim';
-                aim.innerHTML = '<div class="picky-aim-cross"></div>';
-                shield.appendChild(aim);
-                this.dom.shieldAim = aim;
+            // 조준점 (PC/모바일 모두 표시)
+            const aim = document.createElement('div');
+            aim.className = 'picky-aim';
+            aim.style.cssText = `
+                position: absolute !important;
+                width: 0 !important;
+                height: 0 !important;
+                pointer-events: none !important;
+                z-index: 2147483646 !important;
+                left: -100px !important;
+                top: -100px !important;
+                display: ${IS_TOUCH ? 'block' : 'none'} !important;
+            `;
+            aim.innerHTML = `
+                <div style="
+                    position: absolute;
+                    left: -16px; top: -16px;
+                    width: 32px; height: 32px;
+                    border: 2px solid #ef4444;
+                    border-radius: 50%;
+                    box-shadow: 0 0 0 2px rgba(255,255,255,0.6), inset 0 0 0 1px rgba(255,255,255,0.4);
+                    pointer-events: none;
+                ">
+                    <div style="
+                        position: absolute;
+                        left: 50%; top: -8px;
+                        width: 2px; height: 8px;
+                        background: #ef4444;
+                        transform: translateX(-50%);
+                        box-shadow: 0 0 0 1px rgba(255,255,255,0.6);
+                    "></div>
+                    <div style="
+                        position: absolute;
+                        left: -8px; top: 50%;
+                        width: 8px; height: 2px;
+                        background: #ef4444;
+                        transform: translateY(-50%);
+                        box-shadow: 0 0 0 1px rgba(255,255,255,0.6);
+                    "></div>
+                </div>
+            `;
+            shield.appendChild(aim);
+            this.dom.shieldAim = aim;
 
-                // "이 요소 선택" 확정 버튼
+            // 모바일: 확정 버튼
+            if (IS_TOUCH) {
                 const confirm = document.createElement('div');
                 confirm.className = 'picky-shield-confirm';
+                confirm.style.cssText = `
+                    position: fixed !important;
+                    bottom: 16px !important;
+                    left: 50% !important;
+                    transform: translateX(-50%) !important;
+                    background: rgba(17, 24, 39, 0.98) !important;
+                    border: 1px solid rgba(255,255,255,0.15) !important;
+                    border-radius: 12px !important;
+                    padding: 12px 14px !important;
+                    z-index: 2147483647 !important;
+                    pointer-events: auto !important;
+                    max-width: calc(100vw - 24px) !important;
+                    width: 360px !important;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important;
+                    touch-action: manipulation !important;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+                    color: #e8eaed !important;
+                    box-sizing: border-box !important;
+                `;
                 confirm.innerHTML = `
-                    <div class="picky-shield-msg">손가락으로 요소를 가리키세요 (조준점이 위쪽으로 표시됩니다)</div>
-                    <div class="picky-shield-btns">
-                        <button class="picky-btn picky-btn-primary" data-shield="confirm" disabled>${ICON_CHECK} 이 요소 선택</button>
-                        <button class="picky-btn" data-shield="cancel">${ICON_CLOSE} 취소</button>
+                    <div class="picky-shield-msg" style="
+                        font-size: 12px; color: #e8eaed; margin-bottom: 8px;
+                        word-break: break-all; line-height: 1.4; text-align: center;
+                    ">손가락으로 요소를 가리키세요 (조준점이 위쪽으로 표시됩니다)</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="picky-shield-btn-confirm" data-shield="confirm" disabled style="
+                            flex: 1; min-height: 44px; padding: 8px 12px; font-size: 13px;
+                            background: linear-gradient(135deg, #3b82f6, #2563eb);
+                            border: none; border-radius: 8px; color: #fff;
+                            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+                            cursor: pointer; touch-action: manipulation;
+                            opacity: 0.4;
+                        ">${ICON_CHECK} 이 요소 선택</button>
+                        <button class="picky-shield-btn-cancel" data-shield="cancel" style="
+                            flex: 1; min-height: 44px; padding: 8px 12px; font-size: 13px;
+                            background: rgba(255,255,255,0.08);
+                            border: 1px solid rgba(255,255,255,0.15);
+                            border-radius: 8px; color: #e8eaed;
+                            display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+                            cursor: pointer; touch-action: manipulation;
+                        ">${ICON_CLOSE} 취소</button>
                     </div>
                 `;
                 shield.appendChild(confirm);
                 this.dom.shieldConfirm = confirm;
 
-                confirm.querySelector('[data-shield="confirm"]').addEventListener('click', (e) => {
+                const btnConfirm = confirm.querySelector('[data-shield="confirm"]');
+                const btnCancel = confirm.querySelector('[data-shield="cancel"]');
+
+                const onConfirm = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     if (this.state.pickCandidate) {
                         const el = this.state.pickCandidate;
                         this.cleanupShieldHl();
                         vibrate(25);
-                        this.selectNode(el, true);
                         this.stopPicking();
+                        this.selectNode(el, true);
                     }
-                });
-                confirm.querySelector('[data-shield="cancel"]').addEventListener('click', (e) => {
+                };
+                const onCancel = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     this.stopPicking();
-                });
+                };
+
+                btnConfirm.addEventListener('click', onConfirm);
+                btnConfirm.addEventListener('pointerup', onConfirm);
+                btnCancel.addEventListener('click', onCancel);
+                btnCancel.addEventListener('pointerup', onCancel);
             }
 
-            // ★ pointer 이벤트 통합 (마우스/터치/펜 모두 지원)
+            // Hit-test 함수
             const pickAt = (x, y) => {
-                shield.style.pointerEvents = 'none';
-                if (this.dom.shieldAim) this.dom.shieldAim.style.pointerEvents = 'none';
-                if (this.dom.shieldConfirm) this.dom.shieldConfirm.style.pointerEvents = 'none';
+    const aimX = x;
+    const aimY = y + SHIELD_AIM_OFFSET_Y;
 
-                const aimX = x;
-                const aimY = y + SHIELD_AIM_OFFSET_Y;  // 모바일은 손가락 위쪽
+    // shield를 일시적으로 hidden으로 만들어 hit-test에서 완전히 제외
+    const prevDisplay = shield.style.display;
+    const prevPE = shield.style.pointerEvents;
+    shield.style.pointerEvents = 'none';
 
-                let el = document.elementFromPoint(aimX, aimY);
+    // elementsFromPoint로 스택 전체를 받아 shield/shadow host를 제외
+    let el = null;
+    const stack = document.elementsFromPoint(aimX, aimY);
+    for (const node of stack) {
+        if (!node) continue;
+        if (node === shield) continue;
+        if (node.id === SHIELD_ID) continue;
+        if (node.id === ROOT_ID) continue;
+        if (node.closest && node.closest(`#${ROOT_ID}`)) continue;
+        if (node.closest && node.closest(`#${SHIELD_ID}`)) continue;
+        if (node.tagName === 'HTML') continue;
+        el = node;
+        break;
+    }
 
-                shield.style.pointerEvents = 'auto';
-                if (this.dom.shieldAim) this.dom.shieldAim.style.pointerEvents = 'none';
-                if (this.dom.shieldConfirm) this.dom.shieldConfirm.style.pointerEvents = 'auto';
+    shield.style.pointerEvents = prevPE || 'auto';
 
-                if (!el || (el.closest && el.closest(`#${ROOT_ID}`))) return null;
-                el = this.refineTargetAtPoint(el, aimX, aimY);
-                return el;
-            };
+    if (!el) return null;
+    el = this.refineTargetAtPoint(el, aimX, aimY);
+    return el;
+};
+
 
             this._shieldMove = (e) => {
+                // 확정 버튼 영역은 무시
+                if (e.target && e.target.closest && e.target.closest('.picky-shield-confirm')) return;
+
                 const el = pickAt(e.clientX, e.clientY);
 
                 // 조준점 위치 업데이트
@@ -2389,54 +2506,67 @@
                 this.state.lastHoverEl = el;
                 this.state.pickCandidate = el;
 
-                // 모바일: "이 요소 선택" 버튼 활성화 + 정보 갱신
+                // 모바일: 확정 버튼 활성화 + 정보 갱신
                 if (this.dom.shieldConfirm) {
                     const btn = this.dom.shieldConfirm.querySelector('[data-shield="confirm"]');
-                    if (btn) btn.disabled = false;
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    }
                     const msg = this.dom.shieldConfirm.querySelector('.picky-shield-msg');
                     if (msg) {
                         const tag = el.tagName.toLowerCase();
                         const id = el.id ? `#${el.id}` : '';
                         const cls = SelectorStrategies.meaningfulClasses(el).slice(0, 2).map(c => '.' + c).join('');
-                        msg.innerHTML = `<code>${esc(tag + id + cls)}</code>`;
+                        msg.innerHTML = `<code style="background:rgba(0,0,0,0.4);color:#9ecbff;padding:3px 6px;border-radius:4px;font-size:11px;">${esc(tag + id + cls)}</code>`;
                     }
                 }
             };
 
             this._shieldDown = (e) => {
-                // 확정 버튼 영역은 무시
-                if (e.target.closest('.picky-shield-confirm')) return;
-                if (e.cancelable) e.preventDefault();
-                e.stopPropagation();
+    // 확정 버튼 영역은 통과
+    if (e.target && e.target.closest && e.target.closest('.picky-shield-confirm')) return;
 
-                // PC: 즉시 선택 / 모바일: pointermove와 동일하게 후보 갱신
-                if (!IS_TOUCH) {
-                    let el = pickAt(e.clientX, e.clientY);
-                    if (!el) { this.stopPicking(); return; }
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation();
 
-                    if (e.altKey) {
-                        shield.style.pointerEvents = 'none';
-                        const stack = document.elementsFromPoint(e.clientX, e.clientY)
-                            .filter(n => n && !n.closest(`#${ROOT_ID}`));
-                        shield.style.pointerEvents = 'auto';
-                        if (stack.length) {
-                            el = stack.reduce((a, b) => {
-                                const ra = a.getBoundingClientRect();
-                                const rb = b.getBoundingClientRect();
-                                const areaA = ra.width * ra.height || Infinity;
-                                const areaB = rb.width * rb.height || Infinity;
-                                return areaA <= areaB ? a : b;
-                            });
-                        }
-                    }
-                    this.cleanupShieldHl();
-                    this.selectNode(el, true);
-                    this.stopPicking();
-                } else {
-                    // 모바일은 move와 동일하게 처리
-                    this._shieldMove(e);
-                }
-            };
+    if (!IS_TOUCH) {
+        // PC: 클릭 즉시 선택
+        let el = pickAt(e.clientX, e.clientY);
+
+        // 디버그용 (필요시 콘솔에서 확인)
+        console.log('[Picky] pickAt result:', el, 'at', e.clientX, e.clientY);
+
+        if (!el) {
+            this.flashToast('요소를 찾지 못했습니다. 다시 시도해주세요.');
+            return;
+        }
+
+        if (e.altKey) {
+            const prev = shield.style.pointerEvents;
+            shield.style.pointerEvents = 'none';
+            const stack = document.elementsFromPoint(e.clientX, e.clientY)
+                .filter(n => n && n !== shield && !n.closest(`#${ROOT_ID}`) && !n.closest(`#${SHIELD_ID}`));
+            shield.style.pointerEvents = prev || 'auto';
+            if (stack.length) {
+                el = stack.reduce((a, b) => {
+                    const ra = a.getBoundingClientRect();
+                    const rb = b.getBoundingClientRect();
+                    const areaA = ra.width * ra.height || Infinity;
+                    const areaB = rb.width * rb.height || Infinity;
+                    return areaA <= areaB ? a : b;
+                });
+            }
+        }
+        this.cleanupShieldHl();
+        this.stopPicking();
+        this.selectNode(el, true);
+    } else {
+        // 모바일: pointerdown도 hover 동작 (조준점 갱신)
+        this._shieldMove(e);
+    }
+};
+
 
             this._shieldKey = (e) => {
                 if (e.key === 'Escape') {
@@ -2923,14 +3053,11 @@
                     </div>
                     <div class="picky-settings-row">
                         <small style="opacity:0.6">
-                            • <b>v3.7.0 모바일 완전 대응</b>: 터치 픽킹(조준점+확정버튼), 동적 viewport, 44px 터치 타겟, 좌표 자동 보정, 회전 대응, 진동 피드백<br>
+                            • <b>v3.7.1 버그 수정</b>: Shield 인라인 스타일 강제, 모바일 클릭 충돌 완전 해결<br>
                             • <b>Shield 픽킹 (터치)</b>: 손가락 위치보다 위쪽을 가리키는 조준점, "이 요소 선택" 버튼으로 확정<br>
                             • <b>Shield 픽킹 (마우스)</b>: 클릭 즉시 선택, Alt+클릭으로 가장 작은 요소 강제 선택<br>
                             • <b>전체 규칙 뷰어</b>: 모든 사이트의 규칙을 그룹화해서 보기 · 검색 · 접기/펼치기<br>
-                            • <b>호버 미리보기</b>(노란 점선) / <b>핀 미리보기</b>(초록 외곽선) / <b>숨김 미리보기</b>(👁)<br>
-                            • <b>유일 타겟팅 경로</b>(🎯): 매치=1 보장 절대 경로<br>
-                            • <b>부모 컨테이너 :has()</b>: 차단 시 빈 공간까지 제거<br>
-                            • 정확 매칭 셀렉터(<code>[src="..."]</code>)는 길이와 무관하게 ★★★ 보장
+                            • <b>호버 미리보기</b>(노란 점선) / <b>핀 미리보기</b>(초록 외곽선) / <b>숨김 미리보기</b>(👁)
                         </small>
                     </div>
                 </div>`;
@@ -3031,11 +3158,12 @@
             });
         }
 
-        // ★★★ v3.7.0: 개선된 드래그 핸들러 (모바일 클릭 충돌 해결)
+        // ★★★ v3.7.1: 개선된 드래그 핸들러
         attachDragHandlers() {
             const tool = this.dom.tool;
             if (!tool) return;
-            let startX = 0, startY = 0, startLeft = 0, startTop = 0, moved = false, active = false, pointerId = null;
+            let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+            let moved = false, active = false, pointerId = null;
 
             const onDown = (e) => {
                 if (e.target.closest(NO_DRAG_SELECTOR)) return;
@@ -3046,12 +3174,6 @@
                 const r = tool.getBoundingClientRect();
                 startX = e.clientX; startY = e.clientY;
                 startLeft = r.left; startTop = r.top;
-                tool.style.transform = '';
-                tool.style.left = startLeft + 'px';
-                tool.style.top = startTop + 'px';
-                tool.style.right = 'auto';
-                tool.style.bottom = 'auto';
-                // ★ 핵심: pointerdown에서는 preventDefault 하지 않음 → 클릭 이벤트 유지
             };
             const onMove = (e) => {
                 if (!active) return;
@@ -3059,8 +3181,12 @@
                 const dy = e.clientY - startY;
                 if (!moved && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
                     moved = true;
-                    // 드래그 임계값 초과 시점부터 캡처
                     try { tool.setPointerCapture?.(pointerId); } catch (_) {}
+                    tool.style.transform = '';
+                    tool.style.left = startLeft + 'px';
+                    tool.style.top = startTop + 'px';
+                    tool.style.right = 'auto';
+                    tool.style.bottom = 'auto';
                 }
                 if (moved) {
                     if (e.cancelable) e.preventDefault();
@@ -3081,18 +3207,18 @@
                     } else {
                         this.state.panelPos = pos;
                     }
-                    e.stopPropagation();
-                    if (e.cancelable) e.preventDefault();
                 }
                 try { tool.releasePointerCapture?.(pointerId); } catch (_) {}
                 pointerId = null;
+                // moved 플래그는 click 핸들러가 본 뒤 리셋
+                setTimeout(() => { moved = false; }, 50);
             };
-            // 드래그 중 click 이벤트 차단 (드래그가 클릭으로 잘못 인식되지 않도록)
+
+            // 드래그가 click으로 잘못 인식되는 것 차단
             tool.addEventListener('click', (e) => {
                 if (moved) {
                     e.stopPropagation();
                     e.preventDefault();
-                    moved = false;
                 }
             }, true);
 
@@ -3121,7 +3247,6 @@
         }
     }
 
-    // ★★★ v3.7.0: 모바일 최적화된 PICKY_CSS
     const PICKY_CSS = `
     :host, * { box-sizing: border-box; }
     .picky-tool {
@@ -3181,13 +3306,20 @@
         border: 1px solid rgba(255,255,255,0.1);
         color: #e8eaed; border-radius: 6px;
         cursor: pointer; font-size: 12px;
-        transition: all 0.15s;
+        transition: background 0.15s, border-color 0.15s;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
+        position: relative;
     }
+    .picky-btn > * { pointer-events: none; }
     .picky-btn:hover { background: rgba(255,255,255,0.15); }
     .picky-btn:active { background: rgba(255,255,255,0.22); }
-    .picky-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .picky-btn:disabled,
+    .picky-btn[disabled] {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
     .picky-btn-icon { padding: 6px; min-width: 32px; min-height: 32px; justify-content: center; }
     .picky-btn-active {
         background: linear-gradient(135deg, #8b5cf6, #6d28d9);
@@ -3196,11 +3328,15 @@
     .picky-btn-primary {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         border-color: transparent; justify-content: center;
+        color: #fff;
     }
+    .picky-btn-primary:hover { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
     .picky-btn-danger {
         background: linear-gradient(135deg, #ef4444, #b91c1c);
         border-color: transparent;
+        color: #fff;
     }
+    .picky-btn-danger:hover { background: linear-gradient(135deg, #dc2626, #991b1b); }
     .picky-btn-danger-icon { color: #fca5a5; }
     .picky-btn-danger-icon:hover { background: rgba(239, 68, 68, 0.2); color: #fff; }
 
@@ -3270,7 +3406,7 @@
         margin-bottom: 6px;
         scroll-snap-align: start;
         cursor: pointer;
-        transition: all 0.15s;
+        transition: background 0.15s, border-color 0.15s;
         touch-action: manipulation;
     }
     .picky-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(59, 130, 246, 0.4); }
@@ -3343,6 +3479,7 @@
         display: inline-flex; align-items: center; justify-content: center; gap: 3px;
         touch-action: manipulation;
     }
+    .picky-card-btn > * { pointer-events: none; }
     .picky-card-btn:hover { background: rgba(255,255,255,0.15); }
     .picky-card-btn-block { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); }
     .picky-card-btn-block:hover { background: rgba(239, 68, 68, 0.35); }
@@ -3351,7 +3488,7 @@
         border-color: rgba(139, 92, 246, 0.6);
         color: #fff;
     }
-    .picky-card-btn-disabled { opacity: 0.35; cursor: not-allowed; }
+    .picky-card-btn-disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
     .picky-action-row { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
     .picky-action-row .picky-btn { justify-content: center; min-height: 36px; }
@@ -3369,7 +3506,6 @@
     }
     .picky-toggle input { cursor: pointer; width: 18px; height: 18px; }
 
-    /* ★ v3.7.0: 모달 — 동적 viewport 지원 */
     .picky-modal {
         position: fixed; inset: 0;
         background: rgba(0,0,0,0.5);
@@ -3464,7 +3600,6 @@
         -webkit-user-select: text;
     }
 
-    /* 전체 규칙 뷰어 */
     .picky-allrules-toolbar {
         display: flex; gap: 8px; align-items: center;
         margin-bottom: 10px;
@@ -3576,7 +3711,7 @@
         font-size: 12px;
         box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         opacity: 0;
-        transition: all 0.25s;
+        transition: opacity 0.25s, transform 0.25s;
         z-index: 2147483647;
         pointer-events: none;
         max-width: 90vw;
@@ -3595,7 +3730,7 @@
         font-size: 12px;
         box-shadow: 0 8px 24px rgba(0,0,0,0.5);
         opacity: 0;
-        transition: all 0.25s;
+        transition: opacity 0.25s, transform 0.25s;
         z-index: 2147483647;
         max-width: calc(100vw - 32px);
         width: 360px;
@@ -3615,90 +3750,6 @@
     .picky-orphan-btns { display: flex; gap: 6px; }
     .picky-orphan-btns .picky-btn { flex: 1; justify-content: center; min-height: 36px; }
 
-    /* ★★★ v3.7.0: Shield 픽킹 모바일 UI */
-    #${SHIELD_ID} {
-        position: fixed !important;
-        inset: 0 !important;
-        z-index: 2147483645 !important;
-        cursor: crosshair !important;
-        background: rgba(0, 0, 0, 0.02) !important;
-        pointer-events: auto !important;
-        touch-action: none !important;
-        -webkit-tap-highlight-color: transparent;
-    }
-    .picky-aim {
-        position: absolute;
-        width: 0; height: 0;
-        pointer-events: none;
-        z-index: 2147483646;
-    }
-    .picky-aim-cross {
-        position: absolute;
-        left: -16px; top: -16px;
-        width: 32px; height: 32px;
-        border: 2px solid #ef4444;
-        border-radius: 50%;
-        box-shadow: 0 0 0 2px rgba(255,255,255,0.6), inset 0 0 0 1px rgba(255,255,255,0.4);
-    }
-    .picky-aim-cross::before,
-    .picky-aim-cross::after {
-        content: '';
-        position: absolute;
-        background: #ef4444;
-        box-shadow: 0 0 0 1px rgba(255,255,255,0.6);
-    }
-    .picky-aim-cross::before {
-        left: 50%; top: -8px;
-        width: 2px; height: 8px;
-        transform: translateX(-50%);
-    }
-    .picky-aim-cross::after {
-        left: -8px; top: 50%;
-        width: 8px; height: 2px;
-        transform: translateY(-50%);
-    }
-    .picky-shield-confirm {
-        position: fixed;
-        bottom: 16px; left: 50%;
-        transform: translateX(-50%);
-        background: rgba(17, 24, 39, 0.98);
-        border: 1px solid rgba(255,255,255,0.15);
-        border-radius: 12px;
-        padding: 12px 14px;
-        z-index: 2147483647;
-        pointer-events: auto;
-        max-width: calc(100vw - 24px);
-        width: 360px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-        touch-action: manipulation;
-    }
-    .picky-shield-msg {
-        font-size: 12px;
-        color: #e8eaed;
-        margin-bottom: 8px;
-        word-break: break-all;
-        line-height: 1.4;
-        text-align: center;
-    }
-    .picky-shield-msg code {
-        background: rgba(0,0,0,0.4);
-        color: #9ecbff;
-        padding: 3px 6px;
-        border-radius: 4px;
-        font-size: 11px;
-    }
-    .picky-shield-btns {
-        display: flex; gap: 8px;
-    }
-    .picky-shield-btns .picky-btn {
-        flex: 1;
-        justify-content: center;
-        min-height: 44px;
-        font-size: 13px;
-        padding: 8px 12px;
-    }
-
-    /* ★★★ v3.7.0: 모바일 전용 미디어 쿼리 */
     @media (max-width: 600px) {
         .picky-panel {
             width: calc(100vw - 16px);
@@ -3745,6 +3796,7 @@
     }
     `;
 
+    // ★★★ v3.7.1: Light DOM에 적용되는 페이지 CSS (Shield 백업 스타일 포함)
     const PAGE_CSS = `
     .${HL_CLASS} {
         outline: 3px solid #3b82f6 !important;
@@ -3772,23 +3824,71 @@
     }
     .${HIDE_CLASS} {
         display: none !important;
-    }`;
+    }
+    /* Shield 백업 스타일 (인라인이 덮어쓰지만 만약을 위해) */
+    #${SHIELD_ID} {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 2147483645 !important;
+        cursor: crosshair !important;
+        background: rgba(0, 0, 0, 0.02) !important;
+        pointer-events: auto !important;
+        touch-action: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+    }
+    #${SHIELD_ID} .picky-aim {
+        position: absolute !important;
+        width: 0 !important;
+        height: 0 !important;
+        pointer-events: none !important;
+        z-index: 2147483646 !important;
+    }
+    #${SHIELD_ID} .picky-shield-confirm {
+        position: fixed !important;
+        bottom: 16px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        z-index: 2147483647 !important;
+        pointer-events: auto !important;
+    }
+    `;
 
-    const injectPageCss = () => {
-        if (document.getElementById('picky-page-css')) return;
-        const s = document.createElement('style');
-        s.id = 'picky-page-css';
-        s.textContent = PAGE_CSS;
-        (document.head || document.documentElement).appendChild(s);
-    };
+    // ============================================================
+    // 페이지 CSS 주입 (Light DOM)
+    // ============================================================
+    function injectPageCss() {
+        if (document.getElementById('picky-page-style')) return;
+        const style = document.createElement('style');
+        style.id = 'picky-page-style';
+        style.textContent = PAGE_CSS;
+        (document.head || document.documentElement).appendChild(style);
+    }
 
-    let inspector = null;
-    const boot = () => {
-        if (inspector) return;
+    // ============================================================
+    // 부팅 & 메뉴 등록
+    // ============================================================
+    let inspectorInstance = null;
+
+    function boot() {
         injectPageCss();
-        inspector = new Inspector();
-        inspector.launch();
-    };
+        if (inspectorInstance) return;
+        inspectorInstance = new Inspector();
+        inspectorInstance.launch();
+    }
+
+    function shutdown() {
+        if (!inspectorInstance) return;
+        inspectorInstance.terminate();
+        inspectorInstance = null;
+    }
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', boot, { once: true });
@@ -3796,32 +3896,30 @@
         boot();
     }
 
+    // GM 메뉴
     try {
-        GM_registerMenuCommand?.('Picky 열기/숨기기', () => {
-            if (inspector) { inspector.terminate(); inspector = null; }
+        GM_registerMenuCommand?.('🎯 Picky 열기/닫기', () => {
+            if (inspectorInstance) shutdown();
             else boot();
         });
-        GM_registerMenuCommand?.('전체 규칙 뷰어 열기', () => {
-            if (!inspector) boot();
-            if (inspector) {
-                if (inspector.state.scale === 'icon') inspector.cycleSize();
-                inspector.showAllRules();
-            }
+        GM_registerMenuCommand?.('🌐 전체 규칙 뷰어', () => {
+            if (!inspectorInstance) boot();
+            setTimeout(() => {
+                if (inspectorInstance.state.scale !== 'full') {
+                    inspectorInstance.cycleSize();
+                }
+                inspectorInstance.showAllRules();
+            }, 100);
         });
-        GM_registerMenuCommand?.('규칙 JSON 내보내기', () => Blocker.exportJSON());
-        GM_registerMenuCommand?.('AdGuard 필터 복사', async () => { await Blocker.copyFilterText(); });
-        GM_registerMenuCommand?.('위치 초기화', () => {
-            if (inspector) {
-                inspector.state.iconPos = null;
-                inspector.state.panelPos = null;
-                inspector.applyPosition();
-            }
+        GM_registerMenuCommand?.('📋 AdGuard/uBlock 필터 복사', async () => {
+            await Blocker.copyFilterText();
+            alert('AdGuard/uBlock 필터가 클립보드에 복사되었습니다.');
         });
-        GM_registerMenuCommand?.('숨김 미리보기 해제', () => {
-            if (inspector) {
-                inspector.clearHidePreview();
-                inspector.render?.();
-            }
+        GM_registerMenuCommand?.('📥 JSON 내보내기', () => Blocker.exportJSON());
+        GM_registerMenuCommand?.('↶ 마지막 작업 취소', () => {
+            const last = Blocker.undoLast();
+            if (last) alert(`복원됨: ${last.act} ${last.sel.slice(0, 50)}`);
+            else alert('취소할 작업이 없습니다.');
         });
     } catch (_) {}
 
