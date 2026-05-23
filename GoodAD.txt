@@ -1675,7 +1675,15 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 @@||sbxh*.com^$image,xhr,script
 !@@||sbxh*.com/init/*
 
+! ===== SBXH 광고 무력화 (스크립트 대체) =====
+! 광고 흐리게 + 클릭 차단
+sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com#$#[data-br="1"], [data-bs="1"], [data-bp="1"], [data-brs] { filter: blur(15px) grayscale(100%) brightness(0.3) !important; opacity: 0.10 !important; pointer-events: none !important; }
 
+! 오버레이/백드롭 숨김
+sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com#$#[data-pm-ov], .vw-swipe-hint, [class*="backdrop"], [class*="modal-overlay"] { display: none !important; }
+
+! 스크롤 잠금 해제
+!sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com#$#html, body { overflow: auto !important; position: static !important; }
 
 
 sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com#@#[data-brs][data-br]
