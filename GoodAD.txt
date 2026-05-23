@@ -639,6 +639,7 @@ fmkorea.com###fm_alert
 ! - 예외
 ! - - - https://missav.ws/ - 상단 짤림
 missav.*,njavtv.com#@#.fixed
+missav123.com#@#.fixed
 ! - 네이버 광고 차단 (모바일)
 etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
 ! - 게시물 목록 상단 배너 공간 (모바일)
@@ -2900,16 +2901,19 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! MISSAV (https://missav.live/)
 ! MISSAV (https://missav.ai/)
 ! MISSAV  (https://missav.fans/)
+! MISSAV  (https://missav123.com/)
 ! nJAVTV (https://njavtv.com/)
 ! - 하단 떠다니는 배너 Easylist) (List-KR)
 !||tsyndicate.com^
 ! - 리스트별 하단 배너 및 영상 옆 배너공간 
 ! - - - missav.ws##.lg\:block (EasyList 규칙에 missav.ws 규칙만 있고 missav.lives는 없음)
 missav.*,njavtv.com##.lg\:block
+missav123.com##.lg\:block
 ! - 모든 배너
 !##.mb-5.space-y-5 > div > .mx-auto
 !##div.mx-auto > iframe
 missav.*,njavtv.com##[class^="mx-auto" i]
+missav123.com##[class^="mx-auto" i]
 ! - 영상 하단 배너
 ##[src*="/widgets/" i]
 !##[class*="bottomright" i]
@@ -4721,11 +4725,7 @@ ad-script.
 !
 
 
-##iframe[src*="ads" i]
-##img[src*="ads" i]
-##video[src*="ads" i]
-##source[src*="ads" i]
-##embed[src*="ads" i]
+
 
 
 
@@ -4807,12 +4807,15 @@ diningcode.com#@#div[class*="popup" i]
 ##li[class*="sponsor" i]
 ##p[class*="sponsor" i]
 
+#@#img[src*="ads" i]
+
 
 ##div[class*="hidden" i]
 ! - 예외
 ! - https://missav.ws/ - 이미지 안보임
 
 missav.*,njavtv.com#@#div[class*="hidden" i]
+missav123.com#@#div[class*="hidden" i]
 
 
 ##ins[class*="hidden" i]
@@ -4891,7 +4894,11 @@ manhwabang.org##a[target*="target"] img
 ##article[class*="banner" i]
 ##li[class*="banner" i]
 ##p[class*="banner" i]
-
+##canvas[class*="banner" i]
+##video[class*="banner" i]
+##svg[class*="banner" i]
+##button[class*="banner" i]
+##form[class*="banner" i]
 
 
 ! - 예외
