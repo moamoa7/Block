@@ -4502,6 +4502,11 @@ m.wikitree.co.kr###wikitree_image1_bottom
 ||media.goatanalytics.xyz/videos/*
 !
 !
+! https://cloudfam.io/
+! - 하단 배너
+*##.adbox
+!
+!
 !
 !
 !
@@ -4722,7 +4727,6 @@ naver_power
 
 
 
-! - 이미지 차단
 ||*/popup/*
 ||*/popups/*
 
@@ -4751,12 +4755,6 @@ manhwabang.org##a[target*="target"] img
 @@||*banner*$script,domain=11st.co.kr
 
 
-
-
-!*ad*banner*$image,script
-!@@*ad*banner*$image,domain="cinety.sooplive.com"
-
-!*click*banner*$image,script
 
 ##[class*="banner" i]
 
