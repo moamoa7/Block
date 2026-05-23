@@ -633,10 +633,12 @@ fmkorea.com###fm_alert
 ! 이토랜드 (https://www.etoland.co.kr/)
 ! - - - - - - - - 신버젼
 ! - 팝업
+!##[class^="fixed" i]
 !etoland.co.kr##.fixed
-##[class^="fixed" i]
-!##.fixed
-
+##.fixed
+! - 예외
+! - - - https://missav.ws/ - 상단 짤림
+missav.*,njavtv.com#@#.fixed
 ! - 네이버 광고 차단 (모바일)
 etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
 ! - 게시물 목록 상단 배너 공간 (모바일)
@@ -882,8 +884,8 @@ ygosu.com##.pull-left.btn-group
 ! 짱공유닷컴 (https://jj0u.com/) - 서비스 종료
 ! - 맨 오른쪽 상단 작은 배너
 !##[class="top-banner"]
-!##.top-banner
-##[class*="top-banner" i]
+!##[class*="top-banner" i]
+##.top-banner
 ! - 메인 상단 배너
 !##[id="banner-link"]
 !###banner-link - 아래 규칙으로 대체
@@ -1655,7 +1657,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
 ! - Number.isFinite 무력화 (DevTools 감지 우회)
-[$domain=/^sbxh\d+.com/]##+js(set, Number.isFinite, noopFunc)
+![$domain=/^sbxh\d+.com/]##+js(set, Number.isFinite, noopFunc)
 ! - 배너 이미지
 ||i.toonflix.app/board_uploads/$image
 ! - 팝업
@@ -2149,6 +2151,12 @@ danawa.com##.main-top__right
 !@@/^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//$domain=danawa.com
 ! - - - - - YousList
 !danawa.com#@#iframe[src*="/RealMedia/ads/"]
+! - 뉴스
+danawa.com##.main-top__center
+! - 광고 배너 (로테이션)
+danawa.com##.main-clip
+!- 커뮤니티 / 자동차 / 샵다나와
+danawa.com##div.main__grid > .main__inner
 ! - 광고 배너 (오늘 봐야할 추천 상품)
 danawa.com###adSmartProductContainer
 ! - 검색시 나오는 광고 배너
@@ -2334,6 +2342,8 @@ avsee.ru#@#.tabs
 ! - - - https://javgg.net/
 ! - - - https://javplayer.org/ (여러 재생 스크림 중에서)
 ##[class*="ad-placement" i]
+! - 팝업 유발하는 플레이어 차단
+||bryantenunder.com
 !
 !
 ! https://javplayer.org/
@@ -2914,6 +2924,8 @@ missav.*,njavtv.com##[class^="mx-auto" i]
 ! - 공간 남으며 위의 규칙으로 이미 다 지워진거라 필요가 없음
 !##[rel*="sponsor" i]
 !##[src*="//ads.adxadserv.com/" i]
+! - 하단 배너
+missav.fans###b-a-b
 !
 !
 ! https://popjav.in/
@@ -3895,7 +3907,7 @@ xn--9l4b15e2td.com##.widget-box
 ##.wixui-gallery
 !
 !
-! 여기여 (https://www.yugiyu.com/) (https://ygy003.com/) - 서로 다른 여기여 지만 같은 사이트
+! 여기여 (https://www.yugiyu.com/) (https://www.ygy01.com/)  - 서로 다른 여기여 지만 같은 사이트
 ! - 팝업
 ##.popup_wrap
 ! - - - 모바일 겸용
@@ -4528,6 +4540,8 @@ torrentbob.com##div.m-b-10:nth-of-type(3)
 !
 !
 !
+!
+!
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !
 !
@@ -4652,10 +4666,15 @@ ad-script.
 ##[id^="top-banner" i]
 !
 !
+##[alt*="광고"]
+!
+##[alt*="배너"]
+!
 ##[alt*="스폰"]
 !
-!
 !##[alt*="혜택"]
+!
+##[alt*="보증토토"]
 !
 !
 ! - https://shopping.naver.com/
@@ -4700,8 +4719,16 @@ ad-script.
 !
 /_store
 !
-!
+
+
 ##iframe[src*="ads" i]
+##img[src*="ads" i]
+##video[src*="ads" i]
+##source[src*="ads" i]
+##embed[src*="ads" i]
+
+
+
 !
 !
 naver_power
@@ -4752,6 +4779,10 @@ naver_power
 ||*pop*up*
 
 ##div[class*="popup" i]
+! - 예외
+! 다이닝코드 (https://www.diningcode.com/) - 팝업 차단시 랜덤 뿌연화면 발생 및 타지역 선택 불가
+diningcode.com#@#div[class*="popup" i]
+
 ##ins[class*="popup" i]
 ##aside[class*="popup" i]
 ##ul[class*="popup" i]
@@ -4778,6 +4809,12 @@ naver_power
 
 
 ##div[class*="hidden" i]
+! - 예외
+! - https://missav.ws/ - 이미지 안보임
+
+missav.*,njavtv.com#@#div[class*="hidden" i]
+
+
 ##ins[class*="hidden" i]
 ##aside[class*="hidden" i]
 ##ul[class*="hidden" i]
@@ -4850,6 +4887,7 @@ manhwabang.org##a[target*="target"] img
 ##a[class*="banner" i]
 ##img[class*="banner" i]
 ##section[class*="banner" i]
+![$domain=/^tkor/],[$domain=/^funbe/]#@#section[class*="banner" i]
 ##article[class*="banner" i]
 ##li[class*="banner" i]
 ##p[class*="banner" i]
