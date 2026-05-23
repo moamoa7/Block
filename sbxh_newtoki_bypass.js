@@ -1,8 +1,7 @@
 // ==UserScript==
-// @name         SBXH/뉴토끼 광고·팝업 우회 최종판
+// @name         SBXH/뉴토끼 광고·팝업 우회 (v4.5 - React 호환 강화)
 // @namespace    violentmonkey.user.script
-// @version      4.4.1
-// @description  뉴토끼 (sbxh*.com) 광고 차단 감지/팝업 모달 완벽 우회 — PC+모바일
+// @version      4.5
 // @include      /^https?:\/\/([^/]+\.)?sbxh\d+\.com\//
 // @run-at       document-start
 // @grant        none
@@ -11,40 +10,22 @@
 (function () {
     "use strict";
 
-    /* ============================================================
-     * 1. 차단 감지 API 무력화 (fetch)
-     * ============================================================ */
-    const BLOCK_API = [
-        "/api/dev-block",
-        "/api/me/block-check",
-        "/api/m/ev",
-        "/api/block",
-        "/api/check",
-        "/api/detect",
-        "/api/abp"
-    ];
-    const isBlockApi = (u) =>
-        typeof u === "string" && BLOCK_API.some((p) => u.includes(p));
-
-    const fakeOk = () =>
-        new Response(
-            JSON.stringify({ ok: true, blocked: false, items: [], detected: false }),
-            { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-
+    /* ---------- 1. 차단 감지 API 무력화 ---------- */
+    const BLOCK_API = ["/api/dev-block", "/api/me/block-check", "/api/m/ev"];
+    const isBlockApi = (u) => typeof u === "string" && BLOCK_API.some(p => u.includes(p));
+    const fakeOk = () => new Response(
+        JSON.stringify({ ok: true, blocked: false, items: [] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+    );
     const origFetch = window.fetch;
-    window.fetch = function (input, init) {
-        const url =
-            typeof input === "string" ? input :
-            input instanceof URL ? input.href :
-            input?.url || "";
+    window.fetch = function (input) {
+        const url = typeof input === "string" ? input :
+                    input instanceof URL ? input.href : input?.url || "";
         if (isBlockApi(url)) return Promise.resolve(fakeOk());
         return origFetch.apply(this, arguments);
     };
 
-    /* ============================================================
-     * 2. DevTools 감지 + 카운터 토큰 강제 고정 ⭐
-     * ============================================================ */
+    /* ---------- 2. DevTools / 카운터 토큰 ---------- */
     try {
         Object.defineProperty(window, "__ntkDevtoolsTripped", {
             get: () => false, set: () => {}
@@ -53,9 +34,8 @@
     window.__ntk_ib_ok = 1;
     window.__ntk_ib_loaded = 1;
 
-    // 광고 카운터 토큰(data-ab, data-rb)을 무조건 999로 고정
     const FAKE_COUNT = 999;
-    const setupCounters = () => {
+    if (document.documentElement) {
         try {
             const html = document.documentElement;
             const ab = html.getAttribute('data-ab');
@@ -64,32 +44,15 @@
                 if (!key) return;
                 try {
                     Object.defineProperty(window, key, {
-                        get: () => FAKE_COUNT,
-                        set: () => {},
-                        configurable: false
+                        get: () => FAKE_COUNT, set: () => {}, configurable: false
                     });
                 } catch (_) { window[key] = FAKE_COUNT; }
             };
-            fix(ab);
-            fix(rb);
-            fix('bSeen');
+            fix(ab); fix(rb); fix('bSeen');
         } catch (_) {}
-    };
-    if (document.documentElement) setupCounters();
+    }
 
-    // debugger 루프 차단
-    const origSetInterval = window.setInterval;
-    window.setInterval = function (fn, delay, ...rest) {
-        try {
-            const s = (typeof fn === "function" ? fn.toString() : String(fn));
-            if (/debugger|devtools/i.test(s)) return 0;
-        } catch (_) {}
-        return origSetInterval.call(this, fn, delay, ...rest);
-    };
-
-    /* ============================================================
-     * 3. Storage / 쿠키 정리
-     * ============================================================ */
+    /* ---------- 3. Storage ---------- */
     const origGetItem = Storage.prototype.getItem;
     Storage.prototype.getItem = function (key) {
         if (typeof key === "string") {
@@ -98,15 +61,61 @@
         }
         return origGetItem.apply(this, arguments);
     };
+
+    /* ---------- 4. 광고 박스 "보이는 척" 위장 (차단 감지 통과용) ⭐ ---------- */
+    const isAdBox = (e) => !(!e || !e.closest?.('[data-br="1"], [data-bs="1"], [data-bp="1"]'));
+
+    const FAKE_RECT = { 
+        top: 0, left: 0, width: 300, height: 250, 
+        bottom: 250, right: 300, x: 0, y: 0, 
+        toJSON: () => ({}) 
+    };
+
+    const origGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+        return isAdBox(this) ? { ...FAKE_RECT } : origGetBoundingClientRect.apply(this, arguments);
+    };
+
+    const origGetClientRects = Element.prototype.getClientRects;
+    Element.prototype.getClientRects = function () {
+        return isAdBox(this) ? [{ ...FAKE_RECT }] : origGetClientRects.apply(this, arguments);
+    };
+
+    const origGetComputedStyle = window.getComputedStyle;
+    window.getComputedStyle = function (el, pseudo) {
+        const style = origGetComputedStyle.apply(this, arguments);
+        if (!isAdBox(el)) return style;
+        return new Proxy(style, {
+            get(target, prop) {
+                if (prop === "display") return "block";
+                if (prop === "visibility") return "visible";
+                if (prop === "opacity") return "1";
+                const v = target[prop];
+                return typeof v === "function" ? v.bind(target) : v;
+            }
+        });
+    };
+
+    // 이미지 위장
     try {
-        document.cookie = "ntk_blk=; Path=/; Max-Age=0";
-        document.cookie = "ntk_dev_warn=; Path=/; Max-Age=0";
-        if (window.indexedDB) indexedDB.deleteDatabase("ntk");
+        const nW = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "naturalWidth");
+        const nH = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "naturalHeight");
+        const cp = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "complete");
+        Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", {
+            get: function () { return isAdBox(this) ? 300 : (nW?.get?.call(this) || 0); },
+            configurable: true
+        });
+        Object.defineProperty(HTMLImageElement.prototype, "naturalHeight", {
+            get: function () { return isAdBox(this) ? 250 : (nH?.get?.call(this) || 0); },
+            configurable: true
+        });
+        Object.defineProperty(HTMLImageElement.prototype, "complete", {
+            get: function () { return isAdBox(this) || (cp?.get?.call(this) ?? true); },
+            configurable: true
+        });
     } catch (_) {}
 
-    /* ============================================================
-     * 4. 페이지 동작 정상화
-     * ============================================================ */
+    /* ---------- 5. 페이지 동작 정상화 ---------- */
     window.stop = function () {};
     const origSetProp = CSSStyleDeclaration.prototype.setProperty;
     CSSStyleDeclaration.prototype.setProperty = function (name, value) {
@@ -114,65 +123,46 @@
         return origSetProp.apply(this, arguments);
     };
 
-    /* ============================================================
-     * 5. /init/block.js, /init/fp.js, /init/pid.js + 팝업 모달 차단 ⭐⭐⭐
-     * ============================================================ */
+    /* ---------- 6. 쿠키 정리 ---------- */
+    try {
+        document.cookie = "ntk_blk=; Path=/; Max-Age=0";
+        if (window.indexedDB) indexedDB.deleteDatabase("ntk");
+    } catch (_) {}
+
+    /* ---------- 7. CSS 강제 숨김 (광고 + 팝업) ---------- */
+    const hideCss = `
+        [data-br="1"], [data-bs="1"], [data-bp="1"], [data-pm-ov="1"],
+        [data-brs] {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            position: absolute !important;
+            width: 0 !important;
+            height: 0 !important;
+            visibility: hidden !important;
+            overflow: hidden !important;
+        }
+    `;
+    const injectStyle = () => {
+        if (document.getElementById('__sbxh_hide__')) return;
+        const s = document.createElement('style');
+        s.id = '__sbxh_hide__';
+        s.textContent = hideCss;
+        (document.head || document.documentElement).appendChild(s);
+    };
+    if (document.head) injectStyle();
+    else new MutationObserver((_, obs) => {
+        if (document.head) { injectStyle(); obs.disconnect(); }
+    }).observe(document.documentElement, { childList: true });
+
+    /* ---------- 8. 차단 감지 스크립트 무력화 (React 안전) ---------- */
     const BLOCK_SCRIPT_RE = /\/init\/(block|fp|pid)\.js|whoas\.xyz/i;
     const BLOCK_IDS = ["init-block", "init-fp", "init-pid"];
-    const LEGIT_MODAL_IDS = ["auth-modal", "search-modal"];
-
-    const hideIfPopup = (el) => {
-        if (!el || el.nodeType !== 1) return;
-        if (LEGIT_MODAL_IDS.includes(el.id)) return;
-
-        try {
-            let shouldHide = false;
-
-            // data-pm-ov 마커
-            if (el.hasAttribute && el.hasAttribute('data-pm-ov')) {
-                shouldHide = true;
-            }
-
-            // 클래스/id 키워드
-            if (!shouldHide) {
-                const cls = ((el.className || '') + '').toLowerCase();
-                const elId = (el.id || '').toLowerCase();
-                if (/block-?list|block-?modal|popup-?modal|popupmodal|blocklistmodal/i.test(cls + ' ' + elId)) {
-                    shouldHide = true;
-                }
-            }
-
-            if (shouldHide) {
-                // remove() 대신 강제 숨김 (React 호환)
-                el.style.cssText = `
-                    display: none !important;
-                    visibility: hidden !important;
-                    opacity: 0 !important;
-                    pointer-events: none !important;
-                    position: absolute !important;
-                    width: 0 !important;
-                    height: 0 !important;
-                    overflow: hidden !important;
-                    z-index: -9999 !important;
-                `;
-                // 클릭 가능한 자식들도 무력화
-                if (el.querySelectorAll) {
-                    el.querySelectorAll('a, button').forEach(child => {
-                        child.style.pointerEvents = 'none';
-                        child.removeAttribute('href');
-                        child.disabled = true;
-                    });
-                }
-            }
-        } catch (_) {}
-    };
 
     new MutationObserver((mutations) => {
         for (const m of mutations) {
             for (const node of m.addedNodes) {
                 if (node.nodeType !== 1) continue;
-
-                // 5-1. 트래커 스크립트 차단 + 가짜 load 이벤트
                 if (node.tagName === "SCRIPT") {
                     const src = node.src || "";
                     const id = node.id || "";
@@ -181,25 +171,16 @@
                         setTimeout(() => {
                             try {
                                 node.dispatchEvent(new Event("load"));
-                                if (typeof node.onload === "function")
+                                if (typeof node.onload === "function") 
                                     node.onload(new Event("load"));
                             } catch (_) {}
                         }, 0);
-                        continue;
                     }
-                }
-
-                // 5-2. 팝업 모달 차단
-                removeIfPopup(node);
-                if (node.querySelectorAll) {
-                    node.querySelectorAll('[data-pm-ov], [class*="block"], [class*="popup"], [class*="Block"], [class*="Popup"]')
-                        .forEach(removeIfPopup);
                 }
             }
         }
     }).observe(document.documentElement, { childList: true, subtree: true });
 
-    // script error 이벤트 가로채기 (.catch 트랩 방지)
     window.addEventListener("error", function (e) {
         if (e.target?.tagName === "SCRIPT") {
             const src = e.target.src || "";
@@ -212,54 +193,51 @@
         }
     }, true);
 
-    // script error 리스너 등록 자체 차단
-    const origAddEventListener = EventTarget.prototype.addEventListener;
-    EventTarget.prototype.addEventListener = function (type, listener, options) {
-        if (this instanceof HTMLScriptElement && type === "error") {
-            const id = this.id || "";
-            const src = this.src || "";
-            if (BLOCK_IDS.includes(id) || BLOCK_SCRIPT_RE.test(src)) return;
+    /* ---------- 9. SPA 네비게이션 → 전체 페이지 이동 강제 ⭐⭐ ---------- */
+    // Next.js의 클라이언트 사이드 라우팅 가로채서 일반 페이지 이동으로 변환
+    // → React 컴포넌트 재마운트로 인한 removeChild 에러 방지
+    document.addEventListener("click", (e) => {
+        const a = e.target?.closest?.("a");
+        if (!a || !a.href) return;
+        
+        // 광고 마커 안의 링크는 차단
+        if (a.closest('[data-bs="1"], [data-bp="1"], [data-br="1"], [data-pm-ov]')) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return false;
         }
-        return origAddEventListener.apply(this, arguments);
-    };
+        
+        // 같은 도메인의 콘텐츠 링크는 전체 페이지 이동으로 강제
+        try {
+            const url = new URL(a.href, window.location.origin);
+            if (url.origin !== window.location.origin) return;  // 외부 링크는 건드리지 않음
+            
+            const path = url.pathname;
+            // 콘텐츠 페이지 패턴
+            if (/\/(webtoon|manhwa|novel|comic)\//.test(path) && 
+                path !== window.location.pathname) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.location.href = a.href;
+            }
+        } catch (_) {}
+    }, true);
 
-    /* ============================================================
-     * 6. body 스크롤 락 해제 (팝업이 띄운 overflow:hidden 무력화)
-     * ============================================================ */
-    const releaseScrollLock = () => {
+    /* ---------- 10. body 스크롤 락 해제 ---------- */
+    const releaseScroll = () => {
         try {
             if (document.body) {
                 document.body.style.overflow = '';
                 document.body.style.position = '';
-                document.body.classList.remove('modal-open', 'no-scroll', 'overflow-hidden');
+                document.body.classList.remove('modal-open', 'no-scroll');
             }
-            document.documentElement.style.overflow = '';
         } catch (_) {}
     };
-    const watchScrollLock = () => {
-        if (!document.body) {
-            requestAnimationFrame(watchScrollLock);
-            return;
-        }
-        new MutationObserver(releaseScrollLock).observe(document.body, {
-            attributes: true,
-            attributeFilter: ['style', 'class']
+    const watchScroll = () => {
+        if (!document.body) { requestAnimationFrame(watchScroll); return; }
+        new MutationObserver(releaseScroll).observe(document.body, {
+            attributes: true, attributeFilter: ['style', 'class']
         });
     };
-    watchScrollLock();
-
-    /* ============================================================
-     * 7. 광고 버튼 클릭 차단 (모바일 빈 공백 클릭 방지) ⭐
-     * ============================================================ */
-    ["click", "mousedown", "touchstart", "pointerdown"].forEach((evt) => {
-        document.addEventListener(evt, function (e) {
-            const t = e.target?.closest?.('[data-bs="1"], [data-bp="1"], [data-br="1"], [data-pm-ov]');
-            if (t) {
-                e.stopImmediatePropagation();
-                e.preventDefault();
-                return false;
-            }
-        }, true);
-    });
-
+    watchScroll();
 })();
