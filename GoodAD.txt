@@ -403,7 +403,7 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! - 해제 목록
-cinety.sooplive.com#@#[class*="banner" i]
+cinety.sooplive.com#@#div[class*="banner" i]
 !
 !
 ! 풍투데이 (https://poong.today/)
@@ -1094,7 +1094,7 @@ clien.net##.active.button_sidemenu
 ! - 게시물 광고 글
 clien.net###hongboInfoList
 ! - 댓글 사라지는거 방지
-clien.net#@#[class*="banner" i]
+clien.net#@#div[class*="banner" i]
 
 !
 !
@@ -1494,7 +1494,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ! 헐크티비 (https://www.hulk24.com/) (https://xn--2p7bp2h.tv/)
 ! - 오른쪽 상단 배너
 ![$domain=/^www.hulk\d+.com/]##.right_top_banner
-##[class*="top_banner" i]
+!##[class*="top_banner" i]
 ! - 채팅 공간
 ![$domain=/^www.hulk\d+.com/]##.left_chat_box
 ! - 중계방송 아래 흐르는 배너
@@ -1512,12 +1512,12 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://tkor116.com/)
+! 툰코 (https://tkor119.com/)
 ! 펀비 (https://funbe634.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
-[$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##[class*="clearfix"]
+![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##[class*="clearfix"]
 ! - 개별 만화 각 회수별 배너
 !||tkor*.com/bann/*$image
 !||funbe*.com/bann/*$image
@@ -3858,13 +3858,13 @@ pandalive.co.kr##body:style(pointer-events: auto !important; overflow: auto !imp
 !
 ! 주소월드 (https://wdwd11.com/)
 ! - 순위 리스트 복원 및 상단 배너 삭제
-[$domain=/^wdwd\d+.com/]#@#[class*="banner" i]
+[$domain=/^wdwd\d+.com/]#@#div[class*="banner" i]
 [$domain=/^wdwd\d+.com/]##.banner_list
 !
 !
 ! 주소핑 (https://jusoping2.net/)
 ! - 순위 리스트 복원 및 상단 배너 삭제
-[$domain=/^jusoping\d+.net/]#@#[class*="banner" i]
+[$domain=/^jusoping\d+.net/]#@#div[class*="banner" i]
 [$domain=/^jusoping\d+.net/]##.bg-black.carousel-inner 
 !
 !
@@ -3902,7 +3902,7 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 18모아 (https://18moa028.com/)
 ! - 이미지 복원
-[$domain=/^18moa\d+.com/]#@#[class*="banner" i]
+[$domain=/^18moa\d+.com/]#@#div[class*="banner" i]
 [$domain=/^18moa\d+.com/]##.banner
 !
 !
@@ -4470,7 +4470,7 @@ mozatv.com##.tips-box
 !
 ! 사람인 (https://www.saramin.co.kr/)
 ! - 일부 해제 - 사이트 구동 안됨
-saramin.co.kr#@#[class*="banner" i]
+saramin.co.kr#@#div[class*="banner" i]
 !
 !
 ! 히어하트 (https://hearheart.com/)
@@ -4507,6 +4507,14 @@ m.wikitree.co.kr###wikitree_image1_bottom
 *##.adbox
 !
 !
+! 카지노 다이소 (https://www.torrentbob.com/)
+! - 쓸모없는 이미지
+##.img-box
+torrentbob.com##.board-gallery
+! - 공식 보증업체
+torrentbob.com##div.m-b-10:nth-of-type(3)
+!
+!
 !
 !
 !
@@ -4531,6 +4539,11 @@ m.wikitree.co.kr###wikitree_image1_bottom
 !
 !
 ##.ad-pc
+!
+!
+*##.ad
+
+
 !
 !
 */ad?*
@@ -4706,7 +4719,7 @@ naver_power
 ! 기타
 ! - - -  https://glimmory.io/%ED%88%B0%EC%BD%94-%EC%B5%9C%EC%8B%A0%EC%A3%BC%EC%86%8C/
 ! - - - 배너
-##.random-banners
+!##.random-banners
 !
 !
 !
@@ -4730,6 +4743,16 @@ naver_power
 ||*/popup/*
 ||*/popups/*
 
+##div[class*="popup" i]
+#@#div[class*="popup" i]
+##ins[class*="popup" i]
+##aside[class*="popup" i]
+##iframe[class*="popup" i]
+##a[class*="popup" i]
+##img[class*="popup" i]
+
+
+
 
 !!! 광역
 
@@ -4745,18 +4768,36 @@ naver_power
 i-boss.co.kr,~avsee.ru##a[target*="blank"] > img[src*=".gif"]
 
 
+
 ! - 특이
 ! - - - 만화방 (https://manhwabang.org/)
 manhwabang.org##a[target*="target"] img
 
 
+
 *banner*$image,script,frame
 ! - 11번가 - 사이트 구동이 안됨
 @@||*banner*$script,domain=11st.co.kr
+! 시네티 (https://cinety.sooplive.co.kr/)
+! 18모아 (https://18moa028.com/)
+@@||*banner*$image,domain=cinety.sooplive.com
+@@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 
 
 
-##[class*="banner" i]
+!##[class*="banner" i]
+##div[class*="banner" i]
+! - 예외
+! - 툰코 (https://tkor119.com/) - 본문 다 사라짐
+! - 펀비 (https://funbe637.com/) - 본문 다 사라짐
+[$domain=/^tkor/],[$domain=/^funbe/]#@#div[class*="banner" i]
+##ins[class*="banner" i]
+##aside[class*="banner" i]
+##iframe[class*="banner" i]
+##a[class*="banner" i]
+##img[class*="banner" i]
+
+
 
 ! - 예외
 ! - 옥션 (https://www.auction.co.kr/)
@@ -4921,6 +4962,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 조드 (https://zod.kr/)
 ! - - - x툰 (https://t2.xtoon365.com/)
 ! - - - 토렌트쑥 (https://ssg2.torrentssg8.com/)
+! - - - 툰코 (https://tkor119.com/) 
 !##a[href*='http'][target*='blank'] img
 !##a[target*='blank']:has(img)
 [$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],tvchak.live,[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^missvod\d+.com/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
@@ -4928,6 +4970,8 @@ zod.kr##a[target*="blank"] img
 [$domain=/^t2.xtoon/]##a[target*="blank"] img
 [$domain=/^ssg\d+\.torrentssg\d+\.com/]##a[target*="blank"] img
 [$domain=/^jogaeparty\d+.com/]##a[target*="blank"] img
+[$domain=/^tkor/]##a[target*="blank"] img
+
 
 
 
