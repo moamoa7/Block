@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-23 09:29:12 UTC
+! Generated: 2026-05-23 10:51:28 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,426
+! Exception Rules: 6,425
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -2984,7 +2984,6 @@
 @@||mkto-ab130188.com^
 @@||mkto-ab140048.com^
 @@||mkto-ab150013.com^
-@@||mkto-ab150224.com^
 @@||mkto-ab170094.com^
 @@||mkto-ab170123.com^
 @@||mkto-ab180008.com^
@@ -2994,7 +2993,6 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
-@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270109.com^
 @@||mkto-ab280067.com^
@@ -3055,7 +3053,6 @@
 @@||mkto-ab690062.com^
 @@||mkto-ab690132.com^
 @@||mkto-ab700044.com^
-@@||mkto-abc0038.com^
 @@||mkto-abc0114.com^
 @@||mkto-abc0241.com^
 @@||mkto-abd0218.com^
@@ -3110,6 +3107,7 @@
 @@||mkto-sj010128.com^
 @@||mkto-sj010203.com^
 @@||mkto-sj020238.com^
+@@||mkto-sj030214.com^
 @@||mkto-sj040148.com^
 @@||mkto-sj040252.com^
 @@||mkto-sj050106.com^
@@ -3133,6 +3131,7 @@
 @@||mkto-sj200191.com^
 @@||mkto-sj200201.com^
 @@||mkto-sj210057.com^
+@@||mkto-sj220006.com^
 @@||mkto-sj230006.com^
 @@||mkto-sj240021.com^
 @@||mkto-sj250062.com^
