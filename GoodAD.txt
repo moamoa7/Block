@@ -787,16 +787,16 @@ ruliweb.com##.ti_wrapper
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 ruliweb.com##[class*="ad_"][style]
 ! -  상단 메인 배너
-! - 제목 공간 꽉차게
-ruliweb.com##.user_view:style(width: 100% !important;)
-ruliweb.com###board_read .board_main_top .member_reward_wrapper:style(margin-top: 20px !important; float: right !important; margin-right: 20px !important;)
+! - 제목 공간 꽉차게 (List-KR)
+!ruliweb.com##.user_view:style(width: 100% !important;)
+!ruliweb.com###board_read .board_main_top .member_reward_wrapper:style(margin-top: 20px !important; float: right !important; margin-right: 20px !important;)
 !ruliweb.com##div[style].ti_wrapper
 ! - 댓글 아래 배너
-ruliweb.com##div[class^="nbp_container"]
-! - - - 맨 밑 하단 게시글 광고 배너 (모바일)
-ruliweb.com##.fixed_layer1
+!ruliweb.com##div[class^="nbp_container"]
+! - - - 맨 밑 하단 따라다니는 배너
+ruliweb.com###push_bar
 ! - - - 맨밑 하단 파란색 배너 (모바일)
-ruliweb.com##div.fixed_ad_wrapper
+m.ruliweb.com##.ad._go_wrapper
 ! - 이미지 복원
 !@@||ruliweb.com/img/$image
 ! 게시물 댓글 파워링크 제거
