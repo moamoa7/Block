@@ -1685,8 +1685,8 @@ sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com#@#+js(spoof-css, '[data-bs], i
 !||sbxh*.com/init/block.js$badfilter
 
 
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { position: absolute !important; left: -3000px !important; }
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { position: absolute !important; left: -3000px !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'], div[data-brs='header'] { position: fixed !important; left: -9999px !important; top: -9999px !important; width: 0 !important; height: 0 !important; overflow: hidden !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#button[data-bs='1'] { position: fixed !important; left: -9999px !important; top: -9999px !important; }
 
 
 =============================
