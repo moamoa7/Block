@@ -1685,8 +1685,13 @@ sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com#@#+js(spoof-css, '[data-bs], i
 !||sbxh*.com/init/block.js$badfilter
 
 
+! ===== uBlock Origin =====
 [$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { position: absolute !important; left: -3000px !important; }
 [$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { position: absolute !important; left: -3000px !important; }
+
+! ===== AdGuard =====
+sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com#$#div[data-brs="detail"] { position: absolute !important; left: -3000px !important; }
+sbxh1.com,sbxh2.com,sbxh3.com,sbxh4.com,sbxh5.com#$#div[data-brs="header"] { position: absolute !important; left: -3000px !important; }
 
 
 =============================
