@@ -110,7 +110,7 @@
 !
 ! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
 !##[class*="grecaptcha-badge" i]
-##.grecaptcha-badge
+##.grecaptcha-badge[data-style]
 !
 !
 ! 카카오TV (https://tv.kakao.com/)
@@ -291,7 +291,8 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 ! - 배너 빈공간
 ! - - - https://chzzk.naver.com/ - 영상 내 보이지 않는 부분 (무엇인지는 모름)
 !##[class*="advertisement" i]
-##[class*="advertise" i]
+!##[class*="advertise" i]
+##[class*="advert" i]
 !
 !
 ! 네이버TV (https://tv.naver.com/)
@@ -581,6 +582,8 @@ gall.dcinside.com#%#//scriptlet('set-constant', 'isBlockDetectedOnDiv', 'noopFun
 m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 ! - 본문 하단 이상한 따라다니는거
 dcinside.com##.refresher-toast
+! - 기타
+/third*cookie/*
 !
 !
 ! 아카라이브 (https://arca.live/)
@@ -634,18 +637,8 @@ fmkorea.com###fm_alert
 ! - - - - - - - - 신버젼
 ! - 팝업
 !##[class^="fixed" i]
-!etoland.co.kr##.fixed
-##.fixed
-! - 예외
-! - - - https://missav.ws/ - 상단 짤림
-missav.*,njavtv.com#@#.fixed
-missav123.com#@#.fixed
-! - - - https://jp.xsz-av.com/ - 상단 짤림
-jp.xsz-av.com#@#.fixed
-! - - - MISSAV (https://missvod5.com/) - 상단 짤림
-[$domain=/^missvod\d+.com/]#@#.fixed
-! - - - https://gall.dcinside.com/ - 링크 클릭시 안나옴
-gall.dcinside.com#@#.fixed
+! - - -.fixed - 반드시 개별 도메인으로만 처리할것
+etoland.co.kr##.fixed
 ! - 네이버 광고 차단 (모바일)
 etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
 ! - 게시물 목록 상단 배너 공간 (모바일)
@@ -1233,8 +1226,8 @@ zum.com##[class*="coupang-shopping" i]
 !
 ! 벅스 (https://music.bugs.co.kr/)
 ! - 상단 배너
-!music.bugs.co.kr##.topBanner
-##[class*="topBanner"]
+music.bugs.co.kr##.topBanner
+!##[class*="topbanner" i]
 ! - 예외
 ! - https://www.sooplive.com/station/ - 개인 방송국 상단 일부 짤림 (##[class*="topBanner" i]에서 ##[class*="topBanner"]로 변경하여 해제)
 !sooplive.com#@#[class*="topBanner" i]
@@ -3959,6 +3952,7 @@ xn--9l4b15e2td.com##.widget-box
 ! 18모아 (https://18moa028.com/)
 ! - 이미지 복원
 [$domain=/^18moa\d+.com/]#@#div[class*="banner" i]
+[$domain=/^18moa\d+.com/]#@#ul[class*="banner" i]
 [$domain=/^18moa\d+.com/]##.banner
 !
 !
@@ -4457,6 +4451,8 @@ t.hi098123.com#$#.tabad { top: -100px !important; }
 ! https://liteapks.com/
 ! - 게시물 열람 후 중간 빈 공간
 liteapks.com###ad-unit-1
+! - 타 규칙으로 인한 다운로드 버튼 사라짐 방지
+liteapks.com#@#.app-cta:not(html, body, :empty)
 !
 !
 ! https://getmodsapk.com/
@@ -4573,7 +4569,7 @@ torrentbob.com##div.m-b-10:nth-of-type(3)
 !
 ! 쿡마나 (https://cookmana53.com/)
 ! - 배너
-##[class*="advert"]
+!##[class*="advert" i]
 !
 !
 ! 호두코믹스 (https://hdhd506.net/)
@@ -4770,13 +4766,6 @@ ad-script.
 !
 /_store
 !
-
-
-
-
-
-
-!
 !
 naver_power
 !
@@ -4859,26 +4848,6 @@ diningcode.com#@#div[class*="popup" i]
 ##p[class*="sponsor" i]
 
 #@#img[src*="ads" i]
-
-
-!##div[class*="hidden" i]
-! - 예외
-! - https://missav.ws/ - 이미지 안보임
-
-missav.*,njavtv.com#@#div[class*="hidden" i]
-missav123.com#@#div[class*="hidden" i]
-
-
-##ins[class*="hidden" i]
-##aside[class*="hidden" i]
-##ul[class*="hidden" i]
-##iframe[class*="hidden" i]
-##a[class*="hidden" i]
-##img[class*="hidden" i]
-##section[class*="hidden" i]
-##article[class*="hidden" i]
-##li[class*="hidden" i]
-##p[class*="hidden" i]
 
 
 
@@ -5069,7 +5038,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 토렌트좋다 (https://torrentzota135.com/)
 ! - - - 토렌트탑 (https://torrenttop156.com/)
 ! - - - 토렌트하하 (https://torrenthaha09.com/)
-! - - - 블랙툰 (https://blacktoon371.com/)
+! - - - 블랙툰 (https://blacktoon410.com/)
 ! - - - 티비착 (https://tvchak.live/)
 ! - - - 코티비씨 (https://m60.kotbc2.com/)
 ! - - - 9티비 (http://9tv73.com/)
