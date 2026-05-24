@@ -4819,35 +4819,13 @@ naver_power
 ! - - - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
 @@||*pop*up*$css
 
-##div[class*="popup" i]
+
+##[class*="popup" i]
+##[class*="pop-up" i] 
 ! - 예외
 ! 다이닝코드 (https://www.diningcode.com/) - 팝업 차단시 랜덤 뿌연화면 발생 및 타지역 선택 불가
-diningcode.com#@#div[class*="popup" i]
+diningcode.com#@#[class*="popup" i] 
 
-
-##ins[class*="popup" i]
-##aside[class*="popup" i]
-##ul[class*="popup" i]
-##iframe[class*="popup" i]
-##a[class*="popup" i]
-##img[class*="popup" i]
-##section[class*="popup" i]
-##article[class*="popup" i]
-##li[class*="popup" i]
-##p[class*="popup" i]
-
-
-##div[class*="sponsor" i]
-##ins[class*="sponsor" i]
-##aside[class*="sponsor" i]
-##ul[class*="sponsor" i]
-##iframe[class*="sponsor" i]
-##a[class*="sponsor" i]
-##img[class*="sponsor" i]
-##section[class*="sponsor" i]
-##article[class*="sponsor" i]
-##li[class*="sponsor" i]
-##p[class*="sponsor" i]
 
 #@#img[src*="ads" i]
 
@@ -4884,29 +4862,11 @@ manhwabang.org##a[target*="target"] img
 
 
 
-!##[class*="banner" i]
-##div[class*="banner" i]
+##[class*="banner" i]
 ! - 예외
 ! - 툰코 (https://tkor119.com/) - 본문 다 사라짐
 ! - 펀비 (https://funbe637.com/) - 본문 다 사라짐
-[$domain=/^tkor/],[$domain=/^funbe/]#@#div[class*="banner" i]
-##ins[class*="banner" i]
-##aside[class*="banner" i]
-##ul[class*="banner" i]
-##iframe[class*="banner" i]
-##a[class*="banner" i]
-##img[class*="banner" i]
-##section[class*="banner" i]
-![$domain=/^tkor/],[$domain=/^funbe/]#@#section[class*="banner" i]
-##article[class*="banner" i]
-##li[class*="banner" i]
-##p[class*="banner" i]
-##canvas[class*="banner" i]
-##video[class*="banner" i]
-##svg[class*="banner" i]
-##button[class*="banner" i]
-##form[class*="banner" i]
-
+[$domain=/^tkor/],[$domain=/^funbe/]#@#[class*="banner" i]
 
 ! - 예외
 ! - 옥션 (https://www.auction.co.kr/)
