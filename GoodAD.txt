@@ -4576,6 +4576,12 @@ torrentbob.com##div.m-b-10:nth-of-type(3)
 ##[class*="advert"]
 !
 !
+! 호두코믹스 (https://hdhd506.net/)
+! - 일부 이미지 복원
+@@/.*banner.*/$image,domain=/^hdhd[0-9]+\.net$/
+
+!
+!
 !
 !
 !
