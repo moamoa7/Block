@@ -1900,6 +1900,13 @@ joynjoy.com#@#[class*="banner-" i]
 ##iframe[src*="newdaily"] i
 !
 !
+! 파이낸셜 뉴스 (https://www.fnnews.com/)
+! - 배너
+###randomBanner
+! - 오른쪽 작은 배너
+fnnews.com##.bnr_main_wrap
+!
+!
 ! MTN 머니투데이 (https://mtn.co.kr/)
 ! - 배너
 mtn.co.kr##[src*="banner" i]
@@ -4615,7 +4622,7 @@ torrentbob.com##div.m-b-10:nth-of-type(3)
 /ad/*$frame
 !
 !
-/ad_
+!/ad_
 !
 !
 */ad/js/*
@@ -4724,10 +4731,10 @@ ad-script.
 *events?*
 !
 !
-##[class*="videoad" i]
-##[id*="videoad" i]
-##[class*="video-ad" i]
-##[id*="video-ad" i]
+###videoad
+##.videoad
+###video-ad
+##.video-ad
 !
 !
 /gather
@@ -4796,6 +4803,9 @@ naver_power
 !||*/popup/*
 !||*/popups/*
 ||*pop*up*
+! - 예외
+! - - - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
+@@||*pop*up*$css
 
 ##div[class*="popup" i]
 ! - 예외
@@ -4830,19 +4840,24 @@ diningcode.com#@#div[class*="popup" i]
 #@#img[src*="ads" i]
 
 
+!##div[class*="hidden" i]
+! - 예외
+! - https://missav.ws/ - 이미지 안보임
 
-!##div[class*="banner" i]
-##ins[class*="banner" i]
-##aside[class*="banner" i]
-##ul[class*="banner" i]
-##iframe[class*="banner" i]
-##a[class*="banner" i]
-##img[class*="banner" i]
-##section[class*="banner" i]
-##article[class*="banner" i]
-##li[class*="banner" i]
-##p[class*="banner" i]
+missav.*,njavtv.com#@#div[class*="hidden" i]
+missav123.com#@#div[class*="hidden" i]
 
+
+##ins[class*="hidden" i]
+##aside[class*="hidden" i]
+##ul[class*="hidden" i]
+##iframe[class*="hidden" i]
+##a[class*="hidden" i]
+##img[class*="hidden" i]
+##section[class*="hidden" i]
+##article[class*="hidden" i]
+##li[class*="hidden" i]
+##p[class*="hidden" i]
 
 
 
