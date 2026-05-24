@@ -1684,7 +1684,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 
 ! ===== 추가 차단 (uBlock Origin) =====
 ! - - - 굳이 추가하지 않아도 기능엔 문제가 없음
-! - - - 외부 anti-adblock 추적 서버 차단
+! - - - 외부 anti-adblock 추적 서버 차단 (DNS에 등록 필요)
 ||whoas.xyz^
 ! - - - 광고차단 감지 변수 무력화
 [$domain=/^sbxh[0-9]*\.com/]##+js(aopr, blockAdBlock)
