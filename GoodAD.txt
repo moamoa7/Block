@@ -1719,11 +1719,16 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 ! 툰브로 (https://b17.toon-bro.xyz/)
 ! - 팝업
-![$domain=/^b\d+.toon-bro.xyz/]##.inset-x-0.fixed
+[$domain=/^b\d+.toon-bro.xyz/]##.inset-x-0
 ! - 화면 뿌옇거 해결
-![$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
-! - 상단 배너
-![$domain=/^b\d+.toon-bro.xyz/]##.gap-\[0px\].flex-col.flex
+[$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
+! - 문제 해결
+! 1. 마우스 휠 및 터치 이벤트 가로채기 방지 (uBlock Origin 전용 스크립트 주입)
+[$domain=/^b\d+.toon-bro.xyz/]##+js(addEventListener-defuser, wheel)
+[$domain=/^b\d+.toon-bro.xyz/]##+js(addEventListener-defuser, touchmove)
+! 2. 마우스 우클릭 및 드래그 금지 스크립트 해제 (스크롤 버벅임 유발 방지)
+[$domain=/^b\d+.toon-bro.xyz/]##+js(addEventListener-defuser, contextmenu)
+[$domain=/^b\d+.toon-bro.xyz/]##+js(addEventListener-defuser, selectstart)
 !
 !
 ! 링크 비비기 (https://linkbbg.com/)
@@ -4757,9 +4762,6 @@ ad-script.
 /gather
 !
 !
-/collect
-!
-/collect?
 !
 /qoe
 !
