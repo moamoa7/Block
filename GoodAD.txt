@@ -4571,6 +4571,11 @@ torrentbob.com##.board-gallery
 torrentbob.com##div.m-b-10:nth-of-type(3)
 !
 !
+! 쿡마나 (https://cookmana53.com/)
+! - 배너
+##[class*="advert"]
+!
+!
 !
 !
 !
@@ -4892,9 +4897,9 @@ manhwabang.org##a[target*="target"] img
 
 
 
-*banner*$image,script,frame
+*banner*$image,frame
 ! - 11번가 - 사이트 구동이 안됨
-@@||*banner*$script,domain=11st.co.kr
+!@@||*banner*$script,domain=11st.co.kr|cookmana53.com
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! 18모아 (https://18moa028.com/)
 @@||*banner*$image,domain=cinety.sooplive.com
