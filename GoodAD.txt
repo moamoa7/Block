@@ -1664,17 +1664,9 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
 
-! ===== sbxh 광고 검증 트래픽 허용 =====
-!@@||sbxh*.com/api/ad/*$xhr,image
-!@@||sbxh*.com/popups/*$image
-!@@||i.toonflix.app/popups/*$image
-!@@||whoas.xyz^$domain=sbxh1.com|sbxh2.com|sbxh3.com|sbxh4.com|sbxh5.com
-!@@||sbxh*.com/init/block.js$script
-!@@||sbxh*.com/init/fp.js$script
-!@@||sbxh*.com/init/pid.js$script
+! ===== sbxh 광고 트래픽 허용 =====
 @@||sbxh*.com^$generichide
 @@||sbxh*.com^$image,xhr,script
-!@@||sbxh*.com/init/*
 
 ! =====  List KR 규칙 해제  =====
 [$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
@@ -1682,16 +1674,12 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 [$domain=/^sbxh[0-9]*\.com/]#@#+js(set-local-storage-item, /ntk_dev_/, '$remove$')
 [$domain=/^sbxh[0-9]*\.com/]#@#+js(spoof-css, '[data-bs], img[width], img[height], [data-bp]', width, 100)
 [$domain=/^sbxh[0-9]*\.com/]#@#+js(spoof-css, '[data-bs], img[width], img[height], [data-bp]', height, 100)
-!||sbxh*.com/init/block.js$badfilter
 
 
 ! ===== 배너 공간 감추기 (uBlock Origin) =====
 ! - - - 애드가드는 애드가드 스크립트로 처리
 [$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { position: absolute !important; left: -3000px !important; }
 [$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { position: absolute !important; left: -3000px !important; }
-
-! ===== 팝업 차단 (uBlock Origin) =====
-[$domain=/^sbxh[0-9]*\.com/]##+js(window.open-defuser)
 
 
 =============================
