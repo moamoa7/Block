@@ -656,9 +656,11 @@ etoland.co.kr##div.my-4.flex:has(> script)
 ! - - - PC
 etoland.co.kr##li:has(img[src*="/ad"])
 ! - - - 모바일
-etoland.co.kr##body *[class*="list"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr)/)
-etoland.co.kr##[class*="caption"]:has-text(/(인터넷|보험|상점|핫딜)/), a:has-text(/(인터넷|보험|상점|핫딜)/)
-etoland.co.kr##:is(a,div,button,li,section):has-text(/이토공식보험|매달 새는 보험료|보험료 30%|1:1 실시간 무료 상담/)
+!etoland.co.kr##body *[class*="list"]:has-text(/(노마십가|인터넷상담|한결같은호랑이|비밀상점|보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr)/)
+!etoland.co.kr##[class*="caption"]:has-text(/(인터넷|보험|상점|핫딜)/), a:has-text(/(인터넷|보험|상점|핫딜)/)
+!etoland.co.kr##:is(a,div,button,li,section):has-text(/이토공식보험|매달 새는 보험료|보험료 30%|1:1 실시간 무료 상담/)
+
+etoland.co.kr##[data-inouts-click="true"]
 ! - 애드블럭 감지 해제
 @@||doubleclick.net^$domain=etoland.co.kr
 ! 에토랜드 팝업 차단 및 페이지 이동 오류 해결 최종 조합
