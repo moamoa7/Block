@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260524-rev1
+! Version: 20260524-rev2
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -1156,6 +1156,7 @@
 ||wp.kakaocdn.net^
 ||collection.weverse.io^
 ||slf.sktswe.net^
+||trillion.toss.im^
 !
 ! ───── 네이버 광고 / 검색 광고 / 추적 ─────
 ! 검색 광고 이미지
@@ -1231,6 +1232,8 @@
 ! 카카오TV 일반 영상 (스크립트 차단 사용 시)
 ||vst.play.kakao.com^
 ||shortformstats.kakao.com^
+||thumb.kakaocdn.net^
+||kamp.kakao.com^
 ! 카카오 비즈메시지 분석
 ||bzm-capi.kakao.com^
 ||bzm-log.kakao.com^
