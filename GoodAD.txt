@@ -4682,6 +4682,8 @@ ad-script.
 !
 !
 */ads*
+!@@/ads*$domain=login.coupang.com
+
 !
 !
 */ads/*
@@ -4880,7 +4882,7 @@ manhwabang.org##a[target*="target"] img
 @@||*banner*$image,domain=cinety.sooplive.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 
-!##[class*="banner" i]
+##[class*="banner" i]
 ! - 예외
 ! - 툰코 (https://tkor119.com/) - 본문 다 사라짐
 ! - 펀비 (https://funbe637.com/) - 본문 다 사라짐
