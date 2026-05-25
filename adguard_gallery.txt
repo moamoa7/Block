@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.05.24
+! Version: 2026.05.26
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -63,6 +63,8 @@ fnnews.com##[id="hotPhotoArea"], [data-widget_id]
 fnnews.com##div[style*="height:"]:has(iframe, script, ins), div[style*="text-align: center"]:has(> iframe)
 gall.dcinside.com##.gnb_list.clear > li:has(> [onclick])
 get*ads-*-du.a.run.app^
+ggoorr.net##div[style^="min-height"]:has(> ins.adsbygoogle)
+ggoorr.net##li.code-list-middle > div:has(ins.adsbygoogle)
 gmarket.co.kr##.js-impressionable.box__head-ad
 harpi.in##div:has(> script[src])
 hungryapp.co.kr##.bannersww
@@ -156,15 +158,15 @@ zod.kr##div[id]:has(> [target] > img)
 ||trillion.toss.im^
 !
 bamgad7.com,bamgad8.com##ul.row:has(img[src*="/file/advertise/"])
-bampt3.com,bampt4.com##.small-banners-grid, .small-ad-item
-darkgirl8.com,darkgirl9.com###adskip, #posterWrap, #main-banner
-darkgirl8.com,darkgirl9.com##.banner, a[href*="clickadu.net"]
-darkgirl8.com,darkgirl9.com%#%#//scriptlet('trusted-click-element', '#adbtn')
+bampt3.com,bampt4.com##.small-banners-grid, .small-ad-item, .premium-banner-wrapper
+darkgirl8.com###adskip, #posterWrap, #main-banner
+darkgirl8.com##.banner, a[href*="clickadu.net"]
+darkgirl8.com%#%#//scriptlet('trusted-click-element', '#adbtn')
 fxfx324.com,wftoon210.com##div.top-banner
 jusocon1.com,jusocon2.com##.banner_box
-mingky13.net,ydparty06.net##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
+mingky13.net,ydparty08.net##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
 sbxh1.com,sbxh2.com,sbxh3.com##[data-pm-ov="1"]
-tkor119.com##[class*="bancol"]
+tkor119.com##[class*="bancol"], div.main_top_bann
 wtwt327.com##div.banner
 xxzone22.top##[id*="main-banner"], .gplayer-ad-overlay, #popupBannerModal
 !
@@ -224,8 +226,6 @@ namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"]
 !
 sbxh1.com,sbxh2.com,sbxh3.com#@#[data-brs][data-br]
 sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('set-local-storage-item', '/ntk_blk_/', '$remove$')
-sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'height', '100')
-sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'width', '100')
 @@||sbxh*.com/init/block.js
 sbxh1.com,sbxh2.com,sbxh3.com#%#(()=>{let f=()=>{document.querySelectorAll('[data-br="1"] button,[data-bs="1"] button').forEach(e=>{if(!e.querySelector('.x-cv')){e.style.position="relative";let o=document.createElement("div");o.className="x-cv";o.style.cssText="position:absolute;inset:0;background:rgba(20,24,33,0.04);z-index:10;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:rgba(20,24,33,0.08);letter-spacing:1px;";o.textContent="AdGuard";e.appendChild(o)}})};new MutationObserver(f).observe(document.documentElement,{childList:!0,subtree:!0});f()})();
 !
