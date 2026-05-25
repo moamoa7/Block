@@ -276,8 +276,8 @@ naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
 !
 ! 네이버 쇼핑 라이브 (https://shoppinglive.naver.com/)
 ! - 팝업
-##[class*="popupbanner" i]
-##[class*="popup_banner" i]
+!##[class*="popupbanner" i]
+!##[class*="popup_banner" i]
 ! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤/클릭(터치) 등이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
 shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
@@ -762,8 +762,8 @@ inven.co.kr###invenAppSuggestion
 !##[class*="top_ad" i]
 ##.top_ad
 ! - 오른쪽 배너
-!##.big_banner
-##[class*="big_banner" i]
+!##[class*="big_banner" i]
+##.big_banner
 ! - 게시물 하단 배너 / 맨 하단 배너
 ##.left_cont > div[style]
 ! - 댓글 바로 위 텍스트 배너?
@@ -865,11 +865,11 @@ todayhumor.co.kr##.under_ad_div
 !##[class*="float-banners"] - ##[class*="banner"]:has(img) 로 대체
 ! - 왼쪽 배너 포함 (PC)
 !##.float-banners - ##[class*="banner"]:has(img) 로 대체
+!##[class*="float-banner" i]
 !##.float-banners
-##[class*="float-banner" i]
 ! - 오른쪽 배너 및 공간
-!##.banner_area
-##[class*="banner_area" i]
+!##[class*="banner_area" i]
+##.banner_area
 ! - 팝업 배너
 !##[class="banner-center"] - ##[class*="banner"]:has(img) 로 대체
 !##.banner-center
@@ -884,7 +884,7 @@ fomos.kr#@#.board_view .related_area:style(height: 300px !important;)
 !
 ! 와이고수 (https://ygosu.com/)
 ! - 배너
-ygosu.com##.ygosu_banner
+!ygosu.com##.ygosu_banner
 ! - 모바일
 ! - - - 게시글 하단 SNS 공유하기 아이콘 크기 모바일과 안맞아 없앰
 ygosu.com###sns_bar
@@ -899,7 +899,7 @@ ygosu.com##.pull-left.btn-group
 ! - 맨 오른쪽 상단 작은 배너
 !##[class="top-banner"]
 !##[class*="top-banner" i]
-##.top-banner
+!##.top-banner
 ! - 메인 상단 배너
 !##[id="banner-link"]
 !###banner-link - 아래 규칙으로 대체
@@ -912,7 +912,7 @@ ygosu.com##.pull-left.btn-group
 !###banner - ##[id*="banner"] 로 대체
 ! - 오른쪽 배너
 ! - - - https://www.jjang0u.com/
-##[class*="right-banner" i]
+!##[class*="right-banner" i]
 !- 게시물 하단 배너 (댓글 위)
 !jjang0u.com##[class*="cut-in-banner2"]
 ! - 모바일 하단 배너
@@ -1039,10 +1039,10 @@ inven.co.kr#@#div.banner
 ppomppu.co.kr#@#.right > .board-preview.board-ppomppu
 ! - 오른쪽 따라다니는 배너
 !##[class="floating-banner"]
-##.floating-banner
+!##.floating-banner
 !##[class="ad-banner"]
+!##[class="ad-banner" i]
 !##.ad-banner
-##[class="ad-banner" i]
 ! - 게시물 위 상단 공간
 ppomppu.co.kr##.main.container > div>[style]
 ! - 오른쪽 배너
@@ -1215,13 +1215,13 @@ hungryapp.co.kr##body:style(pointer-events: auto !important; overflow: auto !imp
 !
 ! ZUM (https://zum.com/)
 ! - 가운데 위치 빈 공간 (배너)
-!###big_banner
-##[id="big_banner" i]
+!##[id="big_banner" i]
+###big_banner
 ! -  왼쪽 배너 (증시)
 !##.ticker-banner
 ! - 오른쪽 배너
-!##.shopping_links
-##[class*="shopping_links" i]
+!##[class*="shopping_links" i]
+##.shopping_links
 ! - 오른쪽 쿠팡 AD
 zum.com###gnb_link
 ! - 오른쪽 배너 밑 공간
@@ -1230,12 +1230,15 @@ zum.com##[id="right_top" i]
 ! - 쇼핑
 zum.com##[class*="coupang-shopping" i]
 ! - 오른쪽 즐겨찾기
-!##.favorite_site
-##[class*="favorite_site" i]
+!##[class*="favorite_site" i]
+##.favorite_site
 ! - 검색 하단 광고
-##[class*="PowerLinkContainer"]
-##[class*="PowerShoppingList"]
-##[class*="CoupangContainer"]
+!##[class*="PowerLinkContainer"]
+!##[class*="PowerShoppingList"]
+!##[class*="CoupangContainer"]
+##.PowerLinkContainer
+##.PowerShoppingList
+##.CoupangContainer
 !
 !
 ! 벅스 (https://music.bugs.co.kr/)
@@ -1300,9 +1303,10 @@ poooo.ml#@#.ad
 !||tvhot.*/data/banner/*
 ! - 상단 배너 공간
 ! -  - 티비위키
-##[id="bannerList" i]
+!##[id="bannerList" i]
+###bannerList
 ! -  - 티비몬
-##[class*="row-banner" i]
+!##[class*="row-banner" i]
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 ! -  -- PC
@@ -1328,11 +1332,11 @@ poooo.ml#@#.ad
 !
 ! 티비착 (https://tvchak.org/)  (https://tvchak201.com/)  (https://tvchak.live/)
 ! - 팝업
-[$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
-tvchak.live##[class*="popup_mdd" i]
+![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
+!tvchak.live##[class*="popup_mdd" i]
 ! - 배너 공간
 ![$domain=/^tvchak\d+\.com$/],tvchak.live###advertiseMain
-##[id*="advertise" i]
+##[id*="advert" i]
 !
 !
 ! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03) (https://kf.hoohootv398.xyz/)
@@ -1357,13 +1361,13 @@ tvchak.live##[class*="popup_mdd" i]
 [$domain=/^www.nnuutv\d+.tv/]###comp-lhh974mf2
 !
 !
-! 콕콕티비 (https://cokcok6.com//)
+! 콕콕티비 (https://cokcok6.com/)
 ! - -  티비위키 (https://tvwiki.app/)
 ! - 팝업 - ##[class*="popup-banner" i]으로 대체
 !##[class*="popup-banners" i]
 ! - 상단 배너 공간
 ![$domain=/^cokcok\d+.com/],tvwiki.app##.custom_banner_wrap
-##[class*="custom_banner" i]
+!##[class*="custom_banner" i]
 !
 !
 ! 무비킹 (https://mvking4.org/)
@@ -1753,7 +1757,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 팝업 배너
 !##[class="popup-banner"]
 !##.popup-banner
-##[class*="popup-banner" i]
+!##[class*="popup-banner" i]
 ! - 왼쪽 배너
 !##[class*="list-banner"] - ##[class*="banner"]:has(img) 로 대체
 !##.list-banner
@@ -1763,7 +1767,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 메인 상단 배너
 yna.co.kr##.header01
 !  - 배너
-##[class*="ads-box" i]
+!##[class*="ads-box" i]
 ##.ads-box
 !- 메인 필요없는 부분
 !yna.co.kr##.main-ynalounge01.content03
@@ -1807,8 +1811,8 @@ www.donga.com#@#[class*="ad_"] [style]
 ! - 맨 상단 배너 / 기사 상단 배너
 ##.ad-top
 ! - 기사 오른쪽 배너 공간 (잔여물 제거) (EasyList)
-!##.aside-ad
-##[class*="aside-ad" i]
+!##[class*="aside-ad" i]
+##.aside-ad
 ! - 메인 하단 배너
 ##.ad-bottom
 ! - 기사 상단/본문 배너
@@ -1832,11 +1836,11 @@ www.donga.com#@#[class*="ad_"] [style]
 ! - - -  https://3.jamakyadong.me/ 영상 안보임 (광역 규칙 하면 안됨)
 !hankyung.com##div[class*="-ad"]:not(.container):not([style])
 ! - 기사 왼쪽 구독 배너
-##[class*="subscribe-banner" i]
+!##[class*="subscribe-banner" i]
 ! - 일부 오류 해제
 @@/ad.$domain=hankyung.com
 @@*banner*$domain=hankyung.com
-hankyung.com#@#[class*="top-banner" i]
+!hankyung.com#@#[class*="top-banner" i]
 !
 !
 ! 한국일보 (https://www.hankookilbo.com/)
@@ -1871,7 +1875,7 @@ joongang.co.kr###topicSnackbar
 !
 ! 일간스포츠 (https://isplus.com/)
 ! - 가운대 배너
-##.center_banner
+!##.center_banner
 ! - 기사 하단 배너
 isplus.com##div.section_inner:nth-of-type(7)
 ! - 기사 중간 배너
@@ -1889,11 +1893,11 @@ dongascience.com##.block
 !
 ! 오마이뉴스 (https://www.ohmynews.com/)
 ! - 상단 배너
-!##.adTop
-##[class*="adtop" i]
+!##[class*="adtop" i]
+##.adTop
 ! - 중간 배너
-!##.adSub
-##[class*="adsub" i]
+!##[class*="adsub" i]
+##.adSub
 !##.new_ad7
 ##[class*="new_ad" i]
 ! - 기사 오른쪽 빈 공간
@@ -1910,10 +1914,10 @@ ohmynews.com##body > div
 !
 ! 경향신문 (https://www.khan.co.kr/)
 ! - 배너 및 배너공간
-khan.co.kr##[class*="banner-" i]
+!khan.co.kr##[class*="banner-" i]
 ! - 예외 사이트
 ! - - - https://www.joynjoy.com/ - 화면 안보임
-joynjoy.com#@#[class*="banner-" i]
+!joynjoy.com#@#[class*="banner-" i]
 !
 !
 ! 뉴데일리 (https://www.newdaily.co.kr/)
@@ -1929,7 +1933,7 @@ fnnews.com##.bnr_main_wrap
 !
 ! MTN 머니투데이 (https://mtn.co.kr/)
 ! - 배너
-mtn.co.kr##[src*="banner" i]
+!mtn.co.kr##[src*="banner" i]
 ! - 오른쪽 배너
 mtn.co.kr##.w_308px
 !mtn.co.kr##.css-utxpab
@@ -1961,13 +1965,14 @@ edaily.co.kr##.special_area
 !
 ! 게임조선 (https://gamechosun.co.kr/)
 ! - 상단 배너
-!##.top_event
-##[class*="top_event" i]
+!##[class*="top_event" i]
+##.top_event
+
 !
 !
 ! 한국경제TV (https://www.wowtv.co.kr/)
 ! - 상단 배너
-##[class*="box-banner" i]
+!##[class*="box-banner" i]
 !
 !
 ! 매일경제 (https://www.mk.co.kr/)
@@ -1983,10 +1988,14 @@ mk.co.kr##.my_agent2
 !
 !
 ! 한겨레 (https://www.hani.co.kr/)
-! 배너
-##[class*="basead" i]
+!  - 배너
+hani.co.kr##.BaseAd_adInner__AFsOK
+! - 메인 오른쪽 NativeLab
+hani.co.kr##.index_right__yqqiP
+! - 기사 상단 배너
+hani.co.kr##.ArticleAdTop_topAdWrapper__YVnYM
 ! - 기사 하단 따라다니는 배너
-##[class*="imagebanner" i]
+!##[class*="imagebanner" i]
 !
 !
 ! 문화일보 (https://www.munhwa.com/)
@@ -2005,8 +2014,8 @@ munhwa.com###close-bottom-sticky
 !
 ! https://www.topstarnews.net/
 ! - 배너
-!##.ad-view
-##[class*="ad-view" i]
+!##[class*="ad-view" i]
+##.ad-view
 ! - 차단 사이트
 !||aedi.ai^$3p
 !||piclick.kr^
@@ -2053,8 +2062,8 @@ coupang.com###categoryBestUnit
 ! - 지금 이 상품이 필요하신가요
 coupang.com##[class*="personalized-widget" i]
 ! - 좋아할만한 브랜드 상품
-!##.trending_ads
-##[class*="trending_ads" i]
+!##[class*="trending_ads" i]
+##.trending_ads
 ! - 쿠팡 검색 결과 및 메인 광고 상품 제거
 ! - - - 같이 보면 좋은 상품
 coupang.com##[class*="bottom-carousel" i]
@@ -2099,8 +2108,8 @@ auction.co.kr##.hotspot
 ! - 추천 기획전
 auction.co.kr##.hp_thema
 ! - 맞춤  AI픽 (AI 광고 배너)
-!auction.co.kr##.hp_bot_ad
-##[class*="bot_ad" i]
+!##[class*="bot_ad" i]
+auction.co.kr##.hp_bot_ad
 ! - 검색시 나오는 하단 스폰서링크 삭제
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !auction.co.kr##.component--sponsor_link.component
@@ -2161,7 +2170,7 @@ web.joongna.com##.max-md\:gap-3
 !
 ! 성삼당몰 (https://www.sungsimdangmall.co.kr/)
 ! - 팝업
-##[class*="popup-area" i]
+!##[class*="popup-area" i]
 !
 !
 ! 바나나몰 (www.bananamall.co.kr)
@@ -2568,7 +2577,7 @@ clien.net#@#.ad_banner
 ##.happy-header-mobile
 ! - 상단 배너
 !##[class="header-advertising"]
-##[class*="advertising" i]
+!##[class*="advertising" i]
 ! - 전체 배너 (젤 오른쪽 상단 작은 배너 / 젤 하단 배너 제외]
 !##[class^="textwidget" i] img
 !##[class*="widget" i][class^="textwidget" i] img
@@ -3799,9 +3808,9 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ! 밤가드 (https://www.bamgad7.com/) 
 ! - 배너
 !/advertise^
-##[src*="advertise" i]
+##[src*="advert" i]
 ! - 예외
-linkareer.com#@#[src*="advertise" i]
+linkareer.com#@#[src*="advert" i]
 ! - 상단 배너 공간
 ![$domain=/^www.bamgad\d+.com/]##.new-top.container
 [$domain=/^www.bamgad/],[$domain=/^bamgad/]##.new-top.container
@@ -4132,7 +4141,7 @@ linknnn.com##.wst-post-gl
 !
 ! - GOODTV 기독교 복음방송 (https://goodtv.co.kr/)
 ! - 팝업
-goodtv.co.kr##.popup
+!goodtv.co.kr##.popup
 ! - - - 예외 (WAVVE - 스크롤이 안됨)
 !www.wavve.com#@#.popup
 ! - - - 예외 (https://kr80.sogirl.so) (https://kr29.4kjav.co/) - 예전 도메인이면 안보임
