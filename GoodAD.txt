@@ -1670,8 +1670,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
 
 ! ===== sbxh 광고 트래픽 허용 =====
-@@||sbxh*.com^$generichide
-@@||sbxh*.com^$image,xhr,script
+!@@||sbxh*.com^$generichide
+!@@||sbxh*.com^$image,xhr,script
 
 ! =====  List KR 규칙 해제  =====
 ![$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
