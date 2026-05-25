@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         SBXH/뉴토끼 광고 무력화 v1.0
+// @name         SBXH/뉴토끼 광고 무력화 v1.1
 // @namespace    violentmonkey.user.script
-// @version      1.0
+// @version      1.1
 // @include      /^https?:\/\/([^/]+\.)?sbxh\d+\.com\//
 // @run-at       document-start
 // @grant        none
@@ -9,12 +9,10 @@
 (function(){
   "use strict";
   const css = `
-    [data-br="1"],[data-bs="1"],[data-bp="1"],[data-brs]{
-      filter:blur(15px) grayscale(100%) brightness(0.3)!important;
-      opacity:0.10!important;
-      pointer-events:none!important;
+    div[data-brs='detail'], div[data-brs='header']{
+      position:absolute !important;
+      left:-3000px !important;
     }
-
     [data-pm-ov],.vw-swipe-hint,[class*="backdrop"],[class*="modal-overlay"]{display:none!important;}
     html,body{overflow:auto!important;position:static!important;}
   `;
