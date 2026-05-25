@@ -1670,8 +1670,9 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
 
 ! ===== sbxh 광고 트래픽 허용 =====
-!@@||sbxh*.com^$generichide
-!@@||sbxh*.com^$image,xhr,script
+
+@@||sbxh*.com^$generichide
+@@||sbxh*.com^$image,xhr,script
 
 ! =====  List KR 규칙 해제  =====
 ![$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
@@ -1708,7 +1709,6 @@ sbxh1.com,sbxh2.com,sbxh3.com#@#[data-brs][data-br]
 sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('set-local-storage-item', '/ntk_blk_/', '$remove$')
 sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'height', '100')
 sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'width', '100')
-@@||sbxh*.com/init/block.js
 
 
 
