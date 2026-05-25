@@ -440,13 +440,20 @@ chzzk.naver.com#@#[class*="popup" i]
 !
 ! 트위치 (https://www.twitch.tv/)
 ! - 상단 안내 문구
-twitch.tv##.kfZRQZ.Layout-sc-1xcs6mc-0
+www.twitch.tv##.kfZRQZ.Layout-sc-1xcs6mc-0
 ! - 하단 회원가입 안내 문구
-twitch.tv###twilight-sticky-footer-root
+www.twitch.tv###twilight-sticky-footer-root
 ! - 콤보 안내 문구
-twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
+!twitch.tv##.tw-dialog-layer.foAhuv.ScReactModalBase-sc-26ijes-0 > .react-modal__overlay.ReactModal__Overlay--after-open.ReactModal__Overlay > .react-modal__content.ReactModal__Content--after-open.ReactModal__Content > div
 ! - 광고 차단 문구 (터보 사용 권장 문구)
-twitch.tv##.video-player__inactive
+!twitch.tv##.video-player__inactive
+! - 영상 플레이어내
+www.twitch.tv##.stream-display-ad__wrapper
+www.twitch.tv##[data-test-selector="sda-wrapper"]
+! - 영상 상단 지저분한거
+www.twitch.tv##.top-bar:style(background:unset!important)
+! - 영상 하단 지저분한거
+www.twitch.tv##div[data-a-target=player-controls]:style(background:unset!important)
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -4710,6 +4717,9 @@ ad-script.
 !
 !
 !*ads.*
+!
+!
+*/ads.*
 !
 !
 ##.ads
