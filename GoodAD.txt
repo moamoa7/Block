@@ -1697,7 +1697,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 [$domain=/^sbxh[0-9]*\.com/]##+js(aopr, FuckAdBlock)
 
 ! - 팝업 차단
-[$domain=/^sbxh[0-9]*\.com/]^$popup
+[$domain=/^sbxh[0-9]*\.com/]##[class*="po"]
 
 !//////////////////////////////////////////////////////
 
