@@ -1,6 +1,6 @@
 ! Title: List-KR classic filters list (uBO)
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20595.0
+! Version: 2026.20598.0
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
@@ -3807,11 +3807,6 @@ play.aidungeon.io,tamrieltradecentre.com,downloads.descendant.me,html5.gamedistr
 !
 ! DOMAIN-REFRESHER: START
 !
-/sbxh[0-9]+\.com/##+js(set-local-storage-item, /ntk_blk_/, '$remove$')
-/sbxh[0-9]+\.com/##+js(set-local-storage-item, /ntk_dev_/, '$remove$')
-/sbxh[0-9]+\.com/##+js(spoof-css, '[data-bs], img[width], img[height], [data-bp]', width, 100)
-/sbxh[0-9]+\.com/##+js(spoof-css, '[data-bs], img[width], img[height], [data-bp]', height, 100)
-/^https:\/\/sbxh[0-9]+\.com\/init\/block\.js/$domain=/sbxh[0-9]+\.com/
 hasha.in##+js(no-fetch-if, adManager.js)
 @@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=hasha.in
 @@||js.wpadmngr.com/static/adManager.js$xmlhttprequest,domain=hasha.in
@@ -4057,4 +4052,3 @@ sign.dcinside.com#$#.login_inputbox { width: 100% !important; }
 !#if cap_html_filtering
 heye.kr##^script:has-text(/window\.open\([^)]*\);\s*\w+\.focus/)
 !#endif
-
