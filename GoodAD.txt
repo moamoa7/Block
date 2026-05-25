@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260525
+! Version: 20260526
 !
 !
 !
@@ -2956,20 +2956,24 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! MISSAV (https://missav.ai/)
 ! MISSAV  (https://missav.fans/)
 ! MISSAV  (https://missav123.com/)
+! MISSAV  (https://missav01.com/)
+!
 ! nJAVTV (https://njavtv.com/)
 ! - 하단 떠다니는 배너 Easylist) (List-KR)
 !||tsyndicate.com^
 ! - 리스트별 하단 배너 및 영상 옆 배너공간 
 ! - - - missav.ws##.lg\:block (EasyList 규칙에 missav.ws 규칙만 있고 missav.lives는 없음)
 missav.*,njavtv.com##.lg\:block
-missav123.com##.lg\:block
+[$domain=/^missav\d+.com/]##.lg\:block
 ! - 모든 배너
-!##.mb-5.space-y-5 > div > .mx-auto
-!##div.mx-auto > iframe
 missav.*,njavtv.com##[class^="mx-auto" i]
-missav123.com##[class^="mx-auto" i]
-! - 영상 하단 배너
+[$domain=/^missav\d+.com/]##[class^="mx-auto" i]
+! - 개별 배너 (iframe)
+##[src*="javascript"]
+##[src*="frame"]
+##[src*="/ad?" i]
 ##[src*="/widgets/" i]
+##[src*="/smartpop/" i]
 !##[class*="bottomright" i]
 ! - 예외 - https://adguard-dns.io/ - 버튼 눌러도 반응 없음
 !adguard-dns.io#@#[class*="bottomright" i]
