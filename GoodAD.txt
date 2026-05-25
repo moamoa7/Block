@@ -4846,9 +4846,6 @@ naver_power
 ##[class*="premium_ad" i]
 !
 !
-##.thumb
-!
-!
 ##[src*="토토"]
 !
 !
