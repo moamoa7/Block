@@ -1711,8 +1711,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { position: absolute !important; left: -3000px !important; }
 ![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { position: absolute !important; left: -3000px !important; }
 
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { max-height: 25px !important; overflow: hidden !important; }
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { max-height: 25px !important; overflow: hidden !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { max-height: 50px !important; overflow: hidden !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { max-height: 50px !important; overflow: hidden !important; }
 
 
 !
