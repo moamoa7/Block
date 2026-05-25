@@ -1702,24 +1702,17 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !//////////////////////////////////////////////////////
 
 
-sbxh1.com,sbxh2.com,sbxh3.com##[data-pm-ov="1"]
-sbxh1.com,sbxh2.com,sbxh3.com##.vw-swipe-hint
-sbxh1.com,sbxh2.com,sbxh3.com#@#[data-brs][data-br]
-sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('set-local-storage-item', '/ntk_blk_/', '$remove$')
-sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'height', '100')
-sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'width', '100')
+[$domain=/^sbxh[0-9]*\.com/]##[data-pm-ov="1"]
+[$domain=/^sbxh[0-9]*\.com/]##.vw-swipe-hint
+[$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
+[$domain=/^sbxh[0-9]*\.com/]#@%#//scriptlet('set-local-storage-item', '/ntk_blk_/', '$remove$')
+[$domain=/^sbxh[0-9]*\.com/]#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'height', '100')
+[$domain=/^sbxh[0-9]*\.com/]#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'width', '100')
 
 
 ! - 팝업 차단
-||zxx.bet^
-||mm-1144.com^
-||tting.org^
-||dove02.bet^
-||jk-kr.com^
-||sm-mmm.com^
-||kkr-1777.com^
-||dino-111.com^
-||hbm-999.com^
+! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
+[$domain=/^sbxh[0-9]*\.com/]##+js(window.open-defuser)
 
 
 
