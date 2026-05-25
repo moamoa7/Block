@@ -414,7 +414,7 @@ cinety.sooplive.com#@#[class*="banner" i]
 !
 ! 치지직 (https://chzzk.naver.com/)
 ! - 팝업
-!##[class^="popup" i]
+!##[class*="popup" i]
 ! - 광고 차단 프로그램을 사용 중이신가요? 팝업
 !chzzk.naver.com##div[style]:has-text(/광고 차단|확장 프로그램/)
 !chzzk.naver.com##body:has(div:has-text(/광고 차단|확장 프로그램/)):style(pointer-events: auto !important; overflow: auto !important;)
@@ -435,7 +435,7 @@ chzzk.naver.com##.tooltip
 !chzzk.naver.com##.pzp-pc__loading-indicator
 chzzk.naver.com##[class*="loading" i]
 ! - 로그인 팝업 안뜨는거 해결
-chzzk.naver.com#@#[class^="popup" i]
+chzzk.naver.com#@#[class*="popup" i]
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -466,8 +466,8 @@ daum.net##.wrap_trend
 !
 ! 다음 카페 (https://cafe.daum.net/)
 ! - 최하단 배너
-daum.net##.cafe-banner
-##.bottom_banner
+!daum.net##.cafe-banner
+!##.bottom_banner
 !
 !
 ! 다음 스포츠 (https://sports.daum.net/)
