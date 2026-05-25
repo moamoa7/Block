@@ -1682,10 +1682,9 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 
 
 ! ===== 배너 공간 감추기 (uBlock Origin) =====
-! - - - 차단해서 주석 처리
 ! - - - 애드가드는 애드가드 스크립트로 처리
-![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { position: absolute !important; left: -3000px !important; }
-![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { position: absolute !important; left: -3000px !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { position: absolute !important; left: -3000px !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { position: absolute !important; left: -3000px !important; }
 
 
 ! ===== 추가 차단 (uBlock Origin) =====
@@ -1696,6 +1695,9 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 [$domain=/^sbxh[0-9]*\.com/]##+js(aopr, blockAdBlock)
 [$domain=/^sbxh[0-9]*\.com/]##+js(aopr, BlockAdBlock)
 [$domain=/^sbxh[0-9]*\.com/]##+js(aopr, FuckAdBlock)
+
+! - 팝업 차단
+[$domain=/^sbxh[0-9]*\.com/]^$popup
 
 !//////////////////////////////////////////////////////
 
