@@ -1697,9 +1697,9 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 [$domain=/^sbxh[0-9]*\.com/]##+js(window.open-defuser)
 
 ! - 광고배너에 CSS 입히기
-[$domain=/^sbxh[0-9]*\.com/]#$#[data-br="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
-[$domain=/^sbxh[0-9]*\.com/]#$#[data-bs="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
-[$domain=/^sbxh[0-9]*\.com/]#$#[data-bp="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
+![$domain=/^sbxh[0-9]*\.com/]#$#[data-br="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
+![$domain=/^sbxh[0-9]*\.com/]#$#[data-bs="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
+![$domain=/^sbxh[0-9]*\.com/]#$#[data-bp="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
 
 
 !//////////////////////////////////////////////////////
