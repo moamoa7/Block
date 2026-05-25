@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260524-rev2
+! Version: 20260525-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -388,6 +388,11 @@
 ||jdoqocy.com^
 ||dpbolvw.net^
 ||kqzyfj.com^
+||linkprice.com^
+||linksprout.com^
+||aliclick.shop^
+||linkbux.com^
+||click.aliexpress.com^
 !
 ! ═══════════════════════════════════════════
 ! 운영체제 / 기기 제조사별 텔레메트리
@@ -1088,8 +1093,6 @@
 ! - ljc.coupang.com^ 이상 생기면 차단 해제할 것
 ||ljc.coupang.com^
 ||stat.coupangeats.com^
-||click.linkprice.com^
-||logger.linkprice.com^
 ||stat.daum.net^
 ||stat.kakao.com^
 ||cf.kakao.com^
