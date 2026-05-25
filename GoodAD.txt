@@ -671,11 +671,10 @@ etoland.co.kr##ul.px-\[5px\] > li:nth-of-type(4)
 !etoland.co.kr##[class*="bg-transparent"]
 !etoland.co.kr##[data-inouts-click="true"]
 ! =========================
-! - 애드블럭 감지 해제
-@@||doubleclick.net^$domain=etoland.co.kr
-! 에토랜드 팝업 차단 및 페이지 이동 오류 해결 최종 조합
+! - 애드블럭 감지 해제 (안해도 가능해서 해제)
+!@@||doubleclick.net^$domain=etoland.co.kr
+! 에토랜드 팝업 차단
 etoland.co.kr#%#//scriptlet('prevent-window-open')
-etoland.co.kr##+js(noopen-if)
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -4876,7 +4875,9 @@ manhwabang.org##a[target*="target"] img
 ! - 예외
 ! - 툰코 (https://tkor119.com/) - 본문 다 사라짐
 ! - 펀비 (https://funbe637.com/) - 본문 다 사라짐
-[$domain=/^tkor/],[$domain=/^funbe/]#@#[class*="banner" i]
+! - 이토랜드 (https://etoland.co.kr/) - 페이지 이동 오류 해결
+[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr#@#[class*="banner" i]
+
 
 ! - 예외
 ! - 옥션 (https://www.auction.co.kr/)
