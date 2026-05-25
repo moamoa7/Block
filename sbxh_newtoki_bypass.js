@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         SBXH 팝업 차단
+// @name         SBXH 광고 클릭 차단 (오버레이)
 // @namespace    violentmonkey.user.script
 // @version      1.0
 // @include      /^https?:\/\/([^/]+\.)?sbxh\d+\.com\//
@@ -8,10 +8,18 @@
 // ==/UserScript==
 (function(){
   "use strict";
-  let userGesture = false;
-  document.addEventListener('click', e => {
-    if (e.isTrusted) { userGesture = true; setTimeout(() => userGesture = false, 500); }
-  }, true);
-  const origOpen = window.open;
-  window.open = function(){ return userGesture ? origOpen.apply(this, arguments) : null; };
+  const f = () => {
+    document.querySelectorAll('[data-br="1"] button, [data-bs="1"] button').forEach(e => {
+      if (!e.querySelector('.x-cv')) {
+        e.style.position = "relative";
+        const o = document.createElement("div");
+        o.className = "x-cv";
+        o.style.cssText = "position:absolute;inset:0;background:rgba(20,24,33,0.04);z-index:10;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:rgba(20,24,33,0.08);letter-spacing:1px;";
+        o.textContent = "AdGuard";
+        e.appendChild(o);
+      }
+    });
+  };
+  new MutationObserver(f).observe(document.documentElement, { childList: true, subtree: true });
+  f();
 })();
