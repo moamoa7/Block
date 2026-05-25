@@ -680,10 +680,17 @@ etoland.co.kr##li.h-fit.min-h-14:has(> div.group.flex)
 !etoland.co.kr##[class*="bg-transparent"]
 !etoland.co.kr##[data-inouts-click="true"]
 ! =========================
-! - 애드블럭 감지 해제 (안해도 가능해서 해제)
-!@@||doubleclick.net^$domain=etoland.co.kr
+! - 애드블럭 감지 해제 (출석체크 랜덤포인트 얻을려면 필요)
+@@||doubleclick.net^$domain=etoland.co.kr
 ! 에토랜드 팝업 차단
-etoland.co.kr#%#//scriptlet('prevent-window-open')
+!etoland.co.kr#%#//scriptlet('prevent-window-open')
+! - 팝업 차단
+! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
+!etoland.co.kr##+js(window.open-defuser)
+! - 로그인시
+! - - - 개인정보 처리방침 / 이용약관 삭제
+! - - - 특정 팝업, 모달, 혹은 하단 쿠키/개인정보 처리방침 안내 바(Bar) 같은 독립된 요소에만 스타일을 안전하게 입히고 싶을 때 사용
+##.privacy-container:not(body):not(html):not(.content-container)
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -3287,7 +3294,7 @@ wavve.com#@#[id*="main-banner" i]
 ! 밤포탈 (https://bampt3.com/)
 ! - 팝업 및 뿌연거 해결  (PC)
 ! - - - 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
-##[class*="popup-overlay" i]
+!##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
 ##[id="popupoverlay" i]
 ! - 상단 배너
@@ -3296,12 +3303,17 @@ wavve.com#@#[id*="main-banner" i]
 !  - - - 모바일
 !##[class*="premium-ad" i]
 ##[class*="small-ad" i]
+! - 오른쪽 배너 공간
+##.ads-section
 ! - 영상 목록 사이 배너 (PC)
 ##[class*="infeed-ad" i]
 ! - 영상 목록 사이 / 영상 하단 배너 (모바일)
 ##[class*="premium-ad" i]
 ! - 영상내 배너
 ##.ad-active
+! - 영상 재생 해제
+[$domain=/^bampt\d+.com/],iframe.mediadelivery.net#@#[src*="frame"]
+
 !
 !
 ! 야동존 (https://xxzone21.cc/)
@@ -3810,6 +3822,9 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ![$domain=/^mingky\d+.net/]##div.pc_menu:nth-of-type(7)
 ! - 이미지 복원
 !@@||mingky*.net/img/*$image
+! - 리스트 줄간 줄임
+! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+[$domain=/^mingky\d+.net/]##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
 !
 !
 ! 밤가드 (https://www.bamgad7.com/) 
@@ -3823,9 +3838,10 @@ linkareer.com#@#[src*="advert" i]
 [$domain=/^www.bamgad/],[$domain=/^bamgad/]##.new-top.container
 !
 !
-! - - - 야동파티 (https://ydparty02.net/)
+! - - - 야동파티 (https://ydparty08.net/)
 ! - -  배너 공간
 [$domain=/^ydparty\d+.net/]##hr.hr:nth-of-type(1)
+[$domain=/^ydparty\d+.net/]##hr.hr:nth-of-type(2)
 !
 !
 ! 야동박사 (https://yadong-30.com/)
@@ -3895,6 +3911,9 @@ linkareer.com#@#[src*="advert" i]
 !##a[target*="blank"]:has(img[src*="admin_banner"])
 !##img[src*="admin_banner" i]
 ##[id*="main-banner" i]
+! - 광고 영상 있는 영상 삭제
+![$domain=/^yadong\d+.com/]##[src*="player.html?"]
+##[src*="player.html?"]
 !
 !
 ! 히토미 (https://hitomi.la/)
@@ -4612,9 +4631,11 @@ torrentbob.com##div.m-b-10:nth-of-type(3)
 ! 서버포럼 (https://svrforum.com/)
 ! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
 svrforum.com##html,body:style(overflow: auto !important;)
-
-
-
+!
+!
+! 꾸르 (https://ggoorr.net/)
+! - adsbygoogle 삭제 후 남은 공간
+ggoorr.net##.code-list-middle
 !
 !
 !
@@ -4814,6 +4835,18 @@ naver_power
 ! -팝업창 닫고난 후 뿌옇거나 클릭이 안되는 문제
 !##.hidden
 !##div[class^="hidden" i]
+!
+!
+*click?*
+!
+!
+##[class*="premium_ad" i]
+!
+!
+##.thumb
+!
+!
+##[src*="토토"]
 !
 !
 !
@@ -5050,7 +5083,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 4KJAV (https://kr29.4kjav.co/)
 ! - - - 모두의AV (https://modooav6.com/)
 ! - - - 야스닷컴 (https://yasyadong.cc/)
-! - - - 야동파티 (https://ydparty02.net/)
+! - - - 야동파티 (https://ydparty08.net/)
 ! - - - 주소골라 (https://jusopick01.com/)
 ! - - - 조드 (https://zod.kr/)
 ! - - - x툰 (https://t2.xtoon365.com/)
