@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260524
+! Version: 20260525
 !
 !
 !
@@ -582,6 +582,8 @@ gall.dcinside.com#%#//scriptlet('set-constant', 'isBlockDetectedOnDiv', 'noopFun
 m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 ! - 본문 하단 이상한 따라다니는거
 dcinside.com##.refresher-toast
+! - 디시미디어 / 디시이슈  복원 (일부 필터규칙 해제)
+gall.dcinside.com#@#.r_dcmedia
 ! - 기타
 /third*cookie/*
 !
@@ -4813,9 +4815,6 @@ naver_power
 
 
 ==================================
-
-
-
 !||*/popup/*
 !||*/popups/*
 ||*pop*up*
@@ -4829,11 +4828,12 @@ naver_power
 ! - 예외
 ! 다이닝코드 (https://www.diningcode.com/) - 팝업 차단시 랜덤 뿌연화면 발생 및 타지역 선택 불가
 diningcode.com#@#[class*="popup" i] 
+! 픽팍 (https://mypikpak.com/) - 화면이 안보임
+mypikpak.com#@#[class*="popup" i]
+
 
 
 #@#img[src*="ads" i]
-
-
 
 !!! 광역
 
@@ -4863,8 +4863,6 @@ manhwabang.org##a[target*="target"] img
 ! 18모아 (https://18moa028.com/)
 @@||*banner*$image,domain=cinety.sooplive.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
-
-
 
 ##[class*="banner" i]
 ! - 예외
@@ -4897,9 +4895,6 @@ manhwabang.org##a[target*="target"] img
 ! - 애니라이프 (https://anilife.app/)
 !auction.co.kr,coupang.com,shopping.naver.com,shoppinglive.naver.com,smartstore.naver.com,brand.naver.com,gmarket.co.kr,sungsimdangmall.co.kr,wadiz.kr,11st.co.kr,store.kakao.com,web.joongna.com,t2.xtoon365.com,kr.iherb.com,zum.com,gsshop.com,coupangplay.com,wavve.com,tving.com,sooptore.sooplive.com,tv.kakao.com,anilife.app#@#[class*="banner" i]
 ! - 트위치 (https://www.twitch.tv/) - 하지말아볼것
-
-
-
 
 !!! - 광역 2
 ! - - - 광역으로 사용
@@ -4956,15 +4951,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 */background/*
-
-
-
-
-
-
-
-
-
 
 !!! 특정
 ! - - - 이미지가 gif가 아닌 경우에도 사용
