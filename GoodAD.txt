@@ -404,7 +404,7 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! - 해제 목록
-cinety.sooplive.com#@#div[class*="banner" i]
+cinety.sooplive.com#@#[class*="banner" i]
 !
 !
 ! 풍투데이 (https://poong.today/)
@@ -1114,7 +1114,7 @@ clien.net##.active.button_sidemenu
 ! - 게시물 광고 글
 clien.net###hongboInfoList
 ! - 댓글 사라지는거 방지
-clien.net#@#div[class*="banner" i]
+clien.net#@#[class*="banner" i]
 
 !
 !
@@ -3924,13 +3924,13 @@ pandalive.co.kr##body:style(pointer-events: auto !important; overflow: auto !imp
 !
 ! 주소월드 (https://wdwd11.com/)
 ! - 순위 리스트 복원 및 상단 배너 삭제
-[$domain=/^wdwd\d+.com/]#@#div[class*="banner" i]
+[$domain=/^wdwd\d+.com/]#@#[class*="banner" i]
 [$domain=/^wdwd\d+.com/]##.banner_list
 !
 !
 ! 주소핑 (https://jusoping2.net/)
 ! - 순위 리스트 복원 및 상단 배너 삭제
-[$domain=/^jusoping\d+.net/]#@#div[class*="banner" i]
+[$domain=/^jusoping\d+.net/]#@#[class*="banner" i]
 [$domain=/^jusoping\d+.net/]##.bg-black.carousel-inner 
 !
 !
@@ -3959,17 +3959,16 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 여기여 (https://www.yugiyu.com/) (https://www.ygy01.com/)  - 서로 다른 여기여 지만 같은 사이트
 ! - 팝업
-##.popup_wrap
+!##.popup_wrap
 ! - - - 모바일 겸용
-##[class*="popup_1" i]
+!##[class*="popup_1" i]
 ! - 배너
-##.banner_top_box
+!##.banner_top_box
 !
 !
 ! 18모아 (https://18moa028.com/)
 ! - 이미지 복원
-[$domain=/^18moa\d+.com/]#@#div[class*="banner" i]
-[$domain=/^18moa\d+.com/]#@#ul[class*="banner" i]
+[$domain=/^18moa\d+.com/]#@#[class*="banner" i]
 [$domain=/^18moa\d+.com/]##.banner
 !
 !
@@ -4539,7 +4538,7 @@ mozatv.com##.tips-box
 !
 ! 사람인 (https://www.saramin.co.kr/)
 ! - 일부 해제 - 사이트 구동 안됨
-saramin.co.kr#@#div[class*="banner" i]
+saramin.co.kr#@#[class*="banner" i]
 !
 !
 ! 히어하트 (https://hearheart.com/)
