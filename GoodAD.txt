@@ -659,6 +659,8 @@ etoland.co.kr##li[class*="amber-100"]
 etoland.co.kr##li[class*="h-10"]
 ! - 모바일 일부 게시판과 맞지 않는 게시물 삭제
 etoland.co.kr##ul.px-\[5px\] > li:nth-of-type(4)
+! - PC  별도 블라인드 처리된 게시물 안보이게 하기
+etoland.co.kr##li.h-fit.min-h-14:has(> div.group.flex)
 ! =========================
 ! - - - PC
 !etoland.co.kr##li:has(img[src*="/ad"])
