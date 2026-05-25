@@ -656,14 +656,19 @@ etoland.co.kr##div.my-4.flex:has(> script)
 ##.adsbyadop
 ! - 게시물내 광고글
 ! - - - PC
-etoland.co.kr##li:has(img[src*="/ad"])
+!etoland.co.kr##li:has(img[src*="/ad"])
 ! - - - 모바일
 ! -  -- 닉네임으로 된 광고
-etoland.co.kr##body *[class*="list"]:has-text(/노마십가|인터넷상담|한결같은호랑이|비밀상점|SA2HAK/)
-etoland.co.kr##body *[class*="list"]:has-text(/보험상담|신도림샤인컴|소명받은정화자|오늘의날씨/)
-etoland.co.kr##body *[class*="list"]:has-text(/내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr|캔커피/)
+!etoland.co.kr##body *[class*="list"]:has-text(/노마십가|인터넷상담|한결같은호랑이|비밀상점|SA2HAK/)
+!etoland.co.kr##body *[class*="list"]:has-text(/보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|야나기기1/)
+!etoland.co.kr##body *[class*="list"]:has-text(/내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr|캔커피/)
 ! -  -- 닉네임이 없는 광고
-etoland.co.kr##[data-inouts-click="true"]
+!etoland.co.kr##[class*="bg-transparent"]
+!etoland.co.kr##[data-inouts-click="true"]
+
+etoland.co.kr##li[class*="amber-100"]
+etoland.co.kr##li[class*="h-10"]
+
 ! - 애드블럭 감지 해제
 @@||doubleclick.net^$domain=etoland.co.kr
 ! 에토랜드 팝업 차단 및 페이지 이동 오류 해결 최종 조합
