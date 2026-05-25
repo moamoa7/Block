@@ -161,8 +161,8 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !##[class*="adsense" i]:not(:has(p))
 ##[class*="adsense" i]
 ##[id*="adsense" i]
-!##.google-ads
-##[class*="google-ads" i]
+!##[class*="google-ads" i]
+##.google-ads
 !
 !
 !
@@ -683,7 +683,7 @@ etoland.co.kr##li.h-fit.min-h-14:has(> div.group.flex)
 ! - 애드블럭 감지 해제 (출석체크 랜덤포인트 얻을려면 필요)
 @@||doubleclick.net^$domain=etoland.co.kr
 ! 에토랜드 팝업 차단
-!etoland.co.kr#%#//scriptlet('prevent-window-open')
+etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
 !etoland.co.kr##+js(window.open-defuser)
@@ -691,6 +691,7 @@ etoland.co.kr##li.h-fit.min-h-14:has(> div.group.flex)
 ! - - - 개인정보 처리방침 / 이용약관 삭제
 ! - - - 특정 팝업, 모달, 혹은 하단 쿠키/개인정보 처리방침 안내 바(Bar) 같은 독립된 요소에만 스타일을 안전하게 입히고 싶을 때 사용
 ##.privacy-container:not(body):not(html):not(.content-container)
+!
 !
 !
 ! 더쿠 (https://theqoo.net/)
@@ -3361,6 +3362,9 @@ wavve.com#@#[id*="main-banner" i]
 ##div[class*="mx-auto" i] [target] img[src]
 ! - 에외 - https://www.jobkorea.co.kr/- 이미지 일부 사라짐
 jobkorea.co.kr#@#div[class*="mx-auto" i] [target] img[src]
+! - 예외 - https://etoland.co.kr/ - 이동시 오류 발생
+etoland.co.kr#@#div[class*="mx-auto" i] [target] img[src]
+
 ! - 영상 하단내 배너 테두리
 !##.vjs-bottom-banner.vjs-bottom-banner-container
 ! 팝업 잔쟁이들
@@ -4638,6 +4642,11 @@ svrforum.com##html,body:style(overflow: auto !important;)
 ggoorr.net##.code-list-middle
 !
 !
+! KGIRLS.NET (https://www.kgirls.net/)
+! - 기타
+!##.google-ads
+!
+!
 !
 !
 !
@@ -4778,13 +4787,7 @@ ad-script.
 ##[id^="top-banner" i]
 !
 !
-##[alt*="광고"]
-!
-##[alt*="배너"]
-!
-##[alt*="스폰"]
-!
-!##[alt*="혜택"]
+
 !
 ##[alt*="보증토토"]
 !
@@ -4847,6 +4850,9 @@ naver_power
 !
 !
 ##[src*="토토"]
+!
+!
+*/ad-url*
 !
 !
 !
