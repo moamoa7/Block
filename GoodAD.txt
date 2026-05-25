@@ -1724,17 +1724,11 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 !
 ! 툰브로 (https://b17.toon-bro.xyz/)
+! - - - 팝업 및 화면 뿌옇게 되는거 건들지 말것. 한번 화면 아무곳이나 클릭해야 스크롤이 되는 곳이라 귀챃음
 ! - 팝업
-[$domain=/^b\d+.toon-bro.xyz/]##.inset-x-0
+![$domain=/^b\d+.toon-bro.xyz/]##.inset-x-0
 ! - 화면 뿌옇거 해결
-[$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
-! - 문제 해결
-! 1. 마우스 휠 및 터치 이벤트 가로채기 방지 (uBlock Origin 전용 스크립트 주입)
-[$domain=/^b\d+.toon-bro.xyz/]##+js(addEventListener-defuser, wheel)
-[$domain=/^b\d+.toon-bro.xyz/]##+js(addEventListener-defuser, touchmove)
-! 2. 마우스 우클릭 및 드래그 금지 스크립트 해제 (스크롤 버벅임 유발 방지)
-[$domain=/^b\d+.toon-bro.xyz/]##+js(addEventListener-defuser, contextmenu)
-[$domain=/^b\d+.toon-bro.xyz/]##+js(addEventListener-defuser, selectstart)
+![$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
 !
 !
 ! 링크 비비기 (https://linkbbg.com/)
@@ -4586,6 +4580,13 @@ torrentbob.com##div.m-b-10:nth-of-type(3)
 ! 호두코믹스 (https://hdhd506.net/)
 ! - 일부 이미지 복원
 @@/.*banner.*/$image,domain=/^hdhd[0-9]+\.net$/
+!
+!
+! 서버포럼 (https://svrforum.com/)
+! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
+svrforum.com##html,body:style(overflow: auto !important;)
+
+
 
 !
 !
