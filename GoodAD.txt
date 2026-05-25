@@ -659,7 +659,7 @@ etoland.co.kr##div.my-4.flex:has(> script)
 etoland.co.kr##li:has(img[src*="/ad"])
 ! - - - 모바일
 ! -  -- 닉네임으로 된 광고
-etoland.co.kr##body *[class*="list"]:has-text(/노마십가|인터넷상담|한결같은호랑이|비밀상점/)
+etoland.co.kr##body *[class*="list"]:has-text(/노마십가|인터넷상담|한결같은호랑이|비밀상점|SA2HAK/)
 etoland.co.kr##body *[class*="list"]:has-text(/보험상담|신도림샤인컴|소명받은정화자|오늘의날씨/)
 etoland.co.kr##body *[class*="list"]:has-text(/내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr|캔커피/)
 ! -  -- 닉네임이 없는 광고
