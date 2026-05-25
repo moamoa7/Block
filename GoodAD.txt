@@ -1697,8 +1697,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ![$domain=/^sbxh[0-9]*\.com/]##+js(aopr, BlockAdBlock)
 ![$domain=/^sbxh[0-9]*\.com/]##+js(aopr, FuckAdBlock)
 
-! - 팝업 차단
-![$domain=/^sbxh[0-9]*\.com/]##[class*="pc"]
+
 
 !//////////////////////////////////////////////////////
 
@@ -1709,6 +1708,18 @@ sbxh1.com,sbxh2.com,sbxh3.com#@#[data-brs][data-br]
 sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('set-local-storage-item', '/ntk_blk_/', '$remove$')
 sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'height', '100')
 sbxh1.com,sbxh2.com,sbxh3.com#@%#//scriptlet('spoof-css', '[data-bs], img[width], img[height], [data-bp]', 'width', '100')
+
+
+! - 팝업 차단
+||zxx.bet^
+||mm-1144.com^
+||tting.org^
+||dove02.bet^
+||jk-kr.com^
+||sm-mmm.com^
+||kkr-1777.com^
+||dino-111.com^
+||hbm-999.com^
 
 
 
@@ -4881,7 +4892,7 @@ manhwabang.org##a[target*="target"] img
 @@||*banner*$image,domain=cinety.sooplive.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 
-##[class*="banner" i]
+!##[class*="banner" i]
 ! - 예외
 ! - 툰코 (https://tkor119.com/) - 본문 다 사라짐
 ! - 펀비 (https://funbe637.com/) - 본문 다 사라짐
