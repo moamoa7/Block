@@ -36,7 +36,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 
 - 필터
 ```
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
 ```
 <br/>
 
@@ -45,7 +45,11 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/ma
 
 ..... 에펨코리아 익스텐션 (Gallery Extension)
 ```
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/Gallery%20Extension.user.js
+```
+..... antiadblck-sbxh.user
+```
+https://raw.githubusercontent.com/hooray804/octopus/main/antiadblck-sbxh.user.js
 ```
 ..... 디시인사이드 엑스퍼트 익스텐션
 ```
