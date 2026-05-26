@@ -1730,8 +1730,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 
 ! - 배너 크기 조절
 ! - - - 더 작개 하면 감지되서 200으로 제한
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { max-height: 200px !important; overflow: hidden !important; }
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { max-height: 200px !important; overflow: hidden !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { max-height: 100px !important; overflow: hidden !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { max-height: 100px !important; overflow: hidden !important; }
 
 
 !
