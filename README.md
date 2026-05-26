@@ -47,13 +47,13 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.t
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/Gallery%20Extension.user.js
 ```
-..... antiadblck-sbxh.user
-```
-https://raw.githubusercontent.com/hooray804/octopus/main/antiadblck-sbxh.user.js
-```
 ..... 디시인사이드 엑스퍼트 익스텐션
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js
+```
+..... antiadblck-sbxh.user
+```
+https://raw.githubusercontent.com/hooray804/octopus/main/antiadblck-sbxh.user.js
 ```
 ..... DNS 필터
 ```
