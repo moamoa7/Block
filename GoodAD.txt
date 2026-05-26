@@ -1214,11 +1214,11 @@ rgo4.com##div.xe-widget-wrapper.xe_content:nth-of-type(1)
 !
 ! https://www.goodgag.net/
 ! - 광고 허용 안내 팝업
-##.fc-dialog-container
+!goodgag.net##.fc-dialog-container
 ! - 게시물 목록 중간 배너
 goodgag.net##.inventoryAd
 ! - 팝업 차단으로 인한 스크롤 차단 해제
-goodgag.net##body:style(pointer-events: auto !important; overflow: auto !important;)
+!goodgag.net##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
 ! https://hungryapp.co.kr/
@@ -3359,6 +3359,7 @@ wavve.com#@#[id*="main-banner" i]
 ! 야동공장 (https://yagong91.com/)
 ! - 전체 배너
 ! - - -AV탑걸 (https://kr41.topgirl.co/)
+! - - - 기타 광고에도 나오는 규칙 (예 : 넥슨 로그인 하단 배너)
 ##div[class*="mx-auto" i] [target] img[src]
 ! - 에외 - https://www.jobkorea.co.kr/- 이미지 일부 사라짐
 jobkorea.co.kr#@#div[class*="mx-auto" i] [target] img[src]
@@ -4852,6 +4853,20 @@ naver_power
 */ad-url*
 !
 !
+*direct_url*
+!
+!
+##[src*="direct_url" i]
+!
+!
+##[src*="/pop/" i]
+!
+!
+/banners?
+!
+!
+||com/banners/
+!
 !
 !
 !
@@ -4872,7 +4887,8 @@ naver_power
 !
 ! - 출처 : Adblock-Rule-Collection-Lite
 ! - - - Funding Choices 서비스 삽입 (광고 차단 감지(Anti-AdBlock) / GDPR/쿠키 동의 배너 / 광고 수익 보호)
-##iframe[name="googlefcPresent" i]
+!##iframe[name="googlefcPresent" i]
+##iframe[name="googlefcPresent"]
 !
 !
 ! - .top으로 끝나는 사이트들은 기본적으로 다 막아버리되, 뒤에 나열된 도메인들은 안전하거나 필요한 곳이니 접속을 허용해라"라는 화이트리스트(백색목록) 규칙
