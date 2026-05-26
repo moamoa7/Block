@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260526
+! Version: 20260527
 !
 !
 !
@@ -108,6 +108,19 @@
 !
 !
 !
+!
+!
+
+! - Google의 클릭 추적 기능을 무력화
+www.google.*#%#//scriptlet('remove-attr', 'ping', 'div[id="search"] a[data-ved][ping]')
+! - 구글이 클릭 추적을 하려고 시도할 때, 마치 이미 추적을 마친 것처럼 속여서 실제 추적 프로세스가 실행되지 않도록 차단하는 기술
+www.google.*##+js(set-attr, c-wiz[data-p] [data-query] a[target="_blank"][role="link"], rlhc, 1)
+! - 구글 검색 결과 클릭 시 실행되는 추적 함수(rwt)를 찾아서, '아무것도 하지 않는 함수(noopFunc)'로 바꿔버려라
+www.google.*##+js(set, rwt, noopFunc)
+! - 구글의 복잡한 중간 추적 링크를 깔끔한 원본 링크로 직접 갈아치우는 방식
+www.google.*##+js(href-sanitizer, #main a[href^="/url?q=http"], ?q)
+!
+!
 ! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
 !##[class*="grecaptcha-badge" i]
 ##.grecaptcha-badge[data-style]
@@ -167,6 +180,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
+@@||www.youtube.com^$generichide
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 ! - 유튜브의 통계 및 시청 기록 시스템의 핵심 관문을 차단하는 규칙
 ! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
@@ -242,6 +256,8 @@ open.spotify.com##html,body:style(overflow: auto !important;)
 m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
 m.naver.com##script#MM_search_disaster ~*
 ! - 기타
+! - - - 사용자의 행동을 제한하는 '복사 방지/드래그 방지' 기능을 강제로 무력화
+naver.com##+js(aeld, /contextmenu|selectstart|dragstart/)
 ! - - - 네이버에서 제공하는 서비스나 앱 내에서 사용자 행동 로그 및 데이터 분석을 위해 사용하는 도메인
 ||apis.naver.com/mcollector/
 ! - - - 네이버에서 자체적으로 개발하여 사용하는 로그 수집 시스템인 NELO(Naver Error Log Optimizer)의 수집 서버 주소
@@ -382,6 +398,8 @@ sooplive.com##.adballoon_icon
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 !sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
 ! - 기타
+! - - - 사용자의 이용 패턴이나 활동을 기록/분석하는 로그 수집 차단
+||sooplive.com/asset/service/common/common_analysis.js
 ! - - - SOOP'에서 사용하는 광고 차단 탐지 및 광고 관련 데이터 통신을 막기 위한 규칙
 ||st.sooplive.com/api/da_block_api.php
 ! - - - SOOP(구 아프리카TV)의 생방송 시청 시 재생되는 광고 정보를 가져오는 핵심 경로를 차단하는 규칙
@@ -439,6 +457,7 @@ chzzk.naver.com#@#[class*="popup" i]
 !
 !
 ! 트위치 (https://www.twitch.tv/)
+@@||twitch.tv^$generichide
 ! - 상단 안내 문구
 www.twitch.tv##.kfZRQZ.Layout-sc-1xcs6mc-0
 ! - 하단 회원가입 안내 문구
@@ -454,6 +473,11 @@ www.twitch.tv##[data-test-selector="sda-wrapper"]
 www.twitch.tv##.top-bar:style(background:unset!important)
 ! - 영상 하단 지저분한거
 www.twitch.tv##div[data-a-target=player-controls]:style(background:unset!important)
+!
+!
+! 틱톡 (https://www.tiktok.com/)
+@@||tiktok.com^$generichide
+||mon.tiktokv.com^
 !
 !
 ! WAVVE (https://www.wavve.com/)
@@ -1266,6 +1290,7 @@ music.bugs.co.kr##.topBanner
 !
 !
 ! 넷플릭스 (https://www.netflix.com/)
+@@||netflix.com^$generichide
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com^
@@ -1295,8 +1320,25 @@ netflix.com##div[class^=watch-video--][class*="-container "]:style(background-im
 !
 !
 ! 티빙 (https://www.tving.com/)
+@@||tving.com^$generichide
 ! - 시청기록 남기기 (DNS에서 차단하면 해제 필요)
 @@||log.tving.com
+!
+!
+! 웨이브 (https://www.wavve.com/)
+@@||wavve.com^$generichide
+!
+!
+! 쿠팡플레이 (https://www.coupangplay.com/)
+@@||coupangplay.com^$generichide
+!
+!
+! 왓챠 (https://watcha.com/)
+@@||watcha.com^$generichide
+!
+!
+! 애플TV (https://tv.apple.com/)
+@@||apple.com^$generichide
 !
 !
 ! POOOO (https://poooo.ml/)
@@ -1356,9 +1398,13 @@ poooo.ml#@#.ad
 ##[id*="advert" i]
 !
 !
-! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03) (https://kf.hoohootv398.xyz/)
+! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03) (https://ft.hoohootv404.xyz/)
 ! - 배너 빈 공간
-[$domain=/^kf.hoohootv\d+.xyz/]###img_row_container
+[$domain=/^ft.hoohootv\d+.xyz/]###img_row_container
+! - 기타
+/disable-devtool.js
+||jsdelivr.net/npm/disable-devtool
+||jwpcdn.com^
 !
 !
 ! 티비룸  (https://tvroom.vip/)
@@ -1378,13 +1424,15 @@ poooo.ml#@#.ad
 [$domain=/^www.nnuutv\d+.tv/]###comp-lhh974mf2
 !
 !
-! 콕콕티비 (https://cokcok6.com/)
+! 콕콕티비 (https://cokcok7.com/)
 ! - -  티비위키 (https://tvwiki.app/)
 ! - 팝업 - ##[class*="popup-banner" i]으로 대체
 !##[class*="popup-banners" i]
 ! - 상단 배너 공간
 ![$domain=/^cokcok\d+.com/],tvwiki.app##.custom_banner_wrap
 !##[class*="custom_banner" i]
+! - 기타
+||jsdelivr.net/npm/devtools-detector
 !
 !
 ! 무비킹 (https://mvking4.org/)
@@ -4917,6 +4965,7 @@ naver_power
 !||*/popup/*
 !||*/popups/*
 ||*pop*up*
+
 ! - 예외
 ! - - - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
 @@||*pop*up*$css
@@ -4960,7 +5009,10 @@ manhwabang.org##a[target*="target"] img
 !@@||*banner*$script,domain=11st.co.kr|cookmana53.com
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! 18모아 (https://18moa028.com/)
-@@||*banner*$image,domain=cinety.sooplive.com
+! 티빙 (https://www.tving.com/)
+! 웨이브 (https://www.wavve.com/)
+! 쿠팡플레이 (https://www.coupangplay.com/)
+@@||*banner*$image,domain=cinety.sooplive.com|tving.com|wavve.com|coupangplay.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 
 ##[class*="banner" i]
@@ -5050,10 +5102,13 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 *background*
 ! - 예외
-@@||*background$domain=cineaste.co.kr
+@@||*background$domain=cineaste.co.kr|coupangplay.com
 
 
 */background/*
+! - 예외
+! - - - 쿠팡플레이 (https://www.coupangplay.com/)
+@@*/background/*$domain=coupangplay.com
 
 !!! 특정
 ! - - - 이미지가 gif가 아닌 경우에도 사용
@@ -5111,7 +5166,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - AV쏘걸 (https://kr86.sogirl.so/)
 ! - - - 애니24(https://ohli24.net/)
 ! - - - 19다모아 (www.19damoa.org/)
-! - - - 콕콕티비 (https://cokcoktv4.com/)
+! - - - 콕콕티비 (https://cokcoktv7.com/)
 ! - - - 청양티비 (https://cytv144.com/)
 ! - - - 토렌트제이 (http://torrentj168.com/)
 ! - - - 티비소리 (https://srtv119.com/)
@@ -5126,7 +5181,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 툰코 (https://tkor119.com/) 
 !##a[href*='http'][target*='blank'] img
 !##a[target*='blank']:has(img)
-[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],tvchak.live,[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcoktv\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
+[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],tvchak.live,[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcok\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
 zod.kr##a[target*="blank"] img
 [$domain=/^t2.xtoon/]##a[target*="blank"] img
 [$domain=/^ssg\d+\.torrentssg\d+\.com/]##a[target*="blank"] img
