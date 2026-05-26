@@ -1322,6 +1322,8 @@ poooo.ml#@#.ad
 ###bannerList
 ! -  - 티비몬
 !##[class*="row-banner" i]
+! - 목록 위 위크 표시
+[$domain=/^tvwiki\d+\.net$/]##.mov_type222
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 ! -  -- PC
@@ -2427,9 +2429,9 @@ avsee.ru#@#.tabs
 ! https://javplayer.org/
 ! - 영상 오른쪽 배너
 !##iframe[sandbox="allow-scripts allow-popups allow-forms allow-same-origin"][src]
-##iframe[sandbox][src]
+!##iframe[width="300"][height="250"][sandbox][src]
 !google.com/recaptcha#@#iframe[sandbox][src]
-mypikpak.com/ko/check-in#@#iframe[sandbox][src]
+!mypikpak.com/ko/check-in#@#iframe[sandbox][src]
 ! - 일부 영상 재생 차단 방지
 !stb.strp2p.com,hgslave.xyz,ryderjet.com#@#[class*="floating" i]
 !
@@ -2628,6 +2630,8 @@ tktube.com##.top
 ! - - - 예외
 ! - - - https://adguard-dns.io/ 도메인 클릭시 팝업 안뜸
 !adguard-dns.io#@#.top
+! - iframe 차단
+/player/html.php?aid=*&video_id=*&referer=
 !
 !
 !
@@ -2979,7 +2983,7 @@ missav.*,njavtv.com##[class^="mx-auto" i]
 [$domain=/^missav\d+.com/]##[class^="mx-auto" i]
 ! - 개별 배너 (iframe)
 ##[src*="javascript"]
-##[src*="frame"]
+!##[src*="frame"]
 ##[src*="/ad?" i]
 ##[src*="/widgets/" i]
 ##[src*="/smartpop/" i]
@@ -4646,6 +4650,11 @@ ggoorr.net##.code-list-middle
 !##.google-ads
 !
 !
+! JAVSO (https://javso.com/) - 사이트 영상은 안나오는듯
+! - 영상위 떠 있는 팝업
+javso.com###playera
+!
+!
 !
 !
 !
@@ -4661,6 +4670,18 @@ ggoorr.net##.code-list-middle
 !
 !
 ! ((기타))
+!
+!
+!
+! 기타 프레임 규칙들
+
+! - https://javplayer.org/
+##iframe[width="300"][height="250"][sandbox][src]
+##iframe[width="728"][height="90"][sandbox][src]
+##iframe[width="160"][height="600"][sandbox][src]
+##iframe[width="320"][height="50"][sandbox][src]
+##iframe[width="336"][height="280"][sandbox][src]
+##iframe[width="970"][height="250"][sandbox][src]
 !
 !
 ! 홍보글 링크 주의
@@ -4951,6 +4972,8 @@ manhwabang.org##a[target*="target"] img
 ! - 펀비 (https://funbe637.com/) - 본문 다 사라짐
 ! - 이토랜드 (https://etoland.co.kr/) - 페이지 이동 오류 해결
 [$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr#@#[class*="banner" i]
+
+chzzk.naver.com/cheezefarm#@#[class*="banner" i]
 
 
 ! - 예외
