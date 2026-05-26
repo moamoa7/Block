@@ -185,6 +185,9 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - 유튜브의 통계 및 시청 기록 시스템의 핵심 관문을 차단하는 규칙
 ! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
 @@||youtube.com/api/stats^
+! - 유튜브(youtube.com)에서 광고가 재생될 때 발생하는 '상태 보고(Ad Status)' 통신을 차단
+! - - - 광고는 차단하되, 유튜브 플레이어가 고장 나지 않도록 필수적인 통신 파일은 통과시켜 주는 '안정화 장치
+@@||static.doubleclick.net/instream/ad_status.js$domain=youtube.com
 ! - 메인에서 5줄로 나오는거 해제 (Cosmetic Combined Filterlist )
 youtube.com#@#ytd-rich-grid-renderer, html:style(--ytd-rich-grid-items-per-row: 5 !important;)
 ! - 영상 플레이어 오른쪽 영상리스트 가려진거 해제 (Cosmetic Combined Filterlist )
