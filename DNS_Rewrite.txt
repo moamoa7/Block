@@ -1435,6 +1435,7 @@
 ||mobon.net^
 ||tg.widerplanet.com^
 ||teralog.techhub.co.kr^
+! - 치지직 무료 치지 할려면 해제 필요
 ||pincrux.com^
 ||ad.aceplanet.co.kr^
 ||zicf.inven.co.kr^
