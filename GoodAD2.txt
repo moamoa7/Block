@@ -131,6 +131,7 @@ $removeparam=ig_mid
 $removeparam=tt_medium
 $removeparam=tt_content
 $removeparam=_t,domain=tiktok.com|vt.tiktok.com
+$removeparam=gd_label,domain=tiktok.com|vt.tiktok.com
 
 ! ───── Twitter / X ─────
 $removeparam=twclid
