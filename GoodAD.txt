@@ -180,7 +180,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 !
 !
 ! 유튜브 (https://www.youtube.com/)
-@@||www.youtube.com^$generichide
+!@@||www.youtube.com^$generichide
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 ! - 유튜브의 통계 및 시청 기록 시스템의 핵심 관문을 차단하는 규칙
 ! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
@@ -460,7 +460,7 @@ chzzk.naver.com#@#[class*="popup" i]
 !
 !
 ! 트위치 (https://www.twitch.tv/)
-@@||twitch.tv^$generichide
+!@@||twitch.tv^$generichide
 ! - 상단 안내 문구
 www.twitch.tv##.kfZRQZ.Layout-sc-1xcs6mc-0
 ! - 하단 회원가입 안내 문구
@@ -1293,7 +1293,7 @@ music.bugs.co.kr##.topBanner
 !
 !
 ! 넷플릭스 (https://www.netflix.com/)
-@@||netflix.com^$generichide
+!@@||netflix.com^$generichide
 ! - 광고 차단
 ! - - -  DNS서버 (NextDNS 혹은 Adguard DNS에 추가) + 애드가드 앱관리에서 앱 추가
 ||logs.netflix.com^
@@ -1341,7 +1341,7 @@ netflix.com##div[class^=watch-video--][class*="-container "]:style(background-im
 !
 !
 ! 애플TV (https://tv.apple.com/)
-@@||apple.com^$generichide
+!@@||apple.com^$generichide
 !
 !
 ! POOOO (https://poooo.ml/)
