@@ -1323,21 +1323,21 @@ netflix.com##div[class^=watch-video--][class*="-container "]:style(background-im
 !
 !
 ! 티빙 (https://www.tving.com/)
-@@||tving.com^$generichide
+!@@||tving.com^$generichide
 ! - 시청기록 남기기 (DNS에서 차단하면 해제 필요)
 @@||log.tving.com
 !
 !
 ! 웨이브 (https://www.wavve.com/)
-@@||wavve.com^$generichide
+!@@||wavve.com^$generichide
 !
 !
 ! 쿠팡플레이 (https://www.coupangplay.com/)
-@@||coupangplay.com^$generichide
+!@@||coupangplay.com^$generichide
 !
 !
 ! 왓챠 (https://watcha.com/)
-@@||watcha.com^$generichide
+!@@||watcha.com^$generichide
 !
 !
 ! 애플TV (https://tv.apple.com/)
@@ -5012,10 +5012,8 @@ manhwabang.org##a[target*="target"] img
 !@@||*banner*$script,domain=11st.co.kr|cookmana53.com
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! 18모아 (https://18moa028.com/)
-! 티빙 (https://www.tving.com/)
-! 웨이브 (https://www.wavve.com/)
 ! 쿠팡플레이 (https://www.coupangplay.com/)
-@@||*banner*$image,domain=cinety.sooplive.com|tving.com|wavve.com|coupangplay.com
+@@||*banner*$image,domain=cinety.sooplive.com|coupangplay.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 
 ##[class*="banner" i]
@@ -5100,7 +5098,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 
-
+*/background/*
 
 
 *background*
@@ -5108,10 +5106,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 @@||*background$domain=cineaste.co.kr|coupangplay.com
 
 
-*/background/*
-! - 예외
-! - - - 쿠팡플레이 (https://www.coupangplay.com/)
-@@*/background/*$domain=coupangplay.com
 
 !!! 특정
 ! - - - 이미지가 gif가 아닌 경우에도 사용
