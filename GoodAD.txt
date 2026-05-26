@@ -4613,6 +4613,8 @@ m.wikitree.co.kr###wikitree_image1_bottom
 !
 !
 ! https://cloudfam.io/
+! - 애드가드 탐지 해제
+@@||cloudfam.io^$generichide
 ! - 하단 배너
 *##.adbox
 !
