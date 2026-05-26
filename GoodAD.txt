@@ -1729,11 +1729,9 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { position: absolute !important; left: -3000px !important; }
 
 ! - 배너 크기 조절
-! - - - 더 작개 하면 감지되서 200으로 제한
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { max-height: 100px !important; overflow: hidden !important; }
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { max-height: 100px !important; overflow: hidden !important; }
-
-
+! - - - 웹툰 보는곳에 광고가  1라인이 더 늘어서 data-brs에 이름을 특정짓지 않음
+! - - - 메인에서는 100px면 됬지만 웹툰을 볼려면 125px가 최소임
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs] { max-height: 125px !important; overflow: hidden !important; }
 !
 !
 ! 무료툰 (https://foc94.com/)
