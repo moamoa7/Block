@@ -47,9 +47,9 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.t
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/Gallery%20Extension.user.js
 ```
-..... 디시인사이드 엑스퍼트 익스텐션
+..... 디시인사이드 엑스퍼트 익스텐션 (Dcinside Expert Extension)
 ```
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/dc.user.js
 ```
 ..... antiadblck-sbxh.user
 ```
@@ -57,7 +57,7 @@ https://raw.githubusercontent.com/hooray804/octopus/main/antiadblck-sbxh.user.js
 ```
 ..... DNS 필터
 ```
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 ```
 <br/>
 <br/>
