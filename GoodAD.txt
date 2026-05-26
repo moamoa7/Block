@@ -4665,6 +4665,10 @@ ggoorr.net##.code-list-middle
 ! ((기타))
 !
 !
+! 홍보글 링크 주의
+||event.filesun.com^
+!
+!
 ! - 광고 스킵
 ##[class*="playerads" i]
 !
@@ -4851,12 +4855,6 @@ naver_power
 !
 !
 */ad-url*
-!
-!
-*direct_url*
-!
-!
-##[src*="direct_url" i]
 !
 !
 ##[src*="/pop/" i]
