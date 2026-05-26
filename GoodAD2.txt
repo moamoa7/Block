@@ -1790,6 +1790,8 @@ x.com/*/videoads/
 ||ho.fi^$third-party
 ||n9k.run^$doc
 ||n9k.run^$third-party
+||yax.zone^$doc
+||yax.zone^$third-party
 
 
 ! ═══════════════════════════════════════════
