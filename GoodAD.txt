@@ -4926,14 +4926,10 @@ linkareer.com#@#[src*="advert" i]
 !
 ##[class*="advert" i]
 !
-!
-*adverts*
-!
-!
-*advertising*
-!
-!
-||*.advert.*
+! - 위의 것이 문제가 많이 발생하면 아래것으로 세분해하자
+!*adverts*
+!*advertising*
+!||*.advert.*
 !
 !
 !
