@@ -1863,8 +1863,6 @@ x.com/*/videoads/
 
 ! ───── uBlock 사칭/비공식 사이트 ─────
 ! 진짜 공식: https://github.com/gorhill/uBlock
-||ublockdns.com^$doc
-||ublockorigin.com^$doc
 ublockdns.com##html
 ublockorigin.com##html
 
