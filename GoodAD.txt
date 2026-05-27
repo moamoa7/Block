@@ -1791,8 +1791,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - - - 메인에서는 100px면 됬지만 웹툰을 볼려면 125px가 최소임
 ![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs] { max-height: 125px !important; overflow: hidden !important; }
 
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; }
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #1a1a1a !important; z-index: 9999 !important; pointer-events: none !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #1a1a1a !important; pointer-events: none !important; }
 !
 !
 ! 무료툰 (https://foc94.com/)
