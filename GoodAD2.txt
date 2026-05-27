@@ -819,7 +819,6 @@ $cookie=/^__hstc$/
 ! 추가 추적 스크립트
 ||cdn.optimizely.com^$script,redirect=noopjs
 ||static.cloudflareinsights.com^$script,redirect=noopjs
-*$script,redirect-rule=noopjs,to=~sentry-cdn.com
 
 ! ───── VAST/VMAP 광고 응답 → 빈 응답 ─────
 ||*/vast/*$xmlhttprequest,redirect=noopvast-2.0
