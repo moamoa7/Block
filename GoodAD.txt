@@ -1746,14 +1746,14 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
 
 ! - 사이트 차단
-||sbxh*.com^
+!||sbxh*.com^
 
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide
 !@@||sbxh*.com^$image,xhr,script
 
 ! =====  List KR 규칙 해제  =====
-[$domain=/^sbxh[0-9]*\.com/]#@#*
+[$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
 
 
 ! ===== 추가 차단 (uBlock Origin) =====
