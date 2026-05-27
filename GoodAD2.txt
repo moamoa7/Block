@@ -31,7 +31,7 @@
 ! Title: Personal Privacy & Traffic Filter
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260526-rev2
+! Version: 20260527-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -819,6 +819,7 @@ $cookie=/^__hstc$/
 ! 추가 추적 스크립트
 ||cdn.optimizely.com^$script,redirect=noopjs
 ||static.cloudflareinsights.com^$script,redirect=noopjs
+*$script,redirect-rule=noopjs,to=~sentry-cdn.com
 
 ! ───── VAST/VMAP 광고 응답 → 빈 응답 ─────
 ||*/vast/*$xmlhttprequest,redirect=noopvast-2.0
