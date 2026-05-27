@@ -123,7 +123,7 @@ www.google.*##+js(href-sanitizer, #main a[href^="/url?q=http"], ?q)
 !
 ! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
 !##[class*="grecaptcha-badge" i]
-##.grecaptcha-badge[data-style]
+##.grecaptcha-badge
 !
 !
 ! 카카오TV (https://tv.kakao.com/)
@@ -311,7 +311,7 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 ! - - - https://chzzk.naver.com/ - 영상 내 보이지 않는 부분 (무엇인지는 모름)
 !##[class*="advertisement" i]
 !##[class*="advertise" i]
-##[class*="advert" i]
+!##[class*="advert" i]
 !
 !
 ! 네이버TV (https://tv.naver.com/)
@@ -3888,9 +3888,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ! 밤가드 (https://www.bamgad7.com/) 
 ! - 배너
 !/advertise^
-##[src*="advert" i]
-! - 예외
-linkareer.com#@#[src*="advert" i]
+!##[src*="advert" i]
 ! - 상단 배너 공간
 ![$domain=/^www.bamgad\d+.com/]##.new-top.container
 [$domain=/^www.bamgad/],[$domain=/^bamgad/]##.new-top.container
@@ -4751,45 +4749,28 @@ javso.com###playera
 !
 !
 *##.ad
-
-
 !
 !
 */ad?*
 !
 !
-/ad.
-@@/ad.$css
+*/ad.*
+@@*/ad.*$css
 !
 !
 */ad/*
 @@*/ad/*$domain=avsee.ru|linkareer.com
 !
 !
-*/Ad/*
-!
-*/aD/*
-!
-*/AD/*
-!
-!
-! https://ygosu.com/ 광고 게시물 삭제
-~avsee.ru,~linkareer.com##[src*="/ad/" i]
-!
-!
-##[src*="/ads/" i]
-!
-!
-/ad/*$frame
+##[src*="/ad/" i], [src*="/ads/" i]
+! - 예외
+avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
 !/ad_
 !
 !
-*/ad/js/*
-!
-!
-ad-script.
+*ad-script.*
 !
 !
 ^ad|
@@ -4800,19 +4781,18 @@ ad-script.
 !
 */ads*
 !@@/ads*$domain=login.coupang.com
-
-!
-!
-*/ads/*
 !
 !
 */ads-*
 !
 !
-/ads/*
+*/ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
 !@@ad-img.gmarket.com/ADS/*
+!
+!
+*_ads.*
 !
 !
 *_ads_*
@@ -4865,11 +4845,6 @@ ad-script.
 
 !
 ##[alt*="보증토토"]
-!
-!
-! - https://shopping.naver.com/
-^advertisement^
-@@^advertisement^$domain=linkareer.com
 !
 !
 ##[id*="popup_banner" i]
@@ -4933,6 +4908,23 @@ naver_power
 ||com/banners/
 !
 !
+! - https://shopping.naver.com/
+*advert*$script,image,frame,third-party
+! - 예외
+@@*advert*^$domain=linkareer.com
+!
+!
+! - https://shopping.naver.com/
+!^advertisement^
+!@@^advertisement^$domain=linkareer.com
+!
+!
+##[src*="advert" i]
+! - 예외
+linkareer.com#@#[src*="advert" i]
+!
+!
+##[class*="advert" i]
 !
 !
 !
@@ -4970,6 +4962,10 @@ naver_power
 ||*pop*up*
 
 ! - 예외
+!  - -- https://www.wavve.com/ - 개별 구매시 (필요 해제 하지 말것)
+
+
+! - 예외
 ! - - - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
 @@||*pop*up*$css
 
@@ -4983,8 +4979,8 @@ diningcode.com#@#[class*="popup" i]
 mypikpak.com#@#[class*="popup" i]
 
 
-
-#@#img[src*="ads" i]
+##[src*="ads" i]
+!#@#img[src*="ads" i]
 
 !!! 광역
 
@@ -5007,9 +5003,9 @@ manhwabang.org##a[target*="target"] img
 
 
 
-*banner*$image,frame
+*banner*
 ! - 11번가 - 사이트 구동이 안됨
-!@@||*banner*$script,domain=11st.co.kr|cookmana53.com
+@@||*banner*$script,domain=11st.co.kr|cookmana53.com
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! 18모아 (https://18moa028.com/)
 ! 쿠팡플레이 (https://www.coupangplay.com/)
