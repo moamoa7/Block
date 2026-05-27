@@ -348,6 +348,8 @@ sooplive.com##.message_player_wrap
 !#.chat_banner
 ! - 채팅 상단 배너
 !sooplive.com##.on.chat_banner2
+! - 로딩바
+##.loading
 ! - 채팅 공지 (필요시)
 sooplive.com##.chat_notice
 ! - 채팅 상단 배너 & 채팅 공지 (필요시)
@@ -3416,8 +3418,8 @@ wavve.com#@#[id*="main-banner" i]
 ##div[class*="mx-auto" i] [target] img[src]
 ! - 에외 - https://www.jobkorea.co.kr/- 이미지 일부 사라짐
 jobkorea.co.kr#@#div[class*="mx-auto" i] [target] img[src]
-! - 예외 - https://etoland.co.kr/ - 이동시 오류 발생
-etoland.co.kr#@#div[class*="mx-auto" i] [target] img[src]
+! - 예외 - https://etoland.co.kr/ - 이동시 오류 발생 (해도 오류라 아님)
+!etoland.co.kr#@#div[class*="mx-auto" i] [target] img[src]
 
 ! - 영상 하단내 배너 테두리
 !##.vjs-bottom-banner.vjs-bottom-banner-container
@@ -4762,9 +4764,12 @@ javso.com###playera
 @@*/ad/*$domain=avsee.ru|linkareer.com
 !
 !
-##[src*="/ad/" i], [src*="/ads/" i]
+##[src*="/ad/" i]
 ! - 예외
 avsee.ru,linkareer.com#@#[src*="/ad/" i]
+!
+!
+##[src*="/ads/" i]
 !
 !
 !/ad_
@@ -4930,6 +4935,15 @@ linkareer.com#@#[src*="advert" i]
 !*adverts*
 !*advertising*
 !||*.advert.*
+!
+!
+*collector*
+!
+!
+##[src*="collector"]
+!
+!
+##[class*="collector" i]
 !
 !
 !
