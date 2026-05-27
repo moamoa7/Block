@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260527
+! Version: 20260528
 !
 !
 !
@@ -657,7 +657,7 @@ gall.dcinside.com#@#.r_dcmedia
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe634.com/) - 이미지 목록 사라짐
+! 펀비 (https://funbe638.com/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -746,7 +746,7 @@ inven.co.kr##[class="modal-fixed" i]
 ! - ##.ad 예외
 inven.co.kr#@#.ad
 ! - 게시물 전체 배너
-##[src*=".ads/" i]
+!##[src*=".ads/" i] - ##[src*="ads" i]로 대체
 ! -오른쪽 배너
 ##.ad-right2
 !##[class*="ad-right" i]
@@ -807,7 +807,7 @@ inven.co.kr###invenAppSuggestion
 ##.top_ad
 ! - 오른쪽 배너
 !##[class*="big_banner" i]
-##.big_banner
+!##.big_banner
 ! - 게시물 하단 배너 / 맨 하단 배너
 ##.left_cont > div[style]
 ! - 댓글 바로 위 텍스트 배너?
@@ -834,7 +834,7 @@ mlbpark.donga.com##.inner_article
 !ruliweb.com##.adrr
 ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe634.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe638.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 ruliweb.com##[class*="ad_"][style]
 ! -  상단 메인 배너
@@ -874,7 +874,7 @@ ddanzi.com###banner_ddanzi_market
 ! - 전체 배너
 ddanzi.com##[class*="add_display"]
 ! - 게시글 하단 공백 공간 (모바일)
-ddanzi.com##.add_display2
+!ddanzi.com##.add_display2
 ! - 이미지 복원
 !@@||img-cdn.ddanzi.com/files/attach/images/*$image
 ! - 게시물 하단 게시판 리스트 삭제 (PC/모바일) - 없애면 목록 클릭시 게시판 내용이 안나옴
@@ -1606,8 +1606,8 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://tkor119.com/)
-! 펀비 (https://funbe634.com/)
+! 툰코 (https://tkor120.com/)
+! 펀비 (https://funbe638.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -1629,11 +1629,11 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !
 !
 ! 나이스링크 (https://nicelink51.com/)
-! 늑대닷컴 (https://xn--ph1bph0az41x.com/)
-! 늑대닷컴 (https://wfwf452.com/)
-! 늑대닷컴2 (https://wftoon208.com/)
-! W툰 (https://wtwt326.com/)
-! 여우코믹스 (https://fxfx324.com/)
+! 늑대닷컴 ((https://xn--ph1bph0az41x.com/))
+! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf456.com/)
+! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon212.com/)
+! W툰 (https://t.me/s/wtwt999) (https://wtwt327.com/)
+! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx324.com/)
 ! - 팝업
 ! - - - 별별티비 (https://www.bbtv86.com/)
 !##.modal-wrapper
@@ -1743,7 +1743,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ![$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
 !
 !
-! 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
+! 뉴토끼 (https://sbxh3.com/)
 
 ! - 사이트 차단
 !||sbxh*.com^
@@ -1792,6 +1792,11 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - - - 현재 배너 가림 색상은 흰색 - 다크모드일경우는 검은색으로 변경 필요
 [$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
 [$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; }
+!
+!
+! 블랙툰 (https://www.blacktoonurl2.com/) ()
+! - 최신주소 안내페이지 배너 공간
+[$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 !
 !
 ! 무료툰 (https://foc94.com/)
@@ -3354,7 +3359,7 @@ wavve.com#@#[id*="main-banner" i]
 !
 ! 밤포탈 (https://bampt3.com/)
 ! - 팝업 및 뿌연거 해결  (PC)
-! - - - 뉴토끼 (https://sbxh1.com/) (https://sbxh2.com/)
+! - - - 뉴토끼 (https://sbxh3.com/)
 !##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
 ##[id="popupoverlay" i]
@@ -4644,13 +4649,13 @@ saramin.co.kr#@#[class*="banner" i]
 hearheart.com##.mb-6.relative
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto06.com/) (https://mato06.com/) (https://bookto06.com/)
+! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto07.com/) (https://mato07.com/) (https://bookto07.com/)
 ! - 이미지
-! - - - 뉴토끼 (https://newto06.com/)
+! - - - 뉴토끼 (https://newto07.com/)
 ||newto*.com/data/apms/*
-! - - - 마나토끼 (https://mato06.com/)
+! - - - 마나토끼 (https://mato07.com/)
 ||mato*.com/data/apms/*
-! - - - 북토끼 (https://bookto06.com/)
+! - - - 북토끼 (https://bookto07.com/)
 ||bookto*.com/data/apms/*
 !
 !
@@ -4689,6 +4694,7 @@ torrentbob.com##div.m-b-10:nth-of-type(3)
 ! 호두코믹스 (https://hdhd506.net/)
 ! - 일부 이미지 복원
 @@/.*banner.*/$image,domain=/^hdhd[0-9]+\.net$/
+/^hdhd[0-9]+\.net$/#@#[src*="banner" i]
 !
 !
 ! 서버포럼 (https://svrforum.com/)
@@ -4774,7 +4780,7 @@ javso.com###playera
 avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
-##[src*="/ads/" i]
+!##[src*="/ads/" i] - ##[src*="ads" i]로 대체
 !
 !
 !/ad_
@@ -4823,13 +4829,16 @@ avsee.ru,linkareer.com#@#[src*="/ad/" i]
 */banner-ad/*
 !
 !
-*/videoad/*
+##[src*="videoad" i]
+##[src*="video-ad" i]
 !
-*/video-ad/*
 !
-*/videoads/*
-!
-*/video-ads/*
+!*/videoad/*
+!*/video-ad/*
+!*/videoads/*
+!*/video-ads/*
+*videoad*
+*video-ad*
 !
 !
 ##[class$="right-ad" i]
@@ -4892,9 +4901,6 @@ avsee.ru,linkareer.com#@#[src*="/ad/" i]
 /_store
 !
 !
-naver_power
-!
-!
 ! -팝업창 닫고난 후 뿌옇거나 클릭이 안되는 문제
 !##.hidden
 !##div[class^="hidden" i]
@@ -4907,15 +4913,6 @@ naver_power
 !
 !
 ##[src*="토토"]
-!
-!
-##[src*="/pop/" i]
-!
-!
-/banners?
-!
-!
-||com/banners/
 !
 !
 ! - https://shopping.naver.com/
@@ -4981,6 +4978,16 @@ linkareer.com#@#[src*="advert" i]
 
 
 ==================================
+
+
+
+##[src*="/pop/" i]
+##[src*="popup" i]
+##[src*="pop-up" i]
+
+
+*/*pop*/*
+
 !||*/popup/*
 !||*/popups/*
 ||*pop*up*
@@ -5004,6 +5011,10 @@ mypikpak.com#@#[class*="popup" i]
 
 
 ##[src*="ads" i]
+
+*ads*
+
+##[class*="ads" i]
 !#@#img[src*="ads" i]
 
 !!! 광역
@@ -5026,6 +5037,7 @@ i-boss.co.kr,~avsee.ru##a[target*="blank"] > img[src*=".gif"]
 manhwabang.org##a[target*="target"] img
 
 
+##[src*="banner" i]
 
 *banner*
 ! - 11번가 - 사이트 구동이 안됨
@@ -5038,12 +5050,14 @@ manhwabang.org##a[target*="target"] img
 
 ##[class*="banner" i]
 ! - 예외
-! - 툰코 (https://tkor119.com/) - 본문 다 사라짐
-! - 펀비 (https://funbe637.com/) - 본문 다 사라짐
+! - 툰코 (https://tkor120.com/) - 본문 다 사라짐
+! - 펀비 (https://funbe638.com/) - 본문 다 사라짐
 ! - 이토랜드 (https://etoland.co.kr/) - 페이지 이동 오류 해결
-[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr#@#[class*="banner" i]
+! -  일일툰 (https://www.11toon148.com/) - 본문 다 사라짐
+! - 일일툰 (https://www.spotv147.com/) - 본문 다 사라짐
+[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
 
-chzzk.naver.com/cheezefarm#@#[class*="banner" i]
+
 
 
 ! - 예외
@@ -5116,7 +5130,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 
 
 
-
+##[src="background" i]
 
 */background/*
 
@@ -5136,7 +5150,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 야툰 (https://yatoon207.com/)
 ! - - - 마징가툰 (https://z70.mzgtoon.com/)
 ! - - - 애니조아 (https://www.anizoa.net/)
-! - - - 펀비 (https://funbe634.com/)
+! - - - 펀비 (https://funbe638.com/)
 ! - - - 애니어바웃 (https://aniabout.com/)
 ! - - - 해피툰 (https://happytoon01.com/)
 ! - - - 머니툰 (https://mtoon125.com/)
@@ -5195,7 +5209,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 조드 (https://zod.kr/)
 ! - - - x툰 (https://t2.xtoon365.com/)
 ! - - - 토렌트쑥 (https://ssg2.torrentssg8.com/)
-! - - - 툰코 (https://tkor119.com/) 
+! - - - 툰코 (https://tkor120.com/) 
 !##a[href*='http'][target*='blank'] img
 !##a[target*='blank']:has(img)
 [$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],tvchak.live,[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcok\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
