@@ -4927,6 +4927,15 @@ linkareer.com#@#[src*="advert" i]
 ##[class*="advert" i]
 !
 !
+*adverts*
+!
+!
+*advertising*
+!
+!
+||*.advert.*
+!
+!
 !
 !
 !
