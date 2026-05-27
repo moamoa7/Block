@@ -1786,13 +1786,12 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { position: absolute !important; left: -3000px !important; }
 ![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { position: absolute !important; left: -3000px !important; }
 
-! - 배너 크기 조절
+! - 배너 크기 조절 + 시각적 가림 + 클릭 흡수
 ! - - - 웹툰 보는곳에 광고가  1라인이 더 늘어서 data-brs에 이름을 특정짓지 않음
 ! - - - 메인에서는 100px면 됬지만 웹툰을 볼려면 125px가 최소임
-![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs] { max-height: 125px !important; overflow: hidden !important; }
-
+! - - - 현재 배너 가림 색상은 흰색 - 다크모드일경우는 검은색으로 변경 필요
 [$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
-[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #1a1a1a !important; pointer-events: none !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; }
 !
 !
 ! 무료툰 (https://foc94.com/)
