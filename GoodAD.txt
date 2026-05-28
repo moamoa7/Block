@@ -3074,6 +3074,8 @@ popjav.in##div.pop--excl
 ! https://kissjav.com/
 ! - 영상 옆 오른쪽 배너
 kissjav.com##.asside-link
+! - 영상 재생 안되는 문제 해결
+@@||tsyndicate.com^$domain=kissjav.com
 !
 !
 ! JAVCEP.COM (https://javcep.com/)
