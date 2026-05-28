@@ -3429,10 +3429,7 @@ wavve.com#@#[id*="main-banner" i]
 ! 야동공장 (https://yagong91.com/)
 ! - 전체 배너
 ! - - -AV탑걸 (https://kr41.topgirl.co/)
-! - - - 기타 광고에도 나오는 규칙 (예 : 넥슨 로그인 하단 배너)
-##div[class*="mx-auto" i] [target] img[src]
-! - 에외 - https://www.jobkorea.co.kr/- 이미지 일부 사라짐
-jobkorea.co.kr#@#div[class*="mx-auto" i] [target] img[src]
+##div[class*="mx-auto" i] a[href*="http"][target*="blank"] img[src]
 ! - 예외 - https://etoland.co.kr/ - 이동시 오류 발생 (해도 오류라 아님)
 !etoland.co.kr#@#div[class*="mx-auto" i] [target] img[src]
 
@@ -5056,6 +5053,7 @@ manhwabang.org##a[target*="target"] img
 ! 18모아 (https://18moa028.com/)
 ! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
 [$domain=/^t\d+.xtoon365.com/],inety.sooplive.com,/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
+
 
 
 *banner*
