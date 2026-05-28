@@ -1681,7 +1681,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ![$domain=/^joatoon\d+.com/]##.fixed
 !
 !
-! 엑스툰  XToon (https://xn--9t4b31dr7o.com/) (https://t2.xtoon365.com/)
+! 엑스툰  XToon (https://xn--9t4b31dr7o.com/) (https://t3.xtoon365.com/)
 ! - 팁
 ##.f-tips
 ! - 하단 가운데 계속보기 버튼
@@ -4686,6 +4686,9 @@ m.wikitree.co.kr###wikitree_image1_bottom
 ! 카지노 다이소 (https://www.torrentbob.com/)
 ! - 쓸모없는 이미지
 ##.img-box
+! - 예외
+! - - - 엑스툰 (https://t3.xtoon365.com/) - 이미지 사라짐
+[$domain=/^t\d+.xtoon365.com/]#@#.img-box
 torrentbob.com##.board-gallery
 ! - 공식 보증업체
 torrentbob.com##div.m-b-10:nth-of-type(3)
@@ -4780,12 +4783,12 @@ javso.com###playera
 !
 !
 */ad/*
-@@*/ad/*$domain=avsee.ru|linkareer.com
+@@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
 !
 !
 ##[src*="/ad/" i]
 ! - 예외
-avsee.ru,linkareer.com#@#[src*="/ad/" i]
+auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
 !##[src*="/ads/" i] - ##[src*="ads" i]로 대체
@@ -5051,7 +5054,8 @@ manhwabang.org##a[target*="target"] img
 ##[src*="banner" i]
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! 18모아 (https://18moa028.com/)
-cinety.sooplive.com,/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
+! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
+[$domain=/^t\d+.xtoon365.com/],inety.sooplive.com,/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
 
 
 *banner*
@@ -5060,10 +5064,12 @@ cinety.sooplive.com,/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
 ! 시네티 (https://cinety.sooplive.com/)
 ! 18모아 (https://18moa028.com/)
 ! 쿠팡플레이 (https://www.coupangplay.com/)
+! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
 ! https://github.com/ - 일부 페이지 오류 발생
 @@||*banner*$image,domain=cinety.sooplive.com|coupangplay.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 @@||*banner*$domain=github.com
+@@*banner*$image,domain=xtoon365.com
 
 ##[class*="banner" i]
 ! - 예외
@@ -5091,7 +5097,7 @@ vexfile.com,cinety.sooplive.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.
 ! - 11번가 (https://www.11st.co.kr/)
 ! - 톡딜 (https://store.kakao.com/)
 ! - 중고나라 (https://web.joongna.com/)
-! - 엑스툰 (https://t2.xtoon365.com/)
+! - 엑스툰 (https://t3.xtoon365.com/)
 ! - 아이허브 (https://kr.iherb.com/)
 ! - ZUM (https://zum.com/)
 ! - GS샵 (https://www.gsshop.com/)
@@ -5225,15 +5231,15 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 야동파티 (https://ydparty08.net/)
 ! - - - 주소골라 (https://jusopick01.com/)
 ! - - - 조드 (https://zod.kr/)
-! - - - x툰 (https://t2.xtoon365.com/)
+! - - - x툰 (https://t3.xtoon365.com/)
 ! - - - 토렌트쑥 (https://ssg2.torrentssg8.com/)
 ! - - - 툰코 (https://tkor120.com/) 
 !##a[href*='http'][target*='blank'] img
 !##a[target*='blank']:has(img)
 [$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],tvchak.live,[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcok\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
 zod.kr##a[target*="blank"] img
-[$domain=/^t2.xtoon/]##a[target*="blank"] img
 [$domain=/^ssg\d+\.torrentssg\d+\.com/]##a[target*="blank"] img
+[$domain=/^t\d+.xtoon365.com/]##a[target*="blank"] img
 [$domain=/^jogaeparty\d+.com/]##a[target*="blank"] img
 [$domain=/^tkor/]##a[target*="blank"] img
 
