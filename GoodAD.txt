@@ -752,7 +752,7 @@ inven.co.kr##[class="modal-fixed" i]
 ! - ##.ad 예외
 inven.co.kr#@#.ad
 ! - 게시물 전체 배너
-!##[src*=".ads/" i] - ##[src*="ads" i]로 대체
+##[src*=".ads/" i]
 ! -오른쪽 배너
 ##.ad-right2
 !##[class*="ad-right" i]
@@ -4793,7 +4793,7 @@ javso.com###playera
 auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
-!##[src*="/ads/" i] - ##[src*="ads" i]로 대체
+##[src*="/ads/" i]
 !
 !
 !/ad_
@@ -5018,9 +5018,7 @@ diningcode.com#@#[class*="popup" i]
 mypikpak.com#@#[class*="popup" i]
 
 
-##[src*="ads" i]
-! - https://liteapks.com/ - 이미지 사라짐
-liteapks.com#@#[src*="ads" i]
+##[src*="/ads." i]
 
 
 !*ads*
