@@ -894,6 +894,8 @@ bobaedream.co.kr##.todayRanking
 !bobaedream.co.kr#@#[class^="ad" i]
 ! - ##[class*="ad" i] 복원 - 게시물 주소 복사란 사라짐
 bobaedream.co.kr#@#[class*="ad" i]
+! - 모바일 상단 / 본문 하단 여백
+m.bobaedream.co.kr##div.content.community > div:nth-of-type(1)
 !
 !
 ! 오늘의 유머 (https://www.todayhumor.co.kr/)
