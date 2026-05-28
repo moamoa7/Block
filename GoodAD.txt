@@ -679,9 +679,11 @@ fmkorea.com###fm_alert
 ! - 팝업
 !##[class^="fixed" i]
 ! - - -.fixed - 반드시 개별 도메인으로만 처리할것
-etoland.co.kr##.fixed
+!etoland.co.kr##.fixed
 ! - 네이버 광고 차단 (모바일)
 etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
+! - 게시물 하단 공백
+etoland.co.kr##div.justify-center
 ! - 게시물 목록 상단 배너 공간 (모바일)
 ! - 개별 게시물과 댓글 사이 빈 공간 (모바일)
 etoland.co.kr##article.w-full:has(> ul.mx-\[5px\])
@@ -1810,8 +1812,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - - - 웹툰 보는곳에 광고가  1라인이 더 늘어서 data-brs에 이름을 특정짓지 않음
 ! - - - 메인에서는 100px면 됬지만 웹툰을 볼려면 125px가 최소임
 ! - - - 현재 배너 가림 색상은 흰색 - 다크모드일경우는 검은색으로 변경 필요
-![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
-![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
+[$domain=/^sbxh[0-9]*\.com/]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; }
 
 !
 !
@@ -4947,15 +4949,6 @@ linkareer.com#@#[src*="advert" i]
 !*adverts*
 !*advertising*
 !||*.advert.*
-!
-!
-*collector*
-!
-!
-##[src*="collector"]
-!
-!
-##[class*="collector" i]
 !
 !
 */csp/report*
