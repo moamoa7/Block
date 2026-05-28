@@ -1770,7 +1770,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 @@||sbxh*.com^$image,xhr,script
 
 ! =====  List KR 규칙 해제  =====
-![$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
+[$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
 
 
 ! ===== 추가 차단 (uBlock Origin) =====
