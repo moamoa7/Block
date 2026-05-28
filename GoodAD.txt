@@ -5055,8 +5055,10 @@ cinety.sooplive.com,/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
 ! 시네티 (https://cinety.sooplive.com/)
 ! 18모아 (https://18moa028.com/)
 ! 쿠팡플레이 (https://www.coupangplay.com/)
+! https://github.com/ - 일부 페이지 오류 발생
 @@||*banner*$image,domain=cinety.sooplive.com|coupangplay.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
+@@||*banner*$domain=github.com
 
 ##[class*="banner" i]
 ! - 예외
