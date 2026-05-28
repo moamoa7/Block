@@ -241,6 +241,9 @@ open.spotify.com##html,body:style(overflow: auto !important;)
 !
 !
 ! 네이버 (https://www.naver.com/)
+! - 메인 상단 웨일 브라우저 설치 안내
+##.banner_top
+!naver.com##[aria-label="웨일 브라우저 설치 안내"]
 ! - 네이버앱 깨지는거 해결 (참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
@@ -739,7 +742,10 @@ inven.co.kr##.commu-right > div
 ! - 오른쪽 혜택.이이마트
 inven.co.kr###right-imart-benefits
 ! - 게시물 하단 작성자 프로필
-inven.co.kr###inventory-skin-800
+! - - - PC
+inven.co.kr##.pcskin
+! - - - 모바일
+inven.co.kr##.mo-inventory
 ! - 로딩 없애기
 !inven.co.kr##[id="loading"]
 inven.co.kr##[class="modal-fixed" i]
@@ -3428,11 +3434,9 @@ wavve.com#@#[id*="main-banner" i]
 !
 ! 야동공장 (https://yagong91.com/)
 ! - 전체 배너
-! - - -AV탑걸 (https://kr41.topgirl.co/)
+! - - -AV탑걸 (https://kr41.topgirl.co/) 전체 배너
+! - - - MISSAV (https://missav01.com/) 메인 가운대 배너
 ##div[class*="mx-auto" i] a[href*="http"][target*="blank"] img[src]
-! - 예외 - https://etoland.co.kr/ - 이동시 오류 발생 (해도 오류라 아님)
-!etoland.co.kr#@#div[class*="mx-auto" i] [target] img[src]
-
 ! - 영상 하단내 배너 테두리
 !##.vjs-bottom-banner.vjs-bottom-banner-container
 ! 팝업 잔쟁이들
@@ -4887,10 +4891,6 @@ auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 ##[href*="/ads/" i]
 !
 !
-*event?*
-*events?*
-!
-!
 ###videoad
 ##.videoad
 ###video-ad
@@ -4982,6 +4982,9 @@ linkareer.com#@#[src*="advert" i]
 
 ##[href*="/pop/" i]
 ##[href*="popup" i]
+! - 예외 - 쿠팡플레이 (https://www.coupangplay.com/) - 라이브 시청하기 버튼 사라짐
+coupangplay.com#@#[href*="popup" i]
+
 ##[href*="pop-up" i]
 
 ##[src*="/pop/" i]
