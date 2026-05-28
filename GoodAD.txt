@@ -426,8 +426,8 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
-! - 해제 목록
-cinety.sooplive.com#@#[class*="banner" i]
+! - 해제 목록 - 영상 클릭시 이동 안됨
+@@||sooplive.com/asset/service/common/common_analysis.js$domain=cinety.sooplive.com
 !
 !
 ! 풍투데이 (https://poong.today/)
@@ -4939,6 +4939,9 @@ linkareer.com#@#[src*="advert" i]
 ##[class*="collector" i]
 !
 !
+*/csp/report*
+!
+!
 !
 !
 !
@@ -4971,6 +4974,10 @@ linkareer.com#@#[src*="advert" i]
 ==================================
 
 
+
+##[href*="/pop/" i]
+##[href*="popup" i]
+##[href*="pop-up" i]
 
 ##[src*="/pop/" i]
 ##[src*="popup" i]
@@ -5005,7 +5012,7 @@ mypikpak.com#@#[class*="popup" i]
 
 !*ads*
 
-##[class*="ads" i]
+!##[class*="ads" i]
 !#@#img[src*="ads" i]
 
 !!! 광역
@@ -5028,12 +5035,20 @@ i-boss.co.kr,~avsee.ru##a[target*="blank"] > img[src*=".gif"]
 manhwabang.org##a[target*="target"] img
 
 
+##[href*="banner" i]
+! 18모아 (https://18moa028.com/)
+/^([\w-]+\.)?18moa\d+\.com$/#@#[href*="banner" i]
+
 ##[src*="banner" i]
+! 시네티 (https://cinety.sooplive.co.kr/)
+! 18모아 (https://18moa028.com/)
+cinety.sooplive.com,/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
+
 
 *banner*
 ! - 11번가 - 사이트 구동이 안됨
 @@||*banner*$script,domain=11st.co.kr|cookmana53.com
-! 시네티 (https://cinety.sooplive.co.kr/)
+! 시네티 (https://cinety.sooplive.com/)
 ! 18모아 (https://18moa028.com/)
 ! 쿠팡플레이 (https://www.coupangplay.com/)
 @@||*banner*$image,domain=cinety.sooplive.com|coupangplay.com
@@ -5046,8 +5061,8 @@ manhwabang.org##a[target*="target"] img
 ! - 이토랜드 (https://etoland.co.kr/) - 페이지 이동 오류 해결
 ! -  일일툰 (https://www.11toon148.com/) - 본문 다 사라짐
 ! - 일일툰 (https://www.spotv147.com/) - 본문 다 사라짐
-[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
-
+! - 시네티 (https://cinety.sooplive.com/) - 배너 사라짐
+cinety.sooplive.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
 
 
 
