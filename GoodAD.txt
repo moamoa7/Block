@@ -4985,6 +4985,7 @@ linkareer.com#@#[src*="advert" i]
 
 
 */*pop*/*
+@@/*pop*/*$font
 
 !||*/popup/*
 !||*/popups/*
@@ -5009,6 +5010,9 @@ mypikpak.com#@#[class*="popup" i]
 
 
 ##[src*="ads" i]
+! - https://liteapks.com/ - 이미지 사라짐
+liteapks.com#@#[src*="ads" i]
+
 
 !*ads*
 
@@ -5062,7 +5066,8 @@ cinety.sooplive.com,/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
 ! -  일일툰 (https://www.11toon148.com/) - 본문 다 사라짐
 ! - 일일툰 (https://www.spotv147.com/) - 본문 다 사라짐
 ! - 시네티 (https://cinety.sooplive.com/) - 배너 사라짐
-cinety.sooplive.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
+! - https://vexfile.com/ - 다운받는 본문 다 사라짐
+vexfile.com,cinety.sooplive.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
 
 
 
