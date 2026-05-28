@@ -1177,6 +1177,16 @@ hungryapp.co.kr#@#[src*="/ad/" i]
 !
 !
 ! 다모앙 (https://damoang.net/)
+! - 메인 전체 배너
+damoang.net##.ad-slot-empty-collapsed
+! - 메인 배너 공간
+damoang.net##.dm-card
+damoang.net##.svelte-f0o7xm
+damoang.net##.ad-slot-btf
+! - 메인 오른쪽 AD
+damoang.net##div.gap-4.flex-col.flex:nth-of-type(3)
+! - 하단 광고 차단 팝업
+damoang.net##.adblock-notice
 ! - 배너
 !damoang.net##.adsbygoogle
 ! - 오른쪽 스크롤도구
