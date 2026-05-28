@@ -3085,6 +3085,8 @@ missav.*,njavtv.com##[class^="mx-auto" i]
 !##[src*="//ads.adxadserv.com/" i]
 ! - 하단 배너
 missav.fans###b-a-b
+! - 팝업 차단
+/^https?:\/\/missav\d+\.com/`$popup
 !
 !
 ! https://popjav.in/
