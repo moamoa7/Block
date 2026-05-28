@@ -1764,27 +1764,28 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 ! 뉴토끼 (https://sbxh3.com/)
 
-! - 사이트 차단
-!||sbxh*.com^
-
 ! ===== sbxh 광고 트래픽 허용 =====
-@@||sbxh*.com^$generichide
+!@@||sbxh*.com^$generichide
+! - - - 허용하지 않으면 웹툰 등이 나오지 않음
 @@||sbxh*.com^$image,xhr,script
 
 ! =====  List KR 규칙 해제  =====
-[$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
+![$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
 
 
 ! ===== 추가 차단 (uBlock Origin) =====
 ! - - - 굳이 추가하지 않아도 기능엔 문제가 없음
 ! - - - 외부 anti-adblock 추적 서버 차단 (DNS에 등록 필요)
-!||whoas.xyz^
+||whoas.xyz^
 
 !//////////////////////////////////////////////////////
 
 ! - 추가 차단 (팝업 및 이용 팝업)
 [$domain=/^sbxh[0-9]*\.com/]##[data-pm-ov="1"]
 [$domain=/^sbxh[0-9]*\.com/]##.vw-swipe-hint
+! - 추가 차단 (배너 공간내 텍스트)
+[$domain=/^sbxh[0-9]*\.com/]##span > span:nth-of-type(2)
+
 
 ! - 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
