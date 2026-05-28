@@ -4764,6 +4764,9 @@ javso.com###playera
 *##.ad
 !
 !
+*_ad.*
+!
+!
 */ad?*
 !
 !
@@ -4798,8 +4801,9 @@ avsee.ru,linkareer.com#@#[src*="/ad/" i]
 */ads*
 !@@/ads*$domain=login.coupang.com
 !
+!*/ads-*
 !
-*/ads-*
+!*/ads.*
 !
 !
 */ads/*
@@ -4820,9 +4824,6 @@ avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !*ads.*
 !
 !
-*/ads.*
-!
-!
 ##.ads
 !
 !
@@ -4839,6 +4840,11 @@ avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !*/video-ads/*
 *videoad*
 *video-ad*
+
+! - - - 트위치 (https://www.twitch.tv/)
+@@*video-ad*$css,script
+
+
 !
 !
 ##[class$="right-ad" i]
@@ -4859,8 +4865,6 @@ avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
 ##[id^="top-banner" i]
-!
-!
 
 !
 ##[alt*="보증토토"]
@@ -4878,9 +4882,6 @@ avsee.ru,linkareer.com#@#[src*="/ad/" i]
 ##[href*="/ads/" i]
 !
 !
-/_xa/ads
-!
-!
 *event?*
 *events?*
 !
@@ -4889,16 +4890,6 @@ avsee.ru,linkareer.com#@#[src*="/ad/" i]
 ##.videoad
 ###video-ad
 ##.video-ad
-!
-!
-/gather
-!
-!
-!
-/qoe
-!
-!
-/_store
 !
 !
 ! -팝업창 닫고난 후 뿌옇거나 클릭이 안되는 문제
@@ -5012,7 +5003,7 @@ mypikpak.com#@#[class*="popup" i]
 
 ##[src*="ads" i]
 
-*ads*
+!*ads*
 
 ##[class*="ads" i]
 !#@#img[src*="ads" i]
