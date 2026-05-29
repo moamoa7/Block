@@ -1824,10 +1824,10 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 
 ! - 배너 크기 조절 + 시각적 가림 + 클릭 흡수
 ! - - - 웹툰 보는곳에 광고가  1라인이 더 늘어서 data-brs에 이름을 특정짓지 않음
-! - - - 메인에서는 100px면 됬지만 웹툰을 볼려면 125px가 최소임
+! - - - 메인에서는 100px면 됬지만 웹툰을 볼려면 425px가 최소임 (26.5.29 125px에서 변경)
 ! - - - 현재 배너 가림 색상은 흰색 - 다크모드일경우는 검은색으로 변경 필요
 ![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
-[$domain=/^sbxh\d*\./]#$#[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
+[$domain=/^sbxh\d*\./]#$#[data-brs] { max-height: 425px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
 ![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; }
 ! - - - 이 요소를 별도 GPU 레이어로 만들어서 컴포지팅 비용을 줄여라 추가
 ![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; will-change: transform !important; }
@@ -4697,13 +4697,13 @@ hearheart.com##.mb-6.relative
 hearheart.com##section.relative
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto07.com/) (https://mato07.com/) (https://bookto07.com/)
+! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto08.com/) (https://mato08.com/) (https://bookto08.com/)
 ! - 이미지
-! - - - 뉴토끼 (https://newto07.com/)
+! - - - 뉴토끼 (https://newto08.com/)
 ||newto*.com/data/apms/*
-! - - - 마나토끼 (https://mato07.com/)
+! - - - 마나토끼 (https://mato08.com/)
 ||mato*.com/data/apms/*
-! - - - 북토끼 (https://bookto07.com/)
+! - - - 북토끼 (https://bookto08.com/)
 ||bookto*.com/data/apms/*
 !
 !
