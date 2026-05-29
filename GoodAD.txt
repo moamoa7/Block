@@ -534,9 +534,8 @@ aagag.com#$#.la { position: absolute !important; left: -3000px !important; width
 !
 !
 ! 이슈링크 (https://www.issuelink.co.kr/)
-! - 광고 차단 하라는 팝업
-! -- 차단하면 스크롤 안됨
-!##[class*="-dialog"]
+! - 모바일 앱 광고
+issuelink.co.kr##.text-center
 !
 !
 ! 디시인사이드 (https://gall.dcinside.com)
