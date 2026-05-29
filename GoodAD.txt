@@ -1638,7 +1638,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://tkor120.com/)
+! 툰코 (https://tkor121.com/)
 ! 펀비 (https://funbe638.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
@@ -1805,8 +1805,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !/////////////////////////////////////////
 ! =====  배너 공간 감추기  =====
 ! 광고 컨테이너 화면 밖으로 이동
-! - - - left: -9999px - 500px / top: -9999px - 500px 변경 (26.05.30)
-[$domain=/^sbxh\d*\./]#$#[data-brs] { position: absolute !important; left: -500px !important; top: -500px !important; }
+! - - - left: -9999px - 500px / top: -9999px - 600px 변경 (26.05.30)
+[$domain=/^sbxh\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
 !
 !
 ! 블랙툰 (https://www.blacktoonurl2.com/) ()
@@ -5184,7 +5184,7 @@ manhwabang.org##a[target*="target"] img
 
 ##[class*="banner" i]
 ! - 예외
-! - 툰코 (https://tkor120.com/) - 본문 다 사라짐
+! - 툰코 (https://tkor121.com/) - 본문 다 사라짐
 ! - 펀비 (https://funbe638.com/) - 본문 다 사라짐
 ! - 이토랜드 (https://etoland.co.kr/) - 페이지 이동 오류 해결
 ! -  일일툰 (https://www.11toon148.com/) - 본문 다 사라짐
@@ -5345,7 +5345,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 조드 (https://zod.kr/)
 ! - - - x툰 (https://t3.xtoon365.com/)
 ! - - - 토렌트쑥 (https://ssg2.torrentssg8.com/)
-! - - - 툰코 (https://tkor120.com/) 
+! - - - 툰코 (https://tkor121.com/) 
 !##a[href*='http'][target*='blank'] img
 !##a[target*='blank']:has(img)
 [$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^mingky\d+.net/],[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^blacktoon\d+.com/],tvchak.live,[$domain=/^m\d+.kotbc2.com/],[$domain=/^9tv\d+.com/],[$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^somez\d+.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^ddparty\d+.top/],[$domain=/^ddalq\d+.org/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^mvking\d+.org/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcok\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^ydparty\d+.net/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
