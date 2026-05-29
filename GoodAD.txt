@@ -1794,44 +1794,27 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !//////////////////////////////////////////////////////
 
 ! - 추가 차단 (팝업 및 이용 팝업)
-![$domain=/^sbxh[0-9]*\.com/]##[data-pm-ov="1"]
 [$domain=/^sbxh\d*\./]##[data-pm-ov="1"]
-![$domain=/^sbxh[0-9]*\.com/]##.vw-swipe-hint
 [$domain=/^sbxh\d*\./]##.vw-swipe-hint
 ! - 추가 차단 (배너 공간내 텍스트)
 ![$domain=/^sbxh[0-9]*\.com/]##span > span:nth-of-type(2)
 [$domain=/^sbxh\d*\./]##span > span:nth-of-type(2)
-
-
 ! - 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
 [$domain=/^sbxh\d*\./]##+js(window.open-defuser)
-
-! - 광고배너에 CSS 입히기
-![$domain=/^sbxh[0-9]*\.com/]#$#[data-br="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
-![$domain=/^sbxh[0-9]*\.com/]#$#[data-bs="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
-![$domain=/^sbxh[0-9]*\.com/]#$#[data-bp="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
-
-
-!//////////////////////////////////////////////////////
-
-
-! ===== 배너 공간 감추기 (uBlock Origin) =====
-! - 차단 유발해서 주석 처리
-! - - - 애드가드는 애드가드 스크립트로 처리
-![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='detail'] { position: absolute !important; left: -3000px !important; }
-![$domain=/^sbxh[0-9]*\.com/]#$#div[data-brs='header'] { position: absolute !important; left: -3000px !important; }
-
 ! - 배너 크기 조절 + 시각적 가림 + 클릭 흡수
-! - - - 웹툰 보는곳에 광고가  1라인이 더 늘어서 data-brs에 이름을 특정짓지 않음
-! - - - 메인에서는 100px면 됬지만 웹툰을 볼려면 425px가 최소임 (26.5.29 125px에서 변경)
-! - - - 현재 배너 가림 색상은 흰색 - 다크모드일경우는 검은색으로 변경 필요
-![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
-[$domain=/^sbxh\d*\./]#$#[data-brs] { max-height: 425px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
-![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; }
-! - - - 이 요소를 별도 GPU 레이어로 만들어서 컴포지팅 비용을 줄여라 추가
-![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; will-change: transform !important; }
-[$domain=/^sbxh\d*\./]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; will-change: transform !important; }
+! - - - 컨테이너 크기 제한 (검증 통과용)
+![$domain=/^sbxh\d*\./]#$#[data-brs="header"] { max-height: 425px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
+![$domain=/^sbxh\d*\./]#$#[data-brs="detail"] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
+! - - - 배너 이미지 2px 축소 (최소 통과값)
+![$domain=/^sbxh\d*\./]#$#[data-brs] img { max-width: 2px !important; max-height: 2px !important; }
+! - - - 흰 박스 가림 + 클릭 흡수
+![$domain=/^sbxh\d*\./]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; will-change: transform !important; }
+!
+!/////////////////////////////////////////
+! =====  배너 공간 감추기  =====
+! 광고 컨테이너 화면 밖으로 이동
+[$domain=/^sbxh[0-9]*\.com/]#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
 !
 !
 ! 블랙툰 (https://www.blacktoonurl2.com/) ()
