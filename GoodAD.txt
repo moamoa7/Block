@@ -1792,16 +1792,19 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !//////////////////////////////////////////////////////
 
 ! - 추가 차단 (팝업 및 이용 팝업)
-[$domain=/^sbxh[0-9]*\.com/]##[data-pm-ov="1"]
-[$domain=/^sbxh[0-9]*\.com/]##.vw-swipe-hint
+![$domain=/^sbxh[0-9]*\.com/]##[data-pm-ov="1"]
+[$domain=/^sbxh\d*\./]##[data-pm-ov="1"]
+![$domain=/^sbxh[0-9]*\.com/]##.vw-swipe-hint
+[$domain=/^sbxh\d*\./]##.vw-swipe-hint
 ! - 추가 차단 (배너 공간내 텍스트)
-[$domain=/^sbxh[0-9]*\.com/]##span > span:nth-of-type(2)
+![$domain=/^sbxh[0-9]*\.com/]##span > span:nth-of-type(2)
+[$domain=/^sbxh\d*\./]##span > span:nth-of-type(2)
 
 
 ! - 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
-[$domain=/^sbxh[0-9]*\.com/]##+js(window.open-defuser)
-/^https?:\/\/sbxh\d*\.com/$popup
+[$domain=/^sbxh\d*\./]##+js(window.open-defuser)
+/^https?:\/\/sbxh\d*\./$popup
 
 ! - 광고배너에 CSS 입히기
 ![$domain=/^sbxh[0-9]*\.com/]#$#[data-br="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
@@ -1822,10 +1825,12 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - - - 웹툰 보는곳에 광고가  1라인이 더 늘어서 data-brs에 이름을 특정짓지 않음
 ! - - - 메인에서는 100px면 됬지만 웹툰을 볼려면 125px가 최소임
 ! - - - 현재 배너 가림 색상은 흰색 - 다크모드일경우는 검은색으로 변경 필요
-[$domain=/^sbxh[0-9]*\.com/]#$#[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
+![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
+[$domain=/^sbxh\d*\./]#$#[data-brs] { max-height: 125px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
 ![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; }
 ! - - - 이 요소를 별도 GPU 레이어로 만들어서 컴포지팅 비용을 줄여라 추가
-[$domain=/^sbxh[0-9]*\.com/]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; will-change: transform !important; }
+![$domain=/^sbxh[0-9]*\.com/]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; will-change: transform !important; }
+[$domain=/^sbxh\d*\./]#$#[data-brs]::before { content: "" !important; position: absolute !important; inset: 0 !important; background: #ffffff !important; pointer-events: auto !important; will-change: transform !important; }
 !
 !
 ! 블랙툰 (https://www.blacktoonurl2.com/) ()
@@ -2496,12 +2501,13 @@ avsee.ru##div.title:nth-of-type(1)
 avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
 ! - - - 스크립트의 ui 탭 을 막아서 해제
 avsee.ru#@#.tabs
-! - 팝업 (새창) 방지
-!avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - https://j91.asia/
 /^https:\/\/[0-9a-z]{6,12}\.in(?:\/[a-z]{2,10}){1,3}$/$script,third-party,match-case
 ! - 영상 재생 방지
 !avsee.ru#@#[class*="floating" i]
+! - 팝업 (새창) 방지
+j91.asia##+js(window.open-defuser)
+j91.asia^$popup
 !
 !
 ! supjav (https://supjav.com/)
@@ -2608,11 +2614,14 @@ javgg.net##.home_iframead
 !mmsi02.com,mmvh02.com#@#[class*="floating" i]
 !
 !
-! https://javgiga.com/
-! - 팝업(새창) 방지 (uBlock filters – Ads)
-/^https?:\/\/[-a-z]{6,}\.(?:com?|info|pro|xyz)\/[a-d][-.\/A-Z_a-z][DHWXm][-.\/A-Z_a-z][59FVZ][-.\/A-Z_a-z][6swyz][-.\/A-Z_a-z][-\/0-9A-Z_a-z][-.\/A-Z_a-z][-\/0-9A-Z_a-z]{22,162}(?:$|\?)/$script,xhr,3p,match-case,to=co|com|info|pro|xyz
+! JAV GIGA (https://javgiga.com/)
 ! - 재생 방지
 !embed.streamxx.net#@#[class*="floating" i]
+! - 팝업 (새창) 방지
+javgiga.com##+js(window.open-defuser)
+javgiga.com^$popup
+! - 기타
+*/tracking/*
 !
 !
 ! https://javhd.today/
@@ -5087,6 +5096,8 @@ coupangplay.com#@#[href*="popup" i]
 
 
 ##[class*="popup" i]
+! - 예외 - https://javgiga.com/ - 플레이어가 사라짐
+javgiga.com#@#[class*="popup" i]
 ##[class*="pop-up" i] 
 ##[class*="pop_up" i] 
 ! - 예외
