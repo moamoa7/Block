@@ -503,10 +503,7 @@
         if (btnPip) btnPip.classList.remove('hidden-by-state');
         if (btnRot) btnRot.classList.remove('hidden-by-state');
         if (btnFit) btnFit.classList.remove('hidden-by-state');
-        if (btnZoomRst) {
-            if (vState.scale > 1.0) btnZoomRst.classList.remove('hidden-by-state');
-            else btnZoomRst.classList.add('hidden-by-state');
-        }
+        if (btnZoomRst) btnZoomRst.classList.remove('hidden-by-state');
     };
 
     const wakeUpUI = (root, video) => {
