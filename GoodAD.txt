@@ -4713,10 +4713,11 @@ m.wikitree.co.kr###wikitree_image1_bottom
 ! 카지노 다이소 (https://www.torrentbob.com/)
 ! - 쓸모없는 이미지
 !##.img-box
-##picture
+##[class*="img-box" i]
 ! - 예외
 ! - - - 엑스툰 (https://t3.xtoon365.com/) - 이미지 사라짐
-[$domain=/^t\d+.xtoon365.com/]#@#.img-box
+[$domain=/^t\d+.xtoon365.com/]#@#[class*="img-box" i]
+torrentbob.com##picture
 torrentbob.com##.board-gallery
 ! - 공식 보증업체
 torrentbob.com##div.m-b-10:nth-of-type(3)
@@ -4760,7 +4761,6 @@ javso.com###playera
 ! - 광고 빈공간
 yoboyobo.kr,gaykorea.net##.main-slider
 !yoboyobo.kr,gaykorea.net##[class*="img-box" i]
-##[class*="img-box" i]
 !
 !
 !  플레이랜드 (https://playidol.org/)
@@ -5066,7 +5066,8 @@ coupangplay.com#@#[href*="popup" i]
 @@*pop*$css
 @@*pop*$font
 ! - 예외 - https://today-sports9.com/ - 틀 깨짐
-@@*pop*$domain=today-sports9.com
+! - 예외 - https://trand.co.kr/ - 일부 이미지 사라짐
+@@*pop*$domain=today-sports9.com|trand.co.kr
 
 
 !*/popup/*
