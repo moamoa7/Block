@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      68.09.0
+// @version      68.09.1
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 전체화면 전용)
 // @author       Gemini & Claude
 // @license      MIT
@@ -188,20 +188,28 @@
     const FS_BTN_SELECTORS = '.art-icon-fullscreenOn, .art-control-fullscreen, .dplayer-full-icon, .plyr__control[data-plyr="fullscreen"], .vjs-fullscreen-control, .xgplayer-fullscreen, .tcplayer-fullscreen-btn, .prism-fullscreen-btn, [aria-label*="全屏"], [title*="全屏"], [aria-label*="전체 화면"], [title*="전체화면"], .fullscreen-btn, .bilibili-player-video-btn-fullscreen, [data-testid="btn-fullscreen"], [aria-label="На весь экран"]';
 
     const isExcludedZone = (e) => {
-        const path = (typeof e.composedPath === 'function') ? e.composedPath() : [];
-        if (path.length > 0) {
-            for (let el of path) {
-                if (el.matches && el.matches(IGNORE_TOUCH_SELECTORS)) return true;
+    const path = (typeof e.composedPath === 'function') ? e.composedPath() : [];
+    if (path.length > 0) {
+        for (let el of path) {
+            // ★ VSC UI 감지 추가
+            if (el.nodeType === 1) {
+                if (el.hasAttribute && el.hasAttribute('data-vsc-ui')) return true;
+                if (el.id === 'vsc-host' || el.id === 'vsc-gear-host' || el.id === 'vsc-osd-host') return true;
             }
-            return false;
-        }
-        let el = e.target;
-        while (el && el !== document.body && el !== document.documentElement) {
             if (el.matches && el.matches(IGNORE_TOUCH_SELECTORS)) return true;
-            el = el.parentNode || el.host;
         }
         return false;
-    };
+    }
+    let el = e.target;
+    while (el && el !== document.body && el !== document.documentElement) {
+        // ★ VSC UI 감지 추가
+        if (el.hasAttribute && el.hasAttribute('data-vsc-ui')) return true;
+        if (el.id === 'vsc-host' || el.id === 'vsc-gear-host' || el.id === 'vsc-osd-host') return true;
+        if (el.matches && el.matches(IGNORE_TOUCH_SELECTORS)) return true;
+        el = el.parentNode || el.host;
+    }
+    return false;
+};
 
     const findUp = (el, selector) => {
         while (el && el !== document.body && el !== document.documentElement) {
