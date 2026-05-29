@@ -3439,6 +3439,8 @@ wavve.com#@#[id*="main-banner" i]
 !##[src*="event_banner"]
 ! - 모바일 왼쪽 사람 아이콘 없애기
 ##.sidebar-user-trigger
+! - 이미지 복원
+[$domain=/^today-sports\d+.com/]#@#[class*="img-box" i]
 !
 !
 ! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/) (https://av-korea.com/)
@@ -4804,6 +4806,9 @@ playidol.org##.max-w-\[426px\]
 !
 !
 !  T카페 (https://tcafe21.com/)
+! - 팝업 (기존 티카페회원 가입안내)
+!tcafe21.com###migration-popup-overlay
+##[id*="popup-overlay" i]
 ! - 메인 하단 배너 공간
 [$domain=/^tcafe\d+.com/]##.main-p10
 !
@@ -5079,26 +5084,30 @@ accounts.kakao.com#@#[src*="popup" i]
 !*/*pop*/*
 !@@/*pop*/*$font
 
-*pop*
-@@*pop*$css
-@@*pop*$font
+!*pop*
+!@@*pop*$css
+!@@*pop*$font
 ! - 예외 - https://today-sports9.com/ - 틀 깨짐
 ! - 예외 - https://trand.co.kr/ - 일부 이미지 사라짐
 ! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
-@@*pop*$domain=today-sports9.com|trand.co.kr|accounts.kakao.com
+! - 예외 - https://chzzk.naver.com/ - 라이브 목록 안나옴
+! - 예외 - m.naver.com - 치지직 동영상 재생 안됨
+!@@*pop*$domain=today-sports9.com|trand.co.kr|accounts.kakao.com|chzzk.naver.com|m.naver.com
 
 
-!*/popup/*
-!/popups/*
-!*pop*up*
-!*popup*
-!*pop-up*
-!*pop_up*
-! - 예외
-! - - - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
-!@@||*popup*$css
+*/popup/*
+/popups/*
+*popup*
+! - 예외 - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
+! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
+@@||*popup*$css
+@@||*popup*$frame,domain=accounts.kakao.com
 ! - 예외
 !  - -- https://www.wavve.com/ - 개별 구매시 (필요 해제 하지 말것)
+*pop-up*
+*pop_up*
+!*pop*up*
+
 
 
 
