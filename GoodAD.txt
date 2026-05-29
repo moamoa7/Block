@@ -4804,6 +4804,27 @@ playidol.org##.max-w-\[426px\]
 ![$domain=/^dobakland\d+.org/]##[class*="cursor"]
 !
 !
+! 코무비 (https://m303.kormovie.com/)
+! - 배너 이미지
+||*.kormovie.com/img/*.jpg
+! - 배너 빈 공간
+[$domain=/^m\d+.kormovie.com/]##.h10
+[$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/],[$domain=/^m\d+.kormovie.com/]##.nlin
+[$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/],[$domain=/^m\d+.kormovie.com/]###mnxo2
+!
+!
+! 코왓챠 (https://m252.kowatcha.com/)
+! - 배너 이미지
+||*.kowatcha.com/img/*.jpg
+! - 배너 빈공간
+[$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/]##.h20
+[$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/]##.h30
+!
+! 왓챠KR (https://m252.watchakr.com/)
+! - 배너 이미지
+||*.watchakr.com/img/*.jpg
+!
+!
 !
 !
 !
@@ -5098,7 +5119,10 @@ coupangplay.com#@#[href*="popup" i]
 
 ##[class*="popup" i]
 ! - 예외 - https://javgiga.com/ - 플레이어가 사라짐
+! - 예외 - https://yandex.com/ - 검색란 사라짐
 javgiga.com#@#[class*="popup" i]
+yandex.com#@#[class*="popup" i]
+
 ##[class*="pop-up" i] 
 ##[class*="pop_up" i] 
 ! - 예외
