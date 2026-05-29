@@ -353,6 +353,8 @@ sooplive.com##.message_player_wrap
 !sooplive.com##.on.chat_banner2
 ! - 로딩바
 ##.loading
+! - 예외 - https://javgiga.com/ - 이미지 사라짐
+javgiga.com#@#.loading
 ! - 채팅 공지 (필요시)
 sooplive.com##.chat_notice
 ! - 채팅 상단 배너 & 채팅 공지 (필요시)
