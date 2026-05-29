@@ -475,12 +475,15 @@ www.twitch.tv###twilight-sticky-footer-root
 ! - 광고 차단 문구 (터보 사용 권장 문구)
 !twitch.tv##.video-player__inactive
 ! - 영상 플레이어내
-www.twitch.tv##.stream-display-ad__wrapper
-www.twitch.tv##[data-test-selector="sda-wrapper"]
+!www.twitch.tv##.stream-display-ad__wrapper
+!ww.twitch.tv##[data-test-selector="sda-wrapper"]
+! - 영상내 이상한 아이콘(확장 프로그램) 떠잇는거 없애기
+!www.twitch.tv##[class*="extensions"]
+##[class*="extensions"]
 ! - 영상 상단 지저분한거
-www.twitch.tv##.top-bar:style(background:unset!important)
+!www.twitch.tv##.top-bar:style(background:unset!important)
 ! - 영상 하단 지저분한거
-www.twitch.tv##div[data-a-target=player-controls]:style(background:unset!important)
+!www.twitch.tv##div[data-a-target=player-controls]:style(background:unset!important)
 !
 !
 ! 틱톡 (https://www.tiktok.com/)
@@ -535,7 +538,8 @@ aagag.com#$#.la { position: absolute !important; left: -3000px !important; width
 !
 ! 이슈링크 (https://www.issuelink.co.kr/)
 ! - 모바일 앱 광고
-issuelink.co.kr##.text-center
+!issuelink.co.kr##.text-center
+r##.text-center
 !
 !
 ! 디시인사이드 (https://gall.dcinside.com)
@@ -4708,7 +4712,8 @@ m.wikitree.co.kr###wikitree_image1_bottom
 !
 ! 카지노 다이소 (https://www.torrentbob.com/)
 ! - 쓸모없는 이미지
-##.img-box
+!##.img-box
+##picture
 ! - 예외
 ! - - - 엑스툰 (https://t3.xtoon365.com/) - 이미지 사라짐
 [$domain=/^t\d+.xtoon365.com/]#@#.img-box
@@ -4754,7 +4759,8 @@ javso.com###playera
 ##[href*="link.coupang.com"]
 ! - 광고 빈공간
 yoboyobo.kr,gaykorea.net##.main-slider
-yoboyobo.kr,gaykorea.net##[class*="img-box" i]
+!yoboyobo.kr,gaykorea.net##[class*="img-box" i]
+##[class*="img-box" i]
 !
 !
 !
@@ -5016,30 +5022,35 @@ linkareer.com#@#[src*="advert" i]
 coupangplay.com#@#[href*="popup" i]
 
 ##[href*="pop-up" i]
+##[href*="pop_up" i]
 
 ##[src*="/pop/" i]
 ##[src*="popup" i]
 ##[src*="pop-up" i]
+##[src*="pop_up" i]
 
 
 */*pop*/*
 @@/*pop*/*$font
 
-!||*/popup/*
-!||*/popups/*
-||*pop*up*
 
+!*/popup/*
+!/popups/*
+!*pop*up*
+*popup*
+*pop-up*
+*pop_up*
+! - 예외
+! - - - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
+@@||*popup*$css
 ! - 예외
 !  - -- https://www.wavve.com/ - 개별 구매시 (필요 해제 하지 말것)
 
 
-! - 예외
-! - - - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
-@@||*pop*up*$css
-
 
 ##[class*="popup" i]
 ##[class*="pop-up" i] 
+##[class*="pop_up" i] 
 ! - 예외
 ! 다이닝코드 (https://www.diningcode.com/) - 팝업 차단시 랜덤 뿌연화면 발생 및 타지역 선택 불가
 diningcode.com#@#[class*="popup" i] 
