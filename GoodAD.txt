@@ -441,17 +441,35 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 !
 !
 ! 치지직 (https://chzzk.naver.com/)
-! - 팝업
-!##[class*="popup" i]
-! - 광고 차단 프로그램을 사용 중이신가요? 팝업
-!chzzk.naver.com##div[style]:has-text(/광고 차단|확장 프로그램/)
-!chzzk.naver.com##body:has(div:has-text(/광고 차단|확장 프로그램/)):style(pointer-events: auto !important; overflow: auto !important;)
-! [1] 해당 텍스트를 가진 div는 생성되는 순간 위치(position)와 크기를 완전히 박살냄 (눈앞에 뜰 공간을 안 줌)
-chzzk.naver.com##div[style]:has-text(/광고 차단|확장 프로그램/):style(position: absolute !important; top: -9999px !important; left: -9999px !important; width: 0 !important; height: 0 !important; visibility: hidden !important;)
-chzzk.naver.com##div[class*="popup_layer"]:has-text(/광고 차단|확장 프로그램/):style(position: absolute !important; top: -9999px !important; left: -9999px !important; width: 0 !important; height: 0 !important; visibility: hidden !important;)
-! [2] body 잠금 해제 (기존 동일)
-chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important; position: relative !important;)
-chzzk.naver.com##html:style(overflow: auto !important;)
+! ===== 광고 차단 팝업 없애기 =====
+! 1) API 응답에서 광고 차단 감지 플래그(dab) 제거
+chzzk.naver.com##+js(json-prune, content.dab)
+chzzk.naver.com##+js(json-prune, dab, livePlaybackJson)
+chzzk.naver.com##+js(json-prune, dab, channel)
+! 2) playableStatus 강제 (해상도 제한 우회 — 광고 차단 시 480p 제한 푸는 용도)
+chzzk.naver.com##+js(json-prune, livePollingStatus.trafficThrottling)
+! 3) 광고 프로브 요청 무력화 (광고 서버가 응답 안 하면 "차단됨"으로 판정하므로 빈 응답으로 가장)
+chzzk.naver.com##+js(no-fetch-if, tveta)
+chzzk.naver.com##+js(no-fetch-if, /gfp/)
+chzzk.naver.com##+js(no-xhr-if, tveta)
+chzzk.naver.com##+js(no-xhr-if, /gfp/)
+! 4) 배너 요소가 숨겨졌는지 검사하는 코드 우회 (display:none 감지 회피)
+chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
+! 5) (선택) 기존 코스메틱 필터는 폴백용으로 유지
+!chzzk.naver.com##div[class*="popup_layer"]:has-text(/광고 차단|확장 프로그램/)
+!chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+! ===== 보험용 =====
+! dab 키가 어디에 박혀도 잡도록 와일드카드 추가
+chzzk.naver.com##+js(json-prune, *.dab)
+chzzk.naver.com##+js(json-prune, content.*.dab)
+! 광고 차단 감지에서 자주 쓰이는 다른 후보 키들 (방어용)
+chzzk.naver.com##+js(json-prune, adBlockDetected)
+chzzk.naver.com##+js(json-prune, isAdBlockUser)
+chzzk.naver.com##+js(json-prune, content.adBlockDetected)
+! 기존 코스메틱 필터도 최후의 폴백으로 유지 (위 전부 깨졌을 때 깜빡이긴 해도 닫아주긴 함)
+chzzk.naver.com##div[class*="popup_layer"]:has-text(/광고 차단|확장 프로그램/)
+chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+! ====================
 ! 치트키 구매하기 툴팁
 chzzk.naver.com##.tooltip
 ! - - - 예외 - 차단리스트 내용 안나옴
