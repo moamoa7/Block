@@ -1776,30 +1776,21 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !
 !
 ! 뉴토끼 (https://sbxh3.com/)
-
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
 @@||sbxh*.com^$image,xhr,script
-
 ! =====  List KR 규칙 해제  =====
-[$domain=/^sbxh[0-9]*\.com/]#@#[data-brs][data-br]
-
-
-! ===== 추가 차단 (uBlock Origin) =====
+[$domain=/^sbxh\d*\./]#@#[data-brs][data-br]
 ! - - - 굳이 추가하지 않아도 기능엔 문제가 없음
 ! - - - 외부 anti-adblock 추적 서버 차단 (DNS에 등록 필요)
 ||whoas.xyz^
-
-!//////////////////////////////////////////////////////
-
-! - 추가 차단 (팝업 및 이용 팝업)
+! - 팝업 및 이용 안내 팝업
 [$domain=/^sbxh\d*\./]##[data-pm-ov="1"]
 [$domain=/^sbxh\d*\./]##.vw-swipe-hint
-! - 추가 차단 (배너 공간내 텍스트)
-![$domain=/^sbxh[0-9]*\.com/]##span > span:nth-of-type(2)
+! - 배너 공간내 텍스트
 [$domain=/^sbxh\d*\./]##span > span:nth-of-type(2)
-! - 팝업 차단
+! - 실제 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
 [$domain=/^sbxh\d*\./]##+js(window.open-defuser)
 ! - 배너 크기 조절 + 시각적 가림 + 클릭 흡수
@@ -1814,7 +1805,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !/////////////////////////////////////////
 ! =====  배너 공간 감추기  =====
 ! 광고 컨테이너 화면 밖으로 이동
-[$domain=/^sbxh[0-9]*\.com/]#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
+[$domain=/^sbxh\d*\./]#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
 !
 !
 ! 블랙툰 (https://www.blacktoonurl2.com/) ()
