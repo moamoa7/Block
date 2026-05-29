@@ -1510,8 +1510,11 @@ poooo.ml#@#.ad
 !
 !
 ! 애니라이프 (https://anilife.live/) (https://anilife.app/)
+! - 배너 이미지
+||anilife.live/assets/banner/
 ! - 상단 배너 공간
-anilife.app##.grid-cols-1
+anilife.app##.lg\:h-\[460px\]
+anilife.app##.sm\:grid-cols-2
 anilife.live##.MainBnnWrap
 ! - 앱 설치하기 팝업
 anilife.app##.duration-300
