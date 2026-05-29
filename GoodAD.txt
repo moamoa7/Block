@@ -1806,7 +1806,6 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
 [$domain=/^sbxh\d*\./]##+js(window.open-defuser)
-/^https?:\/\/sbxh\d*\./$popup
 
 ! - 광고배너에 CSS 입히기
 ![$domain=/^sbxh[0-9]*\.com/]#$#[data-br="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
