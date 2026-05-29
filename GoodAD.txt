@@ -1801,6 +1801,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
 [$domain=/^sbxh[0-9]*\.com/]##+js(window.open-defuser)
+/^https?:\/\/sbxh\d*\.com/$popup
 
 ! - 광고배너에 CSS 입히기
 ![$domain=/^sbxh[0-9]*\.com/]#$#[data-br="1"] { box-shadow: inset 0 0 0 2px rgba(255,0,0,0.5) !important; }
@@ -3098,7 +3099,8 @@ missav.*,njavtv.com##[class^="mx-auto" i]
 ! - 하단 배너
 missav.fans###b-a-b
 ! - 팝업 차단
-/^https?:\/\/missav\d+\.com/`$popup
+[$domain=/^missav\d*\./]##+js(window.open-defuser)
+/^https?:\/\/missav\d*\./$popup
 !
 !
 ! https://popjav.in/
