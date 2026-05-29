@@ -148,17 +148,17 @@ tv.kakao.com#@#div.ads
 !
 !
 ! 구글 광고 차단
-##ins.adsbygoogle
-##[class*="ins.adsbygoogle" i]
+!##ins.adsbygoogle - ##[class*="adsby" i]로 대체
+!##[class*="ins.adsbygoogle" i]
 ! - - - 일부 해제
 ! - - - - - 아이피 위치추적 (https://mylocation.co.kr/)
 ! - - - - - AdBlock, AdGuard 등의 광고차단기가 감지되어 검색기능을 제한합니다 풀기
 ! - - - - - List-KR / EasyList / AdGuard – Ads 무력화
-mylocation.co.kr#@#ins.adsbygoogle[data-ad-slot]
+!mylocation.co.kr#@#ins.adsbygoogle[data-ad-slot]
 ! EasyList 무력화
-mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
+!mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
 ! YousLis 무력화
-mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
+!mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
 *adsbygoogle.js*
 !##[class*="google-ad"] - ##[class*="google"] 로 대체
 !##[class*="google" i]
@@ -166,7 +166,7 @@ mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-
 ! - - - https://gemini.google.com/ - 본문 안보임
 !gemini.google.com#@#[class*="google" i]
 !##[id*="google" i]
-##[id*="adsbygoogle" i]
+!##[id*="adsbygoogle" i] - ##[class*="adsby" i]로 대체
 ##[data-google-av-ad-container]
 ! 구글 광고 차단 (추가)
 /adsense/*
@@ -660,7 +660,7 @@ gall.dcinside.com#@#.r_dcmedia
 ! - - -  웃대 (https://web.humoruniv.com/) 왼쪽 배너 / 하단 배너
 ! - - -  다모앙 (https://damoang.net/) (게시글 위 배너)
 !##[class*="adsbygoogle" i]
-##.adsbygoogle
+!##.adsbygoogle - ##[class*="adsby" i]로 대체
 !##[id*="google_ads"]
 ! - - - 파워 링크
 !##[class*="ad_"] [style]
@@ -2911,10 +2911,22 @@ javtiful.com##.front-feature-placement-side
 !
 !
 ! 야애니24 (https://www.aniya24.com/)
+! - 배너
+##section:has([target] img[src*="/wp-content/uploads/"])
+##section:has(img[width="1200"])
+! - 배너 남는 공간
+aniya24.com##.elementor-element-5fc256c
+aniya24.com##.elementor-element-48515f4
+aniya24.com##.elementor-element-78dd0fa
+aniya24.com##.elementor-element-ce2e4d3
+aniya24.com##.elementor-element-3771cc7
+aniya24.com##.elementor-element-f06bcec
+aniya24.com##.elementor-element-139cd90
+aniya24.com##.elementor-element-adf8da5
+! - 영상 하단 배너 공간
+aniya24.com##.above-content-sidebar
 ! 기타 차단
 /wp-content/plugins/swiftninjapro-inspect-element-console-blocker/assets/*
-! - 영상 플레이시 재생되는 광고 차단
-!||bkcdn.net
 !
 !
 ! ManyMV (https://manymv.com/)
@@ -5051,6 +5063,11 @@ linkareer.com#@#[src*="advert" i]
 ##[src$="iframe" i]
 !
 !
+! - 폰허브 ##.adsbytrafficjunky 과 구글 ##[class*="ins.adsbygoogle" i] 응용
+##[class*="adsby" i]
+!
+##[id*="adsby" i]
+!
 !
 !
 !
@@ -5210,7 +5227,8 @@ manhwabang.org##a[target*="target"] img
 ! - 시네티 (https://cinety.sooplive.com/) - 배너 사라짐
 ! - https://vexfile.com/ - 다운받는 본문 다 사라짐
 ! - https://t-browser.com/ - 본문 사라짐
-t-browser.com,vexfile.com,cinety.sooplive.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
+! - 야애니24 (https://www.aniya24.com/) - 플레이어가 안나옴
+aniya24.com,t-browser.com,vexfile.com,cinety.sooplive.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
 
 
 
