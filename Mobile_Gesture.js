@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      69.0.2
+// @version      69.0.3
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인 (슬림화 버전)
 // @author       Gemini & Claude
 // @license      MIT
@@ -621,30 +621,34 @@
     };
 
     const checkAndBuildUI = (root, video) => {
-        if (!video.gtState) {
-            video.gtState = { scale: 1.0, panX: 0, panY: 0 };
-        }
+    if (!video.gtState) {
+        video.gtState = { scale: 1.0, panX: 0, panY: 0 };
+    }
 
-        let uiLayer = root.shadowRoot ? root.shadowRoot.querySelector('.gt-ui-layer') : root.querySelector('.gt-ui-layer');
+    let uiLayer = root.shadowRoot ? root.shadowRoot.querySelector('.gt-ui-layer') : root.querySelector('.gt-ui-layer');
 
-        if (uiLayer && video.gtUI && uiLayer !== video.gtUI) {
-            uiLayer.remove();
-            uiLayer = null;
-        }
+    if (uiLayer && video.gtUI && uiLayer !== video.gtUI) {
+        uiLayer.remove();
+        uiLayer = null;
+    }
 
-        if (!uiLayer) {
-            const container = root.shadowRoot || root;
-            Array.from(container.children).forEach(child => {
-                if (child.classList && child.classList.contains('gt-ui-layer') && child !== video.gtUI) {
-                    child.remove();
-                }
-            });
-            uiLayer = buildUI(root, video);
-            video.gtUI = uiLayer;
-        }
+    if (!uiLayer) {
+        const container = root.shadowRoot || root;
+        Array.from(container.children).forEach(child => {
+            if (child.classList && child.classList.contains('gt-ui-layer') && child !== video.gtUI) {
+                child.remove();
+            }
+        });
+        uiLayer = buildUI(root, video);
+        video.gtUI = uiLayer;
+    } else {
+        // ★ 추가: 기존 UI 재사용 시에도 CSS 최신화
+        applyFixedScale(root, video, uiLayer);
+    }
 
-        return uiLayer;
-    };
+    return uiLayer;
+};
+
 
     // ★ UI 레이어를 새 root로 이동 (전체화면 진입 시 핵심)
     const moveUIToRoot = (video, newRoot) => {
