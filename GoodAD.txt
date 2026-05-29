@@ -683,7 +683,7 @@ fmkorea.com###fm_alert
 ! - 네이버 광고 차단 (모바일)
 etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
 ! - 게시물 하단 공백
-etoland.co.kr##div.justify-center
+etoland.co.kr##[id*="view-center"]
 ! - 게시물 목록 상단 배너 공간 (모바일)
 ! - 개별 게시물과 댓글 사이 빈 공간 (모바일)
 etoland.co.kr##article.w-full:has(> ul.mx-\[5px\])
@@ -1180,19 +1180,25 @@ hungryapp.co.kr#@#[src*="/ad/" i]
 !
 ! 다모앙 (https://damoang.net/)
 ! - 메인 전체 배너
-damoang.net##.ad-slot-empty-collapsed
+!damoang.net##.ad-slot-empty-collapsed
 ! - 메인 배너 공간
 damoang.net##.dm-card
-damoang.net##.svelte-f0o7xm
-damoang.net##.ad-slot-btf
+!damoang.net##.svelte-f0o7xm
+!damoang.net##.ad-slot-btf
+! - List-KR
+!##div[style^="--ad-slot-min-height:"]
 ! - 메인 오른쪽 AD
-damoang.net##div.gap-4.flex-col.flex:nth-of-type(3)
+!damoang.net##div.gap-4.flex-col.flex:nth-of-type(3)
+! - -  List KR
+!##.gap-4.flex-col > div:has(> div[data-position="side-image-text-banner"])
+!##div[data-position="side-image-text-banner"]
 ! - 하단 광고 차단 팝업
-damoang.net##.adblock-notice
+!damoang.net##.adblock-notice
+damoang.net##[aria-label="광고 차단 안내"]
 ! - 배너
 !damoang.net##.adsbygoogle
 ! - 오른쪽 스크롤도구
-damoang.net##.d-block.lh-1.end-0.bottom-0.position-fixed
+!damoang.net##.d-block.lh-1.end-0.bottom-0.position-fixed
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 !damoang.net###bo_list_wrap
 ! - 이미지 복구
@@ -1201,11 +1207,11 @@ damoang.net##.d-block.lh-1.end-0.bottom-0.position-fixed
 ! - 차단 사이트
 !||fundingchoicesmessages.google.com^$3p
 ! - 차단사이트 안내 하단 팝업
-damoang.net##.fc-dialog
+!damoang.net##.fc-dialog
 ! - 차단 사이트
-||fundingchoicesmessages.google.com^
+!||fundingchoicesmessages.google.com^
 ! - 일부 필터로 하단 배너 팝업 나오는거 해결
-damoang.net#@#[class*="div-gpt-ad"]
+!damoang.net#@#[class*="div-gpt-ad"]
 !
 !
 ! 웃긴대학 (https://web.humoruniv.com/)
@@ -4743,6 +4749,17 @@ ggoorr.net##.code-list-middle
 javso.com###playera
 !
 !
+!  게이코리아 (https://www.gaykorea.net/)
+! - - -  여보여보 (https://www.yoboyobo.kr/)
+! - 광고
+##[href*="link.coupang.com"]
+! - 광고 빈공간
+yoboyobo.kr,gaykorea.net##.main-slider
+yoboyobo.kr,gaykorea.net##[class*="img-box" i]
+!
+!
+!
+!
 !
 !
 !
@@ -4953,6 +4970,12 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 */csp/report*
+!
+!
+##[class$="-ad" i]
+!
+!
+##[src$="iframe" i]
 !
 !
 !
