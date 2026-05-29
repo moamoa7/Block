@@ -4763,6 +4763,35 @@ yoboyobo.kr,gaykorea.net##.main-slider
 ##[class*="img-box" i]
 !
 !
+!  플레이랜드 (https://playidol.org/)
+!  - - - ! 도박랜드 (https://dobakland3.org/)
+! - 배너
+![$domain=/^dobakland\d+.org/],playidol.org##[src*="229x72"], [src*="320x110"], [src*="&q=75"]
+playidol.org##[src*="229x72"], [src*="320x110"], [src*="&q=75"]
+! - 리스트내 개별 배너
+playidol.org##div.relative:nth-of-type(9)
+! - 배너 공간
+![$domain=/^dobakland\d+.org/],playidol.org##.gap-1.lg\:grid-cols-4
+playidol.org##.gap-1.lg\:grid-cols-4
+playidol.org##.max-w-\[426px\]
+!
+!
+! 오피랜드 (https://opland1.org/)
+! - 아예 안보이게
+[$domain=/^opland\d+.org/]##.flex
+! - 이미지
+!##.object-fill
+!
+!
+! 도박랜드 (https://dobakland3.org/)
+! - 아예 안보이게
+[$domain=/^dobakland\d+.org/]##.mx-auto
+! - 메인 공식업체
+![$domain=/^dobakland\d+.org/]##[class*="transition-shadow"]
+! - 상세보기/바로가기 삭제
+![$domain=/^dobakland\d+.org/]##[class*="cursor"]
+!
+!
 !
 !
 !
@@ -5030,19 +5059,25 @@ coupangplay.com#@#[href*="popup" i]
 ##[src*="pop_up" i]
 
 
-*/*pop*/*
-@@/*pop*/*$font
+!*/*pop*/*
+!@@/*pop*/*$font
+
+*pop*
+@@*pop*$css
+@@*pop*$font
+! - 예외 - https://today-sports9.com/ - 틀 깨짐
+@@*pop*$domain=today-sports9.com
 
 
 !*/popup/*
 !/popups/*
 !*pop*up*
-*popup*
-*pop-up*
-*pop_up*
+!*popup*
+!*pop-up*
+!*pop_up*
 ! - 예외
 ! - - - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
-@@||*popup*$css
+!@@||*popup*$css
 ! - 예외
 !  - -- https://www.wavve.com/ - 개별 구매시 (필요 해제 하지 말것)
 
