@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260529
+! Version: 20260530
 !
 !
 !
@@ -1805,7 +1805,8 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 !/////////////////////////////////////////
 ! =====  배너 공간 감추기  =====
 ! 광고 컨테이너 화면 밖으로 이동
-[$domain=/^sbxh\d*\./]#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
+! - - - left: -9999px - 500px / top: -9999px - 500px 변경 (26.05.30)
+[$domain=/^sbxh\d*\./]#$#[data-brs] { position: absolute !important; left: -500px !important; top: -500px !important; }
 !
 !
 ! 블랙툰 (https://www.blacktoonurl2.com/) ()
