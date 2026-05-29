@@ -3090,6 +3090,8 @@ missav.*,njavtv.com##[class^="mx-auto" i]
 [$domain=/^missav\d+.com/]##[class^="mx-auto" i]
 ! - 개별 배너 (iframe)
 ##[src*="javascript"]
+! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 확인 문제 안보임
+accounts.kakao.com#@#[src*="javascript"]
 !##[src*="frame"]
 ##[src*="/ad?" i]
 ##[src*="/widgets/" i]
@@ -4691,6 +4693,8 @@ saramin.co.kr#@#[class*="banner" i]
 ! 히어하트 (https://hearheart.com/)
 ! - 배너 상단
 hearheart.com##.mb-6.relative
+! - 배너 상단 (모바일)
+hearheart.com##section.relative
 !
 !
 ! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto07.com/) (https://mato07.com/) (https://bookto07.com/)
@@ -4824,6 +4828,10 @@ playidol.org##.max-w-\[426px\]
 ! - 배너 이미지
 ||*.watchakr.com/img/*.jpg
 !
+!
+!  T카페 (https://tcafe21.com/)
+! - 메인 하단 배너 공간
+[$domain=/^tcafe\d+.com/]##.main-p10
 !
 !
 !
@@ -5088,6 +5096,8 @@ coupangplay.com#@#[href*="popup" i]
 
 ##[src*="/pop/" i]
 ##[src*="popup" i]
+! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
+accounts.kakao.com#@#[src*="popup" i]
 ##[src*="pop-up" i]
 ##[src*="pop_up" i]
 
@@ -5100,7 +5110,8 @@ coupangplay.com#@#[href*="popup" i]
 @@*pop*$font
 ! - 예외 - https://today-sports9.com/ - 틀 깨짐
 ! - 예외 - https://trand.co.kr/ - 일부 이미지 사라짐
-@@*pop*$domain=today-sports9.com|trand.co.kr
+! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
+@@*pop*$domain=today-sports9.com|trand.co.kr|accounts.kakao.com
 
 
 !*/popup/*
@@ -5122,6 +5133,8 @@ coupangplay.com#@#[href*="popup" i]
 ! - 예외 - https://yandex.com/ - 검색란 사라짐
 javgiga.com#@#[class*="popup" i]
 yandex.com#@#[class*="popup" i]
+##[src*="popup" i]
+
 
 ##[class*="pop-up" i] 
 ##[class*="pop_up" i] 
@@ -5194,7 +5207,8 @@ manhwabang.org##a[target*="target"] img
 ! - 일일툰 (https://www.spotv147.com/) - 본문 다 사라짐
 ! - 시네티 (https://cinety.sooplive.com/) - 배너 사라짐
 ! - https://vexfile.com/ - 다운받는 본문 다 사라짐
-vexfile.com,cinety.sooplive.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
+! - https://t-browser.com/ - 본문 사라짐
+t-browser.com,vexfile.com,cinety.sooplive.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
 
 
 
