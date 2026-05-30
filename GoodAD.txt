@@ -4839,10 +4839,7 @@ playidol.org##.max-w-\[426px\]
 ! - 왼쪽 쓸데없는 메뉴
 heye.kr###box_type20
 ! - 팝업 방지 차단
-||vo.la^$popup
-||vo.la^
-heye.kr##+js(window.open-defuser, vo.la)
-heye.kr##+js(no-window-open-if, vo.la)
+heye.kr##+js(nowoif)
 !
 !
 !
