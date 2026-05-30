@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260530
+! Version: 20260531
 !
 !
 !
@@ -1483,7 +1483,7 @@ poooo.ml#@#.ad
 ![$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
 !
 !
-! 짭플릭스 (https://zzap148.com/)
+! 짭플릭스 (https://zzap202.com/)
 ! - 성인 글자
 ![$domain=/^zzap\d+.com/]##div.snb-list:nth-of-type(6)
 ! - 이미지 복원
@@ -4091,15 +4091,20 @@ xn--9l4b15e2td.com##.widget-box
 ##.ad-img
 !
 !
-! 링크사랑 https://linklove14.com/) (https://linklove54.com/)
+! 링크사랑 (https://linklove16.com/) (https://linklove54.com/)
 ! - 베너 이미지
-!||linklove*.com/data/editor/*$image
-!||linklove*.com/data/file/ls_*/*$image
+||linklove*.com/data/editor/*$image
+||linklove*.com/data/file/ls_*/*$image
+||linklove*.com/data/apms/background/*$image
 ! - 상단 배너 공간
 [$domain=/^linklove\d+.com/]##.w-box
+! - 중간 배너 공간
+![$domain=/^linklove\d+.com/]##.miso-love-ad
+! - - - https://adult.contents.fc2.com/ 오른쪽 PR 배너
+##[class$="-ad" i]
 !
 !
-!링크사랑 (https://linkloveko.com/) (https://www.nuutvtv.com/)
+!링크 123 (https://linkloveko.com/) (https://www.nuutvtv.com/)
 ! -배너 공간
 ##.wixui-gallery
 !
@@ -4189,22 +4194,31 @@ jusojula.com##.slide-container
 !
 !
 ! 주소모아 (https://www.joosomoa1.com/)
-! - 배너 이미지 
+! - 배너 이미지 (타 사이트에 영향을 줄 수 있으므로 이미지 차단 하지 말것)
+!||static.wixstatic.com/*$image
 !||static.wixstatic.com/media/*$image
-||static.wixstatic.com/*$image
 ! - 상단 배너 공간
 ! - - - 링크랭킹 (https://www.lkrk1.com/)
-! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.linkm365.com/)
+! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.xn--365-938mx02g.com/)
 ! -- - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
-[$domain=/^www.lkrk\d+.com/],[$domain=/^www.joosomoa\d+.com/],[$domain=/^www.linkm\d+.com/],[$domain=/^www.jooso\d+a.com/]##.wixui-section.comp-m0nr4kzh.Oqnisf
+![$domain=/^www.lkrk\d+.com/],[$domain=/^www.joosomoa\d+.com/],www.xn--365-938mx02g.com,[$domain=/^www.jooso\d+a.com/]##.wixui-section.comp-m0nr4kzh
+##.wixui-section.comp-m0nr4kzh
+! - 기타
+! - 연결페이지 배너 등 빈공간
+! - - - 동사무소 (https://www.xn--2q1bn3l8xewza.com/)
+##.wixui-image
+! - 예외 - https://www.xn--9y2bn4wuzfxpb.com/ - 이미지 안나옴
+www.xn--9y2bn4wuzfxpb.com#@#.wixui-image
 !
 !
 ! 링크봇 (https://linkbot3.com/)
 ! - 배너 이미지
-![$domain=/^linkbot\d+.com/]##.mb-1.row-cols-xl-4.row-cols-sm-2.row-cols-2.row
+||linkbot*.com/img/*
+! - 배너 공간 (배너가 여러개중에 1개만 활성화 되어 있어 공간 삭제)
+![$domain=/^linkbot\d+.com/]##.mb-1
 !
 !
-! 놀쟈 (https://www.nzyumi.com/) (https://www.nz94.com/)
+! 놀쟈 (https://www.nzyumi.com/) (https://www.nz94.com/) - 없어진듯
 ! - 18세 이상 물어보는 팝업
 !##.modal18
 ! - 영상 뿌옇거 해결 및 영상 위 가로로 긴 네모창
@@ -4218,8 +4232,7 @@ jusojula.com##.slide-container
 !
 !
 ! Recurbate (https://recu.me/)
-! - 상단 배너 - 한국경제TV 상단 일부 날림으로 광역사용 안됨
-recu.me##.header-sub
+!recu.me##.header-banner
 !
 !
 ! stripchatgirls (https://ko.stripchatgirls.com/)
@@ -4250,14 +4263,20 @@ noonnu.cc##.lg\:top-8
 ![$domain=/^bbongtv\d+.com/]##.verify-banner
 !
 !
-! 주소짱 (https://jusozzang05.xyz/)
+! 주소짱 (https://jusozzang06.org/)
 ! - 상단배너
-![$domain=/^jusozzang\d+.xyz/]##.main_banner_6
+![$domain=/^jusozzang\d+.xyz/]##[class*="main_banner"]
 !
 !
 ! 먹튀데이 (https://mtday.net/)
 ! - 배너
 mtday.net###main_banner
+!
+!
+! 주소꼬마 (https://www.jusokm.com/)
+! - 배너 이미지
+||www.jusokm.com/data/file/*$image
+
 !
 !
 ! 먹튀슈퍼맨 (https://mt-superman.net/)
@@ -4840,8 +4859,8 @@ playidol.org##.max-w-\[426px\]
 heye.kr##.type20
 ! - 팝업 방지
 heye.kr##+js(nowoif)
-heye.kr##^script:has-text(/window\.open\([^)]*\);\s*\w+\.focus/)
-||pandalive.co.kr^$document,domain=heye.kr
+||pandalive.co.kr^
+
 
 !
 !
@@ -5054,9 +5073,6 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 */csp/report*
-!
-!
-##[class$="-ad" i]
 !
 !
 ##[src$="iframe" i]
