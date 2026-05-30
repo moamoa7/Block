@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      69.0.6
+// @version      69.0.7
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인 (슬림화 버전)
 // @author       Gemini & Claude
 // @license      MIT
@@ -933,12 +933,18 @@
             const rect = targetV.getBoundingClientRect(); originDx = initCenterX - (rect.left + rect.width/2 - initPanX); originDy = initCenterY - (rect.top + rect.height/2 - initPanY);
             action = 'pinch'; hideUI(targetV);
         } else if (e.touches.length === 1) {
-            if (curIsFS && targetV.gtState.scale === 1.0) {
-                lpTimer = setTimeout(() => {
-                    if (isTouch && targetV) { action = 'rate'; targetV.playbackRate = Math.max(0.1, initRate + CFG.rateBase - 1.0); showMsg(`${targetV.playbackRate.toFixed(1)}x`, targetV); hideUI(targetV); }
-                }, CFG.longPress);
+    if (curIsFS && targetV.gtState.scale === 1.0) {
+        lpTimer = setTimeout(() => {
+            if (isTouch && targetV) { 
+                action = 'rate'; 
+                targetV.playbackRate = CFG.rateBase;  // ★ 무조건 2.0배
+                showMsg(`${targetV.playbackRate.toFixed(1)}x`, targetV); 
+                hideUI(targetV); 
             }
-        }
+        }, CFG.longPress);
+    }
+}
+
     };
 
     const onMove = (e) => {
@@ -966,7 +972,11 @@
 
         const dx = e.touches[0].clientX - startX, dy = startY - e.touches[0].clientY;
 
-        if (action === 'rate') { targetV.playbackRate = Math.max(0.1, Math.min(4.0, initRate + (CFG.rateBase + dx * CFG.senseRate) - 1.0)); showMsg(`${targetV.playbackRate.toFixed(1)}x`, targetV); return; }
+        if (action === 'rate') { 
+    targetV.playbackRate = Math.max(0.1, Math.min(4.0, CFG.rateBase + dx * CFG.senseRate));
+    showMsg(`${targetV.playbackRate.toFixed(1)}x`, targetV); 
+    return; 
+}
 
         if (!action) {
             if (Math.abs(dx) > CFG.minDist || Math.abs(dy) > CFG.minDist) {
