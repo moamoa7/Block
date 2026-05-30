@@ -1801,7 +1801,7 @@ sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 [$domain=/^sbxh\d*\./]##span > span:nth-of-type(2)
 ! - 실제 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
-[$domain=/^sbxh\d*\./]##+js(window.open-defuser)
+[$domain=/^sbxh\d*\./]##+js(no-window-open-if)
 ! - 배너 크기 조절 + 시각적 가림 + 클릭 흡수
 ! - - - 컨테이너 크기 제한 (검증 통과용)
 ![$domain=/^sbxh\d*\./]#$#[data-brs="header"] { max-height: 425px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
@@ -4837,9 +4837,19 @@ playidol.org##.max-w-\[426px\]
 !
 ! 매의 눈닷컴 (https://heye.kr/)
 ! - 왼쪽 쓸데없는 메뉴
-||heye.kr$xhr
-!
-!
+heye.kr##.type20
+!||heye.kr/Libs/_js/rankup_common.js
+!||heye.kr/Libs/_js/jssor/*.js
+!||heye.kr/Libs/_js/*.js
+!||heye.kr$script,xhr
+!||t1.kakaocdn.net$script
+!||developers.kakao.com/sdk/js/kakao.min.js
+!||halfbook.co.kr^$popup
+!||vo.la^$popup
+! - 팝업 및 리디렉션 방지
+*$popup,domain=heye.kr
+||pandalive.co.kr^$document,domain=heye.kr
+heye.kr##+js(nowoif)
 !
 !
 !
