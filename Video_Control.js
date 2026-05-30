@@ -2,7 +2,7 @@
 // @name         Video_Control (v33.0.2)
 // @namespace    https://github.com/moamoa7
 // @version      33.0.2
-// @description  v33.0.2: 수동보정톤 1개 추가
+// @description  v33.0.2: 수동보정셋 일부 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
