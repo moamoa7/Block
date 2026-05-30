@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      69.0.7
+// @version      69.0.8
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인 (슬림화 버전)
 // @author       Gemini & Claude
 // @license      MIT
@@ -22,9 +22,10 @@
     if (!isMobile) return;
 
     const CFG = {
-        minDist: 10, longPress: 500, rateBase: 2.0, senseX: 0.25,
-        progressBarColor: '#FF6699', uiTimeout: 2500, maxScale: 8.0, senseRate: 0.015
-    };
+    minDist: 10, longPress: 500, rateBase: 2.0, senseX: 0.25,
+    progressBarColor: '#FF6699', uiTimeout: 2500, maxScale: 8.0
+};
+
 
     const TAP_PROTECT_DURATION = 500;
     const SEEK_SEC = 10;
@@ -972,10 +973,9 @@
 
         const dx = e.touches[0].clientX - startX, dy = startY - e.touches[0].clientY;
 
-        if (action === 'rate') { 
-    targetV.playbackRate = Math.max(0.1, Math.min(4.0, CFG.rateBase + dx * CFG.senseRate));
-    showMsg(`${targetV.playbackRate.toFixed(1)}x`, targetV); 
-    return; 
+        if (action === 'rate') {
+    // ★ 롱프레스 중에는 좌우 드래그 무시 (2.0배속 고정)
+    return;
 }
 
         if (!action) {
