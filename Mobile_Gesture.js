@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      69.0.4
+// @version      69.0.5
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인 (슬림화 버전)
 // @author       Gemini & Claude
 // @license      MIT
@@ -361,26 +361,36 @@
         #${uid} .gt-mini-progress .gt-fill { height: 100%; width: 0%; background: ${CFG.progressBarColor}; transition: width 0.1s linear; box-shadow: 0 0 4px ${CFG.progressBarColor}; }
         :fullscreen #${uid} .gt-mini-progress, .gt-fullscreen-active #${uid} .gt-mini-progress { display: block !important; opacity: 0.9 !important; height: 3px !important; }
 
+                /* 기본: 숨김 */
         #${uid} .gt-btn-base { position: absolute; width: ${38 * FS}px; height: ${38 * FS}px; display: none; align-items: center; justify-content: center; z-index: 2147483647; opacity: 0; pointer-events: none; transition: opacity 0.3s ease, transform 0.15s ease; border: none; background: rgba(0,0,0,0.35); border-radius: 50%; color: rgba(255, 255, 255, 0.95); filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.8)); }
         #${uid} .gt-btn-base * { pointer-events: none !important; }
         #${uid} .gt-btn-base svg { width: ${22 * FS}px; height: ${22 * FS}px; transition: all 0.2s ease; transform-origin: center center; fill: none !important; stroke: currentColor !important; stroke-width: 2 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
         #${uid} .gt-btn-base svg * { fill: none !important; stroke: currentColor !important; stroke-width: 2 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
 
-        :fullscreen #${uid} .gt-btn-base, .gt-fullscreen-active #${uid} .gt-btn-base { display: flex !important; opacity: 0.6 !important; pointer-events: auto !important; }
+        /* ★ 전체화면 + display는 켜지만 opacity는 0 (자리만 잡음) */
+        :fullscreen #${uid} .gt-btn-base, .gt-fullscreen-active #${uid} .gt-btn-base { display: flex !important; }
+
+        /* ★ gt-ui-visible 클래스가 붙었을 때만 실제로 보임 */
+        :fullscreen #${uid}.gt-ui-visible .gt-btn-base, .gt-fullscreen-active #${uid}.gt-ui-visible .gt-btn-base { opacity: 0.6 !important; pointer-events: auto !important; }
+
+        /* 상태에 따라 숨김 (줌 안 했을 때 줌 리셋 등) */
         :fullscreen #${uid} .gt-btn-base.hidden-by-state, .gt-fullscreen-active #${uid} .gt-btn-base.hidden-by-state { display: none !important; pointer-events: none !important; }
-        :fullscreen #${uid} .gt-btn-base:active, .gt-fullscreen-active #${uid} .gt-btn-base:active { opacity: 1 !important; color: #fff; background: rgba(0,0,0,0.55); }
+
+        /* 누를 때 더 진하게 */
+        :fullscreen #${uid}.gt-ui-visible .gt-btn-base:active, .gt-fullscreen-active #${uid}.gt-ui-visible .gt-btn-base:active { opacity: 1 !important; color: #fff; background: rgba(0,0,0,0.55); }
+
 
         /* 일반 모드: 컨테이너 기준 25%/75% 위치 */
-        #${uid} .gt-pip-btn { top: 25%; left: 20px; }
-        #${uid} .gt-rotate-btn { bottom: 25%; left: 20px; }
-        #${uid} .gt-fit-btn { top: 25%; right: 20px; }
-        #${uid} .gt-reset-zoom-btn { bottom: 25%; right: 20px; }
+        #${uid} .gt-pip-btn { top: 25%; left: 10px; }
+        #${uid} .gt-rotate-btn { bottom: 25%; left: 10px; }
+        #${uid} .gt-fit-btn { top: 25%; right: 10px; }
+        #${uid} .gt-reset-zoom-btn { bottom: 25%; right: 10px; }
 
         /* 전체화면: 좌우 가장자리는 그대로, 상하만 중앙 쪽으로 이동 */
-        :fullscreen #${uid} .gt-pip-btn, .gt-fullscreen-active #${uid} .gt-pip-btn { top: 30%; left: 20px; }
-        :fullscreen #${uid} .gt-rotate-btn, .gt-fullscreen-active #${uid} .gt-rotate-btn { bottom: 30%; left: 20px; }
-        :fullscreen #${uid} .gt-fit-btn, .gt-fullscreen-active #${uid} .gt-fit-btn { top: 30%; right: 20px; }
-        :fullscreen #${uid} .gt-reset-zoom-btn, .gt-fullscreen-active #${uid} .gt-reset-zoom-btn { bottom: 30%; right: 20px; }
+        :fullscreen #${uid} .gt-pip-btn, .gt-fullscreen-active #${uid} .gt-pip-btn { top: 30%; left: 10px; }
+        :fullscreen #${uid} .gt-rotate-btn, .gt-fullscreen-active #${uid} .gt-rotate-btn { bottom: 30%; left: 10px; }
+        :fullscreen #${uid} .gt-fit-btn, .gt-fullscreen-active #${uid} .gt-fit-btn { top: 30%; right: 10px; }
+        :fullscreen #${uid} .gt-reset-zoom-btn, .gt-fullscreen-active #${uid} .gt-reset-zoom-btn { bottom: 30%; right: 10px; }
         
         #${uid} .gt-seek-msg { position: absolute !important; top: 45% !important; color: rgba(255, 255, 255, 0.95) !important; z-index: 2147483647 !important; pointer-events: none !important; opacity: 0; transition: opacity 0.15s ease-out; display: none !important; flex-direction: row !important; flex-wrap: nowrap !important; align-items: center !important; justify-content: center !important; gap: ${6 * FS}px !important; font-family: system-ui, -apple-system, sans-serif !important; white-space: nowrap !important; text-shadow: 0 0 ${10 * FS}px rgba(0,0,0,0.8), 0 0 ${4 * FS}px rgba(0,0,0,0.6), 0 ${2 * FS}px ${4 * FS}px rgba(0,0,0,0.5) !important; }
         :fullscreen #${uid} .gt-seek-msg, .gt-fullscreen-active #${uid} .gt-seek-msg { display: flex !important; }
