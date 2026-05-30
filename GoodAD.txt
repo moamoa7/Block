@@ -442,33 +442,21 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 !
 ! 치지직 (https://chzzk.naver.com/)
 ! ===== 광고 차단 팝업 없애기 =====
-! 1) API 응답에서 광고 차단 감지 플래그(dab) 제거
+! 1) API 응답에서 dab 플래그 제거 (메인)
 chzzk.naver.com##+js(json-prune, content.dab)
 chzzk.naver.com##+js(json-prune, dab, livePlaybackJson)
 chzzk.naver.com##+js(json-prune, dab, channel)
-! 2) playableStatus 강제 (해상도 제한 우회 — 광고 차단 시 480p 제한 푸는 용도)
-chzzk.naver.com##+js(json-prune, livePollingStatus.trafficThrottling)
-! 3) 광고 프로브 요청 무력화 (광고 서버가 응답 안 하면 "차단됨"으로 판정하므로 빈 응답으로 가장)
+chzzk.naver.com##+js(json-prune, *.dab)
+! 2) 광고 프로브 요청 무력화
 chzzk.naver.com##+js(no-fetch-if, tveta)
 chzzk.naver.com##+js(no-fetch-if, /gfp/)
 chzzk.naver.com##+js(no-xhr-if, tveta)
 chzzk.naver.com##+js(no-xhr-if, /gfp/)
-! 4) 배너 요소가 숨겨졌는지 검사하는 코드 우회 (display:none 감지 회피)
+! 3) 배너 display:none 감지 회피
 chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
-! 5) (선택) 기존 코스메틱 필터는 폴백용으로 유지
+! 4) 최후의 폴백 (위 전부 깨졌을 때 깜빡이긴 해도 닫아줌)
 !chzzk.naver.com##div[class*="popup_layer"]:has-text(/광고 차단|확장 프로그램/)
 !chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
-! ===== 보험용 =====
-! dab 키가 어디에 박혀도 잡도록 와일드카드 추가
-chzzk.naver.com##+js(json-prune, *.dab)
-chzzk.naver.com##+js(json-prune, content.*.dab)
-! 광고 차단 감지에서 자주 쓰이는 다른 후보 키들 (방어용)
-chzzk.naver.com##+js(json-prune, adBlockDetected)
-chzzk.naver.com##+js(json-prune, isAdBlockUser)
-chzzk.naver.com##+js(json-prune, content.adBlockDetected)
-! 기존 코스메틱 필터도 최후의 폴백으로 유지 (위 전부 깨졌을 때 깜빡이긴 해도 닫아주긴 함)
-chzzk.naver.com##div[class*="popup_layer"]:has-text(/광고 차단|확장 프로그램/)
-chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
 ! 치트키 구매하기 툴팁
 chzzk.naver.com##.tooltip
@@ -4845,6 +4833,13 @@ playidol.org##.max-w-\[426px\]
 ##[id*="popup-overlay" i]
 ! - 메인 하단 배너 공간
 [$domain=/^tcafe\d+.com/]##.main-p10
+!
+!
+! 매의 눈닷컴 (https://heye.kr/)
+! - 왼쪽 쓸데없는 메뉴
+heye.kr###box_type20
+! - 팝업 방지 차단
+||heye.kr/Libs/_js/rankup_form.js
 !
 !
 !
