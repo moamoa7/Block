@@ -4837,15 +4837,7 @@ playidol.org##.max-w-\[426px\]
 !
 ! 매의 눈닷컴 (https://heye.kr/)
 ! - 왼쪽 쓸데없는 메뉴
-heye.kr###box_type20
-! - 팝업 방지 차단
-||pandalive.co.kr^$domain=heye.kr
-||pandalive.co.kr^$popup
-||pandalive.co.kr^$document,domain=heye.kr
-heye.kr##+js(nowoif)
-heye.kr##script:has-text(window.open)
-heye.kr##a[href*="pandalive.co.kr"]
-
+||heye.kr$xhr
 !
 !
 !
