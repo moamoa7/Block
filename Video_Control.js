@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.0.1)
+// @name         Video_Control (v33.0.2)
 // @namespace    https://github.com/moamoa7
-// @version      33.0.1
-// @description  v33.0.1: 톤 프리셋 클릭 시 10밴드 슬라이더 동기화
+// @version      33.0.2
+// @description  v33.0.2: 수동보정톤 1개 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,7 +33,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.0.1';
+  const VSC_VERSION = '33.0.2';
   const DEBUG = false;
 
   const log = {
@@ -138,6 +138,7 @@
     { n: '또렷하게#', v: [0, 0, 0, 0, 0, 6, 4, 10, 10] },
     { n: '(모바일1)', v: [0, 0, 8, 0, 0, -8, -8, -4, 4] },
     { n: '(모바일2)', v: [0, 0, 20, 0, 0, -10, 10, -5, -10] },
+    { n: '(모바일3)', v: [0, 0, 10, 0, 0, -10, 10, -20, 0] },
     { n: '게임', v: [8, 0, 0, 0, 0, -2, -6, 14, 4] },
     { n: '생동감', v: [0, 0, 10, 0, 0, 16, -4, 10, 8] },
     { n: '역광보정', v: [40, 0, 15, 0, 0, 0, 12, 8, -8] },
