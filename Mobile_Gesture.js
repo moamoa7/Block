@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      69.0.3
+// @version      69.0.4
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인 (슬림화 버전)
 // @author       Gemini & Claude
 // @license      MIT
@@ -370,16 +370,18 @@
         :fullscreen #${uid} .gt-btn-base.hidden-by-state, .gt-fullscreen-active #${uid} .gt-btn-base.hidden-by-state { display: none !important; pointer-events: none !important; }
         :fullscreen #${uid} .gt-btn-base:active, .gt-fullscreen-active #${uid} .gt-btn-base:active { opacity: 1 !important; color: #fff; background: rgba(0,0,0,0.55); }
 
-        #${uid} .gt-pip-btn { top: 25px; left: 20px; }
-        #${uid} .gt-rotate-btn { bottom: 25px; left: 20px; }
-        #${uid} .gt-fit-btn { top: 25px; right: 20px; }
-        #${uid} .gt-reset-zoom-btn { bottom: 25px; right: 20px; }
+        /* 일반 모드: 컨테이너 기준 25%/75% 위치 */
+        #${uid} .gt-pip-btn { top: 25%; left: 20px; }
+        #${uid} .gt-rotate-btn { bottom: 25%; left: 20px; }
+        #${uid} .gt-fit-btn { top: 25%; right: 20px; }
+        #${uid} .gt-reset-zoom-btn { bottom: 25%; right: 20px; }
 
-        :fullscreen #${uid} .gt-pip-btn, .gt-fullscreen-active #${uid} .gt-pip-btn { top: 40px; left: 30px; }
-        :fullscreen #${uid} .gt-rotate-btn, .gt-fullscreen-active #${uid} .gt-rotate-btn { bottom: 40px; left: 30px; }
-        :fullscreen #${uid} .gt-fit-btn, .gt-fullscreen-active #${uid} .gt-fit-btn { top: 40px; right: 30px; }
-        :fullscreen #${uid} .gt-reset-zoom-btn, .gt-fullscreen-active #${uid} .gt-reset-zoom-btn { bottom: 40px; right: 30px; }
-
+        /* 전체화면: 좌우 가장자리는 그대로, 상하만 중앙 쪽으로 이동 */
+        :fullscreen #${uid} .gt-pip-btn, .gt-fullscreen-active #${uid} .gt-pip-btn { top: 30%; left: 20px; }
+        :fullscreen #${uid} .gt-rotate-btn, .gt-fullscreen-active #${uid} .gt-rotate-btn { bottom: 30%; left: 20px; }
+        :fullscreen #${uid} .gt-fit-btn, .gt-fullscreen-active #${uid} .gt-fit-btn { top: 30%; right: 20px; }
+        :fullscreen #${uid} .gt-reset-zoom-btn, .gt-fullscreen-active #${uid} .gt-reset-zoom-btn { bottom: 30%; right: 20px; }
+        
         #${uid} .gt-seek-msg { position: absolute !important; top: 45% !important; color: rgba(255, 255, 255, 0.95) !important; z-index: 2147483647 !important; pointer-events: none !important; opacity: 0; transition: opacity 0.15s ease-out; display: none !important; flex-direction: row !important; flex-wrap: nowrap !important; align-items: center !important; justify-content: center !important; gap: ${6 * FS}px !important; font-family: system-ui, -apple-system, sans-serif !important; white-space: nowrap !important; text-shadow: 0 0 ${10 * FS}px rgba(0,0,0,0.8), 0 0 ${4 * FS}px rgba(0,0,0,0.6), 0 ${2 * FS}px ${4 * FS}px rgba(0,0,0,0.5) !important; }
         :fullscreen #${uid} .gt-seek-msg, .gt-fullscreen-active #${uid} .gt-seek-msg { display: flex !important; }
         #${uid} .gt-seek-msg.left { left: 15%; transform: translateY(-50%); }
