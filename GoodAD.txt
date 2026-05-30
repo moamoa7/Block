@@ -4839,11 +4839,13 @@ playidol.org##.max-w-\[426px\]
 ! - 왼쪽 쓸데없는 메뉴
 heye.kr###box_type20
 ! - 팝업 방지 차단
-||heye.kr/include/cover_proc.ajax.php
+||pandalive.co.kr^$domain=heye.kr
+||pandalive.co.kr^$popup
 ||pandalive.co.kr^$document,domain=heye.kr
-||pandalive.co.kr^$popup,domain=heye.kr
-||vo.la^$document,domain=heye.kr
-||vo.la^$popup,domain=heye.kr
+heye.kr##+js(nowoif)
+heye.kr##script:has-text(window.open)
+heye.kr##a[href*="pandalive.co.kr"]
+
 !
 !
 !
