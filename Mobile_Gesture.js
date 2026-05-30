@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      69.0.5
+// @version      69.0.6
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인 (슬림화 버전)
 // @author       Gemini & Claude
 // @license      MIT
@@ -425,34 +425,46 @@
     const SVG_ROTATE = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>`;
 
     const showMsg = (txt, video = null) => {
-        let uiLayer = (video && video.gtUI) ? video.gtUI : (targetV && targetV.gtUI ? targetV.gtUI : null);
+    let uiLayer = (video && video.gtUI) ? video.gtUI : (targetV && targetV.gtUI ? targetV.gtUI : null);
 
-        let t;
-        if (uiLayer) {
-            t = uiLayer.querySelector('.gt-toast');
-            if (!t) {
-                t = document.createElement('div');
-                t.className = 'gt-toast';
-                uiLayer.appendChild(t);
-            }
-            t.style.position = 'absolute';
-        } else {
-            t = document.getElementById('gt-toast-global');
-            if (!t) {
-                t = document.createElement('div');
-                t.id = 'gt-toast-global';
-                t.className = 'gt-toast';
-                document.body.appendChild(t);
-            }
-            t.style.position = 'fixed';
-            t.style.zIndex = '2147483647';
+    let t;
+    if (uiLayer) {
+        t = uiLayer.querySelector('.gt-toast');
+        if (!t) {
+            // ★ 빈 텍스트면 새로 만들 필요도 없음
+            if (!txt) return;
+            t = document.createElement('div');
+            t.className = 'gt-toast';
+            uiLayer.appendChild(t);
         }
+        t.style.position = 'absolute';
+    } else {
+        t = document.getElementById('gt-toast-global');
+        if (!t) {
+            if (!txt) return;
+            t = document.createElement('div');
+            t.id = 'gt-toast-global';
+            t.className = 'gt-toast';
+            document.body.appendChild(t);
+        }
+        t.style.position = 'fixed';
+        t.style.zIndex = '2147483647';
+    }
 
-        t.textContent = txt;
-        t.classList.add('show');
-        if (t.gtTimer) clearTimeout(t.gtTimer);
-        t.gtTimer = setTimeout(() => t.classList.remove('show'), 800);
-    };
+    // ★ 빈 텍스트면 즉시 숨기고 종료
+    if (!txt) {
+        t.classList.remove('show');
+        if (t.gtTimer) { clearTimeout(t.gtTimer); t.gtTimer = null; }
+        t.textContent = '';
+        return;
+    }
+
+    t.textContent = txt;
+    t.classList.add('show');
+    if (t.gtTimer) clearTimeout(t.gtTimer);
+    t.gtTimer = setTimeout(() => t.classList.remove('show'), 800);
+};
+
 
     const identify = (e) => {
         let targetVideo = null;
