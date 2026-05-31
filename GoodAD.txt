@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260531
+! Version: 20260601
 !
 !
 !
@@ -1436,8 +1436,8 @@ poooo.ml#@#.ad
 ! - websocket 차단 - 먼지 모르갰지만 재생에 필요한 사이트에 websocket이 켜있어서 막아놓음
 ! - - - 티비위키 / 티비몬 / 티비핫 공통 적용
 ||player.bunny-frame.online$websocket
-! - 못보던 도메인 차단
-||yasyadong01.tv^
+! - 못보던 도메인의 무한 프레임 생성 차단
+/^https?:\/\/([^\/]+\.)?yasyadong\d*\.tv\//$frame
 !
 !
 ! 티비착 (https://tvchak.org/)  (https://tvchak201.com/)  (https://tvchak.live/)
@@ -4065,16 +4065,16 @@ hitomi.la###immersive-translate-popup
 [$domain=/^of\d+.com/]##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximize.ftwp-wrap
 !
 !
-! 팬더티비 (https://www.pandalive.co.kr/) - 회원가입 못함
+! 팬더티비 (https://www.pandalive.co.kr/)
 ! - 딩 동그라미 삭제
 !##.-translate-y-1\/2.-translate-x-1\/2.w-\[50px\].h-\[50px\].z-\[1\].top-1\/2.left-1\/2.absolute
 ! - 팝업 - 막으면 스크롤 안되서 해제
 !##.max-h-screen
 !##.bg-black\/50
 ! - - - https://www.reddit.com/ - 상단 타이틀이 사라지므로 광역 금지
-pandalive.co.kr##.pointer-events-auto
+!pandalive.co.kr##.pointer-events-auto
 ! - 팝업 차단으로 막힌 스크롤 차단 해제
-pandalive.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
+!pandalive.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
 ! 링크판 (https://linkpan72.com/)
