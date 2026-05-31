@@ -51,6 +51,8 @@
 @@||sofrano.com^$stealth=dpi
 @@||termeden.com^$stealth=dpi
 @@||truefriend.com^$stealth=dpi
+@@||nexon.com^$stealth=dpi
+@@||coupang.com^$stealth
 !!! 애드가드에 보안/프라이버시 강화 목적으로 들어간 규칙 해제
 !@@/.*/$permissions=identity-credentials-get=(),document
 !!! 애드가드 스텔스 모드 (DPI로부터 보호 제외 모두 해제)
@@ -1722,17 +1724,18 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ! 엑스툰  XToon (https://xn--9t4b31dr7o.com/) (https://t3.xtoon365.com/)
 ! - 팁
 ##.f-tips
-! - 하단 가운데 계속보기 버튼
-###userHistory
+! - 개별 만화 상단 배너
+!##.chapter-ad -##[class$="-ad" i]로 대체
+! - 하단 가운데 계속보기 버튼 (웹툰 다 안보고 메인으로 나오면 메인 하단에 나옴)
+!###userHistory
 ! - 하단 움직이는 광고
 !##.slideAnimation--K36g6.bottomRight--sO8K2.root--ujvuu
 ! - 이미지 게시물내 배너
 !## div > a[target="_blank"] > picture
 ! - 예외
-sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
-
+!sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 박스형 배너
-###category-Ad
+!###category-Ad
 !
 !
 ! 만화방 (https://manhwabang.org/)
@@ -4022,10 +4025,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ![$domain=/^yadong\d+.com/]##a[href][target*="blank"]:has(img[src*="admin_banner"])
 !##a[target*="blank"]:has(img[src*="admin_banner"])
 !##img[src*="admin_banner" i]
-##[id*="main-banner" i]
-! - 광고 영상 있는 영상 삭제
-![$domain=/^yadong\d+.com/]##[src*="player.html?"]
-##[src*="player.html?"]
+!##[id*="main-banner" i]
 !
 !
 ! 히토미 (https://hitomi.la/)
@@ -4101,6 +4101,7 @@ xn--9l4b15e2td.com##.widget-box
 ! - 중간 배너 공간
 ![$domain=/^linklove\d+.com/]##.miso-love-ad
 ! - - - https://adult.contents.fc2.com/ 오른쪽 PR 배너
+! - - - 엑스툰 (https://t3.xtoon365.com/) - 개별 만화 관람시
 ##[class$="-ad" i]
 !
 !
