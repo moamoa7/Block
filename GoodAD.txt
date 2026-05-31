@@ -4011,10 +4011,10 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 !
 ! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl8.com/)
 ! - 전체 배너
-! - - - 도도걸 (https://dodogirl3.com/)
-! - - - 야동닷컴 (https://yadong7.com/)
-! - - -  싸나이 (https://sanai16.com/)
-! - - - 언리샷 (https://unlishot.org/) (https://unlishot55.cc/)
+! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl3.com/)
+! - - - 야동닷컴 (https://ydong.net/ (https://yadong7.com/)
+! - - -  싸나이 (https://xn--910bl26apid.net/) (https://sanai17.com/)
+! - - - 언리샷 (https://unlishot.top/) (https://unlishot56cc/) - 영상 안나오는듯
 !||darkg*.com/data/file/admin_banner/*
 !||ydong*.com/data/file/admin_banner/*
 !||sanai*.com/data/file/admin_banner/*
@@ -4025,7 +4025,23 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ![$domain=/^yadong\d+.com/]##a[href][target*="blank"]:has(img[src*="admin_banner"])
 !##a[target*="blank"]:has(img[src*="admin_banner"])
 !##img[src*="admin_banner" i]
-!##[id*="main-banner" i]
+##[id*="main-banner" i]
+! - 스킵 후 자동으로 플레이 재생 (영상 괜히 클릭하지 마세요. 팝업 나옴)
+[$domain=/^sanail\d+.com/],[$domain=/^yadong\d+.com/],[$domain=/^dodogirl\d+.com/],[$domain=/^darkgirl\d+.com/]##+js(trusted-click-element, #adbtn.ready, , 500-30000)
+! 팝업 방지
+/dove\d+\.bet/$popup
+/alphex\d+\.com/$popup
+esjoin.com$popup
+/bella\d+\.com/$popup
+/qb-\d+\.com/$popup
+xn--o80bl47b1hdhds1k.net$popup
+xn--hi5ba37jba.com$popup
+/mds-\d+\.com/$popup
+/ok-\d+\.com/$popup
+/daemul-\d+\.com/$popup
+/mmob\d+\.com/$popup
+xn--2i0ba424pba.com$popup
+/hbm-\d+\.com/$popup
 !
 !
 ! 히토미 (https://hitomi.la/)
