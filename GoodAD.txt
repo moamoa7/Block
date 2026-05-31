@@ -4686,17 +4686,20 @@ modded-1.com#@#[class*="ad-container" i]
 ! - 배너 이미지
 ! - - - 달달티비 (https://www.dadtv2.com/)
 ! - - - 별별티비 / 달달티비
-||images2.imgbox.com$image
-! - - - 별별티비
-||img.smartnote.blog/pp3/2026-03-15/$image
+/^https?:\/\/images2\.imgbox\.com\/.*$/$domain=/^(bbtv|dadtv)\d+\.com$/
 ! - 배너 공간
 [$domain=/^bbtv/]###pagetop > div > .el-row
 [$domain=/^bbtv/]###detailtop > div > .el-row
+[$domain=/^dadtv/]##.Card-List > div > .el-row
+! - 비아그라 최저가 글자
+[$domain=/^bbtv/]##.hidden-sm-and-down.el-aside > .el-collapse-item__header
+! - 왼쪽 메뉴 중 불필요한 글자
+[$domain=/^bbtv/]##.hidden-sm-and-down.el-aside > div > .el-row
 !
 !
-! 도도티비 (https://www.dodotv.tv/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! 도도티비 (https://dodotv11.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 상단 텍스트 배너
-dodotv.tv##.line-notice
+[$domain=/^dodotv\d+.com/]##.line-notice
 !
 !
 ! 모자TV (https://www.mozatv.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
@@ -5164,6 +5167,8 @@ coupangplay.com#@#[href*="popup" i]
 ##[href*="pop_up" i]
 
 ##[src*="/pop/" i]
+! - 예외 - ! 도도티비 (https://dodotv11.com/) - 영상 안나옴
+[$domain=/^dodotv\d+.com/]#@#[src*="/pop/" i]
 ##[src*="popup" i]
 ! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
 accounts.kakao.com#@#[src*="popup" i]
