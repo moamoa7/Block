@@ -461,7 +461,8 @@ chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
 !chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
 ! 치트키 구매하기 툴팁
-chzzk.naver.com##.tooltip
+!chzzk.naver.com##.tooltip - ##[class$="tooltip" i] 로 대체
+##[class$="tooltip" i]
 ! - - - 예외 - 차단리스트 내용 안나옴
 !my.nextdns.io#@#.tooltip
 ! 영상 왼쪽 하단 쇼핑 배너 (눈에 안보이는듯)
@@ -685,6 +686,9 @@ fmkorea.com###fm_alert
 ! - 기타
 !##[class*="kakao_ad_area" i]
 ##.kakao_ad_area
+! - 프레임 차단
+##[src*="direct_url" i]
+##[src*="loader.fmkorea.com" i]
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
@@ -1432,6 +1436,8 @@ poooo.ml#@#.ad
 ! - websocket 차단 - 먼지 모르갰지만 재생에 필요한 사이트에 websocket이 켜있어서 막아놓음
 ! - - - 티비위키 / 티비몬 / 티비핫 공통 적용
 ||player.bunny-frame.online$websocket
+! - 못보던 도메인 차단
+||yasyadong01.tv^
 !
 !
 ! 티비착 (https://tvchak.org/)  (https://tvchak201.com/)  (https://tvchak.live/)
@@ -4687,20 +4693,20 @@ modded-1.com#@#[class*="ad-container" i]
 ! - 배너 이미지
 ! - - - 달달티비 (https://www.dadtv2.com/)
 ! - - - 별별티비 / 달달티비
-/^https?:\/\/images2\.imgbox\.com\/.*$/$domain=/^(bbtv|dadtv)\d+\.com$/
+/^https?:\/\/images2\.imgbox\.com\/.*$/$domain=/^(www\.)?(bbtv|dadtv)\d+\.com$/
 ! - 배너 공간
-[$domain=/^bbtv/]###pagetop > div > .el-row
-[$domain=/^bbtv/]###detailtop > div > .el-row
-[$domain=/^dadtv/]##.Card-List > div > .el-row
+/^(www\.)?bbtv/###pagetop > div > .el-row
+/^(www\.)?bbtv/###detailtop > div > .el-row
+/^(www\.)?dadtv/##.Card-List > div > .el-row
 ! - 비아그라 최저가 글자
-[$domain=/^bbtv/]##.hidden-sm-and-down.el-aside > .el-collapse-item__header
+/^(www\.)?bbtv/##.hidden-sm-and-down.el-aside > .el-collapse-item__header
 ! - 왼쪽 메뉴 중 불필요한 글자
-[$domain=/^bbtv/]##.hidden-sm-and-down.el-aside > div > .el-row
+/^(www\.)?bbtv/##.hidden-sm-and-down.el-aside > div > .el-row
 !
 !
-! 도도티비 (https://dodotv11.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
-! - 상단 텍스트 배너
-[$domain=/^dodotv\d+.com/]##.line-notice
+! 도도티비 (https://www.dodotv11.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! - 상단 텍스트 배너 (사이트 제작하기)
+/^(www\.)?dodotv/##.line-notice
 !
 !
 ! 모자TV (https://www.mozatv.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
@@ -4714,12 +4720,12 @@ mozatv.com##.tips-box
 !
 ! 땡땡티비 (http://www.ootv41.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 왼쪽 하단 배너
-[$domain=/^www.ootv\d+.com/]##.sub-open
+/^(www\.)?ootv/##.sub-open
 !
 !
 ! 청양티비 (https://cytv144.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 영상 있는 페이지내 팝업 (왼쪽/오른쪽)
-[$domain=/^cytv\d+.com/]##.index-wall-left, .index-wall-right
+/^(www\.)?cytv/##.index-wall-left, .index-wall-right
 !
 !
 ! 사람인 (https://www.saramin.co.kr/)
@@ -4980,6 +4986,9 @@ auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !/ad_
 !
 !
+*/ad-*
+!
+!
 ^ad|
 !
 !
@@ -5161,8 +5170,7 @@ linkareer.com#@#[src*="advert" i]
 
 ==================================
 
-! - 이상한 사이트 군집 차단
-||*.vip^
+
 
 
 ! - 추가 https://javsubs91.uk/
@@ -5180,8 +5188,10 @@ coupangplay.com#@#[href*="popup" i]
 ##[href*="pop_up" i]
 
 ##[src*="/pop/" i]
-! - 예외 - ! 도도티비 (https://dodotv11.com/) - 영상 안나옴
-[$domain=/^dodotv\d+.com/]#@#[src*="/pop/" i]
+! - 예외 - 도도티비 (https://dodotv11.com/) - 영상 안나옴
+! - 예외 - 땡땡티비 (http://www.ootv41.com/) - 영상 안나옴
+! - 예외 - 뷰티비 (https://vitv79.com/) - 영상 안나옴
+/^(www\.)?vitv/,/^(www\.)?ootv/,/^(www\.)?dodotv/#@#[src*="/pop/" i]
 ##[src*="popup" i]
 ! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
 accounts.kakao.com#@#[src*="popup" i]
