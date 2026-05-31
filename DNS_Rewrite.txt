@@ -1486,8 +1486,6 @@
 ||whoas.xyz^
 ||peertrk.com^
 ||netguard742.com^
-||check.ddos-guard.net^
-||yasyadong01.tv^
 ! 이토랜드 광고 클릭시 나오는 도메인 (팝업 연결?)
 ||newtip.net^
 ! 단축링크로 활용되지만 마켓팅 등 안좋은쪽으로 연결
