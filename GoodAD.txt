@@ -4857,9 +4857,9 @@ playidol.org##.max-w-\[426px\]
 ! - 왼쪽 쓸데없는 메뉴
 heye.kr##.type20
 ! - 팝업 방지
-||pandalive.co.kr^$document
-||pandalive.co.kr^
+!||pandalive.co.kr^$document
 heye.kr##+js(nowoif)
+||*rankup_*.js
 !
 !
 ! https://www.a-ha.io/
