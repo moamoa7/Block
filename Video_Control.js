@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.0.2)
+// @name         Video_Control (v33.0.4)
 // @namespace    https://github.com/moamoa7
-// @version      33.0.2
-// @description  v33.0.2: 수동보정셋 일부 수정
+// @version      33.0.4
+// @description  v33.0.4: CORS 무음(zeroes) 사후 감지 → 자동 직접재생 전환 + OSD 안내
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,8 +33,8 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.0.2';
-  const DEBUG = false;
+  const VSC_VERSION = '33.0.4';
+  const DEBUG = true;
 
   const log = {
     info: DEBUG ? (...a) => console.info('[VSC]', ...a) : () => {},
@@ -729,7 +729,6 @@
       }
     };
   }
-
   function createAudio(store, scheduler) {
     let ctx = null;
     let splitter = null, merger = null;
@@ -753,6 +752,7 @@
     const streamMap = new WeakMap();
     let bypassMode = false;
     let generation = 0;
+    let _onCorsSilent = null; // ★ v33.0.4: CORS 무음 시 외부 알림 콜백
 
     const eqGains = EQ_BANDS.map(() => 0);
     let autoClipReduction = 0;
@@ -799,8 +799,18 @@
       return false;
     };
 
+    // ★ 수정: ctx가 suspended면 resume을 강제 (무음 방지 핵심)
+    function ensureRunning() {
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+          scheduler.request();
+        }).catch(() => {});
+      }
+    }
+
     function initCtx() {
-      if (ctx) return true;
+      if (ctx) { ensureRunning(); return true; }
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return false;
       try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { return false; }
@@ -878,6 +888,7 @@
       updateMasterGain();
       routeCompressor();
       startAnalysisLoop();
+      ensureRunning(); // ★ 생성 직후에도 resume 시도
       return true;
     }
 
@@ -911,11 +922,9 @@
       updateMasterGain();
     }
 
-    // ★ 톤 프리셋 정적 더하기 제거 — 수동 EQ만 직접 적용
     function applyEqStatic() {
       if (!ctx || !eqFilters.length) return;
       const manualEq = store.get(P.A_MAN_EQ);
-      const autoEqOn = (store.get(P.A_AUTOEQ) || 'off') !== 'off';
       const enabled = isAnyAudioActive();
 
       for (let i = 0; i < eqFilters.length; i++) {
@@ -1024,7 +1033,6 @@
             return CLAMP(manual + autoGain, -9, 9);
           });
         } else {
-          // static: 수동 EQ만
           targetGains = EQ_BANDS.map((_, i) => CLAMP(Number(manualEq[i]) || 0, -9, 9));
         }
 
@@ -1136,6 +1144,59 @@
       catch (e) { video.dataset.vscMesFail = "1"; return null; }
     }
 
+        // ★ v33.0.4: MES 연결 후 CORS 무음(zeroes) 사후 감지 → 자동 bypass
+    function detectCorsSilence(video, source) {
+      if (!ctx || !source || source.__vsc_isCaptureStream) return;
+      if (video.dataset.vscCorsChecked === "1") return; // 비디오당 1회만
+      let analyser;
+      try {
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        source.connect(analyser); // 측정용 분기 (출력 경로엔 영향 없음)
+      } catch (_) { return; }
+
+      const buf = new Float32Array(analyser.fftSize);
+      let zeroFrames = 0, checks = 0;
+      const MAX_CHECKS = 10;   // 약 10프레임(≈600ms) 관찰
+      const NEED_ZERO = 6;     // 연속 6프레임 완전 0이면 CORS 무음 판정
+
+      const cleanup = () => { try { source.disconnect(analyser); } catch (_) {} };
+
+      const tick = () => {
+        if (!ctx || ctx.state === 'closed') { cleanup(); return; }
+        // 측정 대상이 바뀌었으면 중단
+        if (currentSrc !== source || bypassMode) { cleanup(); return; }
+        checks++;
+
+        const playing = !video.paused && !video.ended && video.currentTime > 0 && !video.muted;
+        if (playing) {
+          let allZero = true;
+          try { analyser.getFloatTimeDomainData(buf); } catch (_) { cleanup(); return; }
+          for (let i = 0; i < buf.length; i++) { if (buf[i] !== 0) { allZero = false; break; } }
+          if (allZero) zeroFrames++; else zeroFrames = 0;
+        }
+
+        if (zeroFrames >= NEED_ZERO) {
+          // CORS 무음 확정 → 직접 재생으로 전환
+          video.dataset.vscCorsChecked = "1";
+          video.dataset.vscAudioCorsFail = "1";
+          cleanup();
+          log.warn('[Audio] CORS 무음 감지 → bypass:', location.hostname);
+          enterBypass(video, 'cors-silent');
+          if (_onCorsSilent) try { _onCorsSilent(); } catch (_) {}
+          return;
+        }
+        if (checks >= MAX_CHECKS) {
+          // 정상(소리 있음)으로 판정 — 더 안 봄
+          video.dataset.vscCorsChecked = "1";
+          cleanup();
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+
     function hasMesConnection(video) {
       return mesMap.has(video) || mesConnectedVideos.has(video);
     }
@@ -1143,6 +1204,8 @@
     function connectSource(video) {
       if (!video || !ctx) return false;
       if (!canConnect(video)) { enterBypass(video, 'pre-check'); return false; }
+      // ★ 수정: 연결 전 반드시 resume (suspended 상태에서 MES 연결 시 무음 방지)
+      ensureRunning();
       const isJW = detectJWPlayer(video);
       let source = null;
       if (isJW) { source = connectViaCaptureStream(video); if (!source) { video.dataset.vscPermBypass = "1"; enterBypass(video, 'JW fail'); return false; } }
@@ -1151,9 +1214,13 @@
       const wantProcessed = isAnyAudioActive();
       if (wantProcessed) { source.connect(splitter); } else { source.connect(fullDryPath); }
       currentSrc = source; currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes'; currentRouteIsProcessed = wantProcessed;
-      exitBypass(); return true;
+      exitBypass();
+      ensureRunning(); // ★ 연결 직후 한 번 더 확인
+      if (currentMode === 'mes') detectCorsSilence(video, source); // ★ v33.0.4: CORS 무음 감지
+      return true;
     }
 
+    // ★ 수정: fade 이후 게인 복구를 resume 완료 후 보장
     function fadeOutThen(gen, fn, cleanupFn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} else if (cleanupFn) try { cleanupFn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
@@ -1161,7 +1228,8 @@
         if (gen !== generation) { if (cleanupFn) try { cleanupFn(); } catch (_) {} return; }
         try { fn(); } catch (_) {}
         if (ctx && masterOut && ctx.state !== 'closed') {
-          updateMasterGain();
+          ensureRunning();           // ★ resume 강제
+          updateMasterGain();        // ★ 게인 복구
         }
       }, 60);
     }
@@ -1194,11 +1262,12 @@
       if (!ctx || bypassMode) return; routeCompressor(); updateMasterGain(); applyEqStatic();
       if (currentSrc) {
         const wantProcessed = isAnyAudioActive();
-        if (wantProcessed === currentRouteIsProcessed) return;
+        if (wantProcessed === currentRouteIsProcessed) { ensureRunning(); return; }
         try { currentSrc.disconnect(); } catch (_) {}
         if (wantProcessed) { currentSrc.connect(splitter); }
         else { currentSrc.connect(fullDryPath); }
         currentRouteIsProcessed = wantProcessed;
+        ensureRunning(); // ★ 경로 전환 후 resume
       }
       else if (targetVideo?.isConnected && isAnyAudioActive() && canConnect(targetVideo)) {
         connectSource(targetVideo);
@@ -1291,9 +1360,13 @@
       routeCompressor, onVideoLoadstart, updateMasterGain,
       getAutoClipReduction: () => autoClipReduction,
       getEqGains: () => eqGains.slice(),
+      // ★ 추가: 외부에서 resume 호출 가능하도록 노출 (bootstrap의 Audio.resume 호출 대응)
+      resume: ensureRunning,
+      reset: () => { ensureRunning(); },
+      // ★ v33.0.4: CORS 무음 발생 시 호출될 콜백 등록
+      onCorsSilent: (fn) => { _onCorsSilent = fn; }
     };
   }
-
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
@@ -1875,7 +1948,9 @@
     .eq-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; padding: 8px 0; background: rgba(255,255,255,0.02); border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255,255,255,0.04); margin: 4px 0; }
     .eq-band { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9px; color: rgba(255,255,255,0.5); }
     .eq-band-label { font-family: var(--vsc-font-mono); }
-    .eq-band input[type=range] { -webkit-appearance: slider-vertical; appearance: slider-vertical; writing-mode: bt-lr; width: 18px; height: 100px; max-width: none; padding: 0; cursor: ns-resize; }
+    .eq-band input[type=range] { writing-mode: vertical-lr; direction: rtl; width: 18px; height: 100px; max-width: none; padding: 0; cursor: ns-resize; }
+    .eq-band input[type=range]::-webkit-slider-runnable-track { width: 4px; height: 100%; background: linear-gradient(to top, var(--vsc-neon) 0%, var(--vsc-neon) var(--fill, 50%), rgba(255,255,255,0.08) var(--fill, 50%)); }
+    .eq-band input[type=range]::-webkit-slider-thumb { margin-left: calc((4px - var(--vsc-touch-slider)) / 2); margin-top: 0; }
     .eq-band-val { font-family: var(--vsc-font-mono); font-size: 9px; color: var(--vsc-neon); min-height: 12px; }
     .eq-band-val.auto { color: var(--vsc-amber); opacity: 0.8; }
     .eq-controls { display: flex; gap: 6px; justify-content: space-between; padding: 4px 0; align-items: center; }
@@ -2092,7 +2167,6 @@
 
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
 
-    // ★ 톤 프리셋 그리드 — 클릭 시 10밴드 EQ에 커브 복사
     function buildAudioToneGrid() {
       const wrap = h('div', {});
       const grid = h('div', { class: 'tone-grid' });
@@ -2100,7 +2174,6 @@
         const btn = h('button', { class: 'fine-btn', 'data-tone': key }, p.label);
         btn.addEventListener('click', () => {
           Store.set(P.A_TONE, key);
-          // ★ 톤 커브를 수동 EQ에 복사 (flat은 0으로 리셋)
           const newEq = p.curve.map(v => Math.round(v * 10) / 10);
           Store.set(P.A_MAN_EQ, newEq);
         });
@@ -2116,7 +2189,6 @@
       return wrap;
     }
 
-    // ★ 10밴드 EQ 슬라이더 — 사용자가 만지면 톤은 자동 flat 처리
     function buildEqSliders() {
       const wrap = h('div', {});
       const headerRow = h('div', { class: 'eq-controls' });
@@ -2138,6 +2210,12 @@
         const lbl = h('div', { class: 'eq-band-label' }, band.label);
         const inp = h('input', { type: 'range', min: '-9', max: '9', step: '0.1', value: '0' });
         const val = h('div', { class: 'eq-band-val' }, '0');
+
+        const updateFill = () => {
+          const v = parseFloat(inp.value);
+          inp.style.setProperty('--fill', `${((v + 9) / 18) * 100}%`);
+        };
+
         inp.addEventListener('input', () => {
           const v = parseFloat(inp.value);
           const cur = Store.get(P.A_MAN_EQ) || EQ_BANDS.map(() => 0);
@@ -2145,8 +2223,8 @@
           next[i] = v;
           Store.set(P.A_MAN_EQ, next);
           val.textContent = (Math.round(v * 10) / 10).toString();
+          updateFill();
 
-          // 현재 EQ가 선택된 톤 커브와 정확히 일치하는지 확인 → 다르면 flat
           const curTone = Store.get(P.A_TONE);
           if (curTone && curTone !== 'flat') {
             const tone = TONE_PRESETS[curTone];
@@ -2158,7 +2236,7 @@
         });
         col.append(lbl, inp, val);
         grid.appendChild(col);
-        bandInputs.push({ inp, val });
+        bandInputs.push({ inp, val, updateFill });
       });
       wrap.appendChild(grid);
 
@@ -2167,10 +2245,11 @@
         const liveGains = autoEqOn ? Audio.getEqGains() : null;
         const manual = Store.get(P.A_MAN_EQ) || EQ_BANDS.map(() => 0);
         for (let i = 0; i < bandInputs.length; i++) {
-          const { inp, val } = bandInputs[i];
+          const { inp, val, updateFill } = bandInputs[i];
           if (document.activeElement !== inp) {
             const mv = Number(manual[i]) || 0;
             inp.value = String(mv);
+            updateFill();
           }
           const displayVal = liveGains ? liveGains[i] : (Number(manual[i]) || 0);
           val.textContent = (Math.round(displayVal * 10) / 10).toString();
@@ -2546,6 +2625,10 @@
       OSD.show(on ? '📻 라디오 모드 ON' : '📻 라디오 모드 OFF', 1200);
     });
 
+     Audio.onCorsSilent(() => {
+      OSD.show('⚠ 이 사이트는 평준화를 쓸 수 없습니다. 평준화를 끄고 반드시 새로고침하세요', 3000);
+    });
+
     const apply = () => {
       if (!Store.get(P.APP_ACT)) {
         for (const v of Registry.videos) Filters.clear(v);
@@ -2613,7 +2696,7 @@
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
 
-        createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio, Persist);
+    createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio, Persist);
     __internal.Store = Store; __internal._activeVideo = null;
     try {
       GM_registerMenuCommand('VSC ON/OFF 토글', () => {
@@ -2640,7 +2723,7 @@
       });
       GM_registerMenuCommand('♻ 전체 사이트 설정 초기화', () => {
         if (confirm('VSC: 저장된 모든 사이트 설정을 삭제합니다. 진행할까요?')) {
-          Persist.resetAll();
+          Persist.resetAll(Store);
           OSD.show('♻ 전체 초기화 완료 (새로고침 권장)', 1500);
         }
       });
