@@ -2,7 +2,7 @@
 // @name         Video_Control (v33.0.4)
 // @namespace    https://github.com/moamoa7
 // @version      33.0.4
-// @description  v33.0.4: CORS 무음(zeroes) 사후 감지 → 자동 직접재생 전환 + OSD 안내
+// @description  v33.0.4: CORS 무음(zeroes) 사후 감지 → OSD 안내
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
