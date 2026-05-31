@@ -5134,6 +5134,11 @@ linkareer.com#@#[src*="advert" i]
 
 
 
+
+*$script,third-party,domain=nimi.wiki|kissjav.*|heye.kr
+
+
+
 ##[href*="/pop/" i]
 ##[href*="popup" i]
 ! - 예외 - 쿠팡플레이 (https://www.coupangplay.com/) - 라이브 시청하기 버튼 사라짐
