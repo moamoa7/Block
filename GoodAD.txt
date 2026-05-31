@@ -4548,8 +4548,7 @@ ajd.co.kr##.active.bottom-floating
 ##[class*="ad-sidebar" i]
 ##.right-ad-sidebar
 ! - 중간 배너 공간
-! - - -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
-algumon.com##div:has([data-tip^='파트너스'], div[style*='height'], ins):is(.card, .deal-2col)
+algumon.com##[class*="pb-3"]:has([aria-label*="광고"])
 !
 !
 ! 뉴덕 (https://newduck.net/)
@@ -4863,6 +4862,24 @@ heye.kr##.type20
 heye.kr##+js(nowoif)
 !
 !
+! https://www.a-ha.io/
+! - 팝업 및 오른쪽 배너
+!a-ha.io##.bg-black-opacity-46
+a-ha.io##.overflow-hidden
+!
+!
+! 번개장터 (https://m.bunjang.co.kr/)
+! - 배너 빈공간
+bunjang.co.kr##[class*="boxrecipe_overflow_hidden" i]
+! - 검색시 나오는 광고 물건
+bunjang.co.kr##a:has([class*="bottomContainer" i]):upward(1)
+!
+!
+! 침하하 (https://chimhaha.net/)
+! 중간 배너
+chimhaha.net##[id*="slot-4" i]
+!
+!
 !
 !
 !
@@ -4934,9 +4951,6 @@ auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !/ad_
 !
 !
-*ad-script.*
-!
-!
 ^ad|
 !
 !
@@ -4955,6 +4969,8 @@ auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
 !@@ad-img.gmarket.com/ADS/*
+! - 예외 - https://career.rememberapp.co.kr/ - 아래 안해도 됨. 에러는 배너 막혀서 나오는 메시지. 검새과 무관
+!@@/ads/*$xhr,domain=career.rememberapp.co.kr
 !
 !
 *_ads.*
@@ -5083,6 +5099,9 @@ linkareer.com#@#[src*="advert" i]
 ##[id*="adsby" i]
 !
 !
+##[aria-label*="advert" i]
+!
+!
 !
 !
 !
@@ -5164,8 +5183,10 @@ accounts.kakao.com#@#[src*="popup" i]
 ##[class*="popup" i]
 ! - 예외 - https://javgiga.com/ - 플레이어가 사라짐
 ! - 예외 - https://yandex.com/ - 검색란 사라짐
+! - 예외 - https://www.a-ha.io/ - 본문 사라짐
 javgiga.com#@#[class*="popup" i]
 yandex.com#@#[class*="popup" i]
+a-ha.io#@#[class*="popup" i]
 ##[src*="popup" i]
 
 
@@ -5230,6 +5251,9 @@ manhwabang.org##a[target*="target"] img
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 @@||*banner*$domain=github.com
 @@*banner*$image,domain=xtoon365.com
+! - 아래 안풀어도 됨 (배너 막혀서 나오는 메시지임. 검색과는 무관)
+!@@*banner*$xhr,domain=rememberapp.co.kr
+
 
 ##[class*="banner" i]
 ! - 예외
