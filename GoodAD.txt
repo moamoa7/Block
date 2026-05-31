@@ -4899,6 +4899,15 @@ bunjang.co.kr##a:has([class*="bottomContainer" i]):upward(1)
 chimhaha.net##[id*="slot-4" i]
 !
 !
+! https://rou.video/
+! - 기타
+/clickad*
+*/ga.js^
+/^https:\/\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\.[co][or][gm]\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\.js$/$script,third-party
+/^https:\/\/[0-9a-f]{10}\.[0-9a-f]{10}\.com\/[0-9a-f]{32}\.js$/$script,third-party
+.xyz/z/*/code.js$script,third-party
+!
+!
 !
 !
 !
@@ -5151,6 +5160,8 @@ linkareer.com#@#[src*="advert" i]
 
 ==================================
 
+! - 이상한 사이트 군집 차단
+||*.vip^
 
 
 
@@ -5195,8 +5206,10 @@ accounts.kakao.com#@#[src*="popup" i]
 *popup*
 ! - 예외 - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
 ! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
+! - 예외 - https://map.naver.com/ - 팝업스토어 이미지 삭제
 @@||*popup*$css
 @@||*popup*$frame,domain=accounts.kakao.com
+@@||*popup*$image,domain=map.naver.com
 ! - 예외
 !  - -- https://www.wavve.com/ - 개별 구매시 (필요 해제 하지 말것)
 *pop-up*
