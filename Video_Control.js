@@ -2625,8 +2625,17 @@
       OSD.show(on ? '📻 라디오 모드 ON' : '📻 라디오 모드 OFF', 1200);
     });
 
-     Audio.onCorsSilent(() => {
-      OSD.show('⚠ 이 사이트는 평준화를 쓸 수 없습니다. 평준화를 끄고 반드시 새로고침하세요', 3000);
+        Audio.onCorsSilent(() => {
+      // 오디오 처리 항목 전부 기본값으로 복원
+      Store.batch('audio', {
+        enabled: false,
+        surroundWidth: 0,
+        boost: 100,
+        autoEqMode: 'off',
+        manualEq: [0,0,0,0,0,0,0,0,0,0],
+        tonePreset: 'flat'
+      });
+      OSD.show('⚠ 이 사이트는 오디오 처리 불가 — 모두 OFF 처리됨. 새로고침하세요', 3500);
     });
 
     const apply = () => {
