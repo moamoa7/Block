@@ -2583,7 +2583,7 @@ javgg.net##.home_iframead
 !jav-vids.xyz,javggvideo.xyz,javstreamhg.xyz#@#[class*="floating" i]
 !
 !
-! Javsubs91 (https://j91.asia/)
+! Javsubs91 (https://j91.asia/) - 변경 (https://javsubs91.uk/)
 ! - 영상 하단 배너
 ##.dark-banner-group
 !  - 팝업 방지 (uBlock filters – Ads)
@@ -4118,6 +4118,7 @@ xn--9l4b15e2td.com##.widget-box
 ![$domain=/^linklove\d+.com/]##.miso-love-ad
 ! - - - https://adult.contents.fc2.com/ 오른쪽 PR 배너
 ! - - - 엑스툰 (https://t3.xtoon365.com/) - 개별 만화 관람시
+! - - - https://javsubs91.uk/ - 영상 하단 배너
 ##[class$="-ad" i]
 !
 !
@@ -5164,8 +5165,9 @@ linkareer.com#@#[src*="advert" i]
 ||*.vip^
 
 
-
-*$script,third-party,domain=nimi.wiki|kissjav.*
+! - 추가 https://javsubs91.uk/
+! - 추가 https://javgiga.com/
+*$script,third-party,domain=nimi.wiki|kissjav.*|javsubs91.uk|javgiga.com
 
 
 
