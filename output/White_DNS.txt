@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-05-31 09:27:02 UTC
+! Generated: 2026-05-31 11:13:23 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,451
+! Exception Rules: 6,454
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -1807,6 +1807,7 @@
 @@||geo.ngtv.io^
 @@||geo01.dns.presslabs.net^
 @@||geo02.dns.presslabs.net^
+@@||geo1.presslabs.net^
 @@||geo3.ggpht.com^
 @@||geojs.io^
 @@||george.bcr.ro^
@@ -2814,6 +2815,7 @@
 @@||m-6pyms.custobar.com^
 @@||m-eqxt2.custobar.com^
 @@||m-gzmk5.custobar.com^
+@@||m-hju7x.custobar.com^
 @@||m-htgjb.custobar.com^
 @@||m-kpz.custobar.com^
 @@||m-ll23a.custobar.com^
@@ -3317,6 +3319,7 @@
 @@||ndirect.ppro.de^
 @@||nedbank.co.za^
 @@||neobux.com^
+@@||neoengage-va-cdn.exponea.com^
 @@||neon.com.br^
 @@||nest.com^
 @@||net.kentbank.hr^
