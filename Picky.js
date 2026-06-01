@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.0.3
+// @version      1.0.4
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, self-healing
 // @author       moamoa7
 // @license      MIT
@@ -254,6 +254,7 @@
     // ── 셀렉터 엔진 (짚은 요소를 그 하나만 가리키는 셀렉터 1개 생성) ─────────
     // 점수로 후보를 고르지 않는다. 항상 "짚은 요소"가 기준이며,
     // 단일화 수단의 우선순위는 짧은 클래스 조합 → 자기 nth → 가까운 부모 경로 순이다.
+    // "한 줄 전체"를 잡고 싶으면 UI의 "더 크게"로 상위 요소를 골라 차단한다.
     class SelectorStrategies {
         static countMatches(sel, root = document) {
             if (!sel) return 0;
@@ -278,6 +279,14 @@
         }
         static meaningfulClasses(el) { return this.safeClasses(el).filter(c => this.isMeaningfulClass(c)); }
 
+        // 형제 중 같은 태그 기준 nth-of-type 인덱스 (1개뿐이면 0 = 불필요)
+        static _nthIndex(node) {
+            const p = node.parentElement;
+            if (!p) return 0;
+            const same = Array.from(p.children).filter(c => c.tagName === node.tagName);
+            return same.length > 1 ? same.indexOf(node) + 1 : 0;
+        }
+
         // 한 노드의 "자기 식별" 세그먼트를 만든다.
         // classDepth = 활용할 클래스 최대 개수, useNth = 형제 위치 nth 부착 여부
         static _segOf(node, classDepth = 1, useNth = false) {
@@ -287,11 +296,8 @@
             let seg = t;
             for (const c of cls.slice(0, classDepth)) seg += `.${CSS.escape(c)}`;
             if (useNth) {
-                const parent = node.parentElement;
-                if (parent) {
-                    const sameTag = Array.from(parent.children).filter(c => c.tagName === node.tagName);
-                    if (sameTag.length > 1) seg += `:nth-of-type(${sameTag.indexOf(node) + 1})`;
-                }
+                const idx = this._nthIndex(node);
+                if (idx) seg += `:nth-of-type(${idx})`;
             }
             return seg;
         }
@@ -309,13 +315,8 @@
                 if (classes.length >= 2) sel += `.${CSS.escape(classes[1])}`;
                 return sel;
             }
-            const parent = el.parentElement;
-            if (parent) {
-                const sameTag = Array.from(parent.children).filter(c => c.tagName === el.tagName);
-                if (sameTag.length === 1) return tag;
-                return `${tag}:nth-of-type(${sameTag.indexOf(el) + 1})`;
-            }
-            return tag;
+            const idx = this._nthIndex(el);
+            return idx ? `${tag}:nth-of-type(${idx})` : tag;
         }
 
         // 사용자가 짚은 el "그 하나만" 정확히 가리키는 셀렉터를 만든다.
@@ -349,26 +350,34 @@
                 if (onlyHits(a2)) return a2;
             }
 
-            // ── 3) 자기 클래스 조합 (짧은 것부터) ──
-            // .cls / tag.cls / .cls1.cls2 / tag.cls1.cls2 ... 순으로 단일화 시도.
+            // ── 3) 자기 클래스 조합 (짧은 것부터) + 필요시 자기 nth ──
+            // .cls / tag.cls / .cls1.cls2 / tag.cls1.cls2 ... 를 시도하고,
+            // 1개로 안 좁혀지면 "전체 클래스 + :nth-of-type" 까지 시도한다.
+            // 이 셀렉터는 부모 경로보다 짧고 안정적이므로 4단계보다 먼저 쓴다.
             if (classes.length) {
                 for (let d = 1; d <= classes.length; d++) {
                     const combo = classes.slice(0, d).map(c => CSS.escape(c)).join('.');
-                    const noTag = '.' + combo;
-                    if (onlyHits(noTag)) return noTag;
+                    const noTag  = '.' + combo;
                     const withTag = `${tag}.${combo}`;
+                    if (onlyHits(noTag))  return noTag;
                     if (onlyHits(withTag)) return withTag;
                 }
-                // 클래스 전체 + 자기 nth (여전히 짧다)
-                const withNth = this._segOf(el, classes.length, true);
-                if (onlyHits(withNth)) return withNth;
+                // 전체 클래스 + 자기 nth (uBlock 의 a.cls:nth-of-type(n) 과 유사)
+                const allCombo = classes.map(c => CSS.escape(c)).join('.');
+                const nthIdx = this._nthIndex(el);
+                if (nthIdx) {
+                    const c1 = `.${allCombo}:nth-of-type(${nthIdx})`;
+                    if (onlyHits(c1)) return c1;
+                    const c2 = `${tag}.${allCombo}:nth-of-type(${nthIdx})`;
+                    if (onlyHits(c2)) return c2;
+                }
             } else {
                 // 클래스가 없으면 태그+nth 단독 시도
                 const tagNth = this._segOf(el, 0, true);
                 if (onlyHits(tagNth)) return tagNth;
             }
 
-            // ── 4) 가까운 부모를 한 단계씩 붙여 좁힌다 (짧은 경로 우선) ──
+            // ── 4) 여기까지 와도 1개로 안 좁혀지면, 그때만 부모 경로 ──
             const selfSeg = classes.length
                 ? this._segOf(el, classes.length, true)
                 : this._segOf(el, 0, true);
@@ -531,7 +540,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="picky-head" data-drag="1">
-                <span class="picky-title">Picky <small>v1.0.3</small></span>
+                <span class="picky-title">Picky <small>v1.0.4</small></span>
                 <div class="picky-head-btns">
                     <button class="picky-btn picky-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="picky-btn picky-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -664,8 +673,6 @@
 
         // ── 선택 ──────────────────────────────────────────────────────
         // 짚은 요소는 포커스 하이라이트(빨강)로만 표시한다.
-        // 차단 대상은 정확히 한 요소이므로 핀(초록)과 색이 겹쳐 혼란을 주지 않도록
-        // 선택 시점에는 핀 미리보기를 사용하지 않는다.
         selectNode(el) {
             if (!el || !el.tagName) return;
             this.clearHide();
@@ -961,7 +968,7 @@
                     </label>
                     <div class="picky-settings-row"><span>전체 규칙</span><span>${stats.totalRules}개 (이 사이트 ${stats.ruleCount}개)</span></div>
                     <div class="picky-settings-row"><button class="picky-btn" data-ref="resetPos">버튼 위치 초기화</button><button class="picky-btn" data-ref="clearPreview">미리보기 정리</button></div>
-                    <div class="picky-settings-row"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게로 범위 조절 → 차단. SPA에서 다시 나타나는 요소는 자동으로 재차단됩니다(self-healing).</small></div>
+                    <div class="picky-settings-row"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게로 범위 조절 → 차단. 한 줄 전체를 잡으려면 "더 크게"로 상위 요소를 고르세요. SPA에서 다시 나타나는 요소는 자동 재차단됩니다(self-healing).</small></div>
                 </div>`;
             body.querySelector('[data-ref="agg"]').addEventListener('change', () => Blocker.toggleAggressive());
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => { this.state.iconPos = null; this.state.panelPos = null; this.applyPosition(); this.flashToast('위치 초기화됨'); });
