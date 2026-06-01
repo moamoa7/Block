@@ -531,7 +531,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="picky-head" data-drag="1">
-                <span class="picky-title">Picky <small>v4.0.1</small></span>
+                <span class="picky-title">Picky <small>v1.0.3</small></span>
                 <div class="picky-head-btns">
                     <button class="picky-btn picky-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="picky-btn picky-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
