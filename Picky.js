@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
-// @namespace    https://github.com/hooray804/Picky
-// @version      4.0.0
+// @namespace    https://github.com/moamoa7/Block
+// @version      4.0.1
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, self-healing
-// @author       hooray804
+// @author       Claude
 // @license       MIT
-// @homepage     https://github.com/hooray804/Picky
+// @homepage     hhttps://github.com/moamoa7/Block
 // @match        *://*/*
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -331,73 +331,155 @@
             return tag;
         }
 
-        // 여러 전략으로 후보를 모아 점수 최고 1개만 반환
+                // 사용자가 짚은 el "그 하나만" 정확히 가리키는 셀렉터를 만든다.
+        // 점수로 후보를 고르지 않는다. 항상 짚은 요소 우선.
+        // 여러 개가 잡히면 클래스 추가 → nth → 부모 경로 순으로 좁혀 단일화한다.
         static best(el) {
             if (!el || !el.tagName) return null;
-            const cands = [];
-            const push = (sel) => { if (sel && !/picky-/.test(sel)) cands.push(sel); };
+
+            // el만 정확히 매치하는지 확인하는 헬퍼
+            const onlyHits = (sel) => {
+                if (!sel || /picky-/.test(sel)) return false;
+                let nodes;
+                try { nodes = document.querySelectorAll(sel); } catch (_) { return false; }
+                return nodes.length === 1 && nodes[0] === el;
+            };
+            // el을 포함하면서 매치 개수를 세는 헬퍼 (el이 안 잡히면 0 취급)
+            const countIfHits = (sel) => {
+                if (!sel || /picky-/.test(sel)) return 0;
+                let nodes;
+                try { nodes = document.querySelectorAll(sel); } catch (_) { return 0; }
+                if (![...nodes].includes(el)) return 0;
+                return nodes.length;
+            };
+
             const tag = el.tagName.toLowerCase();
             const id = el.id;
             const classes = this.meaningfulClasses(el);
 
-            // 1) ID 단독 / 의미있는 속성
-            if (id && /^[a-zA-Z][\w-]*$/.test(id)) push(`#${CSS.escape(id)}`);
-            for (const attr of ['data-testid','data-cy','data-test','aria-label','name','role','alt','title']) {
+            // ── 1) ID가 유일하면 그게 가장 깔끔하고 정확하다 ──
+            if (id && /^[a-zA-Z][\w-]*$/.test(id)) {
+                const idSel = `#${CSS.escape(id)}`;
+                if (onlyHits(idSel)) return idSel;
+            }
+
+            // ── 2) 의미있는 속성으로 그 하나만 잡히면 사용 ──
+            for (const attr of ['data-testid','data-cy','data-test','aria-label','name']) {
                 const v = el.getAttribute?.(attr);
-                if (v && v.length <= 60) { push(`[${attr}="${CSS.escape(v)}"]`); push(`${tag}[${attr}="${CSS.escape(v)}"]`); }
-            }
-            // 2) 클래스 기반
-            for (const c of classes.slice(0, 3)) { push(`.${CSS.escape(c)}`); push(`${tag}.${CSS.escape(c)}`); }
-            if (classes.length >= 2) push(`.${CSS.escape(classes[0])}.${CSS.escape(classes[1])}`);
-
-            // 3) 더미 링크 (광고 클릭 패턴 — 일반 셀렉터로 유지)
-            const anchor = el.tagName === 'A' ? el : el.closest?.('a');
-            if (anchor) {
-                const href = anchor.getAttribute('href');
-                if (href && DUMMY_HREF_VALUES.has(href.trim())) push(`a[href="${CSS.escape(href)}"]`);
+                if (!v || v.length > 60) continue;
+                const a1 = `[${attr}="${CSS.escape(v)}"]`;
+                if (onlyHits(a1)) return a1;
+                const a2 = `${tag}${a1}`;
+                if (onlyHits(a2)) return a2;
             }
 
-            // 4) 유일 경로 (자손/직계 자식)
-            for (const comb of [' ', ' > ']) {
-                const parts = [this._simpleSelectorFor(el)];
-                let cur = el.parentElement, depth = 0;
-                while (cur && cur !== document.body && cur !== document.documentElement && depth < 10) {
-                    parts.unshift(this._simpleSelectorFor(cur));
-                    const sel = parts.join(comb);
-                    if (this.countMatches(sel) === 1) { push(sel); break; }
-                    if (cur.id && /^[a-zA-Z][\w-]*$/.test(cur.id) && this.countMatches(`#${CSS.escape(cur.id)}`) === 1) { push(sel); break; }
-                    cur = cur.parentElement; depth++;
+            // ── 3) 가진 클래스를 "전부" 붙인 가장 좁은 형태에서 출발 ──
+            // 절대 클래스를 임의로 떨어뜨려 범위를 넓히지 않는다.
+            if (classes.length) {
+                const allClassSel = `${tag}.${classes.map(c => CSS.escape(c)).join('.')}`;
+                // 이게 그 하나만 잡으면 그대로 사용 (예: a.article.mi)
+                if (onlyHits(allClassSel)) return allClassSel;
+
+                // 여전히 여러 개면, 부모 쪽으로 경로를 더해 그 하나로 좁힌다.
+                if (countIfHits(allClassSel) > 0) {
+                    const narrowed = this._narrowByPath(el, allClassSel, onlyHits);
+                    if (narrowed) return narrowed;
                 }
             }
 
-            // 5) 부모 컨테이너 :has (빈 박스 방지, 지원 시)
-            if (SUPPORTS_HAS && el.parentElement && el.parentElement !== document.body) {
-                const ps = this._simpleSelectorFor(el.parentElement);
-                const cs = this._simpleSelectorFor(el);
-                if (ps && cs) push(`${ps}:has(> ${cs})`);
+            // ── 4) 클래스가 없거나 위에서 못 좁힌 경우: nth 기반 단일 경로 ──
+            const nthPath = this._uniqueNthPath(el, onlyHits);
+            if (nthPath) return nthPath;
+
+            // ── 5) 더미 링크(광고 클릭) 패턴 — 그래도 단일화 시도 ──
+            const anchor = el.tagName === 'A' ? el : el.closest?.('a');
+            if (anchor === el) {
+                const href = anchor.getAttribute('href');
+                if (href && DUMMY_HREF_VALUES.has(href.trim())) {
+                    const hSel = `a[href="${CSS.escape(href)}"]`;
+                    if (onlyHits(hSel)) return hSel;
+                }
             }
 
-            // 6) 최후의 보루: 태그
-            if (!cands.length) push(tag);
-
-            // 점수화 → 대상 포함 확인 → 최고점
-            let best = null, bestScore = -1;
-            const seen = new Set();
-            for (const sel of cands) {
-                if (seen.has(sel)) continue;
-                seen.add(sel);
-                let nodes;
-                try { nodes = document.querySelectorAll(sel); } catch (_) { continue; }
-                if (!nodes.length) continue;
-                if (![...nodes].some(n => n === el || n.contains(el))) continue;
-                const score = this.scoreSelector(sel, el);
-                const exactBonus = (nodes.length === 1) ? 15 : 0;
-                const total = score + exactBonus;
-                if (total > bestScore) { bestScore = total; best = sel; }
+            // ── 6) 최후의 보루: 클래스 전체 조합(여러 개 잡히더라도 짚은 의도 보존) ──
+            // 여기까지 왔다면 단일화에 실패한 것. 넓히기보다 가진 정보를 최대한 보존한다.
+            if (classes.length) {
+                return `${tag}.${classes.map(c => CSS.escape(c)).join('.')}`;
             }
-            return best;
+            // 클래스도 없으면 부모 포함 경로라도 반환
+            return this._simpleSelectorFor(el);
         }
-    }
+
+        // 주어진 베이스 셀렉터(el을 포함하지만 여러 개 매치)를 부모 경로를 덧붙여 단일화
+        static _narrowByPath(el, baseSel, onlyHits) {
+            // baseSel은 el의 "자기 자신" 부분이라고 가정.
+            let cur = el.parentElement;
+            let prefix = '';
+            let depth = 0;
+            while (cur && cur !== document.body && cur !== document.documentElement && depth < 12) {
+                const parentSeg = this._simpleSelectorFor(cur);
+                // 직계 자식 결합 먼저(더 정확), 안 되면 자손 결합
+                for (const comb of [' > ', ' ']) {
+                    const candidate = `${parentSeg}${comb}${prefix}${baseSel}`;
+                    if (onlyHits(candidate)) return candidate;
+                }
+                // 부모에 id가 있으면 거기서 끊어 시도
+                if (cur.id && /^[a-zA-Z][\w-]*$/.test(cur.id)) {
+                    const idSel = `#${CSS.escape(cur.id)}`;
+                    for (const comb of [' > ', ' ']) {
+                        const candidate = `${idSel}${comb}${prefix}${baseSel}`;
+                        if (onlyHits(candidate)) return candidate;
+                    }
+                }
+                // 한 단계 더 깊은 경로 누적
+                prefix = `${parentSeg} > ${prefix}`;
+                cur = cur.parentElement;
+                depth++;
+            }
+            return null;
+        }
+
+        // el을 그 하나만 잡는 nth 기반 경로를 만든다 (클래스가 부실할 때)
+        static _uniqueNthPath(el, onlyHits) {
+            const segOf = (node) => {
+                const t = node.tagName.toLowerCase();
+                const cls = this.meaningfulClasses(node);
+                let seg = t;
+                if (cls.length) seg += `.${CSS.escape(cls[0])}`;
+                const parent = node.parentElement;
+                if (parent) {
+                    const sameTag = Array.from(parent.children).filter(c => c.tagName === node.tagName);
+                    if (sameTag.length > 1) seg += `:nth-of-type(${sameTag.indexOf(node) + 1})`;
+                }
+                return seg;
+            };
+
+            const parts = [segOf(el)];
+            let cur = el.parentElement, depth = 0;
+            while (cur && cur !== document.body && cur !== document.documentElement && depth < 12) {
+                // 직계 자식 우선
+                const childPath = parts.join(' > ');
+                if (onlyHits(childPath)) return childPath;
+                const descPath = parts.join(' ');
+                if (onlyHits(descPath)) return descPath;
+
+                parts.unshift(segOf(cur));
+
+                // 부모 id로 끊을 수 있으면 시도
+                if (cur.id && /^[a-zA-Z][\w-]*$/.test(cur.id)) {
+                    const idParts = [`#${CSS.escape(cur.id)}`, ...parts.slice(1)];
+                    const idChild = idParts.join(' > ');
+                    if (onlyHits(idChild)) return idChild;
+                }
+                cur = cur.parentElement;
+                depth++;
+            }
+            const finalChild = parts.join(' > ');
+            if (onlyHits(finalChild)) return finalChild;
+            const finalDesc = parts.join(' ');
+            if (onlyHits(finalDesc)) return finalDesc;
+            return null;
+        }
 
     // ── 인스펙터 (UI / 선택 / 차단) ─────────────────────────────────────
     class Inspector {
