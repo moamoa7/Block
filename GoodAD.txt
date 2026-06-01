@@ -2991,7 +2991,7 @@ aniya24.com##.above-content-sidebar
 !
 ! 123AV (https://123av.com/)
 ! - 지저분한거
-! - - - https://today-sports7.com/ - 상단 검색란 등 사라짐으로 도메인 한정으로 변경
+! - - - https://today-sports9.com/ - 상단 검색란 등 사라짐으로 도메인 한정으로 변경
 123av.com##.d-lg-block
 !
 !
@@ -5451,8 +5451,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 이미지가 gif가 아닌 경우에도 사용
 ! - - - 도지코믹스 (https://dozi352.com/)
 ! - - - 애니위크 (https://aniweek.com/)
-! - - -  https://today-sports7.com/
-! - - - 밍키넷 (https://mingky.live/)
 ! - - - 야툰 (https://yatoon207.com/)
 ! - - - 마징가툰 (https://z70.mzgtoon.com/)
 ! - - - 애니조아 (https://www.anizoa.net/)
