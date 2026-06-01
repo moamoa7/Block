@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.06.01.0
+! Version: 2026.06.01.1
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -105,6 +105,7 @@ m.dcinside.com##.view-btm-con
 m.dcinside.com##li:not(.notice):has(> .detail-top-lnk)
 m.ppomppu.co.kr##.js-ad_slot.JS-div_gpt_ad
 m.ppomppu.co.kr##div[style^='text-align:center;']
+m.ruliweb.com##.board_bottom > .ruli_delayed_ad_slot
 m.ruliweb.com##tr:has(.nbp_container)
 m.wowtv.co.kr##.container > div[style]
 m.wowtv.co.kr,inven.co.kr##[id*='Banner']
@@ -176,10 +177,10 @@ bampt3.com,bampt4.com##.small-banners-grid, .small-ad-item, .premium-banner-wrap
 darkgirl8.com###adskip, #posterWrap, #main-banner
 darkgirl8.com##.banner, a[href*="clickadu.net"]
 darkgirl8.com#%#//scriptlet('trusted-click-element', '#adbtn')
-fxfx325.com,fxfx326.com,wftoon213.com,wftoon214.com##div.top-banner
+fxfx325.com,fxfx326.com,fxfx327.com,wftoon213.com,wftoon214.com,wftoon215.com##div.top-banner
 jusocon1.com,jusocon2.com##.banner_box
-mingky13.net,ydparty08.net##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
-sbxh1.com,sbxh2.com,sbxh3.com##[data-pm-ov="1"]
+mingky.live,ydparty.tv##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
+sbxh3.com,sbxh4.com,sbxh5.com##[data-pm-ov="1"]
 tkor121.com##.main_top_bann
 wtwt328.com,wtwt329.com##div.banner
 xxzone23.top,xxzone24.top##[id*="main-banner"], .gplayer-ad-overlay, #popupBannerModal
@@ -191,7 +192,6 @@ xxzone23.top,xxzone24.top##[id*="main-banner"], .gplayer-ad-overlay, #popupBanne
 !#endif
 
 ! Minor distractions
-arca.live##.d-lg-none.topbar-area
 arca.live##a:has(img[src*="karisuma-point-x2.png"])
 gall.dcinside.com##.dc_all
 gall.dcinside.com##.dcmedia.content_box
