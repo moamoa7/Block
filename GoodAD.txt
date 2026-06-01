@@ -717,6 +717,8 @@ etoland.co.kr##div.my-4.flex:has(> script)
 ! - - - SLR (https://www.slrclub.com/) 하단 배너 공백
 !##[class*="adsbyadop" i]
 ##.adsbyadop
+! - 게시물내 하단 배너 공백 (모바일)
+etoland.co.kr###mo-300x250-comment-bottom
 ! - 게시물내 광고글
 etoland.co.kr##li[class*="amber-100"]
 etoland.co.kr##li[class*="h-10"]
