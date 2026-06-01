@@ -358,6 +358,8 @@ sooplive.com##.message_player_wrap
 ##.loading
 ! - 예외 - https://javgiga.com/ - 이미지 사라짐
 javgiga.com#@#.loading
+! - 에외 - themoviedb.org - 이미지 사라짐
+themoviedb.org#@#.loading
 ! - 채팅 공지 (필요시)
 sooplive.com##.chat_notice
 ! - 채팅 상단 배너 & 채팅 공지 (필요시)
@@ -1439,8 +1441,10 @@ poooo.ml#@#.ad
 ! - websocket 차단 - 먼지 모르갰지만 재생에 필요한 사이트에 websocket이 켜있어서 막아놓음
 ! - - - 티비위키 / 티비몬 / 티비핫 공통 적용
 ||player.bunny-frame.online$websocket
-! - 못보던 도메인의 무한 프레임 생성 차단
-/^https?:\/\/([^\/]+\.)?yasyadong\d*\.tv\//$frame
+! - 못보던 도메인의 무한 프레임 생성 차단 (아래 yasyadong01.tv 대신 새롭게 등장)
+!/^https?:\/\/([^\/]+\.)?yasyadong\d*\.tv\//$frame
+! - - - dns에 ||googlesyndication.com^ 기 차단 등록으로 필요치 않음
+!||safeframe.googlesyndication.com^
 !
 !
 ! 티비착 (https://tvchak.org/)  (https://tvchak201.com/)  (https://tvchak.live/)
