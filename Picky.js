@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/moamoa7/Block
-// @version      4.0.1
+// @version      1.0.3
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, self-healing
 // @author       moamoa7
 // @license      MIT
