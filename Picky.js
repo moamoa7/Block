@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/hooray804/Picky
-// @version      3.7.1
-// @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 전체 규칙 뷰어, 모바일 완전 대응 (터치 픽킹, 동적 viewport, 44px 타겟, 좌표 보정)
+// @version      3.8.0
+// @description  요소 선택 기반 광고/요소 차단기 — AdGuard/uBlock 호환 규칙 생성, 전체 규칙 뷰어, 모바일 완전 대응 (컴팩트 UI, self-healing, 안전 가드)
 // @author       hooray804
 // @license      MIT
 // @homepage     https://github.com/hooray804/Picky
@@ -53,6 +53,23 @@
     const vibrate = (ms = 15) => {
         try { navigator.vibrate?.(ms); } catch (_) {}
     };
+
+    // ★★★ v3.8.0 (MES 차용): 너무 광범위한/위험한 셀렉터 차단 방지 가드
+    const UNSAFE_SELECTOR_RE = /^(?:\*|html|body|:root|head|\*\s*[>~+]?\s*\*)$/i;
+    function isUnsafeSelector(sel) {
+        if (!sel || typeof sel !== 'string') return true;
+        const trimmed = sel.trim();
+        if (!trimmed) return true;
+        if (UNSAFE_SELECTOR_RE.test(trimmed)) return true;
+        // 단일 보편 태그(div, span 등)가 너무 많이 매치되면 위험
+        try {
+            const n = document.querySelectorAll(trimmed).length;
+            if (n > 0 && /^(div|span|p|a|li|ul|section|article|img)$/i.test(trimmed) && n > 200) {
+                return true;
+            }
+        } catch (_) { return true; }
+        return false;
+    }
 
     const AD_NETWORK_HOSTS = [
         'doubleclick.net', 'googlesyndication.com', 'googleadservices.com',
@@ -146,9 +163,28 @@
                 if (timer) return;
                 timer = setTimeout(() => {
                     timer = null;
-                    if (document.head && !document.getElementById(this.STYLE_ID)) apply();
+                    // ★★★ v3.8.0 (MES 차용): self-healing 무결성 검사
+                    // 스타일이 사라졌거나 비어있는데 규칙이 있으면 복구
+                    if (this._needsRefresh()) apply();
                 }, 200);
             }).observe(document.documentElement, { childList: true, subtree: true });
+
+            // ★★★ v3.8.0 (MES 차용): 주기적 무결성 검사 (SPA 등에서 스타일 제거 대응)
+            setInterval(() => {
+                if (this._needsRefresh()) apply();
+            }, 4000);
+        },
+
+        // ★★★ v3.8.0 (MES 차용): 차단 스타일 무결성 점검
+        _needsRefresh() {
+            if (!document.head) return false;
+            const style = document.getElementById(this.STYLE_ID);
+            const rules = this.fetch();
+            const wantRules = this.isEnabled() && rules.length > 0;
+            if (!style && wantRules) return true;             // 스타일 자체가 사라짐
+            if (style && !style.isConnected && wantRules) return true;
+            if (style && wantRules && !style.textContent) return true; // 내용이 비워짐
+            return false;
         },
 
         host() { return location.hostname || 'global'; },
@@ -274,7 +310,7 @@
         enforce() {
             if (!document.head) return;
             let style = document.getElementById(this.STYLE_ID);
-            if (!style) {
+            if (!style || !style.isConnected) {
                 style = document.createElement('style');
                 style.id = this.STYLE_ID;
                 document.head.appendChild(style);
@@ -316,7 +352,7 @@
         exportJSON() {
             const data = {
                 app: 'Picky Advanced',
-                version: '3.7.1',
+                version: '3.8.0',
                 exportDate: new Date().toISOString(),
                 rules: this.fetchAll()
             };
@@ -333,7 +369,7 @@
             const all = this.fetchAll();
             const lines = [
                 '! Title: Picky Advanced Export',
-                `! Version: 3.7.1`,
+                `! Version: 3.8.0`,
                 `! Generated: ${new Date().toISOString()}`,
                 '! Syntax: AdGuard / uBlock Origin compatible',
                 ''
@@ -438,6 +474,30 @@
             }
 
             return bodyEl;
+        }
+
+        // ★★★ v3.8.0 (MES 차용): 네이티브 confirm 대체 — 모바일 UX 개선
+        confirm(title, message, { okText = '확인', cancelText = '취소', danger = false } = {}) {
+            return new Promise((resolve) => {
+                const body = this.display(title, '', true);
+                body.innerHTML = `
+                    <div style="line-height:1.5;margin-bottom:14px;white-space:pre-line;">${esc(message)}</div>
+                    <div class="picky-modal-foot" style="justify-content:flex-end;">
+                        <button class="picky-btn" data-ref="cancel">${esc(cancelText)}</button>
+                        <button class="picky-btn ${danger ? 'picky-btn-danger' : 'picky-btn-primary'}" data-ref="ok">${esc(okText)}</button>
+                    </div>`;
+                let answered = false;
+                const finish = (val) => {
+                    if (answered) return;
+                    answered = true;
+                    this._onDismiss = null;
+                    this.dismiss();
+                    resolve(val);
+                };
+                body.querySelector('[data-ref="ok"]').addEventListener('click', () => finish(true));
+                body.querySelector('[data-ref="cancel"]').addEventListener('click', () => finish(false));
+                this._onDismiss = () => { if (!answered) { answered = true; resolve(false); } };
+            });
         }
 
         dismiss() {
@@ -1628,7 +1688,7 @@
             this.dom = {
                 host: null, shadow: null, tool: null,
                 shield: null, shieldAim: null, shieldConfirm: null,
-                disp: null, match: null, slider: null,
+                match: null, slider: null,
                 cardsScroll: null
             };
             this.state = {
@@ -1769,6 +1829,7 @@
             this.attachRefs();
             this.renderCandidates();
             this.restoreSliderState();
+            this.updateActionBar();
         }
 
         restoreSliderState() {
@@ -1782,14 +1843,17 @@
             slider.value = curIdx >= 0 ? curIdx : 0;
         }
 
+        // ★★★ v3.8.0: 컴팩트 레이아웃
+        //  - picky-disp-wrap(선택 셀렉터 표시) 제거
+        //  - 카드 영역은 1개 정도만 보이게 축소
+        //  - 차단/숨김/필터/CSS 를 하단 단일 액션 라인으로 일원화 (현재 선택된 카드에 동작)
         getFullLayout() {
             const stats = Blocker.getStats();
             const enabled = Blocker.isEnabled();
             const agg = Blocker.isAggressive();
-            const hidingNow = this.state.hiddenPreviewNodes.length > 0;
             return `
             <div class="picky-head" data-drag="1">
-                <span class="picky-title">Picky <small>v3.7.1</small></span>
+                <span class="picky-title">Picky <small>v3.8.0</small></span>
                 <div class="picky-head-btns">
                     <button class="picky-btn picky-btn-icon" data-act="showAllRules" title="전체 규칙 뷰어">${ICON_GLOBE}</button>
                     <button class="picky-btn picky-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -1808,12 +1872,9 @@
                     </button>
                 </div>
 
-                <div class="picky-disp-wrap">
-                    <div class="picky-disp" data-ref="disp">요소를 선택하세요</div>
-                    <div class="picky-meta">
-                        <span data-ref="match">매치 0개</span>
-                        <span class="picky-stats">규칙 ${stats.ruleCount}개 (전체 ${stats.totalRules})</span>
-                    </div>
+                <div class="picky-meta picky-meta-top">
+                    <span data-ref="match">매치 0개</span>
+                    <span class="picky-stats">규칙 ${stats.ruleCount}개 (전체 ${stats.totalRules})</span>
                 </div>
 
                 <div class="picky-nav-row">
@@ -1822,20 +1883,22 @@
                     <button class="picky-btn picky-btn-icon" data-act="navDown" title="하위 요소">${ICON_DOWN}</button>
                 </div>
 
-                <div class="picky-cards-scroll" data-ref="cardsScroll">
+                <div class="picky-cards-scroll picky-cards-compact" data-ref="cardsScroll">
                     <div class="picky-cards-empty">요소 선택 후 후보 규칙이 표시됩니다</div>
                 </div>
 
-                <div class="picky-action-row">
-                    <button class="picky-btn picky-btn-danger" data-act="blockSelected">
+                <!-- 일원화된 액션 바: 선택된 카드 1개에 대해 동작 -->
+                <div class="picky-action-row picky-action-unified">
+                    <button class="picky-btn picky-btn-danger" data-act="blockSelected" title="선택한 규칙으로 차단">
                         ${ICON_BLOCK}<span>차단</span>
                     </button>
-                    <button class="picky-btn ${hidingNow ? 'picky-btn-active' : ''}" data-act="toggleHideSelected" title="선택한 규칙으로 페이지에서 숨김 미리보기">
-                        ${hidingNow ? ICON_EYE_OFF : ICON_EYE}<span>${hidingNow ? '복구' : '숨김'}</span>
+                    <button class="picky-btn" data-act="toggleHideSelected" data-ref="hideBtn" title="선택한 규칙으로 페이지 숨김 미리보기">
+                        ${ICON_EYE}<span data-ref="hideLbl">숨김</span>
                     </button>
-                    <button class="picky-btn" data-act="copySelected" title="CSS 복사">${ICON_COPY}</button>
-                    <button class="picky-btn" data-act="editSelector" title="편집">${ICON_EDIT}</button>
-                    <button class="picky-btn" data-act="showRules" title="현재 사이트 규칙">📋</button>
+                    <button class="picky-btn" data-act="copyFilterSelected" title="AdGuard/uBlock 필터 복사">📋<span>필터</span></button>
+                    <button class="picky-btn" data-act="copySelected" title="CSS 셀렉터 복사">📋<span>CSS</span></button>
+                    <button class="picky-btn picky-btn-icon" data-act="editSelector" title="편집">${ICON_EDIT}</button>
+                    <button class="picky-btn picky-btn-icon" data-act="showRules" title="현재 사이트 규칙">📋</button>
                 </div>
 
                 <div class="picky-toggle-row">
@@ -1853,7 +1916,6 @@
 
         attachRefs() {
             const t = this.dom.tool;
-            this.dom.disp = t.querySelector('[data-ref="disp"]');
             this.dom.match = t.querySelector('[data-ref="match"]');
             this.dom.slider = t.querySelector('[data-ref="slider"]');
             this.dom.cardsScroll = t.querySelector('[data-ref="cardsScroll"]');
@@ -1874,6 +1936,37 @@
             this.dom.slider?.addEventListener('pointerdown', (e) => e.stopPropagation());
         }
 
+        // ★★★ v3.8.0: 하단 액션 바 상태(숨김/복구, 활성/비활성, 네트워크필터) 갱신
+        updateActionBar() {
+            const t = this.dom.tool;
+            if (!t) return;
+            const c = this.state.candidates[this.state.selectedIdx];
+            const sel = c ? c.selector : this.state.queryData.selector;
+            const isNet = !!(c && c.isNetwork);
+
+            const blockBtn = t.querySelector('[data-act="blockSelected"]');
+            const hideBtn  = t.querySelector('[data-act="toggleHideSelected"]');
+            const cssBtn   = t.querySelector('[data-act="copySelected"]');
+            const editBtn  = t.querySelector('[data-act="editSelector"]');
+
+            const hasSel = !!sel;
+            // 차단/숨김/CSS는 네트워크 필터에선 비활성
+            if (blockBtn) blockBtn.disabled = !hasSel || isNet;
+            if (hideBtn)  hideBtn.disabled  = !hasSel || isNet;
+            if (cssBtn)   cssBtn.disabled   = !hasSel || isNet;
+            if (editBtn)  editBtn.disabled  = false;
+
+            // 숨김/복구 라벨 토글
+            const hidingThis = c && this.state.hiddenSelector && this.state.hiddenSelector === sel;
+            const hideLbl = t.querySelector('[data-ref="hideLbl"]');
+            if (hideBtn) {
+                hideBtn.classList.toggle('picky-btn-active', !!hidingThis);
+                const iconSpan = hideBtn.querySelector('svg');
+                // 아이콘 자체 교체
+                hideBtn.innerHTML = `${hidingThis ? ICON_EYE_OFF : ICON_EYE}<span data-ref="hideLbl">${hidingThis ? '복구' : '숨김'}</span>`;
+            }
+        }
+
         renderCandidates() {
             const wrap = this.dom.cardsScroll;
             if (!wrap) return;
@@ -1884,7 +1977,7 @@
             }
 
             wrap.innerHTML = `
-                <div class="picky-cards-info">총 ${list.length}개 후보 · 점수순 · ${IS_TOUCH ? '탭:선택' : '호버:미리보기 · 클릭:핀'} · 👁:숨김</div>
+                <div class="picky-cards-info">총 ${list.length}개 후보 · 점수순 · ${IS_TOUCH ? '탭하면 선택 → 아래 버튼으로 동작' : '클릭하면 선택 → 아래 버튼으로 동작'}</div>
                 ${list.map((c, i) => this.renderCard(c, i)).join('')}
             `;
 
@@ -1895,20 +1988,12 @@
                     card.addEventListener('mouseleave', () => this.clearPreview());
                 }
                 card.addEventListener('click', (e) => {
-                    if (e.target.closest('button')) return;
                     if (e.target.closest('[data-card-act]')) return;
                     this.selectCandidate(idx);
                 });
             });
-            wrap.querySelectorAll('.picky-card-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const idx = parseInt(btn.closest('.picky-card').dataset.idx, 10);
-                    const act = btn.dataset.cardAct;
-                    this.handleCardAction(act, idx);
-                });
-            });
-            // CSS/필터 텍스트 영역 클릭으로 복사
+
+            // CSS/필터 텍스트 영역 클릭으로 빠른 복사 (카드 내 유일하게 남긴 인터랙션)
             wrap.querySelectorAll('[data-card-act="copyCssQuick"], [data-card-act="copyFilterQuick"]').forEach(el => {
                 el.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -1919,6 +2004,8 @@
             });
         }
 
+        // ★★★ v3.8.0: 카드에서 차단/숨김/필터/CSS 버튼 라인 제거.
+        // 카드는 "선택 + 정보 표시 + 텍스트 탭 복사"만 담당. 실제 동작은 하단 액션 바.
         renderCard(c, idx) {
             const isSelected = idx === this.state.selectedIdx;
             const recommended = c.recommended ? '<span class="picky-badge">추천</span>' : '';
@@ -1932,29 +2019,16 @@
                     <span class="picky-card-icon">${c.icon || '•'}</span>
                     <span class="picky-card-label">${esc(c.label)}</span>
                     ${recommended}
+                    <span class="picky-card-matches">·${c.matches}개</span>
                     <span class="picky-card-stars" title="${c.score}점 (성능+정확도)">${c.stars || ''}</span>
                 </div>
                 <div class="picky-card-css" title="${IS_TOUCH ? '탭하면 CSS 복사' : '클릭하면 CSS 복사'}" data-card-act="copyCssQuick">
                     <span class="picky-card-css-label">CSS:</span>
                     <span class="picky-card-css-text">${esc(c.selector)}</span>
-                    <span class="picky-card-matches">·${c.matches}개</span>
                 </div>
                 <div class="picky-card-filter-clickable" title="${IS_TOUCH ? '탭하면 필터 복사' : '클릭하면 필터 복사'}" data-card-act="copyFilterQuick">
                     <span class="picky-card-css-label">필터:</span>
                     <span class="picky-card-css-text">${esc(filterText)}</span>
-                </div>
-                <div class="picky-card-hint">${esc(c.hint || '')}</div>
-                <div class="picky-card-btns">
-                    ${isNet
-                        ? `<button class="picky-card-btn picky-card-btn-disabled" disabled title="네트워크 필터는 CSS로 차단 불가">⛔ 차단</button>`
-                        : `<button class="picky-card-btn picky-card-btn-block" data-card-act="block">⛔ 차단</button>`
-                    }
-                    ${isNet
-                        ? `<button class="picky-card-btn picky-card-btn-disabled" disabled title="네트워크 필터는 페이지 숨김 미리보기 불가">${ICON_EYE} 숨김</button>`
-                        : `<button class="picky-card-btn ${isHidingThis ? 'picky-card-btn-hiding' : ''}" data-card-act="toggleHide" title="${isHidingThis ? '숨김 해제' : '이 규칙으로 페이지에서 숨김 미리보기'}">${isHidingThis ? ICON_EYE_OFF + ' 복구' : ICON_EYE + ' 숨김'}</button>`
-                    }
-                    <button class="picky-card-btn" data-card-act="copyFilter" title="AdGuard/uBlock 규칙 복사">📋 필터</button>
-                    ${isNet ? '' : `<button class="picky-card-btn" data-card-act="copyCss" title="CSS 셀렉터 복사">📋 CSS</button>`}
                 </div>
             </div>`;
         }
@@ -1963,40 +2037,7 @@
             const c = this.state.candidates[idx];
             if (!c) return;
 
-            if (act === 'block') {
-                if (c.isNetwork) return;
-                const targetEl = document.querySelector(c.selector);
-                const parentEl = targetEl ? targetEl.parentElement : null;
-                const parentRectBefore = parentEl ? parentEl.getBoundingClientRect() : null;
-
-                this.clearHidePreview();
-                if (Blocker.append(c.selector)) {
-                    vibrate(20);
-                    this.flashToast(`차단: ${c.selector.slice(0, 50)}`);
-                    this.refreshMetrics();
-                    this.render();
-                    this.checkOrphanSpace(parentEl, parentRectBefore);
-                } else {
-                    this.flashToast('이미 등록된 규칙');
-                }
-            } else if (act === 'toggleHide') {
-                if (c.isNetwork) return;
-                const result = this.toggleHidePreview(c.selector);
-                if (result.hidden) {
-                    vibrate(15);
-                    this.flashToast(`${result.count}개 요소 숨김 (미리보기)`);
-                } else {
-                    this.flashToast('숨김 해제됨');
-                }
-                this.renderCandidates();
-            } else if (act === 'copyFilter') {
-                const text = SelectorStrategies.toAdGuardRule(c);
-                await this.copyText(text);
-                this.flashToast('필터 규칙 복사됨');
-            } else if (act === 'copyCss') {
-                await this.copyText(c.selector);
-                this.flashToast('CSS 셀렉터 복사됨');
-            } else if (act === 'copyCssQuick') {
+            if (act === 'copyCssQuick') {
                 await this.copyText(c.selector);
                 this.flashToast('CSS 복사됨: ' + c.selector.slice(0, 40));
             } else if (act === 'copyFilterQuick') {
@@ -2050,7 +2091,9 @@
             };
 
             toast.querySelector('[data-orphan="block"]').addEventListener('click', () => {
-                if (Blocker.append(sel)) {
+                if (isUnsafeSelector(sel)) {
+                    this.flashToast('너무 광범위한 셀렉터라 차단할 수 없습니다');
+                } else if (Blocker.append(sel)) {
                     vibrate(20);
                     this.flashToast('부모 컨테이너도 차단됨');
                     this.refreshMetrics();
@@ -2189,16 +2232,16 @@
             }
             this.refreshMetrics();
             this.renderCandidates();
+            this.updateActionBar();
         }
 
         refreshMetrics() {
-            const disp = this.dom.disp;
             const match = this.dom.match;
             const sel = this.state.queryData.selector;
-            if (disp) disp.textContent = sel || '요소를 선택하세요';
             if (match) {
                 const n = sel ? SelectorStrategies.countMatches(sel) : 0;
-                match.textContent = `매치 ${n}개`;
+                match.textContent = sel ? `${sel.slice(0, 28)}${sel.length > 28 ? '…' : ''} · 매치 ${n}개` : '매치 0개';
+                match.title = sel || '';
             }
             const stats = Blocker.getStats();
             const statsEl = this.dom.tool?.querySelector('.picky-stats');
@@ -2253,6 +2296,7 @@
 
             this.refreshMetrics();
             this.renderCandidates();
+            this.updateActionBar();
             this.setFocus(el);
 
             if (!updateOrigin) {
@@ -2290,7 +2334,6 @@
             this.state.previewNodes = [];
         }
 
-        // ★★★ v3.7.1: Shield 픽킹 (인라인 스타일 강제 + Light DOM PAGE_CSS 백업)
         startPicking() {
             if (this.state.picking) return;
             this.clearHidePreview();
@@ -2298,7 +2341,6 @@
             this.state.mode = 'picking';
             this.state.pickCandidate = null;
 
-            // 모바일에서 패널이 펼쳐진 상태면 일시적으로 아이콘으로 축소
             if (IS_MOBILE && this.state.scale === 'full') {
                 this._wasFullBeforePick = true;
                 this.state.scale = 'icon';
@@ -2306,7 +2348,6 @@
                 this.applyPosition();
             }
 
-            // Shield 생성 + 인라인 스타일 강제 (사이트 CSS가 덮어쓸 수 없도록)
             const shield = document.createElement('div');
             shield.id = SHIELD_ID;
             shield.style.cssText = `
@@ -2330,7 +2371,6 @@
             document.documentElement.appendChild(shield);
             this.dom.shield = shield;
 
-            // 조준점 (PC/모바일 모두 표시)
             const aim = document.createElement('div');
             aim.className = 'picky-aim';
             aim.style.cssText = `
@@ -2374,7 +2414,6 @@
             shield.appendChild(aim);
             this.dom.shieldAim = aim;
 
-            // 모바일: 확정 버튼
             if (IS_TOUCH) {
                 const confirm = document.createElement('div');
                 confirm.className = 'picky-shield-confirm';
@@ -2450,46 +2489,39 @@
                 btnCancel.addEventListener('pointerup', onCancel);
             }
 
-            // Hit-test 함수
             const pickAt = (x, y) => {
-    const aimX = x;
-    const aimY = y + SHIELD_AIM_OFFSET_Y;
+                const aimX = x;
+                const aimY = y + SHIELD_AIM_OFFSET_Y;
 
-    // shield를 일시적으로 hidden으로 만들어 hit-test에서 완전히 제외
-    const prevDisplay = shield.style.display;
-    const prevPE = shield.style.pointerEvents;
-    shield.style.pointerEvents = 'none';
+                const prevPE = shield.style.pointerEvents;
+                shield.style.pointerEvents = 'none';
 
-    // elementsFromPoint로 스택 전체를 받아 shield/shadow host를 제외
-    let el = null;
-    const stack = document.elementsFromPoint(aimX, aimY);
-    for (const node of stack) {
-        if (!node) continue;
-        if (node === shield) continue;
-        if (node.id === SHIELD_ID) continue;
-        if (node.id === ROOT_ID) continue;
-        if (node.closest && node.closest(`#${ROOT_ID}`)) continue;
-        if (node.closest && node.closest(`#${SHIELD_ID}`)) continue;
-        if (node.tagName === 'HTML') continue;
-        el = node;
-        break;
-    }
+                let el = null;
+                const stack = document.elementsFromPoint(aimX, aimY);
+                for (const node of stack) {
+                    if (!node) continue;
+                    if (node === shield) continue;
+                    if (node.id === SHIELD_ID) continue;
+                    if (node.id === ROOT_ID) continue;
+                    if (node.closest && node.closest(`#${ROOT_ID}`)) continue;
+                    if (node.closest && node.closest(`#${SHIELD_ID}`)) continue;
+                    if (node.tagName === 'HTML') continue;
+                    el = node;
+                    break;
+                }
 
-    shield.style.pointerEvents = prevPE || 'auto';
+                shield.style.pointerEvents = prevPE || 'auto';
 
-    if (!el) return null;
-    el = this.refineTargetAtPoint(el, aimX, aimY);
-    return el;
-};
-
+                if (!el) return null;
+                el = this.refineTargetAtPoint(el, aimX, aimY);
+                return el;
+            };
 
             this._shieldMove = (e) => {
-                // 확정 버튼 영역은 무시
                 if (e.target && e.target.closest && e.target.closest('.picky-shield-confirm')) return;
 
                 const el = pickAt(e.clientX, e.clientY);
 
-                // 조준점 위치 업데이트
                 if (this.dom.shieldAim) {
                     const aimX = e.clientX;
                     const aimY = e.clientY + SHIELD_AIM_OFFSET_Y;
@@ -2506,7 +2538,6 @@
                 this.state.lastHoverEl = el;
                 this.state.pickCandidate = el;
 
-                // 모바일: 확정 버튼 활성화 + 정보 갱신
                 if (this.dom.shieldConfirm) {
                     const btn = this.dom.shieldConfirm.querySelector('[data-shield="confirm"]');
                     if (btn) {
@@ -2524,49 +2555,42 @@
             };
 
             this._shieldDown = (e) => {
-    // 확정 버튼 영역은 통과
-    if (e.target && e.target.closest && e.target.closest('.picky-shield-confirm')) return;
+                if (e.target && e.target.closest && e.target.closest('.picky-shield-confirm')) return;
 
-    if (e.cancelable) e.preventDefault();
-    e.stopPropagation();
+                if (e.cancelable) e.preventDefault();
+                e.stopPropagation();
 
-    if (!IS_TOUCH) {
-        // PC: 클릭 즉시 선택
-        let el = pickAt(e.clientX, e.clientY);
+                if (!IS_TOUCH) {
+                    let el = pickAt(e.clientX, e.clientY);
 
-        // 디버그용 (필요시 콘솔에서 확인)
-        console.log('[Picky] pickAt result:', el, 'at', e.clientX, e.clientY);
+                    if (!el) {
+                        this.flashToast('요소를 찾지 못했습니다. 다시 시도해주세요.');
+                        return;
+                    }
 
-        if (!el) {
-            this.flashToast('요소를 찾지 못했습니다. 다시 시도해주세요.');
-            return;
-        }
-
-        if (e.altKey) {
-            const prev = shield.style.pointerEvents;
-            shield.style.pointerEvents = 'none';
-            const stack = document.elementsFromPoint(e.clientX, e.clientY)
-                .filter(n => n && n !== shield && !n.closest(`#${ROOT_ID}`) && !n.closest(`#${SHIELD_ID}`));
-            shield.style.pointerEvents = prev || 'auto';
-            if (stack.length) {
-                el = stack.reduce((a, b) => {
-                    const ra = a.getBoundingClientRect();
-                    const rb = b.getBoundingClientRect();
-                    const areaA = ra.width * ra.height || Infinity;
-                    const areaB = rb.width * rb.height || Infinity;
-                    return areaA <= areaB ? a : b;
-                });
-            }
-        }
-        this.cleanupShieldHl();
-        this.stopPicking();
-        this.selectNode(el, true);
-    } else {
-        // 모바일: pointerdown도 hover 동작 (조준점 갱신)
-        this._shieldMove(e);
-    }
-};
-
+                    if (e.altKey) {
+                        const prev = shield.style.pointerEvents;
+                        shield.style.pointerEvents = 'none';
+                        const stack = document.elementsFromPoint(e.clientX, e.clientY)
+                            .filter(n => n && n !== shield && !n.closest(`#${ROOT_ID}`) && !n.closest(`#${SHIELD_ID}`));
+                        shield.style.pointerEvents = prev || 'auto';
+                        if (stack.length) {
+                            el = stack.reduce((a, b) => {
+                                const ra = a.getBoundingClientRect();
+                                const rb = b.getBoundingClientRect();
+                                const areaA = ra.width * ra.height || Infinity;
+                                const areaB = rb.width * rb.height || Infinity;
+                                return areaA <= areaB ? a : b;
+                            });
+                        }
+                    }
+                    this.cleanupShieldHl();
+                    this.stopPicking();
+                    this.selectNode(el, true);
+                } else {
+                    this._shieldMove(e);
+                }
+            };
 
             this._shieldKey = (e) => {
                 if (e.key === 'Escape') {
@@ -2614,7 +2638,6 @@
 
             this.cleanupShieldHl();
 
-            // 패널 복원
             if (this._wasFullBeforePick) {
                 this._wasFullBeforePick = false;
                 this.state.scale = 'full';
@@ -2661,6 +2684,43 @@
             this.applyPosition();
         }
 
+        // ★★★ v3.8.0: 선택된 카드에 대한 통합 차단 (안전 가드 포함)
+        async blockSelected() {
+            const c = this.state.candidates[this.state.selectedIdx];
+            const sel = (c && !c.isNetwork) ? c.selector : (c ? null : this.state.queryData.selector);
+
+            if (c && c.isNetwork) {
+                this.flashToast('네트워크 필터는 차단할 수 없습니다 (필터 복사 사용)');
+                return;
+            }
+            if (!sel) { this.flashToast('선택된 규칙이 없습니다'); return; }
+
+            // 안전 가드: 너무 광범위한 셀렉터 방지 (MES 보수적 차용)
+            if (isUnsafeSelector(sel)) {
+                const ok = await this.modal.confirm(
+                    '광범위한 셀렉터 경고',
+                    `이 셀렉터는 페이지의 매우 많은 요소(또는 전체)를 숨길 수 있습니다.\n\n${sel}\n\n그래도 차단하시겠습니까?`,
+                    { okText: '차단 강행', cancelText: '취소', danger: true }
+                );
+                if (!ok) return;
+            }
+
+            const targetEl = (() => { try { return document.querySelector(sel); } catch (_) { return null; } })();
+            const parentEl = targetEl ? targetEl.parentElement : null;
+            const parentRectBefore = parentEl ? parentEl.getBoundingClientRect() : null;
+
+            this.clearHidePreview();
+            if (Blocker.append(sel)) {
+                vibrate(20);
+                this.flashToast(`차단: ${sel.slice(0, 50)}`);
+                this.refreshMetrics();
+                this.render();
+                this.checkOrphanSpace(parentEl, parentRectBefore);
+            } else {
+                this.flashToast('이미 등록된 규칙');
+            }
+        }
+
         triggerAction(act, el, evt) {
             switch (act) {
                 case 'cycleSize': this.cycleSize(); break;
@@ -2689,19 +2749,7 @@
                     break;
                 }
                 case 'blockSelected': {
-                    const c = this.state.candidates[this.state.selectedIdx];
-                    if (c && !c.isNetwork) {
-                        this.handleCardAction('block', this.state.selectedIdx);
-                    } else if (c && c.isNetwork) {
-                        this.flashToast('네트워크 필터는 차단할 수 없습니다 (필터 복사 사용)');
-                    } else if (this.state.queryData.selector) {
-                        this.clearHidePreview();
-                        if (Blocker.append(this.state.queryData.selector)) {
-                            vibrate(20);
-                            this.flashToast('차단 규칙 추가');
-                            this.refreshMetrics();
-                        }
-                    }
+                    this.blockSelected();
                     break;
                 }
                 case 'toggleHideSelected': {
@@ -2714,15 +2762,38 @@
                     }
                     const r = this.toggleHidePreview(sel);
                     this.flashToast(r.hidden ? `${r.count}개 요소 숨김 (미리보기)` : '숨김 해제됨');
-                    this.render();
+                    this.renderCandidates();
+                    this.updateActionBar();
+                    break;
+                }
+                case 'copyFilterSelected': {
+                    const c = this.state.candidates[this.state.selectedIdx];
+                    if (c) {
+                        const text = SelectorStrategies.toAdGuardRule(c);
+                        this.copyText(text);
+                        this.flashToast('필터 규칙 복사됨');
+                    } else if (this.state.queryData.selector) {
+                        const host = location.hostname || '';
+                        const text = host ? `${host}##${this.state.queryData.selector}` : `##${this.state.queryData.selector}`;
+                        this.copyText(text);
+                        this.flashToast('필터 규칙 복사됨');
+                    } else {
+                        this.flashToast('선택된 규칙이 없습니다');
+                    }
                     break;
                 }
                 case 'copySelected': {
                     const c = this.state.candidates[this.state.selectedIdx];
-                    if (c) this.handleCardAction('copyCss', this.state.selectedIdx);
-                    else if (this.state.queryData.selector) {
+                    if (c && c.isNetwork) {
+                        this.flashToast('네트워크 필터는 CSS가 없습니다 (필터 복사 사용)');
+                    } else if (c) {
+                        this.copyText(c.selector);
+                        this.flashToast('CSS 복사됨');
+                    } else if (this.state.queryData.selector) {
                         this.copyText(this.state.queryData.selector);
                         this.flashToast('CSS 복사됨');
+                    } else {
+                        this.flashToast('선택된 규칙이 없습니다');
                     }
                     break;
                 }
@@ -2768,6 +2839,7 @@
             body.querySelector('[data-ref="apply"]').addEventListener('click', () => {
                 this.state.queryData.selector = ta.value.trim();
                 this.refreshMetrics();
+                this.updateActionBar();
                 this.modal.dismiss();
             });
             hideBtn.addEventListener('click', () => {
@@ -2776,12 +2848,22 @@
                 const r = this.toggleHidePreview(sel);
                 this.flashToast(r.hidden ? `${r.count}개 요소 숨김` : '숨김 해제됨');
                 updatePreview();
-                this.render();
+                this.renderCandidates();
+                this.updateActionBar();
             });
-            body.querySelector('[data-ref="blk"]').addEventListener('click', () => {
+            body.querySelector('[data-ref="blk"]').addEventListener('click', async () => {
                 const v = ta.value.trim();
+                if (!v) return;
+                if (isUnsafeSelector(v)) {
+                    const ok = await this.modal.confirm(
+                        '광범위한 셀렉터 경고',
+                        `이 셀렉터는 너무 많은 요소를 숨길 수 있습니다.\n\n${v}\n\n그래도 차단하시겠습니까?`,
+                        { okText: '차단 강행', cancelText: '취소', danger: true }
+                    );
+                    if (!ok) return;
+                }
                 this.clearHidePreview();
-                if (v && Blocker.append(v)) {
+                if (Blocker.append(v)) {
                     vibrate(20);
                     this.flashToast('차단 규칙 추가');
                     this.refreshMetrics();
@@ -2820,10 +2902,10 @@
                 this.flashToast('AdGuard/uBlock 필터 복사됨');
             });
             body.querySelector('[data-ref="exportJson"]').addEventListener('click', () => Blocker.exportJSON());
-            body.querySelector('[data-ref="clear"]').addEventListener('click', () => {
-                if (confirm('이 사이트의 모든 규칙을 삭제할까요?')) {
+            body.querySelector('[data-ref="clear"]').addEventListener('click', async () => {
+                const ok = await this.modal.confirm('규칙 삭제', '이 사이트의 모든 규칙을 삭제할까요?', { okText: '삭제', danger: true });
+                if (ok) {
                     Blocker.clear();
-                    this.modal.dismiss();
                     this.refreshMetrics();
                 }
             });
@@ -2904,14 +2986,15 @@
             });
 
             body.querySelectorAll('[data-host-clear]').forEach(b => {
-                b.addEventListener('click', (e) => {
+                b.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const host = b.dataset.hostClear;
                     const count = (all[host] || []).length;
-                    if (confirm(`"${host}" 의 ${count}개 규칙을 모두 삭제할까요?`)) {
+                    const ok = await this.modal.confirm('사이트 규칙 삭제', `"${host}" 의 ${count}개 규칙을 모두 삭제할까요?`, { okText: '삭제', danger: true });
+                    if (ok) {
                         Blocker.clearHost(host);
                         this.flashToast(`${host} 규칙 ${count}개 삭제됨`);
-                        this._renderAllRulesContent(body);
+                        this.showAllRules();
                         this.refreshMetrics();
                     }
                 });
@@ -2967,11 +3050,12 @@
                 Blocker.exportJSON();
                 this.flashToast('JSON 파일 다운로드');
             });
-            body.querySelector('[data-ref="clearAll"]').addEventListener('click', () => {
-                if (confirm(`정말 모든 사이트의 ${totalRules}개 규칙을 삭제할까요?`)) {
+            body.querySelector('[data-ref="clearAll"]').addEventListener('click', async () => {
+                const ok = await this.modal.confirm('전체 삭제', `정말 모든 사이트의 ${totalRules}개 규칙을 삭제할까요?`, { okText: '전체 삭제', danger: true });
+                if (ok) {
                     Blocker.clearAll();
                     this.flashToast('모든 규칙 삭제됨');
-                    this._renderAllRulesContent(body);
+                    this.showAllRules();
                     this.refreshMetrics();
                 }
             });
@@ -3053,11 +3137,11 @@
                     </div>
                     <div class="picky-settings-row">
                         <small style="opacity:0.6">
-                            • <b>v3.7.1 버그 수정</b>: Shield 인라인 스타일 강제, 모바일 클릭 충돌 완전 해결<br>
-                            • <b>Shield 픽킹 (터치)</b>: 손가락 위치보다 위쪽을 가리키는 조준점, "이 요소 선택" 버튼으로 확정<br>
-                            • <b>Shield 픽킹 (마우스)</b>: 클릭 즉시 선택, Alt+클릭으로 가장 작은 요소 강제 선택<br>
-                            • <b>전체 규칙 뷰어</b>: 모든 사이트의 규칙을 그룹화해서 보기 · 검색 · 접기/펼치기<br>
-                            • <b>호버 미리보기</b>(노란 점선) / <b>핀 미리보기</b>(초록 외곽선) / <b>숨김 미리보기</b>(👁)
+                            • <b>v3.8.0 컴팩트 UI</b>: 선택 셀렉터 표시줄 제거, 후보 카드 영역 축소, 차단/숨김/필터/CSS 버튼을 하단 단일 액션 바로 통합<br>
+                            • <b>동작 방식</b>: 카드를 탭/클릭해 선택 → 하단 버튼으로 차단·숨김·복사<br>
+                            • <b>self-healing</b>: SPA 등에서 차단 스타일이 사라지면 자동 복구 (MES 차용)<br>
+                            • <b>안전 가드</b>: 너무 광범위한 셀렉터(*, body 등) 차단 시 경고 (MES 차용)<br>
+                            • <b>커스텀 확인창</b>: 모바일 친화 다이얼로그로 네이티브 confirm 대체 (MES 차용)
                         </small>
                     </div>
                 </div>`;
@@ -3094,7 +3178,8 @@
             body.querySelector('[data-ref="clearHide"]').addEventListener('click', () => {
                 this.clearHidePreview();
                 this.flashToast('숨김 미리보기 해제됨');
-                this.render();
+                this.renderCandidates();
+                this.updateActionBar();
             });
         }
 
@@ -3158,7 +3243,6 @@
             });
         }
 
-        // ★★★ v3.7.1: 개선된 드래그 핸들러
         attachDragHandlers() {
             const tool = this.dom.tool;
             if (!tool) return;
@@ -3210,11 +3294,9 @@
                 }
                 try { tool.releasePointerCapture?.(pointerId); } catch (_) {}
                 pointerId = null;
-                // moved 플래그는 click 핸들러가 본 뒤 리셋
                 setTimeout(() => { moved = false; }, 50);
             };
 
-            // 드래그가 click으로 잘못 인식되는 것 차단
             tool.addEventListener('click', (e) => {
                 if (moved) {
                     e.stopPropagation();
@@ -3340,29 +3422,26 @@
     .picky-btn-danger-icon { color: #fca5a5; }
     .picky-btn-danger-icon:hover { background: rgba(239, 68, 68, 0.2); color: #fff; }
 
-    .picky-disp-wrap {
-        background: rgba(0,0,0,0.3);
-        border-radius: 6px;
-        padding: 8px 10px; margin-bottom: 8px;
-    }
-    .picky-disp {
-        font-family: ui-monospace, "SF Mono", Monaco, monospace;
-        font-size: 11px;
-        word-break: break-all;
-        color: #9ecbff;
-        line-height: 1.4;
-        max-height: 40px; overflow-y: auto;
-        touch-action: pan-y;
-        overscroll-behavior: contain;
-        user-select: text;
-        -webkit-user-select: text;
-    }
     .picky-meta {
         display: flex; justify-content: space-between;
-        font-size: 10px; opacity: 0.65; margin-top: 4px;
+        font-size: 10px; opacity: 0.7;
     }
+    .picky-meta-top {
+        margin-bottom: 8px;
+        background: rgba(0,0,0,0.25);
+        padding: 5px 8px;
+        border-radius: 6px;
+        font-family: ui-monospace, "SF Mono", Monaco, monospace;
+        gap: 8px;
+        align-items: center;
+    }
+    .picky-meta-top [data-ref="match"] {
+        color: #9ecbff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        flex: 1; min-width: 0;
+    }
+    .picky-meta-top .picky-stats { white-space: nowrap; opacity: 0.7; }
 
-    .picky-nav-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+    .picky-nav-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
     .picky-slider {
         flex: 1;
         -webkit-appearance: none; appearance: none;
@@ -3380,11 +3459,12 @@
         background: #3b82f6; border-radius: 50%; cursor: pointer; border: none;
     }
 
+    /* ★★★ v3.8.0: 카드 영역 1개 정도만 보이게 축소 */
     .picky-cards-scroll {
-        max-height: 320px;
+        max-height: 150px;
         overflow-y: auto; overflow-x: hidden;
         scroll-snap-type: y proximity;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         border-radius: 8px;
         background: rgba(0,0,0,0.2);
         padding: 6px;
@@ -3396,13 +3476,13 @@
     .picky-cards-scroll::-webkit-scrollbar-thumb {
         background: rgba(255,255,255,0.2); border-radius: 3px;
     }
-    .picky-cards-info { font-size: 10px; opacity: 0.55; padding: 4px 6px 8px; text-align: center; }
-    .picky-cards-empty { text-align: center; opacity: 0.4; padding: 24px 12px; font-size: 12px; }
+    .picky-cards-info { font-size: 10px; opacity: 0.55; padding: 2px 6px 6px; text-align: center; }
+    .picky-cards-empty { text-align: center; opacity: 0.4; padding: 18px 12px; font-size: 12px; }
     .picky-card {
         background: rgba(255,255,255,0.04);
         border: 1px solid rgba(255,255,255,0.08);
         border-radius: 8px;
-        padding: 8px 10px;
+        padding: 7px 9px;
         margin-bottom: 6px;
         scroll-snap-align: start;
         cursor: pointer;
@@ -3428,6 +3508,7 @@
     .picky-card-icon { font-size: 14px; }
     .picky-card-label { font-weight: 600; font-size: 12px; flex: 1; }
     .picky-card-stars { font-size: 10px; color: #fbbf24; letter-spacing: 1px; }
+    .picky-card-matches { opacity: 0.55; font-size: 10px; }
     .picky-badge {
         background: linear-gradient(135deg, #f59e0b, #d97706);
         color: #fff; font-size: 9px; padding: 1px 6px;
@@ -3441,7 +3522,7 @@
         padding: 5px 7px;
         border-radius: 4px;
         word-break: break-all;
-        margin-bottom: 4px;
+        margin-bottom: 0;
         line-height: 1.4;
         cursor: copy;
         touch-action: manipulation;
@@ -3452,12 +3533,13 @@
     .picky-card-css {
         font-size: 10.5px;
         font-family: ui-monospace, monospace;
-        opacity: 0.75;
+        opacity: 0.85;
         margin-bottom: 4px;
         word-break: break-all;
         cursor: copy;
-        padding: 3px 5px;
+        padding: 4px 6px;
         border-radius: 4px;
+        background: rgba(0,0,0,0.25);
         touch-action: manipulation;
         user-select: text;
         -webkit-user-select: text;
@@ -3465,34 +3547,22 @@
     .picky-card-css:hover { background: rgba(59, 130, 246, 0.2); }
     .picky-card-css-label { color: #6ee7b7; margin-right: 4px; }
     .picky-card-css-text { color: #9ecbff; }
-    .picky-card-matches { opacity: 0.55; margin-left: 4px; }
-    .picky-card-hint { font-size: 10px; opacity: 0.55; margin-bottom: 6px; }
-    .picky-card-btns { display: flex; gap: 4px; flex-wrap: wrap; }
-    .picky-card-btn {
-        flex: 1;
-        padding: 6px 6px;
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.1);
-        color: #e8eaed; border-radius: 4px;
-        cursor: pointer; font-size: 10.5px;
-        min-width: 0; min-height: 32px;
-        display: inline-flex; align-items: center; justify-content: center; gap: 3px;
-        touch-action: manipulation;
-    }
-    .picky-card-btn > * { pointer-events: none; }
-    .picky-card-btn:hover { background: rgba(255,255,255,0.15); }
-    .picky-card-btn-block { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.3); }
-    .picky-card-btn-block:hover { background: rgba(239, 68, 68, 0.35); }
-    .picky-card-btn-hiding {
-        background: rgba(139, 92, 246, 0.35);
-        border-color: rgba(139, 92, 246, 0.6);
-        color: #fff;
-    }
-    .picky-card-btn-disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
+    /* ★★★ v3.8.0: 통합 액션 바 */
     .picky-action-row { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
-    .picky-action-row .picky-btn { justify-content: center; min-height: 36px; }
-    .picky-action-row .picky-btn-danger { flex: 1; min-width: 70px; }
+    .picky-action-unified {
+        align-items: stretch;
+        padding: 8px;
+        background: rgba(0,0,0,0.2);
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+    .picky-action-unified .picky-btn { justify-content: center; min-height: 38px; }
+    .picky-action-unified .picky-btn-danger { flex: 1.2; min-width: 70px; }
+    .picky-action-unified [data-act="toggleHideSelected"] { flex: 1; min-width: 64px; }
+    .picky-action-unified [data-act="copyFilterSelected"],
+    .picky-action-unified [data-act="copySelected"] { flex: 0.9; min-width: 54px; }
+    .picky-action-unified .picky-btn-icon { flex: 0 0 auto; min-width: 38px; }
 
     .picky-toggle-row {
         display: flex; gap: 12px; font-size: 11px;
@@ -3750,177 +3820,160 @@
     .picky-orphan-btns { display: flex; gap: 6px; }
     .picky-orphan-btns .picky-btn { flex: 1; justify-content: center; min-height: 36px; }
 
-    @media (max-width: 600px) {
+        @media (max-width: 600px) {
         .picky-panel {
             width: calc(100vw - 16px);
             max-width: calc(100vw - 16px);
         }
-        .picky-cards-scroll { max-height: 38vh; max-height: 38dvh; }
-        .picky-disp { max-height: 60px; }
+        .picky-cards-scroll { max-height: 160px; }
         .picky-card-css, .picky-card-filter-clickable {
             font-size: 12px; padding: 6px 8px;
         }
-        .picky-card-btn { padding: 8px 6px; font-size: 11.5px; min-height: 36px; }
-        .picky-action-row .picky-btn { padding: 8px 10px; min-height: 40px; font-size: 13px; }
-        .picky-btn-icon { min-width: 40px; min-height: 40px; padding: 8px; }
-        .picky-modal-card {
-            max-width: calc(100vw - 16px);
-            max-height: 90vh;
-            max-height: 90dvh;
+        .picky-action-unified {
+            flex-wrap: wrap;
         }
-        .picky-modal-wide .picky-modal-card {
-            max-width: 100vw;
-            width: 100%;
-            height: 100vh;
-            height: 100dvh;
-            max-height: 100vh;
-            max-height: 100dvh;
-            border-radius: 0;
+        .picky-action-unified .picky-btn {
+            min-height: 42px;
+            font-size: 12px;
         }
-        .picky-modal-wide .picky-modal-body { padding: 10px; }
-        .picky-allrules-toolbar { flex-direction: column; gap: 6px; align-items: stretch; }
-        .picky-allrules-summary { font-size: 10.5px; text-align: right; }
-        .picky-host-header { padding: 12px; gap: 8px; min-height: 48px; }
-        .picky-host-name { font-size: 13.5px; }
-        .picky-modal-wide .picky-modal-foot {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-        }
-        .picky-modal-wide .picky-modal-foot .picky-btn-danger { grid-column: 1 / -1; }
+        .picky-action-unified .picky-btn span { font-size: 12px; }
+        .picky-modal-card { width: 95%; max-height: 88vh; max-height: 88dvh; }
+        .picky-modal-wide .picky-modal-card { width: 97%; }
+        .picky-modal-foot .picky-btn { flex: 1; min-width: 0; }
+        .picky-allrules-list { max-height: 50vh; max-height: 50dvh; }
+        .picky-toggle { min-height: 38px; }
     }
+
     @media (max-width: 380px) {
-        .picky-card-btns { gap: 3px; }
-        .picky-card-btn { font-size: 10.5px; padding: 6px 4px; }
-        .picky-toggle-row { flex-direction: column; gap: 6px; }
+        .picky-action-unified .picky-btn span:not([data-ref]) {
+            display: none;
+        }
+        .picky-action-unified [data-act="copyFilterSelected"] span,
+        .picky-action-unified [data-act="copySelected"] span {
+            display: none;
+        }
+        .picky-mode-row { flex-direction: column; }
+        .picky-mode-row .picky-btn { width: 100%; }
     }
+
+    /* 페이지(라이트 DOM) 측 하이라이트 — 별도 주입 */
     `;
 
-    // ★★★ v3.7.1: Light DOM에 적용되는 페이지 CSS (Shield 백업 스타일 포함)
+    // ── 라이트 DOM(페이지)에 주입할 하이라이트/숨김 스타일 ───────────────
+    // shadow DOM 내부 CSS는 페이지 요소에 적용되지 않으므로 별도 <style> 주입.
     const PAGE_CSS = `
-    .${HL_CLASS} {
-        outline: 3px solid #3b82f6 !important;
-        outline-offset: 1px !important;
-        background: rgba(59,130,246,0.15) !important;
-        box-shadow: 0 0 0 1px rgba(59,130,246,0.8) !important;
-    }
-    .picky-hl-parent {
-        outline: 2px dashed #60a5fa !important;
-        outline-offset: 0 !important;
-    }
-    .picky-hl-preview {
-        outline: 3px dashed #f59e0b !important;
-        outline-offset: 2px !important;
-        box-shadow: 0 0 0 1px rgba(245,158,11,0.6) !important;
-    }
-    .picky-hl-pinned {
-        outline: 4px solid #10b981 !important;
-        outline-offset: 2px !important;
-        background: rgba(16, 185, 129, 0.15) !important;
-        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.5), 0 0 12px rgba(16,185,129,0.4) !important;
-    }
-    .picky-hl-pinned.picky-hl-preview {
-        outline: 4px solid #10b981 !important;
-    }
-    .${HIDE_CLASS} {
-        display: none !important;
-    }
-    /* Shield 백업 스타일 (인라인이 덮어쓰지만 만약을 위해) */
-    #${SHIELD_ID} {
-        position: fixed !important;
-        left: 0 !important;
-        top: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        z-index: 2147483645 !important;
-        cursor: crosshair !important;
-        background: rgba(0, 0, 0, 0.02) !important;
-        pointer-events: auto !important;
-        touch-action: none !important;
-        -webkit-tap-highlight-color: transparent !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
-    }
-    #${SHIELD_ID} .picky-aim {
-        position: absolute !important;
-        width: 0 !important;
-        height: 0 !important;
-        pointer-events: none !important;
-        z-index: 2147483646 !important;
-    }
-    #${SHIELD_ID} .picky-shield-confirm {
-        position: fixed !important;
-        bottom: 16px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        z-index: 2147483647 !important;
-        pointer-events: auto !important;
-    }
+        .${HL_CLASS} {
+            outline: 2px solid #ef4444 !important;
+            outline-offset: -2px !important;
+            background: rgba(239, 68, 68, 0.08) !important;
+        }
+        .picky-hl-parent {
+            outline: 2px dashed #f59e0b !important;
+            outline-offset: -2px !important;
+        }
+        .picky-hl-preview {
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: -2px !important;
+            background: rgba(59, 130, 246, 0.08) !important;
+        }
+        .picky-hl-pinned {
+            outline: 2px solid #10b981 !important;
+            outline-offset: -2px !important;
+            background: rgba(16, 185, 129, 0.08) !important;
+        }
+        .${HIDE_CLASS} {
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
     `;
 
-    // ============================================================
-    // 페이지 CSS 주입 (Light DOM)
-    // ============================================================
     function injectPageCss() {
-        if (document.getElementById('picky-page-style')) return;
-        const style = document.createElement('style');
-        style.id = 'picky-page-style';
-        style.textContent = PAGE_CSS;
-        (document.head || document.documentElement).appendChild(style);
+        const ID = 'picky-page-css';
+        let style = document.getElementById(ID);
+        if (!style || !style.isConnected) {
+            style = document.createElement('style');
+            style.id = ID;
+            style.textContent = PAGE_CSS;
+            (document.head || document.documentElement).appendChild(style);
+        }
+        return style;
     }
 
-    // ============================================================
-    // 부팅 & 메뉴 등록
-    // ============================================================
-    let inspectorInstance = null;
+    // ★★★ v3.8.0 (MES 차용): 페이지 하이라이트 스타일도 self-healing
+    // SPA가 head를 갈아끼우거나 스타일이 제거돼도 복구
+    function watchPageCss() {
+        injectPageCss();
+        let timer = null;
+        const obs = new MutationObserver(() => {
+            if (timer) return;
+            timer = setTimeout(() => {
+                timer = null;
+                const s = document.getElementById('picky-page-css');
+                if (!s || !s.isConnected || !s.textContent) injectPageCss();
+            }, 300);
+        });
+        if (document.documentElement) {
+            obs.observe(document.documentElement, { childList: true, subtree: true });
+        }
+        setInterval(() => {
+            const s = document.getElementById('picky-page-css');
+            if (!s || !s.isConnected || !s.textContent) injectPageCss();
+        }, 5000);
+    }
+
+    // ── 부트스트랩 ───────────────────────────────────────────────────────
+    let inspector = null;
 
     function boot() {
-        injectPageCss();
-        if (inspectorInstance) return;
-        inspectorInstance = new Inspector();
-        inspectorInstance.launch();
-    }
+        if (window.__pickyBooted) return;
+        window.__pickyBooted = true;
 
-    function shutdown() {
-        if (!inspectorInstance) return;
-        inspectorInstance.terminate();
-        inspectorInstance = null;
+        injectPageCss();
+        watchPageCss();
+        Blocker.enforce();
+
+        inspector = new Inspector();
+        inspector.launch();
+
+        // GM 메뉴 명령 (지원 매니저에서만)
+        try {
+            if (typeof GM_registerMenuCommand === 'function') {
+                GM_registerMenuCommand('Picky 열기/접기', () => {
+                    if (inspector) inspector.cycleSize();
+                });
+                GM_registerMenuCommand('Picky 요소 선택 시작', () => {
+                    if (!inspector) return;
+                    if (inspector.state.scale === 'icon') inspector.cycleSize();
+                    inspector.startPicking();
+                });
+                GM_registerMenuCommand('전체 규칙 뷰어', () => {
+                    if (!inspector) return;
+                    if (inspector.state.scale === 'icon') inspector.cycleSize();
+                    inspector.showAllRules();
+                });
+                GM_registerMenuCommand('차단 활성/비활성 전환', () => {
+                    Blocker.toggleEnabled();
+                    if (inspector) inspector.refreshMetrics();
+                });
+            }
+        } catch (_) {}
     }
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', boot, { once: true });
+        // document-start 환경 보강: head 준비 즉시 차단 스타일 먼저 적용
+        const earlyApply = () => {
+            if (document.head) {
+                injectPageCss();
+                Blocker.enforce();
+            } else {
+                requestAnimationFrame(earlyApply);
+            }
+        };
+        earlyApply();
     } else {
         boot();
     }
-
-    // GM 메뉴
-    try {
-        GM_registerMenuCommand?.('🎯 Picky 열기/닫기', () => {
-            if (inspectorInstance) shutdown();
-            else boot();
-        });
-        GM_registerMenuCommand?.('🌐 전체 규칙 뷰어', () => {
-            if (!inspectorInstance) boot();
-            setTimeout(() => {
-                if (inspectorInstance.state.scale !== 'full') {
-                    inspectorInstance.cycleSize();
-                }
-                inspectorInstance.showAllRules();
-            }, 100);
-        });
-        GM_registerMenuCommand?.('📋 AdGuard/uBlock 필터 복사', async () => {
-            await Blocker.copyFilterText();
-            alert('AdGuard/uBlock 필터가 클립보드에 복사되었습니다.');
-        });
-        GM_registerMenuCommand?.('📥 JSON 내보내기', () => Blocker.exportJSON());
-        GM_registerMenuCommand?.('↶ 마지막 작업 취소', () => {
-            const last = Blocker.undoLast();
-            if (last) alert(`복원됨: ${last.act} ${last.sel.slice(0, 50)}`);
-            else alert('취소할 작업이 없습니다.');
-        });
-    } catch (_) {}
 
 })();
