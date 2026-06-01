@@ -282,6 +282,8 @@ naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
 ! -네이버 검색 결과 하단에 나타나는 '파워링크'나 '비즈사이트' 같은 광고 시스템(AdPost)의 작동 스크립트를 차단하는 설정
 ! - - -  kr: List-KR Classic
 ||ssl.pstatic.net/adimg3.search/adpost/js/
+! - - - 네이버에서 내가 뭘 클릭하는지 감시하고 통계를 내는 '클릭 추적 신호(Ping)'를 중간에서 깔끔하게 차단해 버리는 규칙
+||cc.naver.com/cc$ping
 !
 !
 ! 네이버 스토어 (https://smartstore.naver.com/)
