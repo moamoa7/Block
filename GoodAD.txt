@@ -2488,7 +2488,7 @@ pedia.watcha.com##.adFixed
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !##div[style]:has(> [target='_blank'])
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
-! - - - 오늘의 중계 (https://today-sports8.com/)
+! - - - 오늘의 중계 (https://today-sports9.com/)
 ! - - - 야동망고 (https://www.mango54.net/)
 ! - - -  밍키넷 (https://mingky.live/)
 !##[target='_blank']:has([src*='.gif'])
@@ -3458,7 +3458,7 @@ wavve.com#@#[id*="main-banner" i]
 ##[id*="popupbanner" i]
 !
 !
-! 오늘의 중계 (https://today-sports8.com/)
+! 오늘의 중계 (https://today-sports9.com/)
 ! - - - 코난티비(https://conan-tv.com/) - 팝업
 !###hd_pop
 ! - 상단 배너 공간
@@ -3478,7 +3478,7 @@ wavve.com#@#[id*="main-banner" i]
 !##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner > .draggable.slick-list
 !##[class^="live-stream-banner" i]
 ! - 게시물내 한칸짜리 배너
-##[src*="event_banner" i]
+!##[src*="event_banner" i]
 !##[src*="event_banner"]
 ! - 모바일 왼쪽 사람 아이콘 없애기
 ##.sidebar-user-trigger
@@ -4843,8 +4843,8 @@ yoboyobo.kr,gaykorea.net##.main-slider
 !
 !
 !  플레이랜드 (https://playidol.org/)
-!  - - - ! 도박랜드 (https://dobakland3.org/)
 ! - 배너
+!  - - - 도박랜드 (https://dobakland3.org/)
 ![$domain=/^dobakland\d+.org/],playidol.org##[src*="229x72"], [src*="320x110"], [src*="&q=75"]
 playidol.org##[src*="229x72"], [src*="320x110"], [src*="&q=75"]
 ! - 리스트내 개별 배너
@@ -5259,9 +5259,11 @@ accounts.kakao.com#@#[src*="popup" i]
 ! - 예외 - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
 ! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
 ! - 예외 - https://map.naver.com/ - 팝업스토어 이미지 삭제
+! - 예외 - https://today-sports9.com/ - 틀 깨짐
 @@||*popup*$css
 @@||*popup*$frame,domain=accounts.kakao.com
 @@||*popup*$image,domain=map.naver.com
+@@||*popup*$script,domain=/^today-sports\d*/
 ! - 예외
 !  - -- https://www.wavve.com/ - 개별 구매시 (필요 해제 하지 말것)
 *pop-up*
