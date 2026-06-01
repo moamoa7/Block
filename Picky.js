@@ -892,7 +892,7 @@
                     this._syncHideLabel();
                     break;
                 }
-                case 'copy': { if (this.state.selector) { this.copyText(this.state.selector); this.flashToast('셀렉터 복사됨'); } break; }
+                case 'copy': { if (this.state.selector) { const filter = `${location.hostname}##${this.state.selector}`; this.copyText(filter); this.flashToast('필터 복사됨 (도메인##셀렉터)'); } break; }
                 case 'edit': this.editSelector(); break;
                 case 'toggleEnabled': Blocker.toggleEnabled(); this.render(); break;
                 case 'toggleAggressive': Blocker.toggleAggressive(); break;
