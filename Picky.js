@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Picky Advanced (Enhanced)
 // @namespace    https://github.com/moamoa7/Block
-// @version      4.0.1
+// @version      1.0.2
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, self-healing
 // @author       Claude
 // @license       MIT
-// @homepage     hhttps://github.com/moamoa7/Block
+// @homepage     https://github.com/moamoa7/Block
 // @match        *://*/*
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -480,6 +480,7 @@
             if (onlyHits(finalDesc)) return finalDesc;
             return null;
         }
+      }
 
     // ── 인스펙터 (UI / 선택 / 차단) ─────────────────────────────────────
     class Inspector {
