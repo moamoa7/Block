@@ -206,8 +206,9 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !www.youtube.com#@#ytd-guide-entry-renderer:has(yt-formatted-string:has-text(/^Shorts$/i))
 ! - - - 오른쪽 쇼츠 영상 안보이는거 해결 (Cosmetic Combined Filterlist )
 !www.youtube.com#@##shorts-container
-! - 쇼츠 스티커 삭제
+! 유튜브 shorts 스티커 (유튜브는 신뢰로 되어있어 도메인 지정해야 적용)
 youtube.com##.sticker-layer.ytd-reel-video-renderer
+##[class*="sticker" i]
 !
 !
 ! wikipedia.org
@@ -1679,12 +1680,12 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !kilho.net#@#.clearfix
 !
 !
-! 나이스링크 (https://nicelink51.com/)
+! 나이스링크 (https://nicelink6.com/)
 ! 늑대닷컴 ((https://xn--ph1bph0az41x.com/))
-! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf456.com/)
-! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon212.com/)
-! W툰 (https://t.me/s/wtwt999) (https://wtwt327.com/)
-! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx324.com/)
+! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf457.com/)
+! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon213.com/)
+! W툰 (https://t.me/s/wtwt999) (https://wtwt328.com/)
+! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx325.com/)
 ! - 팝업
 ! - - - 별별티비 (https://www.bbtv86.com/)
 !##.modal-wrapper
@@ -4742,13 +4743,13 @@ hearheart.com##.mb-6.relative
 hearheart.com##section.relative
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto08.com/) (https://mato08.com/) (https://bookto08.com/)
+! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto09.com/) (https://mato09.com/) (https://bookto09.com/)
 ! - 이미지
-! - - - 뉴토끼 (https://newto08.com/)
+! - - - 뉴토끼 (https://newto09.com/)
 ||newto*.com/data/apms/*
-! - - - 마나토끼 (https://mato08.com/)
+! - - - 마나토끼 (https://mato09.com/)
 ||mato*.com/data/apms/*
-! - - - 북토끼 (https://bookto08.com/)
+! - - - 북토끼 (https://bookto09.com/)
 ||bookto*.com/data/apms/*
 !
 !
@@ -4915,6 +4916,12 @@ chimhaha.net##[id*="slot-4" i]
 /^https:\/\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\.[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\.[co][or][gm]\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\.js$/$script,third-party
 /^https:\/\/[0-9a-f]{10}\.[0-9a-f]{10}\.com\/[0-9a-f]{32}\.js$/$script,third-party
 .xyz/z/*/code.js$script,third-party
+!
+!
+! 코인판 (https://coinpan.com/)
+! - 메인 배너 빈공간
+coinpan.com##div[style*="height: 93px; width: 776px;"]
+coinpan.com##div[style*="250px"]
 !
 !
 !
@@ -5149,6 +5156,19 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 !
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
 ! 기타
 ! - - -  https://glimmory.io/%ED%88%B0%EC%BD%94-%EC%B5%9C%EC%8B%A0%EC%A3%BC%EC%86%8C/
 ! - - - 배너
@@ -5306,6 +5326,9 @@ manhwabang.org##a[target*="target"] img
 @@*banner*$image,domain=xtoon365.com
 ! - 아래 안풀어도 됨 (배너 막혀서 나오는 메시지임. 검색과는 무관)
 !@@*banner*$xhr,domain=rememberapp.co.kr
+! - wixpress.com - 주소에 banner이 들어가지면 배너 아님 (일단 아래 2규칙 보류)
+!@@wixpress.com*banner*
+!@@siteassets.parastorage.com*banner*
 
 
 ##[class*="banner" i]
