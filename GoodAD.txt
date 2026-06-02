@@ -4847,6 +4847,8 @@ yoboyobo.kr,gaykorea.net##.main-slider
 !
 !
 !  플레이랜드 (https://playidol.org/)
+! - 모바일 팝업
+playidol.org##.fixed
 ! - 배너
 !  - - - 도박랜드 (https://dobakland3.org/)
 ![$domain=/^dobakland\d+.org/],playidol.org##[src*="229x72"], [src*="320x110"], [src*="&q=75"]
