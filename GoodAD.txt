@@ -4986,6 +4986,13 @@ m.anewsa.com##div[style*="width:300px"]
 kbjfree.com##.min-h-\[52px\].mx-auto
 !
 !
+! 빨간오이 (https://red52.kr/)
+! - 게시물내 상단 배너
+[$domain=/^red\d+.kr/]##.notice-box-area
+! - 게시물내 하단 공간
+[$domain=/^red\d+.kr/]##.integrated-ad-slot, .article-tool
+!
+!
 !
 !
 !
