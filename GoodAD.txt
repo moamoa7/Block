@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260602
+! Version: 20260603
 !
 !
 !
@@ -4979,6 +4979,11 @@ m.anewsa.com##div[style*="width:300px"]
 ! 일일툰 K만화 (https://kmana10.net/)
 ! - 메인 배너
 [$domain=/^kmana\d+.net/]##.main_slide
+!
+!
+! KBJFree (https://kbjfree.com/) - 멤버쉽
+! - 상단 배너
+kbjfree.com##.min-h-\[52px\].mx-auto
 !
 !
 !
