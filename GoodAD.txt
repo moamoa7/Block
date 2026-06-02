@@ -4992,15 +4992,13 @@ m.anewsa.com##div[style*="width:300px"]
 ! 일일툰 (https://www.spotv147.com/)
 ! 최신만화  배너
 [$domain=/^www.spotv\d+.com/],[$domain=/^www.11toon\d+.com/]##li:has([style*="imageup"])
+! 떠잇는 주소 알리미
+[$domain=/^www.spotv\d+.com/],[$domain=/^www.11toon\d+.com/]##[class="new_quit"]
 !
 !
 ! 일일툰 K만화 (https://kmana10.net/)
 ! - 메인 배너
 [$domain=/^kmana\d+.net/]##.main_slide
-!
-!
-!
-!
 !
 !
 !
