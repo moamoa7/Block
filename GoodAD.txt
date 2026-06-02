@@ -5256,8 +5256,9 @@ linkareer.com#@#[src*="advert" i]
 ##[href*="/pop/" i]
 ##[href*="popup" i]
 ! - 예외 - 쿠팡플레이 (https://www.coupangplay.com/) - 라이브 시청하기 버튼 사라짐
-! - 예외ㅐ -  에펨코리아 (https://www.fmkorea.com/) - 아바타 이미지 사라짐
+! - 예외 -  에펨코리아 (https://www.fmkorea.com/) - 아바타 이미지 사라짐
 fmkorea.com,coupangplay.com#@#[href*="popup" i]
+
 
 ##[href*="pop-up" i]
 ##[href*="pop_up" i]
@@ -5295,10 +5296,12 @@ accounts.kakao.com#@#[src*="popup" i]
 ! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
 ! - 예외 - https://map.naver.com/ - 팝업스토어 이미지 삭제
 ! - 예외 - https://today-sports9.com/ - 틀 깨짐
+! - 예외 - wavve (https://www.wavve.com/) - 작품 클릭시 시청화면으로 안넘어감
 @@||*popup*$css
 @@||*popup*$frame,domain=accounts.kakao.com
 @@||*popup*$image,domain=map.naver.com
 @@||*popup*$script,domain=/^today-sports\d*/
+@@||*popup*$script,domain=wavve.com
 ! - 예외
 !  - -- https://www.wavve.com/ - 개별 구매시 (필요 해제 하지 말것)
 *pop-up*
@@ -5385,7 +5388,7 @@ manhwabang.org##a[target*="target"] img
 !@@wixpress.com*banner*
 !@@siteassets.parastorage.com*banner*
 ! - 예외 - https://www.wavve.com/ - 본문 안보임
-@@*banner*$script,domain=wavve.com
+@@*banner*$css,script,domain=wavve.com
 
 
 
