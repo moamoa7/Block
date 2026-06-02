@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.0.8
-// @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수), iframe 박스 선택, self-healing
+// @version      1.1.0
+// @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing
 // @author       moamoa7
 // @license      MIT
 // @homepage     https://github.com/moamoa7/Block
@@ -33,12 +33,15 @@
         'input', 'textarea', 'select', 'button', 'a',
         '[contenteditable="true"]',
         '.pokkok-rec', '.pokkok-rec *',
-        '.pokkok-modal', '.pokkok-modal *', '.pokkok-btn'
+        '.pokkok-modal-body', '.pokkok-modal-body *', '.pokkok-btn'
     ].join(',');
 
-    const SUPPORTS_HAS = (() => {
-        try { document.querySelector(':has(*)'); return true; }
-        catch (_) { return false; }
+    const SUPPORTS_ADOPTED = (() => {
+        try {
+            return ('adoptedStyleSheets' in Document.prototype) &&
+                   (typeof CSSStyleSheet !== 'undefined') &&
+                   (typeof new CSSStyleSheet().replaceSync === 'function');
+        } catch (_) { return false; }
     })();
 
     const esc = (s) => String(s ?? '')
@@ -82,11 +85,14 @@
     const ICON_SIMILAR = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm10 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z"/></svg>';
 
     // ── 규칙 저장/적용 (현재 사이트 단위) ───────────────────────────────
+    // 차단 엔진: :where(...) 로 명시도 0 + adoptedStyleSheets(미지원 시 <style> 폴백)
     const Blocker = {
         STYLE_ID: 'pokkok-block-style',
         KEY_RULES: 'pokkok_rules_v2',
         KEY_ENABLED: 'pokkok_enabled',
         KEY_AGG:   'pokkok_aggressive',
+        _sheet: null,
+        _sheetText: '',
 
         init() {
             const apply = () => this.enforce();
@@ -103,13 +109,20 @@
         },
 
         _needsRefresh() {
+            const wantText = this._buildCss();
+            if (SUPPORTS_ADOPTED) {
+                if (!this._sheet) return !!wantText;
+                const attached = (document.adoptedStyleSheets || []).includes(this._sheet);
+                if (wantText && !attached) return true;
+                if (this._sheetText !== wantText) return true;
+                return false;
+            }
             if (!document.head) return false;
             const style = document.getElementById(this.STYLE_ID);
-            const rules = this.fetch();
-            const wantRules = this.isEnabled() && rules.length > 0;
-            if (!style && wantRules) return true;
-            if (style && !style.isConnected && wantRules) return true;
-            if (style && wantRules && !style.textContent) return true;
+            if (wantText) {
+                if (!style || !style.isConnected) return true;
+                if (style.textContent !== wantText) return true;
+            }
             return false;
         },
 
@@ -178,26 +191,58 @@
         isAggressive() { return GM_getValue(this.KEY_AGG, false); },
         toggleAggressive() { GM_setValue(this.KEY_AGG, !this.isAggressive()); this.enforce(); },
 
+        _buildCss() {
+            if (!this.isEnabled()) return '';
+            const rules = this.fetch();
+            if (!rules.length) return '';
+            const safe = rules.filter(r => {
+                if (!r || /[{}]/.test(r)) return false;
+                try { document.querySelector(r); return true; }
+                catch (_) { return false; }
+            });
+            if (!safe.length) return '';
+
+            const decl = this.isAggressive()
+                ? 'display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;width:0!important;margin:0!important;padding:0!important;border:0!important;opacity:0!important;pointer-events:none!important;'
+                : 'display:none!important;';
+
+            const inner = safe.join(', ');
+            return `:where(${inner}):not(#${ROOT_ID}):not(#${ROOT_ID} *):not(#${SHIELD_ID}):not(#${SHIELD_ID} *){${decl}}`;
+        },
+
         enforce() {
+            const css = this._buildCss();
+
+            if (SUPPORTS_ADOPTED) {
+                try {
+                    if (!this._sheet) this._sheet = new CSSStyleSheet();
+                    if (this._sheetText !== css) {
+                        this._sheet.replaceSync(css);
+                        this._sheetText = css;
+                    }
+                    const list = document.adoptedStyleSheets || [];
+                    const has = list.includes(this._sheet);
+                    if (css && !has) {
+                        document.adoptedStyleSheets = [...list, this._sheet];
+                    } else if (!css && has) {
+                        document.adoptedStyleSheets = list.filter(s => s !== this._sheet);
+                    }
+                    const legacy = document.getElementById(this.STYLE_ID);
+                    if (legacy) legacy.remove();
+                    return;
+                } catch (_) { /* 폴백 */ }
+            }
+
             if (!document.head) return;
             let style = document.getElementById(this.STYLE_ID);
+            if (!css) { if (style) style.textContent = ''; this._sheetText = ''; return; }
             if (!style || !style.isConnected) {
                 style = document.createElement('style');
                 style.id = this.STYLE_ID;
                 document.head.appendChild(style);
             }
-            if (!this.isEnabled()) { style.textContent = ''; return; }
-            const rules = this.fetch();
-            if (!rules.length) { style.textContent = ''; return; }
-
-            const safe = rules.filter(r => {
-                try { document.querySelector(r); return true; }
-                catch (_) { return false; }
-            });
-            const decl = this.isAggressive()
-                ? 'display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;max-height:0!important;width:0!important;margin:0!important;padding:0!important;border:0!important;opacity:0!important;pointer-events:none!important;'
-                : 'display:none!important;';
-            style.textContent = safe.map(s => `${s}{${decl}}`).join('\n');
+            if (style.textContent !== css) style.textContent = css;
+            this._sheetText = css;
         },
 
         getStats() {
@@ -209,9 +254,9 @@
     };
     Blocker.init();
 
-    // ── 모달 (커스텀 confirm 포함) ──────────────────────────────────────
+    // ── 모달 (커스텀 confirm + 드래그 이동) ─────────────────────────────
     class Modal {
-        constructor(container) { this.container = container; this.node = null; this._onDismiss = null; this._vv = null; }
+        constructor(container) { this.container = container; this.node = null; this._onDismiss = null; this._vv = null; this._card = null; this._pos = null; }
 
         display(title, body, isHtml = false) {
             this.dismiss();
@@ -219,7 +264,8 @@
             wrap.className = 'pokkok-modal';
             wrap.innerHTML = `
                 <div class="pokkok-modal-card">
-                    <div class="pokkok-modal-head">
+                    <div class="pokkok-modal-head" data-modal-drag="1">
+                        <span class="pokkok-modal-grip" title="드래그하여 이동">⠿</span>
                         <span class="pokkok-modal-title">${esc(title)}</span>
                         <button class="pokkok-modal-x" aria-label="닫기">${ICON_CLOSE}</button>
                     </div>
@@ -232,16 +278,74 @@
             (this.container || document.body).appendChild(wrap);
             requestAnimationFrame(() => wrap.classList.add('visible'));
             this.node = wrap;
+            this._card = wrap.querySelector('.pokkok-modal-card');
+            this._pos = null;
+            this._attachDrag();
 
             if (window.visualViewport) {
-                const card = wrap.querySelector('.pokkok-modal-card');
-                this._vv = () => { if (card) { const vh = window.visualViewport.height; card.style.maxHeight = Math.min(vh - 16, vh * 0.95) + 'px'; } };
+                const card = this._card;
+                this._vv = () => { if (card && !this._pos) { const vh = window.visualViewport.height; card.style.maxHeight = Math.min(vh - 16, vh * 0.95) + 'px'; } };
                 this._vv();
                 window.visualViewport.addEventListener('resize', this._vv);
                 window.visualViewport.addEventListener('scroll', this._vv);
             }
             return bodyEl;
         }
+
+        _attachDrag() {
+            const card = this._card;
+            const head = this.node.querySelector('[data-modal-drag="1"]');
+            if (!card || !head) return;
+            let sx = 0, sy = 0, sl = 0, st = 0, moved = false, active = false, pid = null;
+
+            const startFixed = () => {
+                const r = card.getBoundingClientRect();
+                card.style.position = 'fixed';
+                card.style.margin = '0';
+                card.style.left = r.left + 'px';
+                card.style.top = r.top + 'px';
+                this.node.style.alignItems = 'flex-start';
+                this.node.style.justifyContent = 'flex-start';
+            };
+            const clamp = (x, y) => {
+                const vw = window.innerWidth, vh = window.innerHeight;
+                const w = card.offsetWidth;
+                return { x: Math.max(0, Math.min(vw - Math.min(w, vw), x)), y: Math.max(0, Math.min(vh - 40, y)) };
+            };
+            const onDown = (e) => {
+                if (e.target.closest('.pokkok-modal-x')) return;
+                active = true; moved = false; pid = e.pointerId;
+                const r = card.getBoundingClientRect();
+                sx = e.clientX; sy = e.clientY; sl = r.left; st = r.top;
+            };
+            const onMove = (e) => {
+                if (!active) return;
+                const dx = e.clientX - sx, dy = e.clientY - sy;
+                if (!moved && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+                    moved = true;
+                    startFixed();
+                    try { head.setPointerCapture?.(pid); } catch (_) {}
+                }
+                if (moved) {
+                    if (e.cancelable) e.preventDefault();
+                    const p = clamp(sl + dx, st + dy);
+                    card.style.left = p.x + 'px'; card.style.top = p.y + 'px';
+                    this._pos = p;
+                }
+            };
+            const onUp = () => {
+                if (!active) return; active = false;
+                try { head.releasePointerCapture?.(pid); } catch (_) {}
+                pid = null; setTimeout(() => { moved = false; }, 50);
+            };
+            head.addEventListener('pointerdown', onDown, { passive: true });
+            head.addEventListener('pointermove', onMove, { passive: false });
+            head.addEventListener('pointerup', onUp, { passive: false });
+            head.addEventListener('pointercancel', onUp, { passive: false });
+        }
+
+        hideShell() { if (this.node) this.node.classList.add('pokkok-modal-shell-hidden'); }
+        showShell() { if (this.node) this.node.classList.remove('pokkok-modal-shell-hidden'); }
 
         confirm(title, message, { okText = '확인', cancelText = '취소', danger = false } = {}) {
             return new Promise((resolve) => {
@@ -265,7 +369,7 @@
             const n = this.node;
             n.classList.remove('visible');
             setTimeout(() => n.remove(), 200);
-            this.node = null;
+            this.node = null; this._card = null; this._pos = null;
             if (this._vv && window.visualViewport) {
                 window.visualViewport.removeEventListener('resize', this._vv);
                 window.visualViewport.removeEventListener('scroll', this._vv);
@@ -504,6 +608,15 @@
             return parts.slice(0, 5);
         }
 
+        // 자유 텍스트 속성값 → 의미 있는 단어 토막 (불용어 최소 필터)
+        static textTokens(v) {
+            return String(v || '')
+                .split(/[\s,_\-/|·:;.()[\]{}'"]+/)
+                .map(s => s.trim())
+                .filter(s => s.length >= 2 && s.length <= 24 && !/^\d+$/.test(s))
+                .slice(0, 6);
+        }
+
         static similarOptions(el) {
             if (!el || !el.tagName) return [];
             const tag = el.tagName.toLowerCase();
@@ -527,7 +640,7 @@
                 const sel = `#${CSS.escape(el.id)}`;
                 push({ label: `id · #${el.id}`, sel, count: this.countMatches(sel) });
             }
-            // src / href / data-src / data-original / poster 토막
+            // URL성 속성: 토막 부분매칭
             for (const attr of ['src', 'href', 'data-src', 'data-original', 'poster']) {
                 const v = el.getAttribute?.(attr);
                 if (!v) continue;
@@ -536,13 +649,29 @@
                     push({ label: `${attr} ⊃ "${part}"`, sel, count: this.countMatches(sel) });
                 }
             }
+            // 값이 한정적인 탐지 속성: 값 전체 부분매칭
+            for (const attr of ['target', 'role', 'type', 'rel']) {
+                const v = el.getAttribute?.(attr);
+                if (!v) continue;
+                const val = v.trim();
+                if (!val || val.length > 40) continue;
+                const sel = `${tag}[${attr}*="${CSS.escape(val)}"]`;
+                push({ label: `${attr} ⊃ "${val}"`, sel, count: this.countMatches(sel) });
+            }
+            // 자유 텍스트 탐지 속성: 단어 토막마다 부분매칭
+            for (const attr of ['alt', 'aria-label', 'title', 'placeholder', 'name']) {
+                const v = el.getAttribute?.(attr);
+                if (!v) continue;
+                for (const tok of this.textTokens(v)) {
+                    const sel = `${tag}[${attr}*="${CSS.escape(tok)}"]`;
+                    push({ label: `${attr} ⊃ "${tok}"`, sel, count: this.countMatches(sel) });
+                }
+            }
             const st = el.getAttribute?.('style') || '';
-            // style 동일 (전체)
             if (st.trim() && st.trim().length <= 120) {
                 const sel = `[style*="${CSS.escape(st.trim())}"]`;
                 push({ label: `style 동일`, sel, count: this.countMatches(sel) });
             }
-            // style 내 너비/높이 선언 개별 옵션
             if (st) {
                 const m = st.match(/(?:min-|max-)?(?:width|height)\s*:\s*[^;]+/gi) || [];
                 for (let decl of m) {
@@ -552,7 +681,6 @@
                     push({ label: `style ⊃ "${decl}"`, sel, count: this.countMatches(sel) });
                 }
             }
-            // background-image: url(...) 에서 URL 추출
             if (st) {
                 const bg = st.match(/background(?:-image)?\s*:\s*[^;]*url\((['"]?)([^'")]+)\1\)/i);
                 if (bg && bg[2]) {
@@ -562,7 +690,6 @@
                     }
                 }
             }
-            // 치수 3종 (렌더 크기 기반, 런타임 매칭)
             const r = el.getBoundingClientRect();
             const w = Math.round(r.width), h = Math.round(r.height);
             if (h >= 8) push({ label: `높이 ≈ ${h}px`, dim: 'h', count: this.findByDimension(el, 'h').length });
@@ -616,7 +743,8 @@
                 iconPos: null, panelPos: null,
                 picking: false, lastHoverEl: null, pickCandidate: null,
                 _wasFullBeforePick: false,
-                simSelected: new Set(), simNodes: [], simOpt: null
+                simSelected: new Set(), simNodes: [], simOpt: null,
+                simPreviewBar: null, simPreviewNodes: []
             };
             this.modal = null;
             this._onResize = null;
@@ -703,7 +831,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="pokkok-head" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.0.8</small></span>
+                <span class="pokkok-title">Pokkok <small>v1.1.0</small></span>
                 <div class="pokkok-head-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -803,7 +931,6 @@
             if (lbl) lbl.textContent = hiding ? '숨김 해제' : '숨김 미리보기';
         }
 
-        // ── 미리보기 (핀 / 숨김) ──────────────────────────────────────
         applyPinned(sel) {
             this.clearPinned();
             if (!sel || this.state.hiddenSelector === sel) return;
@@ -837,7 +964,6 @@
             return { hidden: true, count: this.applyHide(sel) };
         }
 
-        // ── 선택 ──────────────────────────────────────────────────────
         selectNode(el) {
             if (!el || !el.tagName) return;
             this.clearHide();
@@ -867,17 +993,24 @@
             this.state.previewNodes = [];
         }
 
-        // ── 유사 요소 찾기 ─────────────────────────────────────────────
         clearSimHighlight() {
             for (const n of this.state.simNodes) n.classList.remove('pokkok-hl-sim');
             this.state.simNodes = [];
             this.state.simSelected = new Set();
             this.state.simOpt = null;
+            this._clearSimPreview();
+        }
+
+        _clearSimPreview() {
+            for (const n of this.state.simPreviewNodes) n.classList.remove(HIDE_CLASS);
+            this.state.simPreviewNodes = [];
+            if (this.state.simPreviewBar) { this.state.simPreviewBar.remove(); this.state.simPreviewBar = null; }
         }
 
         findSimilar() {
             const ref = this.state.target;
             if (!ref) { this.flashToast('먼저 요소를 선택하세요'); return; }
+            this._clearSimPreview();
             const opts = SelectorStrategies.similarOptions(ref);
             this._renderSimOptions(ref, opts);
         }
@@ -892,7 +1025,7 @@
             body.innerHTML = `
                 <div style="opacity:.75;font-size:12px;margin-bottom:8px;line-height:1.5">
                     선택한 요소(<code>${esc(ref.tagName.toLowerCase())}</code>)와 공통점이 있는 요소들을 찾습니다.
-                    기준을 하나 누르면 후보 목록이 열립니다. 치수 기준은 화면에 보이는 크기로 매칭합니다.
+                    기준을 누르면 후보가 열립니다. 목록이 길면 스크롤하세요. 치수 기준은 화면에 보이는 크기로 매칭합니다.
                 </div>
                 <div class="pokkok-sim-opts">${rows}</div>`;
             body.querySelectorAll('.pokkok-sim-opt').forEach(b => {
@@ -905,7 +1038,8 @@
         }
 
         _renderSimCandidates(ref, opt, nodes) {
-            this.clearSimHighlight();
+            this._clearSimPreview();
+            for (const n of this.state.simNodes) n.classList.remove('pokkok-hl-sim');
             nodes.forEach((n, i) => { n.classList.add('pokkok-hl-sim'); n.dataset.pokkokSim = i; });
             this.state.simNodes = nodes;
             this.state.simSelected = new Set(nodes.map((_, i) => i));
@@ -937,6 +1071,7 @@
                     <button class="pokkok-btn" data-ref="all">전체 선택</button>
                     <button class="pokkok-btn" data-ref="none">전체 해제</button>
                     <button class="pokkok-btn" data-ref="back">← 기준</button>
+                    <button class="pokkok-btn pokkok-btn-primary" data-ref="preview">👁 숨겨서 미리보기</button>
                     <button class="pokkok-btn pokkok-btn-danger" data-ref="blockAll">선택 차단</button>
                 </div>`;
 
@@ -970,9 +1105,49 @@
             body.querySelector('[data-ref="back"]')?.addEventListener('click', () => {
                 this.findSimilar();
             });
+            body.querySelector('[data-ref="preview"]')?.addEventListener('click', () => {
+                this._startSimPreview(opt, nodes);
+            });
             body.querySelector('[data-ref="blockAll"]')?.addEventListener('click', () => {
                 this._blockSimilarSelected(opt, nodes);
             });
+        }
+
+        _startSimPreview(opt, nodes) {
+            const picked = Array.from(this.state.simSelected).map(i => nodes[i]).filter(Boolean);
+            if (!picked.length) { this.flashToast('선택된 요소가 없습니다'); return; }
+
+            this._clearSimPreview();
+            const applied = [];
+            for (const n of picked) {
+                if (n.closest && n.closest(`#${ROOT_ID}`)) continue;
+                n.classList.add(HIDE_CLASS);
+                applied.push(n);
+            }
+            this.state.simPreviewNodes = applied;
+            this.modal.hideShell();
+
+            const bar = document.createElement('div');
+            bar.className = 'pokkok-sim-prevbar';
+            bar.innerHTML = `
+                <div class="pokkok-sim-prevbar-msg">${applied.length}개를 숨긴 미리보기 — 실제 차단과 동일한 화면입니다</div>
+                <div class="pokkok-sim-prevbar-btns">
+                    <button class="pokkok-btn" data-ref="restore">${ICON_EYE}<span>복원</span></button>
+                    <button class="pokkok-btn pokkok-btn-danger" data-ref="commit">${ICON_BLOCK}<span>이대로 차단</span></button>
+                </div>`;
+            this.dom.shadow.appendChild(bar);
+            this.state.simPreviewBar = bar;
+
+            bar.querySelector('[data-ref="restore"]').addEventListener('click', () => {
+                this._clearSimPreview();
+                this.modal.showShell();
+            });
+            bar.querySelector('[data-ref="commit"]').addEventListener('click', () => {
+                this._clearSimPreview();
+                this.modal.showShell();
+                this._blockSimilarSelected(opt, nodes);
+            });
+            vibrate(10);
         }
 
         async _blockSimilarSelected(opt, nodes) {
@@ -982,12 +1157,10 @@
             let sels = [];
             let common = false;
 
-            // 속성 기반 + 후보 전체 선택 → 공통 셀렉터 1개로 저장 (가볍고 self-healing)
             if (opt.sel && picked.length === nodes.length && nodes.length > 0) {
                 sels = [opt.sel];
                 common = true;
             } else {
-                // 일부만 선택했거나 치수 기반 → 개별 셀렉터로 환산
                 for (const n of picked) {
                     const s = SelectorStrategies.best(n);
                     if (s && !sels.includes(s)) sels.push(s);
@@ -1014,7 +1187,6 @@
             this.modal.dismiss();
         }
 
-        // ── 손가락 조준 선택 ───────────────────────────────────────────
         _freezeFrames() {
             this._frozenFrames = [];
             document.querySelectorAll('iframe, frame').forEach(f => {
@@ -1039,7 +1211,7 @@
                 if (r.width < 4 || r.height < 4) return;
                 if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
                     const area = r.width * r.height;
-                    if (area < bestArea) { bestArea = area; best = f; }  // 가장 안쪽(작은) iframe 우선
+                    if (area < bestArea) { bestArea = area; best = f; }
                 }
             });
             return best;
@@ -1064,7 +1236,6 @@
             document.documentElement.appendChild(shield);
             this.dom.shield = shield;
 
-            // picking 동안 iframe이 포인터를 삼키지 못하게 차단
             this._freezeFrames();
 
             const aim = document.createElement('div');
@@ -1107,8 +1278,6 @@
                 }
                 shield.style.pointerEvents = prev || 'auto';
 
-                // iframe은 freeze(pointer-events:none)로 히트테스트에서 빠지므로
-                // 좌표에 iframe이 걸쳐 있으면 그것을 우선 선택 후보로 삼는다.
                 const frame = this._frameAtPoint(ax, ay);
                 if (frame) {
                     if (!el || el === document.body || el.contains(frame)) el = frame;
@@ -1244,7 +1413,7 @@
                     const sel = this.state.selector;
                     if (!sel) { this.flashToast('선택된 요소가 없습니다'); break; }
                     const r = this.toggleHide(sel);
-                    this.flashToast(r.hidden ? `${r.count}개 요소 숨김 (미리보기)` : '숨김 해제됨');
+                    this.flashToast(r.hidden ? `${r.count}개 요소 숨김 (차단 동일 미리보기)` : '숨김 해제됨');
                     this._syncHideLabel();
                     break;
                 }
@@ -1323,6 +1492,7 @@
             const body = this.modal.display('설정', '', true);
             const agg = Blocker.isAggressive();
             const stats = Blocker.getStats();
+            const engine = SUPPORTS_ADOPTED ? 'adoptedStyleSheets (:where)' : '&lt;style&gt; 폴백 (:where)';
             body.innerHTML = `
                 <div class="pokkok-settings">
                     <label class="pokkok-toggle" style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
@@ -1330,10 +1500,11 @@
                         <span>강화 모드 (끈질긴 광고 강제 제거)</span>
                     </label>
                     <div class="pokkok-settings-row"><span>전체 규칙</span><span>${stats.totalRules}개 (이 사이트 ${stats.ruleCount}개)</span></div>
+                    <div class="pokkok-settings-row"><span>차단 엔진</span><span style="font-size:11px;opacity:0.7">${engine}</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="resetPos">버튼 위치 초기화</button><button class="pokkok-btn" data-ref="clearPreview">미리보기 정리</button></div>
                     <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><span style="flex:1;font-weight:600;">규칙 백업</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="exportRules">내보내기</button><button class="pokkok-btn" data-ref="importRules">가져오기</button></div>
-                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게로 범위 조절 → 차단. 한 줄 전체를 잡으려면 "더 크게"로 상위 요소를 고르세요. "유사 요소 찾기"로 같은 class·src·치수를 가진 요소를 한꺼번에 차단할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). iframe 광고는 iframe 박스 자체를 선택해 차단하세요(내부 개별 요소는 브라우저 보안상 선택 불가). SPA에서 다시 나타나는 요소는 자동 재차단됩니다(self-healing).</small></div>
+                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게로 범위 조절 → 차단. "유사 요소 찾기"로 class·src·alt·title·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 기준 목록이 길면 스크롤하세요. iframe 광고는 iframe 박스 자체를 선택해 차단하세요. 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다.</small></div>
                 </div>`;
             body.querySelector('[data-ref="agg"]').addEventListener('change', () => Blocker.toggleAggressive());
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => { this.state.iconPos = null; this.state.panelPos = null; this.applyPosition(); this.flashToast('위치 초기화됨'); });
@@ -1475,8 +1646,8 @@
     .pokkok-toggle input { cursor: pointer; width: 18px; height: 18px; }
     .pokkok-stat { margin-left: auto; opacity: 0.55; font-size: 11px; }
 
-    .pokkok-sim-opts { display: flex; flex-direction: column; gap: 6px; }
-    .pokkok-sim-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 10px 12px; min-height: 44px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; color: #e8eaed; cursor: pointer; font-size: 13px; text-align: left; }
+    .pokkok-sim-opts { display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-right: 2px; }
+    .pokkok-sim-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 10px 12px; min-height: 44px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; color: #e8eaed; cursor: pointer; font-size: 13px; text-align: left; flex-shrink: 0; }
     .pokkok-sim-opt:hover { background: rgba(139,92,246,0.22); border-color: rgba(139,92,246,0.4); }
     .pokkok-sim-lbl { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; flex: 1; }
     .pokkok-sim-cnt { font-size: 11px; opacity: 0.7; white-space: nowrap; background: rgba(0,0,0,0.3); padding: 2px 7px; border-radius: 10px; }
@@ -1488,11 +1659,19 @@
     .pokkok-sim-item code { font-size: 11px; color: #9ecbff; white-space: nowrap; }
     .pokkok-sim-txt { font-size: 11px; opacity: 0.55; word-break: break-all; flex: 1; }
 
+    .pokkok-sim-prevbar { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); width: 360px; max-width: calc(100vw - 24px); background: rgba(17,24,39,0.98); border: 1px solid rgba(139,92,246,0.5); border-radius: 12px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(0,0,0,0.6); z-index: 2147483647; box-sizing: border-box; }
+    .pokkok-sim-prevbar-msg { font-size: 12px; color: #e8eaed; margin-bottom: 10px; text-align: center; line-height: 1.4; }
+    .pokkok-sim-prevbar-btns { display: flex; gap: 8px; }
+    .pokkok-sim-prevbar-btns .pokkok-btn { flex: 1; min-height: 44px; justify-content: center; }
+
     .pokkok-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2147483647; opacity: 0; transition: opacity 0.2s; color: #e8eaed; }
     .pokkok-modal.visible { opacity: 1; }
+    .pokkok-modal.pokkok-modal-shell-hidden { opacity: 0 !important; pointer-events: none !important; }
     .pokkok-modal-card { background: #1c1e26; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; max-width: 480px; width: 92%; max-height: 80vh; max-height: 80dvh; overflow: hidden; display: flex; flex-direction: column; }
-    .pokkok-modal-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .pokkok-modal-title { font-weight: 600; }
+    .pokkok-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); cursor: grab; user-select: none; touch-action: none; }
+    .pokkok-modal-head:active { cursor: grabbing; }
+    .pokkok-modal-grip { opacity: 0.5; font-size: 14px; line-height: 1; cursor: grab; }
+    .pokkok-modal-title { font-weight: 600; flex: 1; }
     .pokkok-modal-x { background: transparent; border: none; color: #e8eaed; cursor: pointer; padding: 8px; min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
     .pokkok-modal-body { padding: 14px; overflow-y: auto; font-size: 13px; flex: 1; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
     .pokkok-modal-body code { color: #9ecbff; background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 3px; user-select: text; -webkit-user-select: text; }
@@ -1505,7 +1684,7 @@
     .pokkok-rule-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px; background: rgba(255,255,255,0.04); border-radius: 6px; margin-bottom: 5px; }
     .pokkok-rule-item code { font-size: 11px; color: #9ecbff; word-break: break-all; flex: 1; cursor: pointer; user-select: text; -webkit-user-select: text; }
 
-    .pokkok-settings-row { display: flex; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; }
+    .pokkok-settings-row { display: flex; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; justify-content: space-between; }
     .pokkok-settings-row:last-child { border-bottom: none; }
     .pokkok-settings-row .pokkok-btn { min-height: 38px; }
 
@@ -1519,14 +1698,15 @@
     }`;
 
     // ── 페이지(라이트 DOM) 하이라이트/숨김 스타일 ──────────────────────
+    // HIDE_CLASS를 display:none으로 통일 → 미리보기 = 실제 차단 화면
     const PAGE_CSS = `
         .${HL_CLASS} { outline: 2px solid #ef4444 !important; outline-offset: -2px !important; background: rgba(239,68,68,0.08) !important; }
         .pokkok-hl-parent { outline: 2px dashed #f59e0b !important; outline-offset: -2px !important; }
         .pokkok-hl-preview { outline: 2px solid #3b82f6 !important; outline-offset: -2px !important; background: rgba(59,130,246,0.08) !important; }
         .pokkok-hl-pinned { outline: 2px solid #10b981 !important; outline-offset: -2px !important; background: rgba(16,185,129,0.08) !important; }
-        .pokkok-hl-sim { outline: 2px solid #8b5cf6 !important; outline-offset: -2px !important; background: rgba(139,92,246,0.1) !important; }
-        .pokkok-hl-sim-focus { outline: 3px solid #c084fc !important; outline-offset: -3px !important; background: rgba(192,132,252,0.25) !important; }
-        .${HIDE_CLASS} { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
+        .pokkok-hl-sim { outline: 3px solid #a855f7 !important; outline-offset: -3px !important; background: rgba(168,85,247,0.22) !important; box-shadow: 0 0 0 2px rgba(255,255,255,0.4), inset 0 0 0 9999px rgba(168,85,247,0.12) !important; }
+        .pokkok-hl-sim-focus { outline: 4px solid #facc15 !important; outline-offset: -4px !important; background: rgba(250,204,21,0.3) !important; }
+        .${HIDE_CLASS} { display: none !important; }
     `;
 
     function injectPageCss() {
