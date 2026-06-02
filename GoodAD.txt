@@ -1474,9 +1474,9 @@ poooo.ml#@#.ad
 ##[id*="advert" i]
 !
 !
-! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03) (https://ir.hoohootv407.xyz/)
+! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://ki.hoohootv407.xyz/)
 ! - 배너 빈 공간
-[$domain=/^ir.hoohootv\d+.xyz/]###img_row_container
+[$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 ! - 기타
 /disable-devtool.js
 ||jsdelivr.net/npm/disable-devtool
@@ -4986,7 +4986,7 @@ m.anewsa.com##div[style*="width:300px"]
 kbjfree.com##.min-h-\[52px\].mx-auto
 !
 !
-! 빨간오이 (https://red52.kr/)
+! 빨간오이 (https://red52.co.kr/)  (https://red52.kr/)
 ! - 게시물내 상단 배너
 [$domain=/^red\d+.kr/]##.notice-box-area
 ! - 게시물내 하단 공간
