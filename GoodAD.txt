@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260601
+! Version: 20260602
 !
 !
 !
@@ -681,7 +681,7 @@ gall.dcinside.com#@#.r_dcmedia
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe638.com/) - 이미지 목록 사라짐
+! 펀비 (https://funbe640.com/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -868,7 +868,7 @@ mlbpark.donga.com##.inner_article
 !ruliweb.com##.adrr
 !ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe638.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe640.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 !ruliweb.com##[class*="ad_"][style] - ##[class*="ad_slot" i]로 변경
 ! - 루리웹 전체 배너 (게시판 내 AD글 포함)
@@ -1176,7 +1176,9 @@ slrclub.com##[class="notice"]
 !cineaste.co.kr#@#.notice
 !##[class*="adsbyadop" i]
 ! - 메인 남겨진 여백 공간
-www.slrclub.com###section3
+slrclub.com###section3
+! - 모바일 하단 맨위로 
+slrclub.com##.f1
 !
 !
 ! 클리앙 (https://www.clien.net/)
@@ -1451,7 +1453,7 @@ poooo.ml#@#.ad
 !/^https?:\/\/([^\/]+\.)?yasyadong\d*\.tv\//$frame
 ! - - - dns에 ||googlesyndication.com^ 기 차단 등록으로 필요치 않음
 !||safeframe.googlesyndication.com^
-||player.bunny-frame.online/js/ad_fetcher.js
+!||player.bunny-frame.online/js/ad_fetcher.js - */ad_ 로 대체
 !
 !
 ! 티비착 (https://tvchak.org/)  (https://tvchak201.com/)  (https://tvchak.live/)
@@ -1669,8 +1671,8 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://tkor121.com/)
-! 펀비 (https://funbe638.com/)
+! 툰코 (https://tkor123.com/)
+! 펀비 (https://funbe640.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -1693,7 +1695,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !
 ! 나이스링크 (https://nicelink6.com/)
 ! 늑대닷컴 ((https://xn--ph1bph0az41x.com/))
-! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf457.com/)
+! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf458.com/)
 ! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon213.com/)
 ! W툰 (https://t.me/s/wtwt999) (https://wtwt328.com/)
 ! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx325.com/)
@@ -1723,8 +1725,8 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 !##.thumbnail
 !
 !
-! 야툰 (https://yatoon228.com/)
-! 뉴툰 (https://newtoon274.com/)
+! 야툰 (https://yatoon233.com/)
+! 뉴툰 (https://newtoon294.com/)
 ! - 배너
 !##.cate.row
 !
@@ -1841,7 +1843,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 [$domain=/^sbxh\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
 !
 !
-! 블랙툰 (https://blacktoon.cafe/) (https://blacktoonurl.net/) ( http://blacktoon.cc) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon410.com/)
+! 블랙툰 (https://blacktoon.cafe/) (https://blacktoonurl.net/) ( http://blacktoon.cc) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon411.com/)
 ! - 최신주소 안내페이지 배너 공간 ((https://www.blacktoonurl2.com/) )
 [$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 !
@@ -4809,7 +4811,7 @@ torrentbob.com##div.m-b-10:nth-of-type(3)
 !##[class*="advert" i]
 !
 !
-! 호두코믹스 (https://hdhd506.net/)
+! 호두코믹스 (https://hdhd507.net/)
 ! - 일부 이미지 복원
 @@/.*banner.*/$image,domain=/^hdhd[0-9]+\.net$/
 /^hdhd[0-9]+\.net$/#@#[src*="banner" i]
@@ -4943,6 +4945,21 @@ coinpan.com##div[style*="height: 93px; width: 776px;"]
 coinpan.com##div[style*="250px"]
 !
 !
+! 아시아뉴스통신(https://www.anewsa.com/)
+! - 기사글내 배너 공간
+! - - - 상단 배너 공간
+anewsa.com###contents_body > div:nth-of-type(2)
+anewsa.com###contents_body > div:nth-of-type(3)
+! - - - 오른쪽 배너 빈 공간
+anewsa.com###subBanner01
+anewsa.com###subAside > div:nth-of-type(4)
+anewsa.com###subAside > div:nth-of-type(8)
+anewsa.com###right_banner_top
+! - - - 기사 본문과 댓글 쓰기 사이 작은 빈 공간
+anewsa.com###subSec01 > div:nth-of-type(4)
+! - - - 모바일 본문내 빈공간
+m.anewsa.com##div[style*="width:300px"]
+!
 !
 !
 !
@@ -5011,7 +5028,10 @@ auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 ##[src*="/ads/" i]
 !
 !
-!/ad_
+*/ad_
+!
+!
+*/ads_
 !
 !
 */ad-*
@@ -5166,6 +5186,12 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 ##[aria-label*="advert" i]
+!
+!
+||ad.*
+||ad-*
+||ads.*
+||ads-*
 !
 !
 !
@@ -5355,8 +5381,8 @@ manhwabang.org##a[target*="target"] img
 
 ##[class*="banner" i]
 ! - 예외
-! - 툰코 (https://tkor121.com/) - 본문 다 사라짐
-! - 펀비 (https://funbe638.com/) - 본문 다 사라짐
+! - 툰코 (https://tkor123.com/) - 본문 다 사라짐
+! - 펀비 (https://funbe640.com/) - 본문 다 사라짐
 ! - 이토랜드 (https://etoland.co.kr/) - 페이지 이동 오류 해결
 ! -  일일툰 (https://www.11toon148.com/) - 본문 다 사라짐
 ! - 일일툰 (https://www.spotv147.com/) - 본문 다 사라짐
@@ -5453,10 +5479,10 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 이미지가 gif가 아닌 경우에도 사용
 ! - - - 도지코믹스 (https://dozi352.com/)
 ! - - - 애니위크 (https://aniweek.com/)
-! - - - 야툰 (https://yatoon207.com/)
+! - - - 야툰 (https://yatoon233.com/)
 ! - - - 마징가툰 (https://z70.mzgtoon.com/)
 ! - - - 애니조아 (https://www.anizoa.net/)
-! - - - 펀비 (https://funbe638.com/)
+! - - - 펀비 (https://funbe640.com/)
 ! - - - 애니어바웃 (https://aniabout.com/)
 ! - - - 해피툰 (https://happytoon01.com/)
 ! - - - 머니툰 (https://mtoon125.com/)
@@ -5505,7 +5531,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 조드 (https://zod.kr/)
 ! - - - x툰 (https://t3.xtoon365.com/)
 ! - - - 토렌트쑥 (https://ssg2.torrentssg8.com/)
-! - - - 툰코 (https://tkor121.com/) 
+! - - - 툰코 (https://tkor123.com/) 
 !##a[href*='http'][target*='blank'] img
 !##a[target*='blank']:has(img)
 [$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcok\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
