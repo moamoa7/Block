@@ -1726,7 +1726,7 @@ ttattack.com###thema_wrapper
 !
 ! 엑스툰  XToon (https://xn--9t4b31dr7o.com/) (https://t3.xtoon365.com/)
 ! - 팁
-##.f-tips
+##.f-tips, .tips
 ! - 개별 만화 상단 배너
 !##.chapter-ad -##[class$="-ad" i]로 대체
 ! - 하단 가운데 계속보기 버튼 (웹툰 다 안보고 메인으로 나오면 메인 하단에 나옴)
