@@ -439,7 +439,9 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 !||exlogcollector.sooplive.com^$badfilter
 !
 !
-! 시네티 (https://cinety.sooplive.co.kr/)
+! 시네티 (https://cinety.sooplive.com/)
+@@||cinety.sooplive.com^$generichide,image
+@@||admin.img.sooplive.com^$generichide,image
 ! - 해제 목록 - 영상 클릭시 이동 안됨
 @@||sooplive.com/asset/service/common/common_analysis.js$domain=cinety.sooplive.com
 !
@@ -696,6 +698,8 @@ fmkorea.com###fm_alert
 ! - 프레임 차단
 ##[src*="direct_url" i]
 ##[src*="loader.fmkorea.com" i]
+! - 오른쪽 따라다니는 버튼 3개 (모바일)
+m.fmkorea.com##.m_rd_nav_side
 !
 !
 ! 이토랜드 (https://www.etoland.co.kr/)
@@ -833,6 +837,8 @@ inven.co.kr##.inven-float-alarm
 ! - 게시글 하단 안내창 (모바일)
 !inven.co.kr##.invenAppSuggestionInner
 inven.co.kr###invenAppSuggestion
+! - 맨 위로 버튼 (모바일)
+m.inven.co.kr##.goto_top_arrow
 ! - 오류 방지
 @@||07c225f3.online^
 !
@@ -1413,7 +1419,7 @@ poooo.ml##.h30
 poooo.ml#@#.ad
 !
 !
-! 티비위키 (https://tvwiki22.net/) / 티비몬 (https://tvmon1.com/) / 티비핫 (https://tvhot.store/)
+! 티비위키 (https://tvwiki22.net/) / 티비몬 (https://tvmon1.com/) / 티비핫 (https://tvhot1.com/)
 ! - 팝업 제거
 ##[id*="modal-overlay" i]
 ! - 배너 이미지
@@ -1459,7 +1465,7 @@ poooo.ml#@#.ad
 !||player.bunny-frame.online/js/ad_fetcher.js - */ad_ 로 대체
 !
 !
-! 티비착 (https://tvchak.org/)  (https://tvchak201.com/)  (https://tvchak.live/)
+! 티비착 (https://tvchak.org/)  (https://tvchak203.com/)  (https://tvchak.live/)
 ! - 팝업
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 !tvchak.live##[class*="popup_mdd" i]
@@ -1468,16 +1474,16 @@ poooo.ml#@#.ad
 ##[id*="advert" i]
 !
 !
-! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03) (https://ft.hoohootv404.xyz/)
+! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03) (https://ir.hoohootv407.xyz/)
 ! - 배너 빈 공간
-[$domain=/^ft.hoohootv\d+.xyz/]###img_row_container
+[$domain=/^ir.hoohootv\d+.xyz/]###img_row_container
 ! - 기타
 /disable-devtool.js
 ||jsdelivr.net/npm/disable-devtool
 ||jwpcdn.com^
 !
 !
-! 티비룸  (https://tvroom.vip/)
+! 티비룸  (https://tvroom.me/)
 ! - 팝업
 ![$domain=/^tvroom\d+.org/]##.popup
 ! - 화면 뿌옇게 변한거 해결
@@ -1494,8 +1500,8 @@ poooo.ml#@#.ad
 [$domain=/^www.nnuutv\d+.tv/]###comp-lhh974mf2
 !
 !
-! 콕콕티비 (https://cokcok7.com/)
-! - -  티비위키 (https://tvwiki.app/)
+! 콕콕티비 (https://cokcok8.com/)
+! - -  티비위키 (https://tvwiki.art/)
 ! - 팝업 - ##[class*="popup-banner" i]으로 대체
 !##[class*="popup-banners" i]
 ! - 상단 배너 공간
@@ -1505,7 +1511,7 @@ poooo.ml#@#.ad
 ||jsdelivr.net/npm/devtools-detector
 !
 !
-! 무비킹 (https://mvking4.org/)
+! 무비킹 (https://mvking.vip/
  ! - 영상 위 배너
 ![$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
 !
@@ -1540,7 +1546,7 @@ anilife.app##.duration-300
 anizoa.net##.widget_media_image.r-widget-control.widget
 !
 !
-! 땡땡티비 (https://ootv37.com/)
+! 땡땡티비 (https://ootv41.com/)
 !  - 배너 공간
 ! - - - ##[src*="imgbox.com"] 사용시 전 이미지가 다 날라감
 ![$domain=/^ootv\d+.com/]##.banner_wrap2
@@ -1551,61 +1557,33 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ![$domain=/^ootv\d+.com/]##section:nth-of-type(6)
 !
 !
-! 티비판 (https://tvpan2.com/)
-! - 화면 뿌옇게 해결
-[$domain=/^tvpan\d+.com/]##.mask_all
+! 티비판 (https://tvpan2.store/) - 여긴 영상 나오는곳이 아니라 광고만 있음
 !
 !
 ! 방방바TV (https://www.bangbangbatv.com/) (https://bangbangba01.com/)
 ! - 왼쪽 배너 (텔레그램까지 삭제)
 ! - - -  토토어택 (https://www.ttattack.com/)
 ![$domain=/^bangbangba\d+.com/],www.ttattack.com##.carousel-inner
+! 토토어택 (https://www.ttattack.com/)
+! - 안보이게
+ttattack.com###thema_wrapper
 !
 !
-! TV888 (https://tv889.com/)
-! - 상단 배너
-![$domain=/^tv\d+.com/]##.my-6.gap-\[1px\].grid-cols-12.grid
+! 고구마티비 (https://gogumatv80.com/)
+! - 이미지 복원
+[$domain=/^gogumatv\d+.com/]#@#[class*="banner" i]
+! - 배너 이미지 공간
+[$domain=/^gogumatv\d+.com/]##.banner-container
 !
 !
-! 고구마티비 (https://gogumatv58.com/)
-! - 왼쪽 배너 공간
-[$domain=/^gogumatv\d+.com/]###leftDiv
-! - 오른쪽배너 공간
-[$domain=/^gogumatv\d+.com/]###rightDiv
-!
-!
-! TV다시보자 (https://bozatv108.com/)
-! 방구석티비 (https://bontv100.com/)
-! 9티비 (https://9tv71.com/)
-! - 상단배너
-![$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^9tv\d+.com/]##.yk-container
-! - 링크동맹 안보이게
-![$domain=/^bozatv\d+.com/],[$domain=/^bontv\d+.com/],[$domain=/^9tv\d+.com/]##.mb-3.col-sm-12.col-xl-12
-!
-!
-! 두꺼비티비 (https://dugebitv102.xyz/)
-! - 상단 배너
-![$domain=/^dugebitv\d+.xyz]##li.col-xs-1.col-sm-2.col-md-3 > .ewave-vodlist__box
-!
-!
-! - TV조아 (https://tvzota147.com/)
-! --  List-KR 무력화 (드라마 이미지 안보임)
-@@||imgbox.com^$from=/^tvzota[0-9]+\.com/
-!
-!
-! 조개무비 (https://v15.jogemovie.net/)
+! 조개무비 (https://jogemovie.xyz/) (https://v21.jogemovie.net/)
 ! - 배너 공간
-[$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
+![$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
 !
 !
 ! 도라마코리아 (https://www.dorama.kr/)
 ! - 배너
 !www.dorama.kr##.home-middle.adcampaign-wrapper.indxeq.Adcampaigns__Wrapper-sc-1fzrtxd-2
-!
-!
-! 또보자TV (https://boztv119.com/)
-! - 제휴/동맹 글자
-![$domain=/^boztv\d+.com/]##li.off.menu-li:nth-of-type(5)
 !
 !
 ! 메시티비 (https://messitv8.com/) -> 이지티비 (https://nuevosiglonews.com/) 로 변경
@@ -2932,6 +2910,8 @@ javtiful.com##.front-feature-placement-side
 ! 야애니24 (https://www.aniya24.com/)
 ! - 배너
 ##section:has([target] img[src*="/wp-content/uploads/"])
+! - 예외 - https://apkmody.com/ - 본문 안보임
+apkmody.com#@#section:has([target] img[src*="/wp-content/uploads/"])
 ##section:has(img[width="1200"])
 ! - 배너 남는 공간
 aniya24.com##.elementor-element-5fc256c
@@ -5377,7 +5357,7 @@ mypikpak.com#@#[class*="popup" i]
 
 
 ! - 자브걸 (https://kr27.javgirl.co/)
-! - 티비핫 (https://tvhot.store/)
+! - 티비핫 (https://tvhot1.com/)
 i-boss.co.kr,~avsee.ru##a[target*="blank"] > img[src*=".gif"]
 
 
@@ -5392,22 +5372,20 @@ manhwabang.org##a[target*="target"] img
 /^([\w-]+\.)?18moa\d+\.com$/#@#[href*="banner" i]
 
 ##[src*="banner" i]
-! 시네티 (https://cinety.sooplive.co.kr/)
 ! 18모아 (https://18moa028.com/)
 ! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
-[$domain=/^t\d+.xtoon365.com/],inety.sooplive.com,/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
+[$domain=/^t\d+.xtoon365.com/],/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
 
 
 
 *banner*
 ! - 11번가 - 사이트 구동이 안됨
 @@||*banner*$script,domain=11st.co.kr|cookmana53.com
-! 시네티 (https://cinety.sooplive.com/)
 ! 18모아 (https://18moa028.com/)
 ! 쿠팡플레이 (https://www.coupangplay.com/)
 ! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
 ! https://github.com/ - 일부 페이지 오류 발생
-@@||*banner*$image,domain=cinety.sooplive.com|coupangplay.com
+@@||*banner*$image,domain=coupangplay.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 @@||*banner*$domain=github.com
 @@*banner*$image,domain=xtoon365.com
@@ -5428,11 +5406,10 @@ manhwabang.org##a[target*="target"] img
 ! - 이토랜드 (https://etoland.co.kr/) - 페이지 이동 오류 해결
 ! -  일일툰 (https://www.11toon148.com/) - 본문 다 사라짐
 ! - 일일툰 (https://www.spotv147.com/) - 본문 다 사라짐
-! - 시네티 (https://cinety.sooplive.com/) - 배너 사라짐
 ! - https://vexfile.com/ - 다운받는 본문 다 사라짐
 ! - https://t-browser.com/ - 본문 사라짐
 ! - 야애니24 (https://www.aniya24.com/) - 플레이어가 안나옴
-aniya24.com,t-browser.com,vexfile.com,cinety.sooplive.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
+aniya24.com,t-browser.com,vexfile.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
 
 
 
