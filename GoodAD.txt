@@ -4968,6 +4968,37 @@ anewsa.com###subSec01 > div:nth-of-type(4)
 m.anewsa.com##div[style*="width:300px"]
 !
 !
+! 교보문고 (https://www.kyobobook.co.kr/)
+@@||kyobobook.co.kr^$generichide,image,xhr
+!
+!
+! - 예스24 (https://www.yes24.com/)
+@@||yes24.com^$generichide,image,xhr
+!
+!
+! 알라딘 (https://www.aladin.co.kr/)
+@@||aladin.co.kr^$generichide,image,xhr
+!
+!
+! 리디 (https://ridibooks.com/)
+@@||ridibooks.com^$generichide,image,xhr
+!
+!
+! 영풍문고 (https://www.ypbooks.co.kr/)
+@@||ypbooks.co.kr^$generichide,image,xhr
+!
+!
+! 일일툰 (https://www.11toon148.com/)
+! 일일툰 (https://www.spotv147.com/)
+! 최신만화  배너
+[$domain=/^www.spotv\d+.com/],[$domain=/^www.11toon\d+.com/]##li:has([style*="imageup"])
+!
+!
+! 일일툰 K만화 (https://kmana10.net/)
+! - 메인 배너
+[$domain=/^kmana\d+.net/]##.main_slide
+!
+!
 !
 !
 !
