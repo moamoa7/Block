@@ -728,6 +728,8 @@ etoland.co.kr##li[class*="h-10"]
 etoland.co.kr##ul.px-\[5px\] > li:nth-of-type(4)
 ! - PC  별도 블라인드 처리된 게시물 안보이게 하기
 etoland.co.kr##li.h-fit.min-h-14:has(> div.group.flex)
+! - 모바일 하단 따라다니는 3개 버튼
+etoland.co.kr##.fixed-bottom
 ! =========================
 ! - - - PC
 !etoland.co.kr##li:has(img[src*="/ad"])
@@ -853,6 +855,8 @@ mlbpark.donga.com##.bt_menu_wrap
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ! - 본문 한줄 광고?(투표?)
 mlbpark.donga.com##.inner_article
+! - 모바일 위로 버튼
+mlbpark.donga.com##.btn_top01
 ! - 본문하단 광고
 !##[class*="naver_power" i]
 ##.naver_power
@@ -918,9 +922,8 @@ ddanzi.com##[class*="add_display"]
 ! - 게시물 하단 게시판 리스트 삭제 (모바일 옵션/ 목록)
 !ddanzi.com##.board_addOption
 !ddanzi.com##.read.writeButtonWrap
-! - 차단 사이트
-!||adpnut.com^
-!||criteo.net^
+! - 하단 따라다니는 상하버튼
+ddanzi.com##.style-light
 !
 !
 ! 보배드림 (https://www.bobaedream.co.kr/)
