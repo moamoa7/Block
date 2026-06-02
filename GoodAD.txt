@@ -4854,7 +4854,9 @@ playidol.org##.fixed
 ![$domain=/^dobakland\d+.org/],playidol.org##[src*="229x72"], [src*="320x110"], [src*="&q=75"]
 playidol.org##[src*="229x72"], [src*="320x110"], [src*="&q=75"]
 ! - 리스트내 개별 배너
-playidol.org##div.relative:nth-of-type(9)
+||playidol.org/storage/v1/render/image/public/public-bucket/85/1777539864176-image.png
+! - 클릭시 이동하는 페이지 안보이게 하기
+playidol.org##.toastui-editor-contents
 ! - 배너 공간
 ![$domain=/^dobakland\d+.org/],playidol.org##.gap-1.lg\:grid-cols-4
 playidol.org##.gap-1.lg\:grid-cols-4
