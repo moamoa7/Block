@@ -1178,7 +1178,7 @@ slrclub.com##[class="notice"]
 ! - 메인 남겨진 여백 공간
 slrclub.com###section3
 ! - 모바일 하단 맨위로 
-slrclub.com##.f1
+m.slrclub.com##.fl
 !
 !
 ! 클리앙 (https://www.clien.net/)
