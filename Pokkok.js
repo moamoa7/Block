@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.1.0
-// @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing
+// @version      1.2.0
+// @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수·:has), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing
 // @author       moamoa7
 // @license      MIT
 // @homepage     https://github.com/moamoa7/Block
@@ -43,6 +43,13 @@
                    (typeof new CSSStyleSheet().replaceSync === 'function');
         } catch (_) { return false; }
     })();
+
+    const SUPPORTS_HAS = (() => {
+        try { return CSS && typeof CSS.supports === 'function' && CSS.supports('selector(:has(*))'); }
+        catch (_) { return false; }
+    })();
+
+    const HAS_MAX_MATCH = 200; // :has() 후보가 이보다 많으면 너무 광범위 → 사용 안 함
 
     const esc = (s) => String(s ?? '')
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -475,6 +482,31 @@
             return idx ? `${tag}:nth-of-type(${idx})` : tag;
         }
 
+        // 의미 있는 직계 자식 클래스 후보 (:has(> .child)용)
+        static childHasParts(el) {
+            if (!el || !el.children || !SUPPORTS_HAS) return [];
+            const out = [];
+            const seen = new Set();
+            for (const child of Array.from(el.children)) {
+                if (child.id === ROOT_ID || child.id === SHIELD_ID) continue;
+                if (child.closest && (child.closest(`#${ROOT_ID}`) || child.closest(`#${SHIELD_ID}`))) continue;
+                const ctag = child.tagName ? child.tagName.toLowerCase() : '';
+                const ccls = this.meaningfulClasses(child);
+                for (const c of ccls.slice(0, 2)) {
+                    const part = `> .${CSS.escape(c)}`;
+                    if (seen.has(part)) continue;
+                    seen.add(part);
+                    out.push({ part, label: `> .${c}` });
+                }
+                // 클래스가 없으면 태그 자체라도 직계 자식 조건으로
+                if (!ccls.length && ctag) {
+                    const part = `> ${ctag}`;
+                    if (!seen.has(part)) { seen.add(part); out.push({ part, label: `> ${ctag}` }); }
+                }
+            }
+            return out.slice(0, 8);
+        }
+
         static best(el) {
             if (!el || !el.tagName) return null;
 
@@ -538,6 +570,20 @@
             if (!classes.length && !attrs.length) {
                 const tagNth = this._segOf(el, 0, true);
                 if (onlyHits(tagNth)) return tagNth;
+            }
+
+            // ── :has(> child) 직계 자식 기반 (클래스/속성으로 고유 식별 실패 시) ──
+            if (SUPPORTS_HAS) {
+                const base = classes.length
+                    ? `${tag}.${classes.map(c => CSS.escape(c)).join('.')}`
+                    : (attrs.length ? `${tag}${attrs.join('')}` : tag);
+                for (const ch of this.childHasParts(el)) {
+                    const cand = `${base}:has(${ch.part})`;
+                    let n;
+                    try { n = document.querySelectorAll(cand).length; } catch (_) { continue; }
+                    if (n > HAS_MAX_MATCH) continue;
+                    if (onlyHits(cand)) return cand;
+                }
             }
 
             const selfSeg = this._segOf(el, classes.length, true);
@@ -640,6 +686,18 @@
                 const sel = `#${CSS.escape(el.id)}`;
                 push({ label: `id · #${el.id}`, sel, count: this.countMatches(sel) });
             }
+            // :has(> child) 직계 자식 기반 — 같은 형태의 컨테이너 묶음 잡기
+            if (SUPPORTS_HAS) {
+                const base = this.meaningfulClasses(el).length
+                    ? `${tag}.${this.meaningfulClasses(el).map(c => CSS.escape(c)).join('.')}`
+                    : tag;
+                for (const ch of this.childHasParts(el)) {
+                    const sel = `${base}:has(${ch.part})`;
+                    const count = this.countMatches(sel);
+                    if (count > HAS_MAX_MATCH) continue;
+                    push({ label: `has ${ch.label}`, sel, count });
+                }
+            }
             // URL성 속성: 토막 부분매칭
             for (const attr of ['src', 'href', 'data-src', 'data-original', 'poster']) {
                 const v = el.getAttribute?.(attr);
@@ -731,7 +789,6 @@
             } catch (_) { return []; }
         }
     }
-
     // ── 인스펙터 (UI / 선택 / 차단) ─────────────────────────────────────
     class Inspector {
         constructor() {
@@ -831,7 +888,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="pokkok-head" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.1.0</small></span>
+                <span class="pokkok-title">Pokkok <small>v1.2.0</small></span>
                 <div class="pokkok-head-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -869,11 +926,17 @@
                     </button>
                 </div>
 
-                <label class="pokkok-toggle">
-                    <input type="checkbox" data-act="toggleEnabled" ${enabled ? 'checked' : ''}>
-                    <span>차단 활성</span>
-                    <span class="pokkok-stat">이 사이트 ${stats.ruleCount}개</span>
-                </label>
+                <div class="pokkok-toggles">
+                    <label class="pokkok-toggle">
+                        <input type="checkbox" data-act="toggleEnabled" ${enabled ? 'checked' : ''}>
+                        <span>차단 활성</span>
+                        <span class="pokkok-stat">이 사이트 ${stats.ruleCount}개</span>
+                    </label>
+                    <label class="pokkok-toggle pokkok-toggle-agg" title="끈질긴 광고를 강제로 제거(공간·잔여 스타일까지 제거). 부작용이 있으면 끄세요.">
+                        <input type="checkbox" data-act="toggleAggressive" ${Blocker.isAggressive() ? 'checked' : ''}>
+                        <span>강화 모드</span>
+                    </label>
+                </div>
             </div>`;
         }
 
@@ -1427,7 +1490,7 @@
                 }
                 case 'edit': this.editSelector(); break;
                 case 'toggleEnabled': Blocker.toggleEnabled(); this.render(); break;
-                case 'toggleAggressive': Blocker.toggleAggressive(); break;
+                case 'toggleAggressive': Blocker.toggleAggressive(); this.render(); break;
             }
         }
 
@@ -1490,23 +1553,18 @@
 
         showSettings() {
             const body = this.modal.display('설정', '', true);
-            const agg = Blocker.isAggressive();
             const stats = Blocker.getStats();
             const engine = SUPPORTS_ADOPTED ? 'adoptedStyleSheets (:where)' : '&lt;style&gt; 폴백 (:where)';
             body.innerHTML = `
                 <div class="pokkok-settings">
-                    <label class="pokkok-toggle" style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
-                        <input type="checkbox" data-ref="agg" ${agg ? 'checked' : ''}>
-                        <span>강화 모드 (끈질긴 광고 강제 제거)</span>
-                    </label>
                     <div class="pokkok-settings-row"><span>전체 규칙</span><span>${stats.totalRules}개 (이 사이트 ${stats.ruleCount}개)</span></div>
                     <div class="pokkok-settings-row"><span>차단 엔진</span><span style="font-size:11px;opacity:0.7">${engine}</span></div>
+                    <div class="pokkok-settings-row"><span>:has() 지원</span><span style="font-size:11px;opacity:0.7">${SUPPORTS_HAS ? '예 (직계 자식 셀렉터 사용)' : '아니오 (미사용)'}</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="resetPos">버튼 위치 초기화</button><button class="pokkok-btn" data-ref="clearPreview">미리보기 정리</button></div>
                     <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><span style="flex:1;font-weight:600;">규칙 백업</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="exportRules">내보내기</button><button class="pokkok-btn" data-ref="importRules">가져오기</button></div>
-                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게로 범위 조절 → 차단. "유사 요소 찾기"로 class·src·alt·title·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 기준 목록이 길면 스크롤하세요. iframe 광고는 iframe 박스 자체를 선택해 차단하세요. 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다.</small></div>
+                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게로 범위 조절 → 차단. "강화 모드"는 차단 활성 옆 체크로 켜고 끕니다(끈질긴 광고를 공간·잔여 스타일까지 강제 제거). "유사 요소 찾기"로 class·src·alt·title·:has(직계 자식)·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 기준 목록이 길면 스크롤하세요. iframe 광고는 iframe 박스 자체를 선택해 차단하세요. 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다.</small></div>
                 </div>`;
-            body.querySelector('[data-ref="agg"]').addEventListener('change', () => Blocker.toggleAggressive());
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => { this.state.iconPos = null; this.state.panelPos = null; this.applyPosition(); this.flashToast('위치 초기화됨'); });
             body.querySelector('[data-ref="clearPreview"]').addEventListener('click', () => { this.clearPinned(); this.clearHide(); this.clearSimHighlight(); this.flashToast('미리보기 정리됨'); this._syncHideLabel(); });
             body.querySelector('[data-ref="exportRules"]').addEventListener('click', () => this.exportRules());
@@ -1642,8 +1700,10 @@
     .pokkok-act .pokkok-btn { flex: 1; min-height: 44px; }
     .pokkok-block { flex: 1.2 !important; }
 
-    .pokkok-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; min-height: 36px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .pokkok-toggles { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .pokkok-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; min-height: 36px; }
     .pokkok-toggle input { cursor: pointer; width: 18px; height: 18px; }
+    .pokkok-toggle-agg { opacity: 0.92; }
     .pokkok-stat { margin-left: auto; opacity: 0.55; font-size: 11px; }
 
     .pokkok-sim-opts { display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-right: 2px; }
