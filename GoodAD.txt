@@ -4991,6 +4991,8 @@ kbjfree.com##.min-h-\[52px\].mx-auto
 [$domain=/^red\d+.kr/]##.notice-box-area
 ! - 게시물내 하단 공간
 [$domain=/^red\d+.kr/]##.integrated-ad-slot, .article-tool
+! - 탑툰챗 및 이용안내 텍스트 배너
+[$domain=/^red\d+.kr/]##[class*="notice"]
 !
 !
 !
