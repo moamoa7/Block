@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.2.0
+// @version      1.3.0
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수·:has), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing
 // @author       moamoa7
 // @license      MIT
@@ -90,6 +90,9 @@
     const ICON_CHECK   = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
     const ICON_COPY    = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16 1H4a2 2 0 00-2 2v14h2V3h12V1zm3 4H8a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2zm0 16H8V7h11v14z"/></svg>';
     const ICON_SIMILAR = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm10 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z"/></svg>';
+    const ICON_LINK    = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3.9 12a3.1 3.1 0 013.1-3.1h4V7h-4a5 5 0 000 10h4v-1.9h-4A3.1 3.1 0 013.9 12zM8 13h8v-2H8v2zm9-6h-4v1.9h4a3.1 3.1 0 010 6.2h-4V17h4a5 5 0 000-10z"/></svg>';
+    const ICON_TREE    = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M9 4h6v3H9V4zM3 11h6v3H3v-3zm12 0h6v3h-6v-3zM10.5 7h3v4h-3V7zM4.5 9h3v2h-3V9zm12 0h3v2h-3V9z"/></svg>';
+
 
     // ── 규칙 저장/적용 (현재 사이트 단위) ───────────────────────────────
     // 차단 엔진: :where(...) 로 명시도 0 + adoptedStyleSheets(미지원 시 <style> 폴백)
@@ -792,9 +795,10 @@
     // ── 인스펙터 (UI / 선택 / 차단) ─────────────────────────────────────
     class Inspector {
         constructor() {
-            this.dom = { host: null, shadow: null, tool: null, shield: null, shieldAim: null, shieldConfirm: null, rec: null, match: null };
+            this.dom = { host: null, shadow: null, tool: null, shield: null, shieldAim: null, shieldConfirm: null, rec: null, match: null, slider: null, sliderWrap: null };
             this.state = {
-                target: null, selector: '',
+                target: null, originTarget: null, hierarchy: [],
+                selector: '',
                 scale: 'icon',
                 previewNodes: [], pinnedNodes: [], hiddenNodes: [], hiddenSelector: null,
                 iconPos: null, panelPos: null,
@@ -814,6 +818,50 @@
             return Array.from(el.children || []).find(c =>
                 c.id !== ROOT_ID && !(c.closest && c.closest(`#${ROOT_ID}`)) && c.id !== SHIELD_ID
             ) || null;
+        }
+        resolveChildren(el) {
+            if (!el) return [];
+            return Array.from(el.children || []).filter(c =>
+                c.id !== ROOT_ID && c.id !== SHIELD_ID &&
+                !(c.closest && (c.closest(`#${ROOT_ID}`) || c.closest(`#${SHIELD_ID}`)))
+            );
+        }
+
+        // 선택 요소 기준 조상 체인 구성 (최상위 조상 → 선택 요소 순)
+        _buildHierarchy(el) {
+            const chain = [];
+            let cur = el;
+            let depth = 0;
+            while (cur && cur.tagName && cur !== document.body && cur !== document.documentElement && depth < 30) {
+                chain.unshift(cur);
+                cur = this.resolveParent(cur);
+                depth++;
+            }
+            this.state.hierarchy = chain;
+            this.state.originTarget = el;
+        }
+
+        // 슬라이더 한계/현재값: 0 = 최상위 조상, max = 가장 깊은(선택) 요소
+        _sliderLimits() {
+            const chain = this.state.hierarchy;
+            if (!chain.length) return { min: 0, max: 0, val: 0 };
+            const idx = chain.indexOf(this.state.target);
+            return { min: 0, max: chain.length - 1, val: idx < 0 ? chain.length - 1 : idx };
+        }
+
+        _onSlide(e) {
+            const i = parseInt(e.target.value, 10);
+            const chain = this.state.hierarchy;
+            const node = chain[i];
+            if (!node || node === this.state.target) return;
+            this.clearHide();
+            this.clearPinned();
+            this.clearSimHighlight();
+            this.state.target = node;
+            this.state.selector = SelectorStrategies.best(node) || '';
+            this.setFocus(node);
+            node.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+            this.refreshRec();
         }
 
         constructUI() {
@@ -888,7 +936,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="pokkok-head" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.2.0</small></span>
+                <span class="pokkok-title">Pokkok <small>v1.3.0</small></span>
                 <div class="pokkok-head-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -904,6 +952,11 @@
                     <div class="pokkok-rec-empty">요소를 선택하면 여기에 표시됩니다</div>
                 </div>
 
+                <div class="pokkok-slider-wrap" data-ref="sliderWrap" hidden>
+                    <label class="pokkok-slider-label">계층 탐색 (← 상위 · 선택 요소 →)</label>
+                    <input type="range" class="pokkok-slider" data-ref="slider" min="0" max="0" value="0">
+                </div>
+
                 <div class="pokkok-nav">
                     <button class="pokkok-btn pokkok-nav-btn" data-act="navUp" title="더 크게 (부모)">
                         ${ICON_UP}<span>더 크게</span>
@@ -911,11 +964,19 @@
                     <button class="pokkok-btn pokkok-nav-btn" data-act="navDown" title="더 작게 (자식)">
                         ${ICON_DOWN}<span>더 작게</span>
                     </button>
+                    <button class="pokkok-btn pokkok-nav-btn" data-act="childPick" title="자식 목록에서 선택">
+                        ${ICON_TREE}<span>자식 선택</span>
+                    </button>
                 </div>
 
-                <button class="pokkok-btn pokkok-similar" data-act="findSimilar" data-ref="simBtn" title="비슷한 속성·치수를 가진 요소 찾기">
-                    ${ICON_SIMILAR}<span>유사 요소 찾기</span>
-                </button>
+                <div class="pokkok-nav">
+                    <button class="pokkok-btn pokkok-similar" data-act="findSimilar" data-ref="simBtn" title="비슷한 속성·치수를 가진 요소 찾기">
+                        ${ICON_SIMILAR}<span>유사 요소 찾기</span>
+                    </button>
+                    <button class="pokkok-btn pokkok-nav-btn" data-act="extractUrl" title="이 요소(또는 상위)의 링크·이미지 URL 추출">
+                        ${ICON_LINK}<span>URL 추출</span>
+                    </button>
+                </div>
 
                 <div class="pokkok-act">
                     <button class="pokkok-btn" data-act="toggleHide" data-ref="hideBtn" title="페이지에서 임시로 숨겨 미리보기">
@@ -943,10 +1004,29 @@
         attachRefs() {
             const t = this.dom.tool;
             this.dom.rec = t.querySelector('[data-ref="rec"]');
+            this.dom.slider = t.querySelector('[data-ref="slider"]');
+            this.dom.sliderWrap = t.querySelector('[data-ref="sliderWrap"]');
             t.querySelectorAll('[data-act]').forEach(el => {
                 const evt = (el.tagName === 'INPUT' && el.type === 'checkbox') ? 'change' : 'click';
                 el.addEventListener(evt, (e) => { e.stopPropagation(); this.trigger(el.getAttribute('data-act'), el, e); });
             });
+            if (this.dom.slider) {
+                this.dom.slider.addEventListener('input', (e) => { e.stopPropagation(); this._onSlide(e); });
+                this.dom.slider.addEventListener('pointerdown', (e) => e.stopPropagation());
+            }
+        }
+
+        _syncSlider() {
+            if (!this.dom.slider || !this.dom.sliderWrap) return;
+            if (!this.state.target || this.state.hierarchy.length < 2) {
+                this.dom.sliderWrap.hidden = true;
+                return;
+            }
+            const lim = this._sliderLimits();
+            this.dom.sliderWrap.hidden = false;
+            this.dom.slider.min = lim.min;
+            this.dom.slider.max = lim.max;
+            this.dom.slider.value = lim.val;
         }
 
         refreshRec() {
@@ -956,6 +1036,7 @@
             if (!sel) {
                 rec.innerHTML = '<div class="pokkok-rec-empty">요소를 선택하면 여기에 표시됩니다</div>';
                 this._setActionsEnabled(false);
+                this._syncSlider();
                 return;
             }
             const n = SelectorStrategies.countMatches(sel);
@@ -973,12 +1054,13 @@
             });
             this._setActionsEnabled(true);
             this._syncHideLabel();
+            this._syncSlider();
         }
 
         _setActionsEnabled(on) {
             const t = this.dom.tool;
             if (!t) return;
-            ['block','toggleHide','navUp','navDown','findSimilar'].forEach(a => {
+            ['block','toggleHide','navUp','navDown','childPick','findSimilar','extractUrl'].forEach(a => {
                 const b = t.querySelector(`[data-act="${a}"]`);
                 if (b) b.disabled = !on;
             });
@@ -1033,8 +1115,26 @@
             this.clearPinned();
             this.clearSimHighlight();
             this.state.target = el;
+            this._buildHierarchy(el);
             this.state.selector = SelectorStrategies.best(el) || '';
             this.setFocus(el);
+            this.refreshRec();
+        }
+
+        // 슬라이더 체인을 보존하면서 선택만 옮김 (navUp/navDown/자식선택용)
+        selectNodeKeepChain(el) {
+            if (!el || !el.tagName) return;
+            this.clearHide();
+            this.clearPinned();
+            this.clearSimHighlight();
+            this.state.target = el;
+            if (!this.state.hierarchy.includes(el)) {
+                // 체인 밖으로 나가면 새 체인 구성
+                this._buildHierarchy(el);
+            }
+            this.state.selector = SelectorStrategies.best(el) || '';
+            this.setFocus(el);
+            el.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
             this.refreshRec();
         }
 
@@ -1056,6 +1156,74 @@
             this.state.previewNodes = [];
         }
 
+        // ── 자식 목록에서 선택 ──
+        showChildPicker() {
+            const ref = this.state.target;
+            if (!ref) { this.flashToast('먼저 요소를 선택하세요'); return; }
+            const children = this.resolveChildren(ref);
+            if (!children.length) { this.flashToast('하위 요소가 없습니다'); return; }
+            const body = this.modal.display('자식 요소 선택', '', true);
+            const rows = children.map((c, i) => {
+                const tag = c.tagName.toLowerCase();
+                const id = c.id ? `#${c.id}` : '';
+                const cls = SelectorStrategies.meaningfulClasses(c).slice(0, 2).map(x => '.' + x).join('');
+                const txt = (c.textContent || '').trim().slice(0, 24);
+                return `
+                <label class="pokkok-child-item" data-i="${i}">
+                    <code>${esc(tag + id + cls)}</code>
+                    <span class="pokkok-child-txt">${esc(txt)}</span>
+                </label>`;
+            }).join('');
+            body.innerHTML = `
+                <div style="opacity:.75;font-size:12px;margin-bottom:8px;line-height:1.5">
+                    <code>${esc(ref.tagName.toLowerCase())}</code>의 직계 자식 ${children.length}개입니다. 탭하면 그 요소로 들어갑니다.
+                </div>
+                <div class="pokkok-child-list">${rows}</div>`;
+            const list = body.querySelector('.pokkok-child-list');
+            list.querySelectorAll('.pokkok-child-item').forEach(li => {
+                const i = parseInt(li.dataset.i, 10);
+                const node = children[i];
+                li.addEventListener('mouseenter', () => { if (node) node.classList.add('pokkok-hl-pinned'); });
+                li.addEventListener('mouseleave', () => { if (node) node.classList.remove('pokkok-hl-pinned'); });
+                li.addEventListener('click', () => {
+                    if (!node) return;
+                    node.classList.remove('pokkok-hl-pinned');
+                    if (!this.state.hierarchy.includes(node)) this.state.hierarchy.push(node);
+                    this.selectNodeKeepChain(node);
+                    this.modal.dismiss();
+                });
+            });
+        }
+
+        // ── URL 추출 (선택 요소부터 위로 5단계 탐색) ──
+        extractUrl() {
+            let el = this.state.target;
+            if (!el) { this.flashToast('먼저 요소를 선택하세요'); return; }
+            let found = null;
+            for (let i = 0; i < 5 && el; i++) {
+                const cand = el.getAttribute?.('href') || el.getAttribute?.('src') ||
+                             el.getAttribute?.('data-src') || el.getAttribute?.('data-original') ||
+                             el.getAttribute?.('poster');
+                if (cand && !DUMMY_HREF_VALUES.has(cand.trim())) { found = cand; break; }
+                try {
+                    const bg = window.getComputedStyle(el).backgroundImage;
+                    const m = bg && bg.match(/url\((['"]?)(.*?)\1\)/);
+                    if (m && m[2] && m[2] !== 'none') { found = m[2]; break; }
+                } catch (_) {}
+                el = this.resolveParent(el);
+            }
+            if (!found) { this.flashToast('URL을 찾지 못했습니다'); return; }
+            let abs = found;
+            try { abs = new URL(found, location.href).href; } catch (_) {}
+            const body = this.modal.display('추출된 URL', '', true);
+            body.innerHTML = `
+                <div style="opacity:.75;font-size:12px;margin-bottom:8px">선택 요소(또는 상위 5단계 이내)에서 찾은 첫 URL입니다.</div>
+                <textarea class="pokkok-modal-input" rows="4" readonly>${esc(abs)}</textarea>
+                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-primary" data-ref="cp">복사</button></div>`;
+            const ta = body.querySelector('textarea');
+            body.querySelector('[data-ref="cp"]').addEventListener('click', () => { this.copyText(ta.value); this.flashToast('URL 복사됨'); });
+            ta.focus(); ta.select();
+        }
         clearSimHighlight() {
             for (const n of this.state.simNodes) n.classList.remove('pokkok-hl-sim');
             this.state.simNodes = [];
@@ -1468,9 +1636,11 @@
                 case 'settings': this.showSettings(); break;
                 case 'rules': this.showRules(); break;
                 case 'startPick': this.startPicking(); break;
-                case 'navUp': { const p = this.resolveParent(this.state.target); if (p && p !== document.body) this.selectNode(p); else this.flashToast('더 상위 요소가 없습니다'); break; }
-                case 'navDown': { const c = this.resolveFirstChild(this.state.target); if (c) this.selectNode(c); else this.flashToast('더 하위 요소가 없습니다'); break; }
+                case 'navUp': { const p = this.resolveParent(this.state.target); if (p && p !== document.body) { if (!this.state.hierarchy.includes(p)) this.state.hierarchy.unshift(p); this.selectNodeKeepChain(p); } else this.flashToast('더 상위 요소가 없습니다'); break; }
+                case 'navDown': { const c = this.resolveFirstChild(this.state.target); if (c) { if (!this.state.hierarchy.includes(c)) this.state.hierarchy.push(c); this.selectNodeKeepChain(c); } else this.flashToast('더 하위 요소가 없습니다'); break; }
+                case 'childPick': this.showChildPicker(); break;
                 case 'findSimilar': this.findSimilar(); break;
+                case 'extractUrl': this.extractUrl(); break;
                 case 'block': this.doBlock(); break;
                 case 'toggleHide': {
                     const sel = this.state.selector;
@@ -1563,7 +1733,7 @@
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="resetPos">버튼 위치 초기화</button><button class="pokkok-btn" data-ref="clearPreview">미리보기 정리</button></div>
                     <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><span style="flex:1;font-weight:600;">규칙 백업</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="exportRules">내보내기</button><button class="pokkok-btn" data-ref="importRules">가져오기</button></div>
-                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게로 범위 조절 → 차단. "강화 모드"는 차단 활성 옆 체크로 켜고 끕니다(끈질긴 광고를 공간·잔여 스타일까지 강제 제거). "유사 요소 찾기"로 class·src·alt·title·:has(직계 자식)·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 기준 목록이 길면 스크롤하세요. iframe 광고는 iframe 박스 자체를 선택해 차단하세요. 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다.</small></div>
+                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게 또는 슬라이더로 범위 조절, "자식 선택"으로 하위 요소를 목록에서 고르기 → 차단. "URL 추출"은 선택 요소(또는 상위 5단계)의 링크·이미지 주소를 뽑아냅니다. "강화 모드"는 차단 활성 옆 체크로 켜고 끕니다(끈질긴 광고를 공간·잔여 스타일까지 강제 제거). "유사 요소 찾기"로 class·src·alt·title·:has(직계 자식)·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다.</small></div>
                 </div>`;
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => { this.state.iconPos = null; this.state.panelPos = null; this.applyPosition(); this.flashToast('위치 초기화됨'); });
             body.querySelector('[data-ref="clearPreview"]').addEventListener('click', () => { this.clearPinned(); this.clearHide(); this.clearSimHighlight(); this.flashToast('미리보기 정리됨'); this._syncHideLabel(); });
@@ -1690,10 +1860,14 @@
     .pokkok-rec-count { font-size: 11px; opacity: 0.6; flex: 1; }
     .pokkok-rec-sel { font-family: ui-monospace, monospace; font-size: 12px; color: #9ecbff; word-break: break-all; line-height: 1.4; user-select: text; -webkit-user-select: text; }
 
+    .pokkok-slider-wrap { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; padding: 8px 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
+    .pokkok-slider-label { font-size: 11px; opacity: 0.6; }
+    .pokkok-slider { width: 100%; accent-color: #8b5cf6; height: 28px; cursor: pointer; touch-action: none; }
+
     .pokkok-nav { display: flex; gap: 6px; margin-bottom: 10px; }
     .pokkok-nav-btn { flex: 1; min-height: 42px; justify-content: center; }
 
-    .pokkok-similar { width: 100%; min-height: 42px; justify-content: center; margin-bottom: 10px; background: rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.4); }
+    .pokkok-similar { flex: 1; min-height: 42px; justify-content: center; background: rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.4); }
     .pokkok-similar:hover { background: rgba(139,92,246,0.3); }
 
     .pokkok-act { display: flex; gap: 6px; margin-bottom: 10px; }
@@ -1705,6 +1879,12 @@
     .pokkok-toggle input { cursor: pointer; width: 18px; height: 18px; }
     .pokkok-toggle-agg { opacity: 0.92; }
     .pokkok-stat { margin-left: auto; opacity: 0.55; font-size: 11px; }
+
+    .pokkok-child-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+    .pokkok-child-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; min-height: 42px; background: rgba(255,255,255,0.04); border-radius: 6px; cursor: pointer; }
+    .pokkok-child-item:hover { background: rgba(139,92,246,0.2); }
+    .pokkok-child-item code { font-size: 11px; color: #9ecbff; white-space: nowrap; }
+    .pokkok-child-txt { margin-left: auto; opacity: 0.5; font-size: 11px; word-break: break-all; text-align: right; }
 
     .pokkok-sim-opts { display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-right: 2px; }
     .pokkok-sim-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 10px 12px; min-height: 44px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; color: #e8eaed; cursor: pointer; font-size: 13px; text-align: left; flex-shrink: 0; }
