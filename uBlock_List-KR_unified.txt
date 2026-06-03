@@ -1,6 +1,6 @@
-! Title: List-KR classic filters list (uBO)
-! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20603.1
+! Title: List-KR unified filters list (uBlock Origin)
+! Description: uBlock Origin용 List-KR 통합 필터 리스트입니다. 한국어권 및 국제 웹 페이지 및 앱에 있는 광고, 트래커, 방해 요소와 안티 애드블록을 차단합니다.
+! Version: 2026.20606.3
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
@@ -3730,8 +3730,8 @@ checkwhoiam.tistory.com##+js(set, adblockChecker, noopFunc)
 kilho.net###detect-alert
 vod.jtbc.co.kr#@#.ad-unit:not(.textads)
 vod.jtbc.co.kr#@#.ad-zone:not(.textads)
-news.jtbc.co.kr##+js(spoof-css, .ad-banner.adsbox.ad-unit.ad-zone, display, block)
-||imasdk.googleapis.com/js/sdkloader/ima3.js$redirect=google-ima.js,domain=vod.jtbc.co.kr|news.jtbc.co.kr|mvod.jtbc.co.kr|tv.jtbc.co.kr
+onair.jtbc.co.kr,news.jtbc.co.kr##+js(spoof-css, .ad-banner.adsbox.ad-unit.ad-zone, display, block)
+||imasdk.googleapis.com/js/sdkloader/ima3.js$redirect=google-ima.js,domain=vod.jtbc.co.kr|news.jtbc.co.kr|mvod.jtbc.co.kr|tv.jtbc.co.kr|onair.jtbc.co.kr
 minipol.tistory.com##+js(set, checkAdBlock, undefined)
 @@||securepubads.g.doubleclick.net/tag/js/gpt.js$domain=start.klauncher.kr,script
 tabriz.kr#@##AdHeader
@@ -3820,6 +3820,16 @@ lover932.net,lover933.net,lover934.net,lover935.net,lover936.net,lover937.net,lo
 
 ||newspic.kr^$removeparam=cp
 auto.danawa.com##+js(set, NAVER_ADPOST_V2, noopFunc)
+
+||litt.ly/api/blockevents
+||ridibooks.com^$removeparam=_rdt_sid
+||ridibooks.com^$removeparam=_rdt_idx
+||ridibooks.com^$removeparam=_rdt_arg
+
+
+www.naver.com###whale-banner
+
+
 !#endif
 
 !#if cap_user_stylesheet
@@ -4050,8 +4060,416 @@ apycsports.com#$#.copas_btn { display: none !important; }
 2cpu.co.kr#$#header .row[style] { margin-bottom: 35px !important; }
 sign.dcinside.com#$#.login_inputbox { width: 100% !important; }
 !#endif
+
+
+
+
 !#endif
 
 !#if cap_html_filtering
 heye.kr##^script:has-text(/window\.open\([^)]*\);\s*\w+\.focus/)
+
+
+
+
 !#endif
+
+*_ad_$media,domain=youtube.com,3p
+tv.youtube.com##+js(trusted-replace-xhr-response, '"adPlacements"', '"no_ads"', /playlist\?list=|\/player(?:\?.+)?$|watch\?[tv]=/)
+!#if !cap_html_filtering
+www.youtube.com##+js(trusted-replace-xhr-response, /"adPlacements.*?([A-Z]"\}|"\}{2\,4})\}\]\,/, , /playlist\?list=|\/player(?:\?.+)?$|watch\?[tv]=/)
+www.youtube.com##+js(trusted-replace-xhr-response, /"adPlacements.*?("adSlots"|"adBreakHeartbeatParams")/gms, $1, /\/player(?:\?.+)?$/)
+www.youtube.com##+js(trusted-replace-fetch-response, '"adPlacements"', '"no_ads"', player?)
+www.youtube.com##+js(trusted-replace-fetch-response, '"adSlots"', '"no_ads"', player?)
+!#else
+||www.youtube.com/playlist?list=$xhr,1p,replace=/"adPlacements"/"no_ads"/
+||www.youtube.com/playlist?list=$xhr,1p,replace=/"adSlots"/"no_ads"/
+||www.youtube.com/watch?$xhr,1p,replace=/"adPlacements"/"no_ads"/
+||www.youtube.com/watch?$xhr,1p,replace=/"adSlots"/"no_ads"/
+||www.youtube.com/youtubei/v1/player?$xhr,1p,replace=/"adPlacements"/"no_ads"/
+||www.youtube.com/youtubei/v1/player?$xhr,1p,replace=/"adSlots"/"no_ads"/
+!#endif
+m.youtube.com,music.youtube.com,tv.youtube.com,www.youtube.com,youtubekids.com,youtube-nocookie.com##+js(set, ytInitialPlayerResponse.playerAds, undefined)
+m.youtube.com,music.youtube.com,tv.youtube.com,www.youtube.com,youtubekids.com,youtube-nocookie.com##+js(set, ytInitialPlayerResponse.adPlacements, undefined)
+m.youtube.com,music.youtube.com,tv.youtube.com,www.youtube.com,youtubekids.com,youtube-nocookie.com##+js(set, ytInitialPlayerResponse.adSlots, undefined)
+m.youtube.com,music.youtube.com,tv.youtube.com,www.youtube.com,youtubekids.com,youtube-nocookie.com##+js(set, playerResponse.adPlacements, undefined)
+m.youtube.com,music.youtube.com,youtubekids.com,youtube-nocookie.com##+js(json-prune, playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots important)
+youtube.com##.ytlr-horizontal-list-renderer__items > .yt-virtual-list__container > .yt-virtual-list__item--visible.yt-virtual-list__item--selected.yt-virtual-list__item:has-text(Ad)
+||googlevideo.com/initplayback?source=youtube&*c=TVHTML5&*oad=$xhr,domain=youtube.com
+m.youtube.com,music.youtube.com,tv.youtube.com,www.youtube.com,youtubekids.com,youtube-nocookie.com##+js(json-prune-fetch-response, reelWatchSequenceResponse.entries.[-].command.reelWatchEndpoint.adClientParams.isAd entries.[-].command.reelWatchEndpoint.adClientParams.isAd, , propsToMatch, url:/reel_watch_sequence?)
+m.youtube.com,music.youtube.com,tv.youtube.com,www.youtube.com,youtubekids.com,youtube-nocookie.com##+js(json-prune, entries.[-].command.reelWatchEndpoint.adClientParams.isAd)
+||youtube.com/youtubei/v1/get_watch?$xhr,1p,replace=/"adPlacements"/"no_ads"/
+||youtube.com/youtubei/v1/get_watch?$xhr,1p,replace=/"adSlots"/"no_ads"/
+*$script,3p,denyallow=google.com|gstatic.com,domain=dailyuploads.net
+||contributor.google.com/scripts/*/loader.js$script,domain=citationmachine.net
+*$script,3p,denyallow=google.com|gstatic.com|polyfill.io,domain=playdede.us
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=clik.pw
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=mitly.us
+*$script,3p,denyallow=fastly.net|google.com|googleapis.com|gstatic.com|jsdelivr.net|jwpcdn.com,domain=imgcloud.pw
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|google.com|gstatic.com|recaptcha.net,domain=linkrex.net|linx.cc
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|fastly.net|fastlylb.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jsdelivr.net|jquery.com|jwpcdn.com|recaptcha.net|tawk.to,domain=cpmlink.net
+*$frame,denyallow=google.com|hcaptcha.com,domain=short.pe
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=linkshorts.*
+*$frame,denyallow=google.com,domain=dz4link.com
+*$script,3p,denyallow=facebook.net|google.com|gstatic.com|recaptcha.net,domain=dz4link.com
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=adsrt.*
+*$script,3p,denyallow=0gomovies.com.tr|cloudflare.com|cloudflare.net|cloudfront.net|disqus.com|disquscdn.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jquery.com|jsdelivr.net|mega.nz|recaptcha.net|somoskudasai.com,domain=animeflv.*
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##.size-compact.Post:has([class*="promoted"])
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##div[id*="sidebar"][data-before-content="advertisement"]:upward(3)
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##div[class][data-before-content="advertisement"]:not([id])
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##div[class][data-before-content="Werbung"]:not([id])
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##[id^="t3"].promotedlink:upward(.rpBJOHq2PR60pnwJlUyP0 > div)
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|fastly.net|fastlylb.net|fluidplayer.com|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jquery.com|jsdelivr.net|recaptcha.net|twitter.com|x.com,domain=bdsmstreak.com
+*$frame,script,3p,denyallow=bootstrapcdn.com|cloudflare.com|cloudflare.net|fastly.net|fastlylb.net|getbootstrap.com|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jquery.com|recaptcha.net|serverable.com|zencdn.net,domain=porcore.com|zazzybabes.com
+*$script,3p,denyallow=bootstrapcdn.com|cloudflare.net|cloudfront.net|disqus.com|disquscdn.com|facebook.com|facebook.net|fastlylb.net|fbcdn.net|fontawesome.com|google.com|googleapis.com|gstatic.com|hwcdn.net|jquery.com|kisscartoon.info|sharethis.com|unpkg.com|watchcartoonsonline.info|wp.com,domain=kiss-anime.*
+*$script,3p,denyallow=cloudflare.com|google.com|gstatic.com|recaptcha.net,domain=shrt10.com
+*$frame,denyallow=google.com|hcaptcha.com,domain=uii.io
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|google.com|gstatic.com|jsdelivr.net|recaptcha.net|tawk.to,domain=payskip.org
+||youtube.com/get_video$media,redirect=noopmp4-1s,domain=games2rule.com
+*$frame,denyallow=google.com,domain=cutpaid.com
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=cutpaid.com
+*$script,3p,denyallow=9xbud.com|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|fastly.net|fastlylb.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jquery.com|jsdelivr.net|jwpsrv.com|plyr.io|twimg.com|twitter.com|recaptcha.net|x.com,domain=9xbuddy.*
+*$script,3p,denyallow=anmedm.com|cloudflare.net|cloudfront.net|disqus.com|disquscdn.com|facebook.net|fastlylb.net|fbcdn.net|google.com,domain=masteranime.tv
+*$script,3p,denyallow=bootstrapcdn.com|cloudflare.net|google.com|googleapis.com|gstatic.com|recaptcha.net|tawk.to|jsdelivr.net,domain=leechpremium.link
+*$script,3p,denyallow=cloudflare.com|google.com|googleapis.com|gstatic.com,domain=za.gl
+*$script,3p,denyallow=cloudflare.com|facebook.net|fbcdn.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|recaptcha.net,domain=dramacool9.*
+*$frame,denyallow=facebook.com|google.com|youtube.com,domain=foxseotools.com
+*$script,3p,denyallow=akamaiedge.net|cloudflare.com|facebook.net|fbcdn.net|google.com|googleapis.com|gstatic.com|pinterest.com|recaptcha.net,domain=foxseotools.com
+*$frame,denyallow=cloudflare.com|facebook.com|google.com|hcaptcha.com|youtube.com|jungleofferwall.com,domain=dutchycorp.*
+*$frame,denyallow=google.com,domain=shortearn.in
+*$script,3p,denyallow=cloudflare.com|google.com|gstatic.com|recaptcha.net,domain=shortearn.*
+*$script,3p,denyallow=cdn77.org|google.com|gstatic.com|recaptcha.net|smartsuppcdn.com|smartsuppchat.com,domain=pingit.*|~pingit.com
+*$script,3p,denyallow=cloudflare.net|fastly.net|google.com|googleapis.com|gstatic.com|jwpcdn.com|jsdelivr.net|eastream.net|youtube.com|ytimg.com,domain=vidfast.co
+*$script,3p,denyallow=bootstrapcdn.com|cloudflare.net|google.com|gstatic.com|hwcdn.net|jquery.com|jsdelivr.net|tawk.to,domain=okstream.*
+*$script,3p,denyallow=bootstrapcdn.com|cloudflare.com|cloudflare.net|cookieinfoscript.com|fastly.net|fastlylb.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jquery.com|recaptcha.net|setupcmp.com|sharethis.com,domain=sharemods.com
+*$frame,denyallow=cloudflare.com|facebook.com|google.com|hcaptcha.com|youtube.com,domain=fc.lc|fc-lc.com
+*$script,3p,denyallow=bootstrapcdn.com|cloudflare.com|cloudflare.net|google.com|gstatic.com|jsdelivr.net|recaptcha.net|tawk.to|wp.com,domain=fc.lc|fc-lc.com
+*$script,3p,denyallow=cloudflare.com|disqus.com|fastlylb.net|google.com|googleapis.com|gstatic.com|hwcdn.net|jquery.com|unpkg.com,domain=megavideo.*
+*$3p,denyallow=cloudflare.net|fontawesome.com|google.com|googleapis.com|gstatic.com|hwcdn.net|jquery.com|up-load.download,domain=up-load.io
+||adservice.google.com/adsid/integrator.js$script,redirect=noopjs,domain=973espn.com
+*$script,3p,denyallow=cloudflare.com|google.com|gstatic.com|recaptcha.net,domain=tmearn.*
+*$script,3p,denyallow=google.com|gstatic.com|hcaptcha.com|recaptcha.net,domain=mexa.sh
+||adservice.google.com/adsid/integrator.js$script,redirect=noopjs,domain=943thex.com
+*$script,3p,denyallow=bootstrapcdn.com|disqus.com|jsdelivr.net|jwpcdn.com|fastly.net|fastlylb.net|jquery.com|hwcdn.net|recaptcha.net|cloudflare.com|cloudflare.net|google.com|googleapis.com|gstatic.com,domain=movieshub.*
+*$script,3p,denyallow=101placeonline.com|bootstrapcdn.com|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|fastly.net|fastlylb.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jquery.com|jsdelivr.net|jwpcdn.com|recaptcha.net|sportscentral.io,domain=mlbstreams.to|nbastreams.to|nflbite.com|nflstreams.to|nhlstreams.to|soccerstreams.net
+||adservice.google.com/adsid/integrator.js$xhr,redirect=noopjs,domain=maxedtech.com
+||fundingchoicesmessages.google.com^$3p
+||sites.google.com/site/rvdmarcrailcatrain/home/tomber.js$script
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|google.com|googleapis.com|gstatic.com|jsdelivr.net,domain=pelispedia.*
+||youtube.com/embed/*$domain=1shortlink.com
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=iir.ai
+||google.com/adsense/domains/caf.js$script,redirect=noopjs,domain=jestrudo.pl
+*$frame,script,xhr,3p,denyallow=bootstrapcdn.com|cdn77.org|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|instagram.com|jquery.com|jsdelivr.net|jwpcdn.com|jwpsrv.com|plyr.io|twimg.com|twitter.com|recaptcha.net|wp.com|x.com,domain=btdb.*
+*$3p,denyallow=google.com|googleapis.com|gstatic.com,domain=uplinkto.*
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=miniurl.*
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=smoner.com
+!#if !ext_ubol
+*$script,xhr,3p,denyallow=ahcdn.com|ampproject.org|arc.io|b-cdn.net|blogger.com|bootstrapcdn.com|bunnycdn.ru|bytecdntp.com|cackle.me|chatango.com|cloudflare.com|cloudflare.net|cloudflarestorage.com|consentframework.com|disqus.com|disquscdn.com|dmca.com|doodcdn.io|ebacdn.com|embedstreams.top|facebook.com|facebook.net|fastcomments.com|fastly.net|fastlylb.net|fbcdn.net|fluidplayer.com|fontawesome.com|github.io|google.com|googleapis.com|graphcomment.com|gstatic.com|h-cdn.com|hcaptcha.com|hwcdn.net|ilfcdn.li|instagram.com|intensedebate.com|jquery.com|jsdelivr.net|jwpcdn.com|jwplatform.com|jwpsrv.com|linkvertise.com|media-amazon.com|media-imdb.com|pinterest.com|plyr.io|rabbitstream.net|recaptcha.net|rsc.cdn77.org|sharecast.ws|sharethis.com|shrink.pe|statically.io|staticfile.org|tawk.to|twimg.com|twitter.com|ulogin.ru|unpkg.com|userapi.com|vidazoo.com|vidembed.re|vixcloud.co|vk.com|vuukle.com|wp.com|x.com|yastatic.net|youaresoselfish.online|youtube.com|ytimg.com|zdassets.com|zencdn.net,domain=everia.club|files.im|filmpornofrancais.fr|gamesmountain.com|mangaplus.shueisha.tv|moredesi.com|nkiri.com|onlyfullporn.video|shueisharaw.tv|vjav.*
+!#else
+*$script,xhr,3p,denyallow=ahcdn.com|ampproject.org|arc.io|b-cdn.net|blogger.com|bootstrapcdn.com|bunnycdn.ru|bytecdntp.com|cackle.me|chatango.com|cloudflare.com|cloudflare.net|cloudflarestorage.com|consentframework.com|disqus.com|disquscdn.com|dmca.com|doodcdn.io|ebacdn.com|embedstreams.top|facebook.com|facebook.net|fastcomments.com|fastly.net|fastlylb.net|fbcdn.net|fluidplayer.com|fontawesome.com|github.io|google.com|googleapis.com|graphcomment.com|gstatic.com|h-cdn.com|hcaptcha.com|hwcdn.net|ilfcdn.li|instagram.com|intensedebate.com|jquery.com|jsdelivr.net|jwpcdn.com|jwplatform.com|jwpsrv.com|linkvertise.com|media-amazon.com|media-imdb.com|pinterest.com|plyr.io|rabbitstream.net|recaptcha.net|rsc.cdn77.org|sharecast.ws|sharethis.com|shrink.pe|statically.io|staticfile.org|tawk.to|twimg.com|twitter.com|ulogin.ru|unpkg.com|userapi.com|vidazoo.com|vidembed.re|vixcloud.co|vk.com|vuukle.com|wp.com|x.com|yastatic.net|youaresoselfish.online|youtube.com|ytimg.com|zdassets.com|zencdn.net,domain=everia.club|files.im|filmpornofrancais.fr|gamesmountain.com|mangaplus.shueisha.tv|moredesi.com|nkiri.com|onlyfullporn.video|shueisharaw.tv|vjav.com|vjav.tube
+!#endif
+*$script,3p,denyallow=aghtag.tech|agorahtag.tech|brid.tv|cloudflare.com|cloudflare.net|consensu.org|enetscores.com|etop.ro|facebook.net|fastly.net|fastlylb.net|fbcdn.net|fontawesome.com|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|instagram.com|jquery.com|jsdelivr.net|jwpcdn.com|mrf.io|onnetwork.tv|pahtzh.tech|quantcast.com|recaptcha.net|wall-street.ro|ziareromania.ro,domain=ziare.com|cancan.ro|ciao.ro|gandul.ro|prosport.ro|descopera.ro|csid.ro|raziculacrimi.ro|go4games.ro|wall-street.ro|9am.ro
+*$script,3p,denyallow=anycast.me|cloudflare.com|cloudflare.net|consensu.org|consentframework.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jquery.com|jsdelivr.net|mrf.io|priice.net|sirdata.fr|twitter.com|recaptcha.net|x.com,domain=lebigdata.fr|montjeuturf.net
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|consensu.org|facebook.net|fastly.net|fastlylb.net|fbcdn.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jquery.com|jsdelivr.net|jwpcdn.com|recaptcha.net|sharethis.com|tradingview.com|twitter.com|x.com,domain=beforeitsnews.com
+*$frame,3p,denyallow=google.com|gstatic.com,domain=txxx.*
+*$frame,3p,denyallow=google.com|gstatic.com,domain=hclips.com
+@@||ams.cdn.arkadiumhosted.com/advertisement/video/*/video-ads.js$script,domain=zone.msn.com
+*$script,3p,denyallow=cloudflare.com|crisp.chat|doodcdn.io|google.com|gstatic.com,domain=all3do.com|d0000d.com|d000d.com|d0o0d.com|do0od.com|do7go.com|dood.*|doods.*|dooodster.com|dooood.*|doply.net|ds2play.com|ds2video.com|dsvplay.com|vidply.com|vide0.net|vvide0.com|playmogo.com
+*$script,3p,denyallow=google.com|gstatic.com|hwcdn.net|jquery.com,domain=m1xdrop.com|m1xdrop.net|mixdrop23.net|mixdrop.*|mixdrp.*|~mixdrop.one|mixdroop.*|m1xdrop.bz
+*$script,3p,denyallow=google.com|gstatic.com,domain=advertape.net|streamtape.*|tpead.net|watchadsontape.com
+||dai.google.com/ondemand/dash/content/*/time-events.json$domain=goplay.be|play.tv
+@@||fundingchoicesmessages.google.com^$script,domain=arcai.com
+*$script,3p,denyallow=google.com|gstatic.com,domain=skidrowcodex.net
+*$script,3p,denyallow=blogger.com|bootstrapcdn.com|cloudflare.com|cloudflare.net|gitcdn.link|githack.com|google.com|googleapis.com|gstatic.com|recaptcha.net,domain=wwwfotografgotlin.blogspot.com
+*$3p,denyallow=bootstrapcdn.com|cloudflare.com|consensu.org|google.com|googleapis.com|gstatic.com|hcaptcha.com|jquery.com|jsdelivr.net|recaptcha.net,domain=link1s.*
+*$script,3p,denyallow=fluidplayer.com|google.com|gstatic.com|googleapis.com|recaptcha.net|hcaptcha.com|hwcdn.net,domain=momzr.com
+*$script,3p,domain=freewatchserialonline.com,denyallow=tvlogy.to|bootstrapcdn.com|disquscdn.com|disqus.com|fbcdn.net|facebook.net|fastly.net|fastlylb.net|jquery.com|hwcdn.net|hcaptcha.com|recaptcha.net|cloudflare.com|cloudflare.net|google.com|googleapis.com|gstatic.com|jwpcdn.com
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.net|fastlylb.net|fbcdn.net|fluidplayer.com|google.com|googleapis.com|gravatar.com|gstatic.com|hwcdn.net|jsdelivr.net|wp.com,domain=veranime.*|verhentai.*
+@@||redditstatic.com^*/xads.js$script,domain=reddit.com
+*$script,3p,denyallow=aechannel.com|ahacdn.me|rncdn7.com|disqus.com|jsdelivr.net|jwpcdn.com|fastly.net|fastlylb.net|jquery.com|hwcdn.net|recaptcha.net|cloudflare.com|cloudflare.net|google.com|googleapis.com|gstatic.com,domain=gayporno.fm
+*$script,3p,denyallow=fastly.net|google.com|googleapis.com|gstatic.com|h-cdn.com|javcdn.li,domain=javbangers.com
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|fastly.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|jsdelivr.net|recaptcha.net,domain=manga4life.com
+*$frame,script,3p,denyallow=cloudflare.com|cloudflare.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|jsdelivr.net|fastly.net|recaptcha.net,domain=mangasee123.com
+*$script,3p,denyallow=bootstrapcdn.com|disqus.com|jsdelivr.net|jwpcdn.com|fastly.net|fastlylb.net|jquery.com|hwcdn.net|recaptcha.net|cloudflare.com|cloudflare.net|google.com|googleapis.com|gstatic.com|facebook.net,domain=pendujatt.net
+*$frame,denyallow=google.com|recaptcha.net,domain=4cash.me
+*$script,3p,denyallow=google.com|googleapis.com|gstatic.com|recaptcha.net,domain=4cash.me
+*$script,3p,denyallow=cloudflare.com|codepen.io|consensu.org|google.com|googleapis.com|gstatic.com|hcaptcha.com|recaptcha.net,domain=shortzzy.*
+*$script,3p,denyallow=fbcdn.net|facebook.net|fastly.net|fastlylb.net|jquery.com|hwcdn.net|hcaptcha.com|recaptcha.net|cloudflare.com|cloudflare.net|google.com|googleapis.com|gstatic.com|wp.com|chatango.com,domain=fullmatchtv.com
+*$script,3p,denyallow=chatango.com|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|jquery.com|jsdelivr.net|jwpcdn.com|recaptcha.net|wp.com,domain=highporn.net
+*$script,3p,denyallow=fastly.net|fastlylb.net|jquery.com|hwcdn.net|hcaptcha.com|recaptcha.net|cloudflare.com|cloudflare.net|google.com|googleapis.com|gstatic.com,domain=13x4.com
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|google.com|gstatic.com|jsdelivr.net|hcaptcha.com|recaptcha.net,domain=shorttey.*
+*$script,3p,denyallow=cdn77.org|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|google.com|googleapis.com|gstatic.com|hcaptcha.com|hwcdn.net|instagram.com|jquery.com|jsdelivr.net|jwpsrv.com|plyr.io|twimg.com|twitter.com|recaptcha.net|wp.com|x.com,domain=hdmovieplus.*
+*$script,3p,denyallow=cdn77.org|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|fluidplayer.com|google.com|googleapis.com|gstatic.com|hwcdn.net|hcaptcha.com|instagram.com|jquery.com|jsdelivr.net|jwpcdn.com|jwpsrv.com|plyr.io|twimg.com|twitter.com|recaptcha.net|wankgod.com|wp.com|x.com,domain=xxgasm.com
+*$script,3p,denyallow=bootstrapcdn.com|cdn77.org|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|fluidplayer.com|google.com|googleapis.com|gstatic.com|hwcdn.net|hcaptcha.com|instagram.com|jquery.com|jsdelivr.net|jwpcdn.com|jwpsrv.com|plyr.io|twimg.com|twitter.com|recaptcha.net|wp.com|x.com,domain=xsober.com
+*$script,3p,denyallow=cdn77.org|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|fluidplayer.com|google.com|googleapis.com|gstatic.com|hwcdn.net|hcaptcha.com|instagram.com|jquery.com|jsdelivr.net|jwpcdn.com|jwpsrv.com|plyr.io|twimg.com|twitter.com|recaptcha.net|wp.com|x.com,domain=sexsaoy.com
+*$script,3p,denyallow=cdn77.org|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|fluidplayer.com|google.com|googleapis.com|gstatic.com|hwcdn.net|hcaptcha.com|instagram.com|jquery.com|jsdelivr.net|jwpcdn.com|jwpsrv.com|plyr.io|twimg.com|twitter.com|recaptcha.net|wp.com|x.com,domain=img4fap.*
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|fastlylb.net|google.com|googleapis.com|gstatic.com|fontawesome.com|jsdelivr.net,domain=elitetorrent.*
+||adservice.google.com/adsid/integrator.js$script,redirect=noopjs,domain=ultimateclassicrock.com
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=lite-link.*
+*$script,3p,denyallow=google.com|gstatic.com,domain=lewdninja.com|new.lewd.ninja
+*$script,3p,denyallow=cloudflare.com|google.com|gstatic.com,domain=miohentai.com
+*$script,3p,denyallow=google.com|gstatic.com,domain=kaplog.com
+*$3p,script,denyallow=facebook.net|fbcdn.net|googleapis.com|google.com|gstatic.com|recaptcha.net|hcaptcha.com,domain=adcorto.*
+*$frame,denyallow=google.com,domain=its.porn
+*$script,3p,denyallow=google.com|gstatic.com|recaptcha.net,domain=miklpro.com
+*$3p,script,denyallow=google.com|gstatic.com|recaptcha.net|hcaptcha.com,domain=ebookbb.com
+*$script,3p,denyallow=arc.io|bootstrapcdn.com|chatango.com|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|google.com|googleapis.com|gstatic.com|hwcdn.net|jquery.com|jsdelivr.net|jwplatform.com|jwpcdn.com|recaptcha.net,domain=ytanime.tv
+*$script,3p,denyallow=cloudflare.com|google.com|gstatic.com|recaptcha.net|hcaptcha.com,from=scnlog.me
+*$script,3p,denyallow=bootstrapcdn.com|cloudflare.net|consensu.org|fontawesome.com|google.com|gstatic.com|hwcdn.net|jquery.com|jsdelivr.net,domain=dropcoins.xyz|fastcoin.ga|faucetbr.tk|is2btc.com|quickclaims.*|swift4claim.com
+||fundingchoicesmessages.google.com/i/pub-$script,redirect=noopjs,domain=renault-club.cz
+*$script,3p,denyallow=ampproject.org|google.com|gstatic.com|recaptcha.net,domain=crazyblog.in
+*$3p,script,denyallow=arc.io|cloudflare.com|hcaptcha.com|google.com|gstatic.com|recaptcha.net,domain=cinemakottaga.*
+*$script,3p,denyallow=cloudflare.com|gcdn.co|google.com|gstatic.com|videocdn.name,domain=hog.*
+!#if env_mobile
+||m.youtube.com/*/ad.js$script
+!#endif
+*$script,3p,denyallow=cloudflare.com|google.com|gstatic.com,domain=itsguider.com
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##.adLinkBar:upward(article[style="z-index: 1;"])
+*$script,3p,denyallow=bootstrapcdn.com|google.com|googleapis.com|gstatic.com,domain=fx2.ink
+||google.com/adsense/start/images/favicon.ico$image,3p,redirect=32x32.png
+||ads.youtube.com/|$xhr,3p,redirect=noop.txt
+||ads.reddit.com/|$xhr,3p,redirect=noop.txt
+*$script,3p,denyallow=cloudfront.net|disqus.com|disquscdn.com|facebook.net|fastlylb.net|fbcdn.net|google.com|onesignal.com,domain=mangahub.io
+||youtube.com/embed/$frame,domain=bestcash2020.com
+@@||google.com^$frame,domain=bc.vc
+@@||ads.reddit.com/ads.js$script,1p
+!#if env_mobile
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##.XPromoBlockingModal
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##.m-blurred:style(filter: none !important;)
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##xpromo-new-nsfw-blocking-modal
+!#endif
+@@||fundingchoicesmessages.google.com$script,xhr,domain=kledgeb.blogspot.com
+google.com##[data-profile-url-path^="/localservices"]:has-text(/google screened/i)
+@@||fundingchoicesmessages.google.com/i/pub-$script,domain=adshnk.com
+@@||fundingchoicesmessages.google.com/f/$script,domain=adshnk.com
+@@||fundingchoicesmessages.google.com/i/pub-*$script,domain=soranews24.com
+@@||fundingchoicesmessages.google.com/f/$script,domain=soranews24.com
+*$3p,denyallow=b-cdn.net|cloudflare.com|dailymotion.com|dmcdn.net|facebook.com|facebook.net|fbcdn.net|fontawesome.com|google.com|googleapis.com|gstatic.com|iconfinder.com|jquery.com|llnwi.net|tmdb.org,domain=zone-telechargement.*
+@@||googleadapis.l.google.com^$xhr,domain=acorta-enlace.com|finanzasdomesticas.com
+||fundingchoicesmessages.google.com/i/pub$script,redirect=noopjs,domain=doctoraux.com|educationbluesky.com|hotkitchenbag.com|maths.media|maths.news|mathsspot.com|mathsstudio.com|mathstutor.life|now.gg|now.us|nowgg.lol|selfstudybrain.com|skibiditoilet.yourmom.eu.org|thewebsitesbridge.com|universityequality.com|virtualstudybrain.com|websitesball.com|websitesbridge.com|xn--31byd1i.net
+www.google.com##div[aria-label="Why this ad?"]:upward([data-pla="1"])
+*$script,3p,denyallow=bootstrapcdn.com|disqus.com|disquscdn.com|jsdelivr.net|jwpcdn.com|fastly.net|fastlylb.net|jquery.com|hwcdn.net|recaptcha.net|cloudflare.com|cloudflare.net|google.com|googleapis.com|gstatic.com,domain=torrentgalaxy.*
+||dai.google.com/ondemand/hls/content/*/time-events.json$domain=play.aetv.com|play.mylifetime.com
+*$frame,script,3p,denyallow=google.com|googleapis.com,domain=powstream.*|powlideo.*|povvvideo.*|powvdeo.*
+google.com##.D1fz0e
+@@||fundingchoicesmessages.google.com^$script,3p,domain=fplstatistics.co.uk
+||assets.msn.com/service/news/feed/pages/binghp?$xhr,3p,removeparam=wpopageid,domain=bing.com
+*$frame,3p,denyallow=google.com|recaptcha.net|xh.video,domain=fullxh.com|megaxh.com|seexh.com|unlockxh4.com|xhaccess.com|xhadult2.com|xhadult3.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster20.*|xhamster2.*|xhamster3.*|xhamster4.*|xhamster42.*|xhamster5.*|xhamster7.*|xhamster8.*|xhamsterporno.mx|xhbig.com|xhbranch5.com|xhchannel.com|xhdate.world|xhlease.world|xhmoon5.com|xhofficial.com|xhopen.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhspot.com|xhtotal.com|xhtree.com|xhvictory.com|xhwebsite.com|xhwebsite5.com|xhwide5.com
+*$script,3p,denyallow=b-cdn.net|blazingcdn.net|cdntrex.com|fastly.net|google.com|googleapis.com|gstatic.com|h-cdn.com|stackpathcdn.com,domain=porntrex.com
+||adservice.google.com^$script,redirect=noopjs,domain=yallo.tv
+@@||fundingchoicesmessages.google.com^$script,domain=formulatv.com
+||docs.google.com/forms/d/e/1FAIpQLSfQK0eGG1JJ2vRS267yFjTI4vAwJLQsM5rNhmMA0ks31luMtQ/formResponse?usp=pp_url&entry.670406098=*&submit=Submit$frame,3p,domain=scenexe2.io
+@@||fundingchoicesmessages.google.com/i/$script,domain=fplstatistics.com
+||fundingchoicesmessages.google.com^$xhr,important,domain=decrypt.day
+@@||fundingchoicesmessages.google.com^$script,domain=decrypt.day
+||dai.google.com/ssai/event/*/streams$xhr,domain=sbt.com.br
+||dai.google.com/linear/pods/$xhr,from=sbtnews.sbt.com.br
+@@||fundingchoicesmessages.google.com/f^$script,domain=teve2.com.tr
+!#if env_chromium
+*$script,3p,denyallow=blogger.com|facebook.net|fastlylb.net|fbcdn.net|google.com|googleapis.com|disqus.com|telegram.im|wp.com,domain=9xmovie.*
+$script,3p,denyallow=google.com|googleapis.com|gstatic.com,domain=9xlinks.*
+!#endif
+*$script,3p,denyallow=google.com|gstatic.com,domain=severeporn.com
+@@||fundingchoicesmessages.google.com^$script,xhr,domain=ytlarge.com
+||google.com/adsense/domains/caf.js^$script,redirect=noopjs
+!#if ext_ubol
+*$script,3p,denyallow=google.com|youtube.com|youtube-nocookie.com,domain=nunflix.org
+!#endif
+||msn.com/advertisement.ad.js$script,1p,important
+||aolcdn.com/ads/adswrappermsni.js$script,domain=msn.com,important
+msn.com##.extnativeaditem, .serversidenativead > h3
+msn.com##.colombiaintraarticleads
+msn.com##[data-aop="stripe.sponsored.navigation_stripenavigation"]:upward(2)
+!#if !env_mobile
+msn.com##[data-aop="stripe.store.navigation_stripenavigation"]:upward(2)
+!#endif
+!#if env_mobile
+msn.com##.stripenav:has(.adslabel):upward(2)
+!#endif
+msn.com##.todayshowcasead
+msn.com##.stripecontainer:has(.adslabel)
+msn.com##msft-article-card:not([class])
+!#if env_mobile
+msn.com##msft-article-card:not(.contentCard)
+!#endif
+www.msn.com##+js(json-prune-fetch-response, configs.*.properties.componentConfigs.slideshowConfigs.*.interstitialNativeAds, , propsToMatch, url:/config)
+www.msn.com##+js(json-prune-fetch-response, *, list.[].link.kicker, propsToMatch, /content/v1/cms/api/amp/Document)
+msn.com##.vd-ad
+msn.com##.gem-display-ad
+www.msn.com##+js(json-prune-fetch-response, properties.tiles.[-].isAd, , propsToMatch, /mestripewc/default/config)
+*$script,3p,denyallow=cdn77.org|cloudflare.com|cloudflare.net|disqus.com|disquscdn.com|facebook.com|facebook.net|fastly.net|fastlylb.net|fbcdn.net|fluidplayer.com|freeprivacypolicy.com|hcaptcha.com|hwcdn.net|jwpcdn.com|wp.com|google.com|googleapis.com|gstatic.com|instagram.com|jquery.com|jsdelivr.net|jwpsrv.com|sharethis.com|stackpathcdn.com|recaptcha.net|twitter.com|x.com,from=telepisodes.org
+*$frame,3p,denyallow=google.com,domain=pouvideo.*|povvideo.*|povw1deo.*|powvibeo.*|povwideo.*|powv1deo.*|powvideo.*|powvldeo.*|povvldeo.*|powcloud.*
+*$script,3p,denyallow=googleapis.com|google.com|gstatic.com,domain=povvldeo.*|povvldeo.lol|powcloud.*
+!#if ext_ubol
+*$frame,3p,denyallow=google.com,domain=powcloud.one
+*$script,3p,denyallow=googleapis.com|google.com|gstatic.com,domain=powcloud.one
+!#endif
+*$frame,script,3p,denyallow=cloudflare.com|google.com|googleapis.com|gstatic.com|hcaptcha.com|recaptcha.net,domain=sxyprn.*
+!#if ext_ubol
+*$frame,script,3p,denyallow=cloudflare.com|google.com|googleapis.com|gstatic.com|hcaptcha.com|recaptcha.net,domain=sxyprn.com|sxyprn.net
+!#endif
+*$script,3p,denyallow=apis.google.com,domain=zilla-xr.xyz
+zone.msn.com##+js(no-fetch-if, googlesyndication, length:40000-60000)
+www.msn.com##+js(no-fetch-if, googlesyndication, method:HEAD mode:no-cors)
+||google.com/adsense/search/ads.js$script,domain=smartworld.it,redirect=noopjs
+@@||fundingchoicesmessages.google.com/i/pub-$domain=kojodan.jp
+||fundingchoicesmessages.google.com/i/pub-$script,redirect=noopjs,domain=infomatricula.pt
+*$script,3p,denyallow=cloudflare.com|cloudflare.net|fastly.net|fastlylb.net|google.com|googleapis.com|gstatic.com|hwcdn.net|jquery.com|jsdelivr.net|jwplatform.com|jwpcdn.com|recaptcha.net|arc.io,domain=zpaste.net
+*$frame,denyallow=google.com,domain=slreamplay.*|streampiay.*
+!#if !env_mv3
+!#if !cap_html_filtering
+!#if env_firefox
+youtube.com##+js(json-prune, playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots legacyImportant)
+!#endif
+!#endif
+!#endif
+www.youtube.com##+js(trusted-rpnt, script, (function serverContract(), (()=>{if("YOUTUBE_PREMIUM_LOGO"===ytInitialData?.topbar?.desktopTopbarRenderer?.logo?.topbarLogoRenderer?.iconImage?.iconType||location.href.startsWith("https://www.youtube.com/tv#/")||location.href.startsWith("https://www.youtube.com/embed/"))return;const e=ytcfg.data_.INNERTUBE_CONTEXT.client.userAgent\,t=t=>{ytcfg.data_.INNERTUBE_CONTEXT.client.userAgent=t?e.replace?.(/(Mozilla\/5\.0 \([^)]+)/\,"$1; "+t):e}\,o=["channel"\,"lactmilli"];let r=!1\,n=o;document.addEventListener("DOMContentLoaded"\,(function(){const e=()=>{const e=document.getElementById("movie_player");if(!e||!window.location.href.includes("/watch?"))return void(n=o);const a=e.getPlayerResponse?.()\,s=e.getProgressState?.()\,i=e.getStatsForNerds?.();if(s&&s.duration>0&&(s.loaded<s.duration||s.duration-s.current>1)||a?.videoDetails?.isLive){if(!i?.debug_info?.startsWith?.("SSAP\, AD")){const o=a.videoDetails?.videoId\,s=a.playerConfig?.playbackStartConfig?.startSeconds??0\,l=e.getPlayerStateObject?.()?.isBuffering\,c=JSON.stringify(a.playabilityStatus?.errorScreen?.playerErrorMessageRenderer?.subreason?.runs);return void("UNPLAYABLE"===a?.playabilityStatus?.status&&!a?.playabilityStatus?.errorScreen?.playerErrorMessageRenderer?.playerCaptchaViewModel&&c?.includes?.("WEB_PAGE_TYPE_UNKNOWN")&&c?.includes?.("https://support.google.com/youtube/answer/3037019")?(n=n.slice(1)\,n.length>0?t(n[0]):t("")\,r=!1\,e.loadVideoById(o\,s)):0===n.length?(r=!1\,t("")):l&&"0.00 s"===i?.buffer_health_seconds&&"0x0"===i?.resolution&&r&&(t(n[0])\,r=!1\,e.loadVideoById(o\,s)))}s.duration>0&&e.seekTo?.(s.duration)}};e()\,new MutationObserver((()=>{e()})).observe(document\,{childList:!0\,subtree:!0})}))\,window.Map.prototype.has=new Proxy(window.Map.prototype.has\,{apply:(e\,t\,o)=>{if("onSnackbarMessage"===o?.[0]&&!r){const a=document.getElementById("movie_player");if(!a)return Reflect.apply(e\,t\,o);const s=a.getStatsForNerds?.()\,i=a.getPlayerStateObject?.()?.isBuffering\,l=a.getPlayerResponse?.()?.playbackTracking?.videostatsPlaybackUrl?.baseUrl;i&&"0.00 s"===s?.buffer_health_seconds&&"0x0"===s?.resolution&&n.length>0&&(l.includes("reloadxhr")&&(n=n.slice(1))\,r=!0)}return Reflect.apply(e\,t\,o)}});const a={apply:(e\,t\,o)=>{const r=o[0];return"function"==typeof r&&r.toString().includes("onAbnormalityDetected")&&(o[0]=function(){})\,Reflect.apply(e\,t\,o)}};window.Promise.prototype.then=new Proxy(window.Promise.prototype.then\,a)})();(function serverContract(), sedCount, 1)
+www.youtube.com##+js(trusted-json-edit-xhr-request, [?..userAgent*="channel"]..client[?.clientName=="WEB"]+={"clientScreen":"CHANNEL"}, propsToMatch, /player?)
+www.youtube.com##+js(trusted-json-edit-xhr-request, [?..userAgent*="lactmilli"]+={"params":"8AUB"}, propsToMatch, /player?)
+www.youtube.com##+js(trusted-json-edit-xhr-request, [?..userAgent*="lactmilli"]..playbackContext.contentPlaybackContext.lactMilliseconds="${now}", propsToMatch, /player?)
+www.youtube.com##+js(trusted-json-edit-xhr-request, [?..userAgent=/adunit|channel|lactmilli|instream|eafg/]..referer=repl({"regex":"$"\,"replacement":"#reloadxhr"}), propsToMatch, /player?)
+www.youtube.com##+js(nano-stb, [native code], 17000, 0.001)
+www.youtube.com##+js(json-prune-fetch-response, adPlacements adSlots playerResponse.adPlacements playerResponse.adSlots [].playerResponse.adPlacements [].playerResponse.adSlots, , propsToMatch, /player?)
+www.youtube.com##+js(json-prune-fetch-response, adPlacements adSlots playerResponse.adPlacements playerResponse.adSlots, , propsToMatch, /playlist?)
+www.youtube.com##+js(json-prune-xhr-response, adPlacements adSlots playerResponse.adPlacements playerResponse.adSlots [].playerResponse.adPlacements [].playerResponse.adSlots, , propsToMatch, /\/player(?:\?.+)?$/)
+tv.youtube.com##+js(trusted-replace-xhr-response, '"adPlacements"', '"no_ads"', /playlist\?list=|\/player(?:\?.+)?$|watch\?[tv]=/)
+!#if !cap_html_filtering
+www.youtube.com##+js(trusted-replace-xhr-response, /"adPlacements.*?([A-Z]"\}|"\}{2\,4})\}\]\,/, , /playlist\?list=|\/player(?:\?.+)?$|watch\?[tv]=/)
+www.youtube.com##+js(trusted-replace-xhr-response, /"adPlacements.*?("adSlots"|"adBreakHeartbeatParams")/gms, $1, /\/player(?:\?.+)?$/)
+www.youtube.com##+js(trusted-replace-fetch-response, '"adPlacements"', '"no_ads"', player?)
+www.youtube.com##+js(trusted-replace-fetch-response, '"adSlots"', '"no_ads"', player?)
+www.youtube.com##+js(trusted-replace-fetch-response, '"adSlots"', '"no_ads"', /^\W+$/)
+www.youtube.com##+js(rmnt, script, window\,"fetch")
+!#else
+||www.youtube.com/playlist?list=$xhr,1p,replace=/"adPlacements"/"no_ads"/
+||www.youtube.com/playlist?list=$xhr,1p,replace=/"adSlots"/"no_ads"/
+||www.youtube.com/watch?$xhr,1p,replace=/"adPlacements"/"no_ads"/
+||www.youtube.com/watch?$xhr,1p,replace=/"adSlots"/"no_ads"/
+||www.youtube.com/youtubei/v1/player?$xhr,1p,replace=/"adPlacements"/"no_ads"/
+||www.youtube.com/youtubei/v1/player?$xhr,1p,replace=/"adSlots"/"no_ads"/
+||youtube.com/youtubei/v1/get_watch?$xhr,1p,replace=/"adPlacements"/"no_ads"/
+||youtube.com/youtubei/v1/get_watch?$xhr,1p,replace=/"adSlots"/"no_ads"/
+www.youtube.com##^script[id]:has-text(window,"fetch")
+!#endif
+www.youtube.com##+js(trusted-prevent-dom-bypass, Node.prototype.appendChild, fetch)
+www.youtube.com##+js(trusted-prevent-dom-bypass, Node.prototype.appendChild, Request)
+www.youtube.com##+js(trusted-prevent-dom-bypass, Node.prototype.appendChild, JSON.parse)
+youtube.com##+js(json-prune, entries.[-].command.reelWatchEndpoint.adClientParams.isAd)
+youtube.com#@##player-ads
+www.youtube.com##+js(trusted-replace-fetch-response, '"adSlots"', '"no_ads"', /get_watch?)
+/\.googlevideo\.com\/videoplayback\?expire=(?:[02-9]\d+|1[1-68-9]\d+|17[1-7]\d+)&/$xhr,3p,method=get,domain=www.youtube.com
+||youtube.com/api/stats/atr?ns=*&ver=2&cmt=1.*&fs=0&*&euri&lact=$xhr,method=post,badfilter
+||analytics.google.com^$third-party
+||vortex.data.msn.com^
+||browser.events.data.msn.com^
+!+ NOT_PLATFORM(ext_chromium_mv3)
+www.youtube.com#%#//scriptlet('prevent-xhr', '/\/api\/stats\/atr\?.+?&rt=\d+\.\d+.+?&volume=\d+&cbr=.+?&fexp=v1%[-%0-9C]{300,}&.+?&muted=\d(&vis=3)?&docid=/ method:POST')
+reddit.com#%#//scriptlet('set-constant', 'navigator.sendBeacon', 'noopFunc')
+@@://analytics.google.com/analytics/$domain=analytics.google.com
+@@||play.google.com/log?$domain=meet.google.com
+@@||play.google.com/log?format=json$domain=news.google.com
+@@||google-analytics.com/analytics.js$domain=developers.google.com
+@@||trc.taboola.com/msn-msn/*$domain=msn.com
+@@||cdn.taboola.com/libtrc^$domain=msn.com
+@@||s.youtube.com/api/stats/playback?
+@@||google.com/usability/$domain=google.com,document
+@@||google-analytics.com/ga.js$domain=7digital.com|account.hirezstudios.com|aebn.net|aftonbladet.se|alatest.com|americanapparel.net|apps.facebook.com|asus.com|avast.com|babylon.com|bangbros.com|banshee.fm|billabong.com|billboard.com|bolha.com|bookadumpster.com|boostmobile.com|break.com|brobible.com|change.org|cinemassacre.com|comingsoon.net|everydayhealth.com|dailysteals.com|echo.msk.ru|ehow.com|eonline.com|filmweb.pl|fora.tv|fossil.com|foxsports.com.au|frequency.com|gasbuddy.com|globaltv.com|google.com|gumtree.com.au|hoerzu.de|imageshack.us|intellicast.com|jetbrains.com|jobsite.co.uk|justjared.com|juxtapoz.com|kaspersky.pl|kleinanzeigen.ebay.de|latimes.com|lemonfree.com|liptonicetea.com|logitech.com|lucasarts.com|mashable.com|medonet.pl|meetme.com|mevio.com|mommyish.com|newyorker.com|nme.com|nuts.co.uk|opendns.com|oyster.com|philips.com|photobucket.com|priceme.co.nz|salon.com|search.diy.com|seekingalpha.com|sundance.org|techbargains.com|tempe12.com|theblaze.com|thegrindstone.com|thevine.com.au|theweek.com|threatfire.com|timberland.com|tomshardware.com|tube8.com|tvunetworks.com|tweetgrid.com|umbro.com|videochart.net|weeworld.com|wonka.com|xda-developers.com|yellow.co.nz|youtube.com|zoo.org.au
+@@||msn.com/c.gif?rid=$image,domain=my.msn.com
+@@||google.com/js/gweb/analytics/$domain=google.com
+@@||google.com/js/gweb/analytics/doubletrack.js$domain=android.com
+@@||vod.olympics2010.msn.com/beacon?
+@@||sport.be.msn.com/javascripts/tracking/metriweb/spring.js
+||events-sandbox.data.msn.com^
+||conversions-config.reddit.com^
+||pixel-config.reddit.com^
+||error-tracking.reddit.com^
+||w3-reporting.reddit.com^
+||w3-reporting-nel.reddit.com^
+||alb.reddit.com^
+||analytics.msnbc.msn.com^
+||c.msn.com^
+||events.reddit.com^
+||pixel.reddit.com^
+||udc.msn.com^
+||analytics.google.com^$domain=analytics.google.com
+||d.reddit.com^
+||googleadapis.l.google.com^
+||ssl-google-analytics.l.google.com^
+||www-google-analytics.l.google.com^
+||play.google.com/newsstand/api/*/people/me/analytics^
+||embed.reddit.com/svc/shreddit/events
+||google.com/ccm/collect?
+||support.google.com/apis/logjourney
+||payments.google.com/gp/w/*/PaymentsPortals/web-reports?
+||payments.google.com/payments/jslogs?
+||google.com/async/ddllog
+||drive.google.com/drive/logImpressions|
+||scholar.google.com^$ping
+||google.com/pagead/1p-conversion/
+||reddit.com/static/pixel.png
+||youtube.com/pcs/activeview?xai=
+||reddit.com/svc/shreddit/perfMetrics
+||docs.google.com/forms/*/naLogImpressions^
+||mail.google.com^*/flushimpressions?
+||developers.google.com/_d/analytics-iframe
+||google.com/gsi/log?
+||msn.com/*/_log?
+||video.google.com/api/stats/
+||analytics.google.com/g/collect?
+||reddit.com/counters/$xmlhttprequest
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##a[href="#pixel"]
+||fcmatch.youtube.com/pixel
+||fcmatch.google.com/pixel
+msn.com##.trc_related_container
+msn.com##.tbla
+||arc.msn.com/*/Impression?PID=
+||google.com/apis/gpf_metrics?
+||google.com/images/phd/gfl.gif
+||google.com/images/phd/px.gif
+||msn.com/collect/
+||msn.com/ro.aspx?
+||msn.com/script/tracking*.js
+||msn.com/tracker/
+||msn.com^*/report.js
+||msn.com^*/track.js
+||msnbc.msn.com^*/analytics.js
+||r.msn.com^
+||rel.msn.com^
+||youtube.com/youtubei/v1/log_event?
+||youtube.com/api/stats/ads?
+||youtube.com/api/stats/qoe?fmt=
+||youtube.com/csi_204?
+||youtube.com/gen_204
+||youtube.com/player_204?
+||youtube.com/ptracking?html5=1&
+||google.com/log?$redirect=nooptext
+!+ PLATFORM(ios, ext_safari, ext_android_cb)
+||play.google.com/log?
+!#if (adguard_ext_chromium_mv3 || ext_ublock)
+$denyallow=usprobioticguide.com|rd.bizrate.com|glavnoe.life|redirects.tradedoubler.com|t.send.vt.edu|google.ad|google.ae|google.al|google.am|google.as|google.at|google.az|google.ba|google.be|google.bf|google.bg|google.bi|google.bj|google.bs|google.bt|google.by|google.ca|google.cat|google.cd|google.cf|google.cg|google.ch|google.ci|google.cl|google.cm|google.cn|google.co.ao|google.co.bw|google.co.ck|google.co.cr|google.co.id|google.co.il|google.co.in|google.co.jp|google.co.ke|google.co.kr|google.co.ls|google.co.ma|google.co.mz|google.co.nz|google.co.th|google.co.tz|google.co.ug|google.co.uk|google.co.uz|google.co.ve|google.co.vi|google.co.za|google.co.zm|google.co.zw|google.com|google.com.af|google.com.ag|google.com.ai|google.com.ar|google.com.au|google.com.bd|google.com.bh|google.com.bn|google.com.bo|google.com.br|google.com.bz|google.com.co|google.com.cu|google.com.cy|google.com.do|google.com.ec|google.com.eg|google.com.et|google.com.fj|google.com.gh|google.com.gi|google.com.gt|google.com.hk|google.com.jm|google.com.kh|google.com.kw|google.com.lb|google.com.ly|google.com.mm|google.com.mt|google.com.mx|google.com.my|google.com.na|google.com.nf|google.com.ng|google.com.ni|google.com.np|google.com.om|google.com.pa|google.com.pe|google.com.pg|google.com.ph|google.com.pk|google.com.pr|google.com.py|google.com.qa|google.com.sa|google.com.sb|google.com.sg|google.com.sl|google.com.sv|google.com.tj|google.com.tr|google.com.tw|google.com.ua|google.com.uy|google.com.vc|google.com.vn|google.cv|google.cz|google.de|google.dj|google.dk|google.dm|google.dz|google.ee|google.es|google.fi|google.fm|google.fr|google.ga|google.ge|google.gg|google.gl|google.gm|google.gp|google.gr|google.gy|google.hn|google.hr|google.ht|google.hu|google.ie|google.im|google.iq|google.is|google.it|google.je|google.jo|google.kg|google.ki|google.kz|google.la|google.li|google.lk|google.lt|google.lu|google.lv|google.md|google.me|google.mg|google.mk|google.ml|google.mn|google.ms|google.mu|google.mv|google.mw|google.ne|google.nl|google.no|google.nr|google.nu|google.pl|google.pn|google.ps|google.pt|google.ro|google.rs|google.ru|google.rw|google.sc|google.se|google.sh|google.si|google.sk|google.sm|google.sn|google.so|google.sr|google.st|google.td|google.tg|google.tk|google.tl|google.tm|google.tn|google.to|google.tt|google.vg|google.vu|google.ws,removeparam=utm_campaign
+!#endif
+@@||msn.com^$app=msedgewebview2.exe,removeparam=ocid
+||reddit.com^$removeparam=entry_point
+||youtube.com/shorts/$removeparam=si
+||myaccount.google.com^$removeparam=source
+||reddit.com^$removeparam=target_user
+||reddit.com^$removeparam=%243p
+||reddit.com^$removeparam=%24deep_link
+||reddit.com^$removeparam=post_index
+||reddit.com^$removeparam=post_fullname
+||reddit.com^$removeparam=share_id
+||reddit.com^$removeparam=correlation_id
+||reddit.com^$removeparam=ref_campaign
+||reddit.com^$removeparam=ref_source
+||reddit.com^$removeparam=ref
+!+ PLATFORM(ext_ff)
+||reddit.com^$removeparam=rdt
+||msn.com^$removeparam=pc
+||msn.com^$removeparam=ei
+$removeparam=cvid,domain=microsoft.com|msn.com|bing.com,document
+$removeparam=embeds_referring_euri,domain=youtubekids.com|youtube-nocookie.com|youtube.com
+$removeparam=embeds_referring_origin,domain=youtubekids.com|youtube-nocookie.com|youtube.com
+$removeparam=source_ve_path,domain=youtubekids.com|youtube-nocookie.com|youtube.com
+||youtube.com^$removeparam=pp
+||play.google.com^$removeparam=pcampaignid
+$removeparam=ocid,document,domain=msn.com
