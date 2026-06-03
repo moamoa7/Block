@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260603
+! Version: 20260604
 !
 !
 !
@@ -284,6 +284,9 @@ naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
 ||ssl.pstatic.net/adimg3.search/adpost/js/
 ! - - - 네이버에서 내가 뭘 클릭하는지 감시하고 통계를 내는 '클릭 추적 신호(Ping)'를 중간에서 깔끔하게 차단해 버리는 규칙
 ||cc.naver.com/cc$ping
+! - 기타 해제
+! - - - 네이버 사이트(naver.com)에 접속해 있을 때, 네이버 정적 서버(ssl.pstatic.net)에서 불러오는 이미지나 스크립트가 광고로 오인되어 차단되는 일이 없도록 무조건 허용하라
+@@||ssl.pstatic.net^$from=naver.com
 !
 !
 ! 네이버 스토어 (https://smartstore.naver.com/)
@@ -509,14 +512,6 @@ www.twitch.tv###twilight-sticky-footer-root
 ! 틱톡 (https://www.tiktok.com/)
 @@||tiktok.com^$generichide
 ||mon.tiktokv.com^
-!
-!
-! WAVVE (https://www.wavve.com/)
-! - 본인 인증시 필요
-!member.wavve.com#@#.popup
-! - - - ##[class^="ad" i] 해제 (성인 인증시 내용 안보임)
-!member.wavve.com#@#[class^="ad" i]
-!pcc.siren24.com#@#[class^="ad" i]
 !
 !
 ! 다음 (https://www.daum.net/)
@@ -764,6 +759,8 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - 로딩중 글자
 ! - - - (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 theqoo.net##.theqoo-counter
+! - 기타
+/counter.js^$script
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
@@ -1391,13 +1388,26 @@ netflix.com##div[class^=watch-video--][class*="-container "]:style(background-im
 !
 !
 ! 티빙 (https://www.tving.com/)
-!@@||tving.com^$generichide
+@@||tving.com^$generichide,image,xhr
 ! - 시청기록 남기기 (DNS에서 차단하면 해제 필요)
-@@||log.tving.com
+!@@||log.tving.com
+! - 배너 광고
+tving.com##.lists__slides-single
+! - 흘려다니는 가운데 배너
+tving.com##.py-8
+!  숏츠
+tving.com##.py-4.z-\[1\]
 !
 !
 ! 웨이브 (https://www.wavve.com/)
-!@@||wavve.com^$generichide
+@@||wavve.com^$generichide,image,script,xhr
+! - 본인 인증시 필요
+!member.wavve.com#@#.popup
+! - - - ##[class^="ad" i] 해제 (성인 인증시 내용 안보임)
+!member.wavve.com#@#[class^="ad" i]
+!pcc.siren24.com#@#[class^="ad" i]
+! - 베너
+wavve.com##.banner_2
 !
 !
 ! 쿠팡플레이 (https://www.coupangplay.com/)
@@ -1447,6 +1457,7 @@ poooo.ml#@#.ad
 ###viewCover
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
+@@||*.online^$third-party,domain=/(tvwiki)[0-9]+\.net/
 ! - 로딩 동그라마
 !##.iframe-loading-spinner - ##[class="iframe-loading"]로 대체
 ! - - - https://ko.javfc2.live/
@@ -1516,7 +1527,7 @@ poooo.ml#@#.ad
 ![$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
 !
 !
-! 짭플릭스 (https://zzap202.com/)
+! 짭플릭스 (https://zzap202.com/) (https://zzap203.com)
 ! - 성인 글자
 ![$domain=/^zzap\d+.com/]##div.snb-list:nth-of-type(6)
 ! - 이미지 복원
@@ -1824,7 +1835,7 @@ ttattack.com###thema_wrapper
 [$domain=/^sbxh\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
 !
 !
-! 블랙툰 (https://blacktoon.cafe/) (https://blacktoonurl.net/) ( http://blacktoon.cc) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon411.com/)
+! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon411.com/)
 ! - 최신주소 안내페이지 배너 공간 ((https://www.blacktoonurl2.com/) )
 [$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 !
@@ -2498,7 +2509,9 @@ avsee.ru#@#.tabs
 !avsee.ru#@#[class*="floating" i]
 ! - 팝업 (새창) 방지
 j91.asia##+js(window.open-defuser)
-j91.asia^$popup
+! - 기타
+/cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
+||cdn.plyr.io^$important
 !
 !
 ! supjav (https://supjav.com/)
@@ -2508,6 +2521,8 @@ j91.asia^$popup
 ##[class*="slideAnimation" i]
 ! - 일부 영상 재생 차단 방지
 @@||p.jwpcdn.com^$script
+@@||ssl.p.jwpcdn.com/player/v/*/translations/*.json
+@@||tiktokcdn.com^$3p
 @@||p16-ad-sg.ibyteimg.com^
 @@tiktokcdn.com/obj/$xhr
 !nicholasbreakplan.com,fc2stream.tv#@#[class*="floating" i]
@@ -2518,6 +2533,11 @@ j91.asia^$popup
 ##[class*="ad-placement" i]
 ! - 팝업 유발하는 플레이어 차단
 ||bryantenunder.com^
+! - 기타
+||cpcstar.com^
+||imasdk.googleapis.com^$important
+||entitlements.jwplayer.com^$important
+||scraighpiano.cfd^
 !
 !
 ! https://javplayer.org/
@@ -2610,7 +2630,6 @@ javgg.net##.home_iframead
 !embed.streamxx.net#@#[class*="floating" i]
 ! - 팝업 (새창) 방지
 javgiga.com##+js(window.open-defuser)
-javgiga.com^$popup
 ! - 기타
 */tracking/*
 !
@@ -3116,7 +3135,8 @@ accounts.kakao.com#@#[src*="javascript"]
 missav.fans###b-a-b
 ! - 팝업 차단
 [$domain=/^missav\d*\./]##+js(window.open-defuser)
-/^https?:\/\/missav\d*\./$popup
+! - 로딩 문제 해결 (타 규칙 차단 해제)
+@@||recombee.com^
 !
 !
 ! https://popjav.in/
@@ -3287,9 +3307,6 @@ jamakyadong.me##[class*="g-col"]
 ! - 영상 상단 배너 공간
 !###main-banner
 !##[id*="main-banner" i]
-! -  예외
-! - - - Wavve (https://www.wavve.com/) - 배너 사라짐
-wavve.com#@#[id*="main-banner" i]
 !
 !
 ! 야동허브 (https://ydhub11.net/)
@@ -3494,8 +3511,6 @@ wavve.com#@#[id*="main-banner" i]
 !kilho.net#@#[class*="border"]:has(> a[href][target*="_blank"])
 ! - - - https://www.cnine.kr/ - 일부 박스내용 사라짐
 cnine.kr#@#[class*="border"]:has(> a[target*="_blank"])
-! - - - https://www.tving.com/ - 팝업 제거?
-#@#[class*="border"]:has(> a[target*="_blank"])
 ! - 상단 빈 공간 (PC/모바일 공통)
 !##.justify-start.flex-wrap.flex
 !  - 각 주제별 상단 빈 공간 (PC/모바일 공통)
@@ -4747,13 +4762,13 @@ hearheart.com##.mb-6.relative
 hearheart.com##section.relative
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto09.com/) (https://mato09.com/) (https://bookto09.com/)
+! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto10.com/) (https://mato10.com/) (https://bookto10.com/)
 ! - 이미지
-! - - - 뉴토끼 (https://newto09.com/)
+! - - - 뉴토끼 (https://newto10.com/)
 ||newto*.com/data/apms/*
-! - - - 마나토끼 (https://mato09.com/)
+! - - - 마나토끼 (https://mato10.com/)
 ||mato*.com/data/apms/*
-! - - - 북토끼 (https://bookto09.com/)
+! - - - 북토끼 (https://bookto10.com/)
 ||bookto*.com/data/apms/*
 !
 !
@@ -5000,6 +5015,16 @@ kbjfree.com##.min-h-\[52px\].mx-auto
 !
 !
 !
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !
 !
@@ -5065,6 +5090,8 @@ auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
 */ad-*
+! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
+@@||*/ad-*$domain=github.com
 !
 !
 ^ad|
@@ -5244,6 +5271,9 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 !
+!
+!
+!
 ! 기타
 ! - - -  https://glimmory.io/%ED%88%B0%EC%BD%94-%EC%B5%9C%EC%8B%A0%EC%A3%BC%EC%86%8C/
 ! - - - 배너
@@ -5280,7 +5310,8 @@ linkareer.com#@#[src*="advert" i]
 ##[href*="popup" i]
 ! - 예외 - 쿠팡플레이 (https://www.coupangplay.com/) - 라이브 시청하기 버튼 사라짐
 ! - 예외 -  에펨코리아 (https://www.fmkorea.com/) - 아바타 이미지 사라짐
-fmkorea.com,coupangplay.com#@#[href*="popup" i]
+! - 예외 - https://trand.co.kr/ - 즐겨찿기내 popup 들어간 링크 사라짐
+trand.co.kr,fmkorea.com,coupangplay.com#@#[href*="popup" i]
 
 
 ##[href*="pop-up" i]
@@ -5319,14 +5350,12 @@ accounts.kakao.com#@#[src*="popup" i]
 ! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
 ! - 예외 - https://map.naver.com/ - 팝업스토어 이미지 삭제
 ! - 예외 - https://today-sports9.com/ - 틀 깨짐
-! - 예외 - wavve (https://www.wavve.com/) - 작품 클릭시 시청화면으로 안넘어감
 @@||*popup*$css
 @@||*popup*$frame,domain=accounts.kakao.com
 @@||*popup*$image,domain=map.naver.com
 @@||*popup*$script,domain=/^today-sports\d*/
-@@||*popup*$script,domain=wavve.com
-! - 예외
-!  - -- https://www.wavve.com/ - 개별 구매시 (필요 해제 하지 말것)
+
+
 *pop-up*
 *pop_up*
 !*pop*up*
@@ -5408,8 +5437,6 @@ manhwabang.org##a[target*="target"] img
 ! - wixpress.com - 주소에 banner이 들어가지면 배너 아님 (일단 아래 2규칙 보류)
 !@@wixpress.com*banner*
 !@@siteassets.parastorage.com*banner*
-! - 예외 - https://www.wavve.com/ - 본문 안보임
-@@*banner*$css,script,domain=wavve.com
 
 
 
@@ -5445,12 +5472,10 @@ aniya24.com,t-browser.com,vexfile.com,[$domain=/^tkor/],[$domain=/^funbe/],etola
 ! - ZUM (https://zum.com/)
 ! - GS샵 (https://www.gsshop.com/)
 ! - 쿠팡플레이 (https://www.coupangplay.com/)
-! - 웨이브 (https://www.wavve.com/)
-! - 티빙 (https://www.tving.com/)
 ! - 숲토어 (https://sooptore.sooplive.com/)
 ! - 카카오TV (https://tv.kakao.com/)
 ! - 애니라이프 (https://anilife.app/)
-!auction.co.kr,coupang.com,shopping.naver.com,shoppinglive.naver.com,smartstore.naver.com,brand.naver.com,gmarket.co.kr,sungsimdangmall.co.kr,wadiz.kr,11st.co.kr,store.kakao.com,web.joongna.com,t2.xtoon365.com,kr.iherb.com,zum.com,gsshop.com,coupangplay.com,wavve.com,tving.com,sooptore.sooplive.com,tv.kakao.com,anilife.app#@#[class*="banner" i]
+!auction.co.kr,coupang.com,shopping.naver.com,shoppinglive.naver.com,smartstore.naver.com,brand.naver.com,gmarket.co.kr,sungsimdangmall.co.kr,wadiz.kr,11st.co.kr,store.kakao.com,web.joongna.com,t2.xtoon365.com,kr.iherb.com,zum.com,gsshop.com,coupangplay.com,sooptore.sooplive.com,tv.kakao.com,anilife.app#@#[class*="banner" i]
 ! - 트위치 (https://www.twitch.tv/) - 하지말아볼것
 
 !!! - 광역 2
