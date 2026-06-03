@@ -5010,6 +5010,11 @@ kbjfree.com##.min-h-\[52px\].mx-auto
 [$domain=/^red\d+.kr/]##[class*="notice"]
 !
 !
+! 여성경제신문 (https://www.womaneconomy.co.kr/)
+! - 기사내  배너 공간 (모바일)
+womaneconomy.co.kr##span.frame > em.auto-images
+!
+!
 !
 !
 !
