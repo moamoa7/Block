@@ -1,0 +1,67 @@
+name: Merge List-KR filters
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 매일 1회 (UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Merge uBlock Origin lists
+        run: |
+          BASE="https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist"
+          {
+            echo "[Adblock Plus 2.0]"
+            echo "! Title: List-KR Merged (uBlock Origin)"
+            echo "! Description: classic + normal + unified merged & deduped"
+            echo "! Updated: $(date -u)"
+          } > listkr-ublock.txt
+          for f in filterslist-uBlockOrigin-classic.txt filterslist-uBlockOrigin.txt filterslist-uBlockOrigin-unified.txt ; do
+            curl -fsSL "$BASE/$f" || echo "! WARN: failed $f"
+          done \
+            | sed 's/\r$//' \
+            | grep -v '^!' \
+            | grep -v '^\[' \
+            | grep -v '^[[:space:]]*$' \
+            | sort -u \
+            >> listkr-ublock.txt
+          echo "uBlock total lines: $(wc -l < listkr-ublock.txt)"
+
+      - name: Merge AdGuard lists
+        run: |
+          BASE="https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist"
+          {
+            echo "[Adblock Plus 2.0]"
+            echo "! Title: List-KR Merged (AdGuard)"
+            echo "! Description: classic + normal + unified merged & deduped"
+            echo "! Updated: $(date -u)"
+          } > listkr-adguard.txt
+          for f in filterslist-AdGuard-classic.txt filterslist-AdGuard.txt filterslist-AdGuard-unified.txt ; do
+            curl -fsSL "$BASE/$f" || echo "! WARN: failed $f"
+          done \
+            | sed 's/\r$//' \
+            | grep -v '^!' \
+            | grep -v '^\[' \
+            | grep -v '^[[:space:]]*$' \
+            | sort -u \
+            >> listkr-adguard.txt
+          echo "AdGuard total lines: $(wc -l < listkr-adguard.txt)"
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add listkr-ublock.txt listkr-adguard.txt
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update merged List-KR lists"
+            git push
+          fi
