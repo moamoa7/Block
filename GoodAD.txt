@@ -5022,7 +5022,7 @@ womaneconomy.co.kr##span.frame > em.auto-images
 mimint.co.kr##[class*="row"]:has([id="powerLinkList"])
 mimint.co.kr##li:has([id="powerLinkList"])
 ! - 게시물과 인기 게시물 사이 배너 공간
-mimint.co.kr##[id]:has([class="adsbygoogle"])
+mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
 ! - 이벤트
 mimint.co.kr##.event_right_new
 ! - 모바일 맨 밑 하단 고정되어있는 흰색 네모박스
