@@ -5015,6 +5015,18 @@ kbjfree.com##.min-h-\[52px\].mx-auto
 womaneconomy.co.kr##span.frame > em.auto-images
 !
 !
+! 마이민트 (https://www.mimint.co.kr/)
+! - 게시물 하단 배너 공간
+##.ads-container
+! - 게시물 목록 사이 공간
+mimint.co.kr##[class*="row"]:has([id="powerLinkList"])
+mimint.co.kr##li:has([id="powerLinkList"])
+! - 게시물과 인기 게시물 사이 배너 공간
+!mimint.co.kr##[id]:has([class="adsbygoogle"])
+##[id]:has([class="adsbygoogle"])
+! - 이벤트
+mimint.co.kr##.event_right_new
+!
 !
 !
 !
