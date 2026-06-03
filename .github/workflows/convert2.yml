@@ -14,12 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Run converter
-        run: python adblock_conver.py
+      - name: Download and convert
+        run: |
+          echo "! Title: Converted from Shadowrocket adblockplus.conf" > ublock.txt
+          echo "! Updated: $(date -u)" >> ublock.txt
+          curl -s https://raw.githubusercontent.com/tkgeeked/adblock-rule-plus/main/adblockplus.conf \
+          | grep '^DOMAIN-SUFFIX,' \
+          | awk -F',' '{print "||" $2 "^"}' \
+          >> ublock.txt
 
       - name: Commit result
         run: |
