@@ -1158,6 +1158,10 @@ ppomppu.co.kr###m_view_bottom_f_1
 ! - -  일부 광고글 삭제
 !ppomppu.co.kr##tr[id*="_list_ad_"]
 ppomppu.co.kr##tr.baseNotice:has-text(AD)
+! - 포롬내 AD 공지글 추가 삭제 (모바일) 
+m.ppomppu.co.kr##.mobile-ad-sponsor
+! - 공지 AD (모바일)
+m.ppomppu.co.kr###bbs_inform
 !
 !
 ! SLR (https://www.slrclub.com/)
@@ -1429,7 +1433,9 @@ poooo.ml##.h30
 poooo.ml#@#.ad
 !
 !
-! 티비위키 (https://tvwiki22.net/) / 티비몬 (https://tvmon1.com/) / 티비핫 (https://tvhot1.com/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwiki26.net/)
+! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/)
+! 티비핫 (https://tvhot1.com/)
 ! - 팝업 제거
 ##[id*="modal-overlay" i]
 ! - 배너 이미지
@@ -1443,6 +1449,7 @@ poooo.ml#@#.ad
 ! -  - 티비위키
 !##[id="bannerList" i]
 ###bannerList
+##.banner2
 ! -  - 티비몬
 !##[class*="row-banner" i]
 ! - 목록 위 위크 표시
@@ -1457,7 +1464,7 @@ poooo.ml#@#.ad
 ###viewCover
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
-@@||*.online^$third-party,domain=/(tvwiki)[0-9]+\.net/
+@@||*.online^$third-party,domain=/(tvwiki)[0-9]+\.net/|/(tvmon)[0-9]+\.com/|/(tvhot)[0-9]+\.com/
 ! - 로딩 동그라마
 !##.iframe-loading-spinner - ##[class="iframe-loading"]로 대체
 ! - - - https://ko.javfc2.live/
@@ -1476,16 +1483,18 @@ poooo.ml#@#.ad
 !||player.bunny-frame.online/js/ad_fetcher.js - */ad_ 로 대체
 !
 !
-! 티비착 (https://tvchak.org/)  (https://tvchak203.com/)  (https://tvchak.live/)
+! 티비착 (https://tvchak.org/)  (https://tvchak.live/)  (https://tvchak203.com/) 
 ! - 팝업
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 !tvchak.live##[class*="popup_mdd" i]
+! - 보증 안내 문구
+[$domain=/^tvchak\d*\./]##.hezuo_div1
 ! - 배너 공간
 ![$domain=/^tvchak\d+\.com$/],tvchak.live###advertiseMain
 ##[id*="advert" i]
 !
 !
-! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://ki.hoohootv407.xyz/)
+! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://ki.hoohootv408.xyz/)
 ! - 배너 빈 공간
 [$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 ! - 기타
