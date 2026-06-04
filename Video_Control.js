@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.0.4)
+// @name         Video_Control (v33.0.5)
 // @namespace    https://github.com/moamoa7
-// @version      33.0.4
-// @description  v33.0.4: CORS 무음(zeroes) 사후 감지 → OSD 안내
+// @version      33.0.5
+// @description  v33.0.5: 부스트트랩 오류 수정 - iframe 부스트 호출
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,7 +33,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.0.4';
+  const VSC_VERSION = '33.0.5';
   const DEBUG = true;
 
   const log = {
@@ -2786,23 +2786,12 @@
 
   // ===== 부트스트랩 =====
   function safeBootstrap() {
-    try {
-      if (window.top !== window.self) {
-        // iframe 내부에서는 비디오가 있을 때만 부트
-        const hasVideo = document.querySelector('video');
-        if (!hasVideo) {
-          // 잠시 후 재확인
-          setTimeout(() => {
-            if (document.querySelector('video')) bootstrap();
-          }, 1500);
-          return;
-        }
-      }
-      bootstrap();
-    } catch (e) {
-      log.error('bootstrap fail', e);
-    }
+  try {
+    bootstrap();
+  } catch (e) {
+    log.error('bootstrap fail', e);
   }
+}
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', safeBootstrap, { once: true });
