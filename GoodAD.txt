@@ -1531,7 +1531,7 @@ poooo.ml#@#.ad
 ||jsdelivr.net/npm/devtools-detector
 !
 !
-! 무비킹 (https://mvking.vip/
+! 무비킹 (https://t.me/s/mvking777)  (https://xn--v92b29c9uy.com/)  (https://mvking.vip/) - VPN으로만 접속 가능
  ! - 영상 위 배너
 ![$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
 !
@@ -3411,7 +3411,7 @@ jamakyadong.me##[class*="g-col"]
 ! - 팝업 - 4시간 동안 다시 열람하지 않습니다
 ! - - - PC
 !##[class*="popup-pc"]:not(html):not(body):not(article):not(main):not(section)
-##[class*="popup-pc" i]
+!##[class*="popup-pc" i]
 ! - - - 모바일
 ##.w-80.relative
 !
@@ -5036,6 +5036,12 @@ mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
 mimint.co.kr##.event_right_new
 ! - 모바일 맨 밑 하단 고정되어있는 흰색 네모박스
 m.mimint.co.kr###anchor-layer
+!
+!
+! 팝콘티비 (https://www.popkontv.com/)
+! - 일부 안보이는 문제 해결
+@@popkontv.com$xhr
+popkontv.com#@#[class*="img-box" i]
 !
 !
 !
