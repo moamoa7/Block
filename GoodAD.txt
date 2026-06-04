@@ -4997,9 +4997,9 @@ m.anewsa.com##div[style*="width:300px"]
 ! 일일툰 (https://www.11toon148.com/)
 ! 일일툰 (https://www.spotv147.com/)
 ! 최신만화  배너
-[$domain=/^www.spotv\d+.com/],[$domain=/^www.11toon\d+.com/]##li:has([style*="imageup"])
+/^(www\.)?(spotv|11toon)\d+\.com/##li:has([style*="imageup"])
 ! 떠잇는 주소 알리미
-[$domain=/^www.spotv\d+.com/],[$domain=/^www.11toon\d+.com/]##[class="new_quit"]
+/^(www\.)?(spotv|11toon)\d+\.com/##[class="new_quit"]
 !
 !
 ! 일일툰 K만화 (https://kmana10.net/)
@@ -5494,8 +5494,7 @@ manhwabang.org##a[target*="target"] img
 aniya24.com,t-browser.com,vexfile.com,etoland.co.kr#@#[class*="banner" i]
 /^tkor/#@#[class*="banner" i]
 /^funbe/#@#[class*="banner" i]
-/^11toon/#@#[class*="banner" i]
-/^spotv/#@#[class*="banner" i]
+/^(www\.)?(11toon|spotv)/#@#[class*="banner" i]
 
 
 
