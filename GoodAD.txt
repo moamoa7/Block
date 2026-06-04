@@ -1845,9 +1845,15 @@ ttattack.com###thema_wrapper
 [$domain=/^sbxh\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
 !
 !
-! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon411.com/)
+! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon412.com/)
 ! - 최신주소 안내페이지 배너 공간 ((https://www.blacktoonurl2.com/) )
+
 [$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
+! - 배너 이미지 주소
+||webimg*.com/*.png
+||webimg*.com/*.gif
+! - 상단 텍스트 배너
+[$domain=/^blacktoon\d*\./]##.alert-danger.alert
 !
 !
 ! 무료툰 (https://foc94.com/)
@@ -4145,7 +4151,7 @@ xn--9l4b15e2td.com##.widget-box
 ! - 중간 배너 공간
 ![$domain=/^linklove\d+.com/]##.miso-love-ad
 ! - - - https://adult.contents.fc2.com/ 오른쪽 PR 배너
-! - - - 엑스툰 (https://t3.xtoon365.com/) - 개별 만화 관람시
+! - - - 엑스툰 (https://t3.xtoon365.com/) - 개별 만화 관람시 ##.chapter-ad
 ! - - - https://javsubs91.uk/ - 영상 하단 배너
 ##[class$="-ad" i]
 !
@@ -5293,6 +5299,7 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 !
+!
 ==================================
 !
 !
@@ -5637,7 +5644,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 야스닷컴 (https://yasyadong.cc/)
 ! - - - 주소골라 (https://jusopick01.com/)
 ! - - - 조드 (https://zod.kr/)
-! - - - x툰 (https://t3.xtoon365.com/)
+! - - - 엑스툰 (https://t3.xtoon365.com/)
 ! - - - 토렌트쑥 (https://ssg2.torrentssg8.com/)
 ! - - - 툰코 (https://tkor123.com/) 
 !##a[href*='http'][target*='blank'] img
