@@ -209,6 +209,8 @@ www.youtube.com#@#.ytd-yoodle-renderer
 ! 유튜브 shorts 스티커 (유튜브는 신뢰로 되어있어 도메인 지정해야 적용)
 youtube.com##.sticker-layer.ytd-reel-video-renderer
 ##[class*="sticker" i]
+! - 예외 - https://poooo.ml/ - 채팅 이모니콘 안보임
+poooo.ml#@#[class*="sticker" i]
 !
 !
 ! wikipedia.org
