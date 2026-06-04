@@ -1451,7 +1451,6 @@ poooo.ml#@#.ad
 ! -  - 티비위키
 !##[id="bannerList" i]
 ###bannerList
-##.banner2
 ! -  - 티비몬
 !##[class*="row-banner" i]
 ! - 목록 위 위크 표시
@@ -4177,8 +4176,10 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 18모아 (https://18moa028.com/)
 ! - 이미지 복원
-[$domain=/^18moa\d+.com/]#@#[class*="banner" i]
-[$domain=/^18moa\d+.com/]##.banner
+!/^([\w-]+\.)?18moa\d+\.com$/#@#[class*="banner" i]
+/^(www\.)?18moa\d+\.com$/#@#[class*="banner" i]
+!/^([\w-]+\.)?18moa\d+\.com$/##.banner
+/^(www\.)?18moa\d+\.com$/##.banner
 !
 !
 ! 주소요 (https://jusoyo42.com/)
@@ -5453,12 +5454,15 @@ manhwabang.org##a[target*="target"] img
 
 ##[href*="banner" i]
 ! 18모아 (https://18moa028.com/)
-/^([\w-]+\.)?18moa\d+\.com$/#@#[href*="banner" i]
+!/^([\w-]+\.)?18moa\d+\.com$/#@#[href*="banner" i]
+/^(www\.)?18moa\d+\.com$/#@#[href*="banner" i]
 
 ##[src*="banner" i]
 ! 18모아 (https://18moa028.com/)
 ! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
-[$domain=/^t\d+.xtoon365.com/],/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
+[$domain=/^t\d+.xtoon365.com/]#@#[src*="banner" i]
+!/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
+/^(www\.)?18moa\d+\.com$/#@#[src*="banner" i]
 
 
 
