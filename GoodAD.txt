@@ -764,8 +764,6 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - 로딩중 글자
 ! - - - (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
 theqoo.net##.theqoo-counter
-! - 기타
-/counter.js^$script
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
@@ -1468,7 +1466,6 @@ poooo.ml#@#.ad
 ###viewCover
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
-@@||*.online^$third-party,domain=/(tvwiki)[0-9]+\.net/|/(tvmon)[0-9]+\.com/|/(tvhot)[0-9]+\.com/
 ! - 로딩 동그라마
 !##.iframe-loading-spinner - ##[class="iframe-loading"]로 대체
 ! - - - https://ko.javfc2.live/
@@ -2522,9 +2519,6 @@ avsee.ru#@#.tabs
 !avsee.ru#@#[class*="floating" i]
 ! - 팝업 (새창) 방지
 j91.asia##+js(window.open-defuser)
-! - 기타
-/cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-||cdn.plyr.io^$important
 !
 !
 ! supjav (https://supjav.com/)
@@ -2546,11 +2540,6 @@ j91.asia##+js(window.open-defuser)
 ##[class*="ad-placement" i]
 ! - 팝업 유발하는 플레이어 차단
 ||bryantenunder.com^
-! - 기타
-||cpcstar.com^
-||imasdk.googleapis.com^$important
-||entitlements.jwplayer.com^$important
-||scraighpiano.cfd^
 !
 !
 ! https://javplayer.org/
@@ -3148,8 +3137,6 @@ accounts.kakao.com#@#[src*="javascript"]
 missav.fans###b-a-b
 ! - 팝업 차단
 [$domain=/^missav\d*\./]##+js(window.open-defuser)
-! - 로딩 문제 해결 (타 규칙 차단 해제)
-@@||recombee.com^
 !
 !
 ! https://popjav.in/
@@ -4431,8 +4418,6 @@ dhlottery.co.kr##.band_banner
 !||ads-partners.coupang.com
 !trand.co.kr##[class*="widget" i]>table - ##[src*="/widgets/" i] 로 대체
 !##.list-ad 
-! - 기타 (일부 필터 차단 해제) - 링크 도메인 중 .online 문제 해결
-@@||*.online^$third-party,domain=trand.co.kr
 !
 !
 ! 스마트택배 (https://st.sweettracker.co.kr/)
@@ -5312,15 +5297,8 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 !
-!
-@@||gstatic.com^$3p
-@@||googleusercontent.com^$3p
-@@||googletagmanager.com^$3p
-@@://www3.doubleclick.net^|$xhr
-@@||t.me^
-
-
-!
+! - 모든 웹사이트에서 우클릭 방지나 이미지 저장 차단 스크립트를 무력
+*##section:remove-class(image-copy-protection)
 !
 !
 !
