@@ -5046,6 +5046,12 @@ m.mimint.co.kr###anchor-layer
 popkontv.com#@#[class*="img-box" i]
 !
 !
+! AVovo (https://01.avovo.net/)
+! - 상단 배너 공간 (별도의 이미지가 아직 없는 공간)
+[$domain=/^\d+.avovo.net/]##.h-auto.w-full
+!
+!
+!
 !
 !
 !
@@ -5485,7 +5491,11 @@ manhwabang.org##a[target*="target"] img
 ! - https://vexfile.com/ - 다운받는 본문 다 사라짐
 ! - https://t-browser.com/ - 본문 사라짐
 ! - 야애니24 (https://www.aniya24.com/) - 플레이어가 안나옴
-aniya24.com,t-browser.com,vexfile.com,[$domain=/^tkor/],[$domain=/^funbe/],etoland.co.kr,[$domain=/^www.11toon/],[$domain=/^www.spotv/]#@#[class*="banner" i]
+aniya24.com,t-browser.com,vexfile.com,etoland.co.kr#@#[class*="banner" i]
+/^tkor/#@#[class*="banner" i]
+/^funbe/#@#[class*="banner" i]
+/^11toon/#@#[class*="banner" i]
+/^spotv/#@#[class*="banner" i]
 
 
 
