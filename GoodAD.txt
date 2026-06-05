@@ -432,7 +432,7 @@ sooplive.com##.adballoon_icon
 ! - 기타
 ! - - - 사용자의 이용 패턴이나 활동을 기록/분석하는 로그 수집 차단
 ! - - - AdGuard Tracking Protection filter
-||sooplive.com/asset/service/common/common_analysis.js
+!||sooplive.com/asset/service/common/common_analysis.js
 ! - - - SOOP'에서 사용하는 광고 차단 탐지 및 광고 관련 데이터 통신을 막기 위한 규칙
 ! - - - AdGuard Tracking Protection filter
 !||st.sooplive.com/api/da_block_api.php
