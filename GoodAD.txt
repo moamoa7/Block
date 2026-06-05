@@ -4630,10 +4630,6 @@ issuya.com##body:style(pointer-events: auto !important; overflow: auto !importan
 ! - 왼쪽. 오른쪽 배너
 dogdrip.net##[class$="left-ad"]
 dogdrip.net##[class$="right-ad"]
-! - 기타
-||css-load.com^
-||html-load.com^
-||get.optad360.io^$important
 !
 !
 ! https://dvdprime.com/
