@@ -679,7 +679,7 @@ gall.dcinside.com#@#.r_dcmedia
 !theqoo.net#@#[class*="ad_"] [style]
 ! - - - https://www.ddanzi.com/ 본문 일부 사라짐
 !ddanzi.com#@#[class*="ad_"] [style]
-! - - - 야동코리아 (https://yako4.net/) - 상단 지워짐
+! - - - 야동코리아 (https://www.yako06.com/) - 상단 지워짐
 ![$domain=/^yako\d+.net/]#@#[class*="ad_"] [style]
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
 !etoland.co.kr#@#[class*="ad_"] [style]
@@ -1011,7 +1011,7 @@ ygosu.com##.pull-left.btn-group
 !###banner-link - 아래 규칙으로 대체
 !##[id*="banner"]
 ! - 메인/게시물 왼쪽 배너 공간 (PC)
-! - - - 야동코리아 (https://yako4.net/) - 영상 하단 배너
+! - - - 야동코리아 (https://www.yako06.com/) - 영상 하단 배너
 ! - - - 밍키넷 영상 하단 텍스트 배너
 ! - - - 유튜브에서도 적용
 !##[id="banner"]
@@ -1714,7 +1714,7 @@ ttattack.com###thema_wrapper
 !
 ! 나이스링크 (https://nicelink6.com/)
 ! 늑대닷컴 ((https://xn--ph1bph0az41x.com/))
-! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf458.com/)
+! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf461.com/)
 ! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon213.com/)
 ! W툰 (https://t.me/s/wtwt999) (https://wtwt328.com/)
 ! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx325.com/)
@@ -1744,7 +1744,7 @@ ttattack.com###thema_wrapper
 !##.thumbnail
 !
 !
-! 야툰 (https://yatoon233.com/)
+! 야툰 (https://yatoon234.com/)
 ! 뉴툰 (https://newtoon294.com/)
 ! - 배너
 !##.cate.row
@@ -1754,12 +1754,17 @@ ttattack.com###thema_wrapper
 ![$domain=/^namee\d+.com/]##div.container_full:nth-of-type(1)
 !
 !
-! 조아툰 (https://joatoon69.com/)
+! 조아툰 (https://t.me/s/joatoon) (https://joa-toon.com/) (https://joatoon69.com/)
 ! - 배너 이미지
 !||*/storage/ad/*.webp
 ![$domain=/^joatoon\d+.com/]##.grid-cols-2.mt-2.grid
 ! - 뿌연거 해결 (광역시 사용시 레딧 검색 사라짐)
 ![$domain=/^joatoon\d+.com/]##.fixed
+!
+!
+! 조아툰 (https://joatoon-oa.com/)
+! - 뿌연화면 해결
+joatoon-oa.com##.bg-opacity-50
 !
 !
 ! 엑스툰  XToon (https://xn--9t4b31dr7o.com/) (https://t3.xtoon365.com/)
@@ -1828,7 +1833,7 @@ ttattack.com###thema_wrapper
 ![$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
 !
 !
-! 뉴토끼 (https://sbxh3.com/)
+! 뉴토끼 (https://sbxh4.com/)
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
@@ -3178,7 +3183,7 @@ kissjav.com##.asside-link
 ##.banner-ad
 !
 !
-! 야동코리아 (https://www.yako05.com/) - 주소 바뀜
+! 야동코리아 (https://www.yako06.com/)
 ! - 배너
 [$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
 !##[class="banner_grid" i]
@@ -3452,7 +3457,7 @@ jamakyadong.me##[class*="g-col"]
 !
 ! 밤포탈 (https://bampt3.com/)
 ! - 팝업 및 뿌연거 해결  (PC)
-! - - - 뉴토끼 (https://sbxh3.com/)
+! - - - 뉴토끼 (https://sbxh4.com/)
 !##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
 ##[id="popupoverlay" i]
@@ -4553,9 +4558,11 @@ semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 fc-info.com##[class*="videoContainer"]
 !
 !
-! 야동티비 (https://yadongtv87.com/)
+! 야동티비 (https://xn--2q1bp1r9rce9ecnf02r.org/) (https://yadongtv88.com/)
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
 ![$domain=/^yadongtv\d+.com/]##[class*="popup-"]
+! - 게시물 사이 광고 삭제
+[$domain=/^yadongtv\d+.com/]##div[class*="object-none"]:has([class*="object-top"] a[href][target])
 !
 !
 ! https://kio.ac/
@@ -4788,13 +4795,13 @@ hearheart.com##.mb-6.relative
 hearheart.com##section.relative
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto10.com/) (https://mato10.com/) (https://bookto10.com/)
+! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto11.com/) (https://mato11.com/) (https://bookto11.com/)
 ! - 이미지
-! - - - 뉴토끼 (https://newto10.com/)
+! - - - 뉴토끼 (https://newto11.com/)
 ||newto*.com/data/apms/*
-! - - - 마나토끼 (https://mato10.com/)
+! - - - 마나토끼 (https://mato11.com/)
 ||mato*.com/data/apms/*
-! - - - 북토끼 (https://bookto10.com/)
+! - - - 북토끼 (https://bookto11.com/)
 ||bookto*.com/data/apms/*
 !
 !
@@ -4835,7 +4842,7 @@ torrentbob.com##div.m-b-10:nth-of-type(3)
 !##[class*="advert" i]
 !
 !
-! 호두코믹스 (https://hdhd507.net/)
+! 호두코믹스 (https://hdhd508.net/)
 ! - 일부 이미지 복원
 @@/.*banner.*/$image,domain=/^hdhd[0-9]+\.net$/
 /^hdhd[0-9]+\.net$/#@#[src*="banner" i]
@@ -5009,7 +5016,7 @@ m.anewsa.com##div[style*="width:300px"]
 @@||ypbooks.co.kr^$generichide,image,xhr
 !
 !
-! 일일툰 (https://www.11toon148.com/)
+! 일일툰 (https://www.11toon149.com/)
 ! 일일툰 (https://www.spotv147.com/)
 ! 최신만화  배너
 /^(www\.)?(spotv|11toon)\d+\.com/##li:has([style*="imageup"])
@@ -5068,6 +5075,10 @@ popkontv.com#@#[class*="img-box" i]
 ! - 상단 배너 공간 (별도의 이미지가 아직 없는 공간)
 [$domain=/^\d+.avovo.net/]##.h-auto.w-full
 !
+!
+! SSG (https://www.ssg.com/)
+@@||ssg.com^$generichide,xhr
+@@||ssgcdn.com^$image
 !
 !
 !
@@ -5614,7 +5625,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 이미지가 gif가 아닌 경우에도 사용
 ! - - - 도지코믹스 (https://dozi352.com/)
 ! - - - 애니위크 (https://aniweek.com/)
-! - - - 야툰 (https://yatoon233.com/)
+! - - - 야툰 (https://yatoon234.com/)
 ! - - - 마징가툰 (https://z70.mzgtoon.com/)
 ! - - - 애니조아 (https://www.anizoa.net/)
 ! - - - 펀비 (https://funbe640.com/)
@@ -5661,7 +5672,6 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 티비소리 (https://srtv119.com/)
 ! - - - 4KJAV (https://kr29.4kjav.co/)
 ! - - - 모두의AV (https://modooav6.com/)
-! - - - 야스닷컴 (https://yasyadong.cc/)
 ! - - - 주소골라 (https://jusopick01.com/)
 ! - - - 조드 (https://zod.kr/)
 ! - - - 엑스툰 (https://t3.xtoon365.com/)
@@ -5669,7 +5679,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 툰코 (https://tkor123.com/) 
 !##a[href*='http'][target*='blank'] img
 !##a[target*='blank']:has(img)
-[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcok\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],yasyadong.cc,[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
+[$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcok\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
 zod.kr##a[target*="blank"] img
 [$domain=/^ssg\d+\.torrentssg\d+\.com/]##a[target*="blank"] img
 [$domain=/^t\d+.xtoon365.com/]##a[target*="blank"] img
