@@ -1,14 +1,14 @@
 DNS Blocklist Build Report
-Generated: 2026-06-05 01:34:06 UTC
+Generated: 2026-06-05 06:08:59 UTC
 ============================================================
 
 [1] Reference Filters
-[Primary (AdRules DNS List)] 179,948 domains
+[Primary (AdRules DNS List)] 180,045 domains
 [Secondary (HaGeZi Pro)] 200,369 domains
-[Union] 306,330 domains
-  - Overlap (in both)    : 73,987
-  - Only in AdRules      : 105,961
-  - Only in HaGeZi Pro   : 126,382
+[Union] 306,425 domains
+  - Overlap (in both)    : 73,989
+  - Only in AdRules      : 106,056
+  - Only in HaGeZi Pro   : 126,380
 
 [2] External Whitelist Sources
   - AdGuard SDNS Exclusions: 542 extracted
@@ -19,13 +19,13 @@ Generated: 2026-06-05 01:34:06 UTC
   - AdGuard HTTPS Firefox: 18 extracted
   - AdGuard HTTPS Windows: 7 extracted
   - AdGuard HTTPS Mac: 11 extracted
-  - HaGeZi DNS Pro: 1,423 extracted
+  - HaGeZi DNS Pro: 0 extracted
   - Discord Official Domains: 43 extracted
   - anudeepND Whitelist: 191 extracted
   - DandelionSprout AGH Whitelist: 285 extracted
-[External Whitelist Total] 6,613 domains
+[External Whitelist Total] 5,226 domains
 
-[Tracker Auto-Filter] Removed 163 trackers from external whitelist
+[Tracker Auto-Filter] Removed 71 trackers from external whitelist
   [Blacklist hits] 8 base domains:
     - amazonaws.com
     - apple.com
@@ -69,38 +69,37 @@ Generated: 2026-06-05 01:34:06 UTC
     - visualwebsiteoptimizer.com
     - xg4ken.com
     - zdbb.net
-  [Pattern hits] 122 domains (sample first 30):
+  [Pattern hits] 30 domains (sample first 30):
     - 2mdn.net
-    - a1.adform.net
-    - ad.admitad.com
-    - ad.doubleclick.net
-    - adform.com
     - adjust.com
     - admitad.com
     - adobedtm.com
-    - adobetarget.data.adobedc.net
-    - adservice.google.at
-    - adservice.google.ca
-    - adservice.google.ch
-    - adservice.google.co.id
-    - adservice.google.co.in
-    - adservice.google.co.jp
-    - adservice.google.co.kr
-    - adservice.google.co.th
-    - adservice.google.co.uk
-    - adservice.google.co.za
-    - adservice.google.com
-    - adservice.google.com.ar
-    - adservice.google.com.au
-    - adservice.google.com.br
-    - adservice.google.com.co
-    - adservice.google.com.gt
-    - adservice.google.com.mx
-    - adservice.google.com.pe
-    - adservice.google.com.ph
-    - adservice.google.com.pk
-    - adservice.google.com.tr
-    ... and 92 more
+    - adswizz.com
+    - adtechus.com
+    - amplitude.com
+    - analytics.pinterest.com
+    - analytics.twitter.com
+    - api.amplitude.com
+    - app.adjust.net.in
+    - appsflyer-report.honkaiimpact3.com
+    - auditude.com
+    - avantlink.com
+    - bkrtx.com
+    - cbsinteractive.hb.omtrdc.net
+    - disneyplus.com.ssl.sc.omtrdc.net
+    - generalmotorscorporation.sc.omtrdc.net
+    - host-tracker.com
+    - ip-tracker.org
+    - mediametrics.ru
+    - msmetrics.ws.sonos.com
+    - npr-news.streaming.adswizz.com
+    - pladform.ru
+    - s0.2mdn.net
+    - stats.appsflyer.com
+    - t.appsflyer.com
+    - tags.bkrtx.com
+    - telemetry.mozilla.org
+    - viglink.com
 
 [3] Personal Blocklist
   - Personal Blocklist: 51 domains
@@ -111,8 +110,8 @@ Generated: 2026-06-05 01:34:06 UTC
 [Personal Whitelist Total] 13 domains
 
 [5] Apply Priority Rules
-  Step 1 (base - external whitelist): 306,058
-  Step 2 (+ personal block): 306,076  (forced added: 18)
-  Step 3 (- personal white): 306,076  (whitelist override: 0)
+  Step 1 (base - external whitelist): 306,269
+  Step 2 (+ personal block): 306,287  (forced added: 18)
+  Step 3 (- personal white): 306,287  (whitelist override: 0)
 
-[6] Final Whitelist: 6,457 domains
+[6] Final Whitelist: 5,162 domains
