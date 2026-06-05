@@ -5158,7 +5158,9 @@ auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
 */ads*
-!@@/ads*$domain=login.coupang.com
+! - 예외 - https://github.com/ - ads가 들어간 페이지 로딩 안됨
+@@||*/ads*$domain=github.com
+!@@||/ads*$domain=login.coupang.com
 !
 !*/ads-*
 !
