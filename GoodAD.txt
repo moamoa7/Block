@@ -273,22 +273,22 @@ naver.com##+js(aeld, /contextmenu|selectstart|dragstart/)
 ||apis.naver.com/mcollector/
 ! - - - 네이버에서 자체적으로 개발하여 사용하는 로그 수집 시스템인 NELO(Naver Error Log Optimizer)의 수집 서버 주소
 ! - - - 네이버 지도(map.naver.com) 도메인에서 접속할 때는 예외로 두고 차단
-||nelo2-col.navercorp.com^$domain=~map.naver.com
+!||nelo2-col.navercorp.com^$domain=~map.naver.com
 ! - - - 네이버의 태그 관리 시스템인 NTM(Naver Tag Manager) 관련 스크립트를 제어하는 필터 규칙
 ! - - - 네이버 메인 도메인(naver.com) 내에서 작동하는 NTM 스크립트를 차단
 ! - - - 스마트스토어, 브랜드스토어, 네이버 항공권 등 결제나 예약이 이루어지는 도메인에서는 차단하지 말라
 ||ntm.pstatic.net/scripts/ntm_$domain=naver.com
-||ntm.pstatic.net/scripts/ntm_*.js$domain=~smartstore.naver.com|~brand.naver.com|~flight.naver.com
+!||ntm.pstatic.net/scripts/ntm_*.js$domain=~smartstore.naver.com|~brand.naver.com|~flight.naver.com
 ! - 네이버가 내 브라우저에 심어놓는 고유 식별티빙(ba.uuid)를 쓸모없는 값(0)으로 바꿔서, 내 활동이 추적되지 않도록 방어해라
 naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
 ! -네이버 검색 결과 하단에 나타나는 '파워링크'나 '비즈사이트' 같은 광고 시스템(AdPost)의 작동 스크립트를 차단하는 설정
 ! - - -  kr: List-KR Classic
-||ssl.pstatic.net/adimg3.search/adpost/js/
+!||ssl.pstatic.net/adimg3.search/adpost/js/
 ! - - - 네이버에서 내가 뭘 클릭하는지 감시하고 통계를 내는 '클릭 추적 신호(Ping)'를 중간에서 깔끔하게 차단해 버리는 규칙
 ||cc.naver.com/cc$ping
 ! - 기타 해제
 ! - - - 네이버 사이트(naver.com)에 접속해 있을 때, 네이버 정적 서버(ssl.pstatic.net)에서 불러오는 이미지나 스크립트가 광고로 오인되어 차단되는 일이 없도록 무조건 허용하라
-@@||ssl.pstatic.net^$from=naver.com
+!@@||ssl.pstatic.net^$from=naver.com
 !
 !
 ! 네이버 스토어 (https://smartstore.naver.com/)
