@@ -361,7 +361,7 @@ sooplive.com##.message_player_wrap
 ##.buffering
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (kr: List-KR Classic)
 ! - - - SOOP(아프리카TV) 서버에서 광고에 사용되는 이미지나 스크립트 파일들을 가져오지 못하게 길목을 막으라
-||static.sooplive.com/asset/service/ad/
+!||static.sooplive.com/asset/service/ad/
 ! -  채팅 광고
 !##[class*="chat_banner" i]
 !#.chat_banner
@@ -431,17 +431,17 @@ sooplive.com##.adballoon_icon
 ||sooplive.com/asset/service/common/common_analysis.js
 ! - - - SOOP'에서 사용하는 광고 차단 탐지 및 광고 관련 데이터 통신을 막기 위한 규칙
 ! - - - AdGuard Tracking Protection filter
-||st.sooplive.com/api/da_block_api.php
+!||st.sooplive.com/api/da_block_api.php
 ! - - - SOOP(구 아프리카TV)의 생방송 시청 시 재생되는 광고 정보를 가져오는 핵심 경로를 차단하는 규칙
 ! - - -  kr: List-KR Classic
-||live.sooplive.com/api/get_ad.php
+!||live.sooplive.com/api/get_ad.php
 ! - - - SOOP(아프리카TV)의 VOD(다시보기) 페이지에서 '애드벌룬' 관련 데이터를 제거하기 위한 고도의 자바스크립트 주입 필터
 ! - - - SOOP VOD 시청 시 서버로부터 받아오는 영상 상세 데이터 중, '애드벌룬' 광고와 관련된 항목만 골라내서 삭제하라
 ! - - -  kr: List-KR Classic
-vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/a/view')
+!vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/a/view')
 ! - - - 숲(SOOP, 구 아프리카TV)의 방송 시청 페이지 등에서 사용자의 활동 로그(데이터)를 본사 서버로 전송하는 주소를 차단하는 규칙
 ! - - - AdGuard Tracking Protection filter
-||stbbs.sooplive.com/api/*_log.php
+!||stbbs.sooplive.com/api/*_log.php
 ! - 애드벌룬 선물 조건 (일부 차단 리스트 차단으로 해제 필요)
 ! - - - DNS 서버 확인 필요 후 등록 필요
 ||adballoon.sooplive.com^^$badfilter
@@ -521,8 +521,8 @@ www.twitch.tv###twilight-sticky-footer-root
 !
 !
 ! 틱톡 (https://www.tiktok.com/)
-@@||tiktok.com^$generichide
-||mon.tiktokv.com^
+!@@||tiktok.com^$generichide
+!||mon.tiktokv.com^
 !
 !
 ! 다음 (https://www.daum.net/)
