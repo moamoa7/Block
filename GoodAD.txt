@@ -735,6 +735,8 @@ etoland.co.kr##div.my-4.flex:has(> script)
 ##.adsbyadop
 ! - 게시물내 하단 배너 공백 (모바일)
 etoland.co.kr##div.mt-2\.5.flex
+! - 댓글 아래 배너 공백 (PC)
+etoland.co.kr##.flex.mb-2\.5
 ! - 댓글 아래 배너 공백 (모바일)
 etoland.co.kr###mo-300x250-comment-bottom
 ! - 게시물내 광고글
