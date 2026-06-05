@@ -114,13 +114,17 @@
 !
 
 ! - Google의 클릭 추적 기능을 무력화
-www.google.*#%#//scriptlet('remove-attr', 'ping', 'div[id="search"] a[data-ved][ping]')
+! - - - AdGuard Tracking Protection filter
+!www.google.*#%#//scriptlet('remove-attr', 'ping', 'div[id="search"] a[data-ved][ping]')
 ! - 구글이 클릭 추적을 하려고 시도할 때, 마치 이미 추적을 마친 것처럼 속여서 실제 추적 프로세스가 실행되지 않도록 차단하는 기술
-www.google.*##+js(set-attr, c-wiz[data-p] [data-query] a[target="_blank"][role="link"], rlhc, 1)
+!  - - - uBlock filters – Privacy
+!www.google.*##+js(set-attr, c-wiz[data-p] [data-query] a[target="_blank"][role="link"], rlhc, 1)
 ! - 구글 검색 결과 클릭 시 실행되는 추적 함수(rwt)를 찾아서, '아무것도 하지 않는 함수(noopFunc)'로 바꿔버려라
-www.google.*##+js(set, rwt, noopFunc)
+! - - - uBlock filters – Privacy
+!www.google.*##+js(set, rwt, noopFunc)
 ! - 구글의 복잡한 중간 추적 링크를 깔끔한 원본 링크로 직접 갈아치우는 방식
-www.google.*##+js(href-sanitizer, #main a[href^="/url?q=http"], ?q)
+! - - - uBlock filters – Privacy
+!www.google.*##+js(href-sanitizer, #main a[href^="/url?q=http"], ?q)
 !
 !
 ! - 모든 사이트에서 화면 구석에 떠 있는 Google reCAPTCHA 뱃지를 안 보이게 숨기는 규칙
@@ -1955,7 +1959,7 @@ www.donga.com#@#[class*="ad_"] [style]
 ! - 기사 상단/본문 배너
 ##.ad-box
 ! - 기사 배너 라벨
-##.ad-label
+!##.ad-label
 ! - 기사 배너 라벨 제외 모든 배너
 ##.ad-wrap:not(#google_ads_iframe_checktag)
 ! - 기사 모든 베너 (라벨 포함)
@@ -2535,7 +2539,7 @@ j91.asia##+js(window.open-defuser)
 !
 ! supjav (https://supjav.com/)
 ! - 상단 공간 / 오른쪽 배너 공간? 네모 없애기 (EasyList)
-##.movv-ad
+!##.movv-ad
 ! - 하단 따라다니는 배너
 ##[class*="slideAnimation" i]
 ! - 일부 영상 재생 차단 방지
@@ -2545,7 +2549,7 @@ j91.asia##+js(window.open-defuser)
 @@||p16-ad-sg.ibyteimg.com^
 @@tiktokcdn.com/obj/$xhr
 !nicholasbreakplan.com,fc2stream.tv#@#[class*="floating" i]
-@@*$generichide,from=streamtape.*
+!@@*$generichide,from=streamtape.*
 ! - 기타
 ! - - - https://javgg.net/
 ! - - - https://javplayer.org/ (여러 재생 스크림 중에서)
