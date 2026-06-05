@@ -1195,7 +1195,8 @@
 !||np.naver.com^
 !
 ! ───── NELO 에러·이벤트 수집 ─────
-||nelo2-col.navercorp.com^
+! - 네이버 지도에서 예외처리하는 규칙이 있어 주석 처리
+!||nelo2-col.navercorp.com^
 ||kr-col-ext.nelo.navercorp.com^
 !
 ! ───── 치지직 분석 ─────
