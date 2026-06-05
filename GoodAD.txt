@@ -268,9 +268,11 @@ m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
 m.naver.com##script#MM_search_disaster ~*
 ! - 기타
 ! - - - 사용자의 행동을 제한하는 '복사 방지/드래그 방지' 기능을 강제로 무력화
-naver.com##+js(aeld, /contextmenu|selectstart|dragstart/)
+! - - - uBlock filters – Annoyances
+!naver.com##+js(aeld, /contextmenu|selectstart|dragstart/)
 ! - - - 네이버에서 제공하는 서비스나 앱 내에서 사용자 행동 로그 및 데이터 분석을 위해 사용하는 도메인
-||apis.naver.com/mcollector/
+! - - - AdGuard Tracking Protection filter
+!||apis.naver.com/mcollector/
 ! - - - 네이버에서 자체적으로 개발하여 사용하는 로그 수집 시스템인 NELO(Naver Error Log Optimizer)의 수집 서버 주소
 ! - - - 네이버 지도(map.naver.com) 도메인에서 접속할 때는 예외로 두고 차단
 !||nelo2-col.navercorp.com^$domain=~map.naver.com
@@ -280,7 +282,8 @@ naver.com##+js(aeld, /contextmenu|selectstart|dragstart/)
 ||ntm.pstatic.net/scripts/ntm_$domain=naver.com
 !||ntm.pstatic.net/scripts/ntm_*.js$domain=~smartstore.naver.com|~brand.naver.com|~flight.naver.com
 ! - 네이버가 내 브라우저에 심어놓는 고유 식별티빙(ba.uuid)를 쓸모없는 값(0)으로 바꿔서, 내 활동이 추적되지 않도록 방어해라
-naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
+! - - - AdGuard Annoyances filter
+!naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
 ! -네이버 검색 결과 하단에 나타나는 '파워링크'나 '비즈사이트' 같은 광고 시스템(AdPost)의 작동 스크립트를 차단하는 설정
 ! - - -  kr: List-KR Classic
 !||ssl.pstatic.net/adimg3.search/adpost/js/
@@ -302,8 +305,8 @@ naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
 ! - 네이버 메인 배너 제거 / 쇼핑/뉴스 광고 제거 / 광고 스크립트 실행 방지
 ! - 핵심 광고 서버(Veta 및 Melona)에서 사용하는 리소스(이미지, 스크립트 등)가 저장된 경로
 ! - - - kr: List-KR Classic
-||ssl.pstatic.net/tveta/libs/
-||ssl.pstatic.net/melona/libs/
+!||ssl.pstatic.net/tveta/libs/
+!||ssl.pstatic.net/melona/libs/
 !
 !
 ! 네이버 쇼핑 라이브 (https://shoppinglive.naver.com/)
@@ -462,17 +465,17 @@ vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/
 ! 치지직 (https://chzzk.naver.com/)
 ! ===== 광고 차단 팝업 없애기 =====
 ! 1) API 응답에서 dab 플래그 제거 (메인)
-chzzk.naver.com##+js(json-prune, content.dab)
-chzzk.naver.com##+js(json-prune, dab, livePlaybackJson)
-chzzk.naver.com##+js(json-prune, dab, channel)
-chzzk.naver.com##+js(json-prune, *.dab)
+!chzzk.naver.com##+js(json-prune, content.dab)
+!chzzk.naver.com##+js(json-prune, dab, livePlaybackJson)
+!chzzk.naver.com##+js(json-prune, dab, channel)
+!chzzk.naver.com##+js(json-prune, *.dab)
 ! 2) 광고 프로브 요청 무력화
-chzzk.naver.com##+js(no-fetch-if, tveta)
-chzzk.naver.com##+js(no-fetch-if, /gfp/)
-chzzk.naver.com##+js(no-xhr-if, tveta)
-chzzk.naver.com##+js(no-xhr-if, /gfp/)
+!chzzk.naver.com##+js(no-fetch-if, tveta)
+!chzzk.naver.com##+js(no-fetch-if, /gfp/)
+!chzzk.naver.com##+js(no-xhr-if, tveta)
+!chzzk.naver.com##+js(no-xhr-if, /gfp/)
 ! 3) 배너 display:none 감지 회피
-chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
+!chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
 ! 4) 최후의 폴백 (위 전부 깨졌을 때 깜빡이긴 해도 닫아줌)
 !chzzk.naver.com##div[class*="popup_layer"]:has-text(/광고 차단|확장 프로그램/)
 !chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
@@ -490,9 +493,6 @@ chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
 chzzk.naver.com##[class*="loading" i]
 ! - 로그인 팝업 안뜨는거 해결
 chzzk.naver.com#@#[class*="popup" i]
-! - 기타
-@@||veta.naver.com/call|$xhr,from=chzzk.naver.com
-@@||nam.veta.naver.com/vas$xhr,from=chzzk.naver.com
 !
 !
 ! 트위치 (https://www.twitch.tv/)
