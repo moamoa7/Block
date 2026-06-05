@@ -1385,25 +1385,32 @@ music.bugs.co.kr##.topBanner
 ! - - - - - 넷플릭스 앱은 콘텐츠와 동일한 도메인에서 광고를 게재하기 때문에 모든 광고를 차단하는 것은 매우 어려움
 ! - - - 출처 : uBlock filters – Ads
 ! - - - 플릭스가 서버에서 영상 목록이나 설정 값을 받아올 때, 그 데이터 안에 포함된 광고(adverts) 정보를 브라우저가 읽기 전에 미리 삭제해라
-netflix.com##+js(json-prune, result.adverts)
+! - - - uBlock filters – Ads
+!netflix.com##+js(json-prune, result.adverts)
 ! - - - 일시정지를 해도 화면을 가리는 추천 목록이나 기타 UI 요소들이 나타나지 않고 깔끔하게 영상 멈춤 화면만 보이게 됩니다
-netflix.com##+js(json-prune, data.pinotPausedPlaybackPage)
+! - - - AdGuard Base filter + EasyList
+!netflix.com##+js(json-prune, data.pinotPausedPlaybackPage)
 ! - 푸쉬 광고 (일시정지시 나타나는 광고)
 /push.
 ! - 기타
 !  - 넷플릭스 일시정지(Pause) 시 나타나는 광고(Ad)" 영역을 직접 조작하여 삭제하는 필터
-netflix.com##div[data-uia="pause-ad"]
+! - - - AdGuard Base filter + EasyList
+!netflix.com##div[data-uia="pause-ad"]
 ! -  넷플릭스가 당신의 시청 습관과 광고 시청 여부를 서버에 '보고'하는 통신망을 끊어버리는 프라이버시 및 광고 차단 보조 필터
 ! - - - 광고 차단 우회 방어 / 개인정보 및 데이터 보호 / 로딩 속도 미세 개선
-||netflix.com/log/
+! - - - AdGuard Tracking Protection filter
+!||netflix.com/log/
 ! - 플릭스가 광고 로딩이나 성능 체크를 위해 서버와 주고받는 '정찰용 통신'을 원천 봉쇄하여 광고 시스템의 작동을 방해하는 필터
-||netflix.com/api/ftl/probe?monotonic=
+! - - - AdGuard Tracking Protection filter
+!||netflix.com/api/ftl/probe?monotonic=
 ! - 전 세계 수많은 웹사이트가 사용하는 OneTrust 쿠키 동의 배너 솔루션의 핵심 파일
 /otbannersdk.js
 ! - OneTrust라는 회사의 서버에서 내 브라우저로 들어오는 모든 외부 스크립트와 트래커를 원천 차단하는 강력한 네트워크 필터
-||onetrust.com^$3p
+! - - - AdGuard Annoyances filter
+!||onetrust.com^$3p
 ! - 넷플릭스 재생 화면에서 영상을 가리거나 방해하는 "이미지 레이어"를 강제로 투명하게 만드는 아주 정교한 CSS 조작 필터
-netflix.com##div[class^=watch-video--][class*="-container "]:style(background-image: none !important)
+! - - - Dandelion Sprout's Annoyances List
+!netflix.com##div[class^=watch-video--][class*="-container "]:style(background-image: none !important)
 !
 !
 ! 티빙 (https://www.tving.com/)
