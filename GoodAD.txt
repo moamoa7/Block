@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260604
+! Version: 20260605
 !
 !
 !
@@ -421,8 +421,10 @@ sooplive.com##.adballoon_icon
 !sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
 ! - 기타
 ! - - - 사용자의 이용 패턴이나 활동을 기록/분석하는 로그 수집 차단
+! - - - AdGuard Tracking Protection filter
 ||sooplive.com/asset/service/common/common_analysis.js
 ! - - - SOOP'에서 사용하는 광고 차단 탐지 및 광고 관련 데이터 통신을 막기 위한 규칙
+! - - - AdGuard Tracking Protection filter
 ||st.sooplive.com/api/da_block_api.php
 ! - - - SOOP(구 아프리카TV)의 생방송 시청 시 재생되는 광고 정보를 가져오는 핵심 경로를 차단하는 규칙
 ! - - -  kr: List-KR Classic
@@ -432,6 +434,7 @@ sooplive.com##.adballoon_icon
 ! - - -  kr: List-KR Classic
 vod.sooplive.com##+js(json-prune-xhr-response, data.adballoon, , 'station/video/a/view')
 ! - - - 숲(SOOP, 구 아프리카TV)의 방송 시청 페이지 등에서 사용자의 활동 로그(데이터)를 본사 서버로 전송하는 주소를 차단하는 규칙
+! - - - AdGuard Tracking Protection filter
 ||stbbs.sooplive.com/api/*_log.php
 ! - 애드벌룬 선물 조건 (일부 차단 리스트 차단으로 해제 필요)
 ! - - - DNS 서버 확인 필요 후 등록 필요
@@ -756,7 +759,7 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - 로그인시
 ! - - - 개인정보 처리방침 / 이용약관 삭제
 ! - - - 특정 팝업, 모달, 혹은 하단 쿠키/개인정보 처리방침 안내 바(Bar) 같은 독립된 요소에만 스타일을 안전하게 입히고 싶을 때 사용
-##.privacy-container:not(body):not(html):not(.content-container)
+!##.privacy-container:not(body):not(html):not(.content-container)
 !
 !
 !
@@ -1495,13 +1498,9 @@ poooo.ml#@#.ad
 ##[id*="advert" i]
 !
 !
-! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://ki.hoohootv408.xyz/)
+! ! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://ad.hoohootv409.xyz/)
 ! - 배너 빈 공간
 [$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
-! - 기타
-/disable-devtool.js
-||jsdelivr.net/npm/disable-devtool
-||jwpcdn.com^
 !
 !
 ! 티비룸  (https://tvroom.me/)
@@ -3121,10 +3120,6 @@ missav.*,njavtv.com##.lg\:block
 ! - 모든 배너
 missav.*,njavtv.com##[class^="mx-auto" i]
 [$domain=/^missav\d+.com/]##[class^="mx-auto" i]
-! - 개별 배너 (iframe)
-##[src*="javascript"]
-! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 확인 문제 안보임
-accounts.kakao.com#@#[src*="javascript"]
 !##[src*="frame"]
 ##[src*="/ad?" i]
 ##[src*="/widgets/" i]
@@ -3136,7 +3131,7 @@ accounts.kakao.com#@#[src*="javascript"]
 !sooplive.com#@#[class*="bottomright" i]
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
-@@||fourhoi.com
+@@||fourhoi.com^
 ! - 기타
 ! - 공간 남으며 위의 규칙으로 이미 다 지워진거라 필요가 없음
 !##[rel*="sponsor" i]
@@ -4639,7 +4634,6 @@ dogdrip.net##[class$="right-ad"]
 ||css-load.com^
 ||html-load.com^
 ||get.optad360.io^$important
-/x.js*
 !
 !
 ! https://dvdprime.com/
@@ -5043,6 +5037,9 @@ mimint.co.kr##li:has([id="powerLinkList"])
 mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
 ! - 이벤트
 mimint.co.kr##.event_right_new
+! - 본문 하단에 필요없는 숲 영상 첨부 안보이게
+||sooplive.com^$domain=mimint.co.kr
+!mimint.co.kr###soop_player_video
 ! - 모바일 맨 밑 하단 고정되어있는 흰색 네모박스
 m.mimint.co.kr###anchor-layer
 !
@@ -5199,10 +5196,10 @@ auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 
 !
 !
-##[class$="right-ad" i]
+!##[class$="right-ad" i] - ##[class$="-ad" i] 와 같음
 !
 !
-##[class$="left-ad" i]
+!##[class$="left-ad" i] - ##[class$="-ad" i] 와 같음
 !
 !
 ! - https://www.yna.co.kr/
@@ -5297,6 +5294,10 @@ linkareer.com#@#[src*="advert" i]
 ||ad-*
 ||ads.*
 ||ads-*
+!
+!
+! - 잘못된 사이트로 이동하는거 차단
+||*token=*$doc
 !
 !
 !
