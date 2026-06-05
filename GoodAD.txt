@@ -247,8 +247,10 @@ open.spotify.com##html,body:style(overflow: auto !important;)
 !
 ! 네이버 (https://www.naver.com/)
 ! - 메인 상단 웨일 브라우저 설치 안내
-##.banner_top
+! - - - AdGuard Annoyances filter
+!##.banner_top
 !naver.com##[aria-label="웨일 브라우저 설치 안내"]
+!naver.com##.banner_top[aria-label="웨일 브라우저 설치 안내"]
 ! - 네이버앱 깨지는거 해결 (참고 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
@@ -301,7 +303,8 @@ m.naver.com##script#MM_search_disaster ~*
 ! - 사용자 클릭 궤적 및 활동 분석 스크립트인 clickcrD.js를 특정 도메인들을 제외하고 모두 차단하라는 설정
 ! - - - 네이버의 정적 파일 서버(pstatic.net)에서 불러오는 클릭 기록(Click Cursors/Click Log) 전송용 자바스크립트 파일
 ! - - - 통합검색, 스마트스토어, 브랜드스토어, 네이버 항공권 서비스에서는 이 스크립트가 돌아가도록 허용
-||ssl.pstatic.net/static.gn/js/clickcrD.js$domain=~search.naver.com|~smartstore.naver.com|~brand.naver.com|~flight.naver.com
+! - - - AdGuard Tracking Protection filter
+!||ssl.pstatic.net/static.gn/js/clickcrD.js$domain=~search.naver.com|~smartstore.naver.com|~brand.naver.com|~flight.naver.com
 ! - 네이버 메인 배너 제거 / 쇼핑/뉴스 광고 제거 / 광고 스크립트 실행 방지
 ! - 핵심 광고 서버(Veta 및 Melona)에서 사용하는 리소스(이미지, 스크립트 등)가 저장된 경로
 ! - - - kr: List-KR Classic
