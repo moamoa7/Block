@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-06-06 08:18:34 UTC
+! Generated: 2026-06-06 10:26:54 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,459
+! Exception Rules: 6,465
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -296,6 +296,7 @@
 @@||api-na2.hubapi.com^
 @@||api-na3.hubapi.com^
 @@||api-notify.dropbox.com^
+@@||api-stage.cleverpush.com^
 @@||api.accuweather.com^
 @@||api.adguard.com^
 @@||api.adguard.org^
@@ -816,6 +817,7 @@
 @@||c2-eu.piano.io^
 @@||c2-sandbox.piano.io^
 @@||c2.piano.io^
+@@||c2827.dotomi.com^
 @@||c6bank.com.br^
 @@||ca24.credit-agricole.pl^
 @@||cabinet.altbb.ru^
@@ -1022,6 +1024,7 @@
 @@||click.em.samsclub.com^
 @@||click.email.jcpenney.com^
 @@||click.email.microsoftemail.com^
+@@||click.email.microsoftrewards.com^
 @@||click.email.sonos.com^
 @@||click.emcom.bankofamerica.com^
 @@||click.engage.xbox.com^
@@ -1548,7 +1551,6 @@
 @@||elster.de^
 @@||email-link.adtidy.info^
 @@||email-link.adtidy.org^
-@@||email.microsoft.com^
 @@||email.microsoftonline.com^
 @@||email.namebase.io^
 @@||email.office.com^
@@ -3002,7 +3004,6 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
-@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270109.com^
 @@||mkto-ab280067.com^
@@ -3018,6 +3019,7 @@
 @@||mkto-ab350042.com^
 @@||mkto-ab350123.com^
 @@||mkto-ab390033.com^
+@@||mkto-ab390129.com^
 @@||mkto-ab390137.com^
 @@||mkto-ab390196.com^
 @@||mkto-ab400068.com^
@@ -3048,13 +3050,13 @@
 @@||mkto-ab540186.com^
 @@||mkto-ab550041.com^
 @@||mkto-ab550140.com^
+@@||mkto-ab550144.com^
 @@||mkto-ab550184.com^
 @@||mkto-ab560068.com^
 @@||mkto-ab560119.com^
 @@||mkto-ab570110.com^
 @@||mkto-ab570128.com^
 @@||mkto-ab580004.com^
-@@||mkto-ab600004.com^
 @@||mkto-ab610084.com^
 @@||mkto-ab620024.com^
 @@||mkto-ab620054.com^
@@ -3124,6 +3126,7 @@
 @@||mkto-nld1020221.com^
 @@||mkto-nld1030007.com^
 @@||mkto-nld1040056.com^
+@@||mkto-nld1040117.com^
 @@||mkto-nld1040152.com^
 @@||mkto-nld1040186.com^
 @@||mkto-nld1050007.com^
@@ -5110,6 +5113,7 @@
 @@||start2pay.com^
 @@||startmail.com^
 @@||stat-dv.mtsbank.ru^
+@@||static-eu-ovh.cleverpush.com^
 @@||static-eu.cleverpush.com^
 @@||static-mobile.cleverpush.com^
 @@||static.addtoany.com^
@@ -5162,6 +5166,7 @@
 @@||suite14.emarsys.net^
 @@||suite15.emarsys.net^
 @@||suite16.emarsys.net^
+@@||suite17-cf.emarsys.net^
 @@||suite17.emarsys.net^
 @@||suite20.emarsys.net^
 @@||suite22.emarsys.net^
@@ -5174,6 +5179,7 @@
 @@||suite30-cdnnet.emarsys.net^
 @@||suite30-cf.emarsys.net^
 @@||suite30.emarsys.net^
+@@||suite32.emarsys.net^
 @@||suite33-cf.emarsys.net^
 @@||suite33.emarsys.net^
 @@||suite34.emarsys.net^
