@@ -1768,18 +1768,18 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
 @@||sbxh*.com^$image,xhr,script
 ! =====  List KR 규칙 해제  =====
-[$domain=/sbxh[0-9]+\.com/]#@#[data-brs][data-br]
+[$domain=/^sbxh\d*\./]#@#[data-brs][data-br]
 ! - - - 굳이 추가하지 않아도 기능엔 문제가 없음
 ! - - - 외부 anti-adblock 추적 서버 차단 (DNS에 등록 필요)
 ||whoas.xyz^
 ! - 팝업 및 이용 안내 팝업
 [$domain=/^sbxh\d*\./]##[data-pm-ov="1"]
 [$domain=/^sbxh\d*\./]##.vw-swipe-hint
-! - 배너 공간내 텍스트
-[$domain=/^sbxh\d*\./]##span > span:nth-of-type(2)
+! - 배너 공간내 작게 적힌 텍스트 (광고를 화면밖으로 보내서 필요없음)
+![$domain=/^sbxh\d*\./]##span > span:nth-of-type(2)
 ! - 실제 팝업 차단
-! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
-[$domain=/^sbxh\d*\./]##+js(no-window-open-if)
+! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단 (광고를 화면밖으로 보내서 필요없음))
+![$domain=/^sbxh\d*\./]##+js(no-window-open-if)
 ! - 배너 크기 조절 + 시각적 가림 + 클릭 흡수
 ! - - - 컨테이너 크기 제한 (검증 통과용)
 ![$domain=/^sbxh\d*\./]#$#[data-brs="header"] { max-height: 425px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
