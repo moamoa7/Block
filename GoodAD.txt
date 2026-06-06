@@ -1478,7 +1478,7 @@ poooo.ml#@#.ad
 ||jsdelivr.net/npm/devtools-detector
 !
 !
-! 무비킹 (https://t.me/s/mvking777)  (https://xn--v92b29c9uy.com/)  (https://mvking.vip/) - VPN으로만 접속 가능
+! 무비킹 (https://t.me/s/mvking777)  (https://xn--v92b29c9uy.com/)  (https://mvking.mov/)
  ! - 영상 위 배너
 ![$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
 !
@@ -1490,11 +1490,13 @@ poooo.ml#@#.ad
 !@@||zzap*.com/img/*$image
 !
 !
-! 티비팡 (https://tvpang.live/)
+! 티비팡 (https://tvpang.live/) - 이 사이트는 영상재생이 직접적으로 없음
 ! - 대피소 글자
 !tvpang.live##div.open.main-menu:nth-of-type(3)
 ! - 성인 글자
 !tvpang.live##div.open.main-menu:nth-of-type(4)
+! - 보증업체 글자
+[$domain=/^tvpang/]##.big-tit-area
 !
 !
 ! 애니라이프 (https://anilife.live/) (https://anilife.app/)
@@ -1536,7 +1538,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ttattack.com###thema_wrapper
 !
 !
-! 고구마티비 (https://gogumatv80.com/)
+! 고구마티비 (https://gogumatv80.com/) - 영상 재생 안됨
 ! - 이미지 복원
 [$domain=/^gogumatv\d+.com/]#@#[class*="banner" i]
 ! - 배너 이미지 공간
@@ -1673,7 +1675,7 @@ ttattack.com###thema_wrapper
 !##.thumbnail
 !
 !
-! 야툰 (https://yatoon234.com/)
+! 야툰 (https://t.me/s/yatoonlink) (https://yatoon235.com/)
 ! 뉴툰 (https://newtoon294.com/)
 ! - 배너
 !##.cate.row
@@ -1713,7 +1715,7 @@ joatoon-oa.com##.bg-opacity-50
 !###category-Ad
 !
 !
-! 만화방 (https://manhwabang.org/)
+! 만화방 (https://manhwabang.net/)
 ! - 상단 배너 및 만화 상단 배너
 !##[href^="/index/banner_click"]
 !
@@ -3112,7 +3114,7 @@ kissjav.com##.asside-link
 ! - 배너
 [$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
 !##[class="banner_grid" i]
-##.banner_grid
+!##.banner_grid
 !
 !
 ! HOHO (https://hohoj.tv/)
@@ -3891,7 +3893,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ##[class*="videoad" i]
 !
 !
-! 밍키넷 (https://mingky.live/)
+! 밍키넷 (https://xn--2g3bo4hg5g8pi.net/) (https://mingky.live/)
 ! - 배너 이미지
 ||img.imagedive.net/assets/*
 ! - 배너 공간
@@ -3920,7 +3922,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 [$domain=/^mingky\d*\./]##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
 !
 !
-! - - - 야동파티 (https://ydparty.tv/)
+! - - - 야동파티 (https://xn--2q1bv3xm4cpse87p1e.net/) (https://ydparty.tv/)
 ! - 배너 이미지
 ||img.imagecoco.net/assets/*
 ! - -  배너 공간
@@ -4484,7 +4486,7 @@ semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 fc-info.com##[class*="videoContainer"]
 !
 !
-! 야동티비 (https://xn--2q1bp1r9rce9ecnf02r.org/) (https://yadongtv88.com/)
+! 야동티비 (https://xn--2q1bp1r9rce9ecnf02r.org/) (https://yadongtv89.com/)
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
 ![$domain=/^yadongtv\d+.com/]##[class*="popup-"]
 ! - 게시물 사이 광고 삭제
