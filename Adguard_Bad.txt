@@ -7,7 +7,7 @@
 ! Version: 20260606
 !
 !
-!!! 애드가드 오류 관련된 것만 작성
+!!! 애드가드 오류 및 앱 관련 내용만 작성
 !!! 출처 : 애드가드 갤러리 필터 (https://github.com/hooray804/adguard-gallery-filter/blob/main/filter.txt)
 !
 !
@@ -59,3 +59,7 @@ www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 !#if (adguard && adguard_app_windows)
 @@||coupang.com^$stealth
 !#endif
+
+||kamp.kakao.com^$app=com.kakao.talk
+||shortformstats.kakao.com^$app=com.kakao.talk
+||thumb.kakaocdn.net^$app=com.kakao.talk
