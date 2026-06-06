@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260605
+! Version: 20260606
 !
 !
 !
@@ -1191,7 +1191,8 @@ m.ppomppu.co.kr###bbs_inform
 slrclub.com##div[class^="ad"]
 !##.ad
 ! - 왼쪽 배너
-###ad1[style^="position:"]
+!###ad1[style^="position:"]
+###ad1
 ! - 게시글 상단 텍스트 광고 (PC) - 다른 사이트에서 지워지는 부분이 있어 사이트 주소 붙임
 slrclub.com##[class="notice"]
 !slrclub.com##.notice
@@ -1715,9 +1716,9 @@ ttattack.com###thema_wrapper
 ! 나이스링크 (https://nicelink6.com/)
 ! 늑대닷컴 ((https://xn--ph1bph0az41x.com/))
 ! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf461.com/)
-! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon213.com/)
-! W툰 (https://t.me/s/wtwt999) (https://wtwt328.com/)
-! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx325.com/)
+! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon214.com/)
+! W툰 (https://t.me/s/wtwt999) (https://wtwt329.com/)
+! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx326.com/)
 ! - 팝업
 ! - - - 별별티비 (https://www.bbtv86.com/)
 !##.modal-wrapper
@@ -1869,11 +1870,7 @@ joatoon-oa.com##.bg-opacity-50
 !
 ! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon412.com/)
 ! - 최신주소 안내페이지 배너 공간 ((https://www.blacktoonurl2.com/) )
-
 [$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
-! - 배너 이미지 주소
-||webimg*.com/*.png
-||webimg*.com/*.gif
 ! - 상단 텍스트 배너
 [$domain=/^blacktoon\d*\./]##.alert-danger.alert
 ! - 개별 회차 배너
@@ -5331,6 +5328,8 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 !
+!
+!
 ==================================
 !
 !
@@ -5687,5 +5686,47 @@ zod.kr##a[target*="blank"] img
 [$domain=/^tkor/]##a[target*="blank"] img
 
 
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!
+!
+!
+! = = = = = (필요한지 안한지 모르는 규칙들) = = = = =
 
-=================================================
+##.afs_ads
+##.jw-reset-text:not(button)
+##.jw-wrapper > div[style="opacity: 0; visibility: hidden; overflow: hidden; display: block; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;"]
+/cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
+##[rel*="sponsored"]
+##[src*="tsyndicate.com"]
+##[src*="//ads.adxadserv.com/"]
+##[class^="ad-"]:not(html):not(body)
+
+www.google.com##html:style(overflow: visible !important)
+
+##[id*="taboola-"]
+
+##[data-ad-client]
+##[data-ad-slot]
+
+##[id*="google_ads"]:not(.rb-adbanner)
+##[id^="aswift"]
+
+zoneid=
+
+##[id^="ad-"]
+
+||jsdelivr.net/npm/disable-devtool$script
+
+/akam^
+
+/collect^
+
+/counter.js^$script
+
+||graph.instagram.com/logging_client_events^
+
+/generate_204^$image
+!
+!
+!
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
