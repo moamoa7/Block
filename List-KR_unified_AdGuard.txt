@@ -1,6 +1,6 @@
 ! Title: List-KR unified filters list (AdGuard)
 ! Description: AdGuard용 List-KR 통합 필터 리스트입니다. 한국어권 및 국제 웹 페이지 및 앱에 있는 광고, 트래커, 방해 요소와 안티 애드블록을 차단합니다.
-! Version: 2026.20606.3
+! Version: 2026.20610.0
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
@@ -639,6 +639,7 @@ m.fmkorea.com##iframe[src*="//loader.fmkorea.com/"][src*="_loader/"]
 !
 ! DOMAIN-REFRESHER: START
 !
+[$domain=/majorlink[0-9]+\.com/]##.major_site_latest
 [$domain=/newto[0-9]+\.com/]##div[class^="basic-banner-"]
 [$domain=/bookto[0-9]+\.com/]##div[class^="basic-banner-"]
 [$domain=/mato[0-9]+\.com/]##div[class^="basic-banner-"]
@@ -1519,6 +1520,8 @@ m.fmkorea.com##iframe[src*="//loader.fmkorea.com/"][src*="_loader/"]
 !
 ! DOMAIN-REFRESHER: START
 !
+/^https:\/\/imancomics\.com\/wp-content\/uploads\/[0-9]+/$domain=imancomics.com
+/https:\/\/majorlink[0-9]+\.com\/uploads\/post\//$domain=/majorlink[0-9]+\.com/
 /\/data\/apms\/banner\//$domain=/mato[0-9]+\.com/
 /\/data\/apms\/banner\//$domain=/newto[0-9]+\.com/
 /\/data\/apms\/banner\//$domain=/bookto[0-9]+\.com/
@@ -5019,6 +5022,176 @@ zone.msn.com,arkadium.com#%#//scriptlet('trusted-create-element', 'head', 'scrip
 !+ PLATFORM(ext_ff, ext_opera, ext_safari, ios, ext_android_cb)
 @@||adservice.google.com/adsid/integrator.js?domain=www.cbs.com$domain=cbs.com
 @@||msn.com/advertisement.ad.js
+developers.google.com#@##google-ads
+transparencyreport.google.com#@#.ad-icon
+msn.com#@#.native-ad
+seura.fi,www.msn.com#@#.nativead
+msn.com#@#.serversidenativead
+ads.google.com,youtube.com#@#.video-ads
+play.google.com#@#div[aria-label="Ads"]
+||partner.video.syndication.msn.com^$~object,third-party
+||cse.google.com/cse_v2/ads$subdocument
+||google.com/adsense/domains/caf.js
+||google.com/adsense/search/ads.js
+||google.com/adsense/search/async-ads.js
+||google.com/afs/ads?
+||google.com/pagead/1p-user-list/
+||google.com/pagead/conversion_async.js
+||google.com/pagead/drt/
+||google.com/pagead/landing?
+||googleadapis.l.google.com^$third-party
+||youtube.com/embed/C-iDzdvIg1Y$domain=biznews.com
+||google.com/favicon.ico$popup
+/resolver/api/resolve/v3/config/?expType=AppConfig&expInstance=default&apptype=weather&$domain=msn.com
+||googlesyndication.com^$domain=blogto.com|youtube.com
+||mail-ads.google.com^
+||youtube.com/pagead/
+||youtube.com/youtubei/v1/player/ad_break
+@@||youtube.com/get_video_info?$xmlhttprequest,domain=music.youtube.com|tv.youtube.com
+||m.youtube.com/get_midroll_$domain=youtube.com
+||www.youtube.com/get_midroll_$domain=youtube.com
+||youtube.com/get_video_info?*adunit$~third-party
+||ads.google.com^$xmlhttprequest,domain=ynet.co.il
+google.com##.GC3LC41DERB + div[style="position: relative; height: 170px;"]
+google.com##.GGQPGYLCD5
+google.com##.GGQPGYLCMCB
+google.com##.GISRH3UDHB
+animalfactguide.com,msn.com,portlandmonthlymag.com,romsgames.net,sportsmediawatch.com##.adlabel
+mail.google.com##.aeF > .nH > .nH[role="main"] > .aKB
+mail.google.com##.nH.PS
+old.reddit.com##.native-ad-container
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##.promotedlink:not([style^="height: 1px;"])
+reddit.com##[data-faceplate-tracking-context*="\"promoted\":true"]
+reddit.com##div[data-before-content="advertisement"]
+reddit.com##shreddit-ad-post
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##shreddit-comments-page-ad
+youtube.com###description-inner > ytd-merch-shelf-renderer > #main.ytd-merch-shelf-renderer
+youtube.com###shopping-timely-shelf
+youtube.com###shorts-inner-container > .ytd-shorts:has(> .ytd-reel-video-renderer > ytd-ad-slot-renderer)
+youtube.com###sticker-layer
+youtube.com##.ytReelMetapanelViewModelHost > .ytReelMetapanelViewModelMetapanelItem > .ytShortsSuggestedActionViewModelStaticHost
+youtube.com##.ytd-section-list-renderer > .ytd-item-section-renderer > ytd-search-pyv-renderer.ytd-item-section-renderer
+youtube.com##.ytd-two-column-browse-results-renderer > ytd-rich-grid-renderer > #masthead-ad.ytd-rich-grid-renderer
+youtube.com##.ytd-watch-flexy > .ytd-watch-next-secondary-results-renderer > ytd-ad-slot-renderer.ytd-watch-next-secondary-results-renderer
+youtube.com##.ytd-watch-flexy > ytd-merch-shelf-renderer > #main.ytd-merch-shelf-renderer
+youtube.com##.ytp-suggested-action > .ytp-suggested-action-badge
+m.youtube.com##lazy-list > ad-slot-renderer
+youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+m.youtube.com##ytm-companion-slot[data-content-type] > ytm-companion-ad-renderer
+m.youtube.com##ytm-rich-item-renderer > ad-slot-renderer
+youtube.com##.grid.ytd-browse > #primary > .style-scope > .ytd-rich-grid-renderer > .ytd-rich-grid-renderer > .ytd-ad-slot-renderer
+youtube.com##.ytd-rich-item-renderer.style-scope > .ytd-rich-item-renderer > .ytd-ad-slot-renderer.style-scope
+youtube.com##ytd-item-section-renderer > .ytd-item-section-renderer > ytd-ad-slot-renderer.style-scope
+mail.google.com##a[href^="http://li.blogtrottr.com/click?"]
+msn.com###displayAdCard
+msn.com###partners
+msn.com###promotions
+msn.com##.DisplayAdsWC
+msn.com##.ad-banner-wrapper
+msn.com##.ad-container
+msn.com##.articlePage_bannerAd_wrapper-DS-EntryPoint1-1
+msn.com##.articlePage_eoabNativeAd_new-DS-EntryPoint1-1
+msn.com##.banner-placeholder-container
+msn.com##.bannerAdContainer-DS-EntryPoint1-1
+msn.com##.consumption-page-banner-wrapper
+msn.com##.display-ad-container
+msn.com##.display-ads-container
+msn.com##.drrTopAdWrapper
+msn.com##.eocb-ads
+msn.com##.galleryPage_eoabContent_new-DS-EntryPoint1-1
+msn.com##.galleryPage_eoabNativeAd_new-DS-EntryPoint1-1
+msn.com##.gem-display-ad-wrapper
+msn.com##.intra-article-ad-full
+msn.com##.intra-article-ad-half
+msn.com##.me-stripe-tile-content:has(a[href*="?"] .me-stripe-title-subtitle)
+msn.com##.modernRightRail_stickyTopBannerAd-DS-EntryPoint1-1
+msn.com##.modernRightRail_topAd_container_2col_newRR-DS-EntryPoint1-1
+msn.com##.outeradcontainer
+msn.com##.qohvco-DS-EntryPoint1-1
+msn.com##.river-background
+msn.com##.sportsPageHorizontalTopLevelContainer-DS-EntryPoint1-1:has(> div[id*="banner"] > display-ads)
+msn.com##.views-right-rail-top-display
+msn.com##.views-right-rail-top-display-ad
+msn.com##.windowsBannerAdContainer-DS-EntryPoint1-1
+msn.com##[class^="articlePage_eoabContent"]
+msn.com##[data-m*="Infopane_CMSBasicCardstore_article"]
+msn.com##[id^="nativead"]
+msn.com##a[aria-label="AliExpress"]
+msn.com##a[aria-label="Amazon Assistant"]
+msn.com##a[aria-label="Amazon"]
+msn.com##a[aria-label="Bol.com"]
+msn.com##a[aria-label="Booking.com"]
+msn.com##a[aria-label="Ricardo"]
+msn.com##a[aria-label="Today's Deals"]
+msn.com##a[aria-label="eBay"]
+msn.com##a[href*=".booking.com/"]
+msn.com##a[href*="/aff_m?offer_id="]
+msn.com##a[href*="?sub_aff_id="]
+msn.com##a[href="https://aka.ms/QVC"]
+msn.com##a[href^="https://amzn.to/"]
+msn.com##a[href^="https://clk.tradedoubler.com/click?"]
+msn.com##a[href^="https://clkde.tradedoubler.com/click?"]
+msn.com##a[href^="https://disneyplus.bn5x.net/"]
+msn.com##a[href^="https://prf.hn/click/camref:"]
+msn.com##a[href^="https://ww55.affinity.net/"]
+msn.com##above-river-block
+msn.com##cs-native-ad-card
+msn.com##cs-native-ad-card-24
+msn.com##cs-native-ad-card-no-hover
+msn.com##div.body:has(> img[id^="nativead"])
+msn.com##div.footer:has(> a.ad-slug)
+msn.com##div[class^="articlePage_topBannerAdContainer_"]
+msn.com##div[class^="card-DS-card"][data-t*="RiverPlaceholder"]
+msn.com##div[class^="galleryPage_bannerAd"]
+msn.com##div[id^="mrr-topad-"]
+msn.com##div[id^="nativeAd"]
+msn.com##div[id^="watch-feed-native-ad-"]
+msn.com##li[data-m*="NativeAdItem"] > a > *
+msn.com##li[data-provider="gemini"]
+msn.com##li[data-provider="outbrain"]
+msn.com##msft-article-card[class=""]
+msn.com##msft-content-card[data-t*="NativeAd"]
+msn.com##msft-content-card[href^="https://api.taboola.com/"]
+msn.com##msft-content-card[id^="contentcard_nativead-"]
+msn.com##msn-info-pane-panel[id^="tab_panel_nativead-"]
+msn.com##partner-upsell-card
+@@||adnxs.com/ast/ast.js$domain=zone.msn.com
+@@||google.com/images/integrations/$image,~third-party
+@@||gstatic.com/ads/external/images/$image,domain=support.google.com
+@@||www.google.*/search?$xmlhttprequest,domain=google.ae|google.at|google.be|google.bg|google.by|google.ca|google.ch|google.cl|google.co.id|google.co.il|google.co.in|google.co.jp|google.co.ke|google.co.kr|google.co.nz|google.co.th|google.co.uk|google.co.ve|google.co.za|google.com|google.com.ar|google.com.au|google.com.br|google.com.co|google.com.ec|google.com.eg|google.com.hk|google.com.mx|google.com.my|google.com.pe|google.com.ph|google.com.pk|google.com.py|google.com.sa|google.com.sg|google.com.tr|google.com.tw|google.com.ua|google.com.uy|google.com.vn|google.cz|google.de|google.dk|google.dz|google.ee|google.es|google.fi|google.fr|google.gr|google.hr|google.hu|google.ie|google.it|google.lt|google.lv|google.nl|google.no|google.pl|google.pt|google.ro|google.rs|google.ru|google.se|google.sk
+@@||www.google.com/ads/preferences/$image,script,subdocument
+@@||google.com/recaptcha/$csp,subdocument
+@@||google.com/recaptcha/api.js
+@@||google.com/recaptcha/api2/
+@@||google.com/recaptcha/enterprise.js
+@@||google.com/recaptcha/enterprise/
+@@||accounts.google.com^$generichide
+@@||calendar.google.com^$generichide
+@@||cloud.google.com^$generichide
+@@||console.cloud.google.com^$generichide
+@@||contacts.google.com^$generichide
+@@||docs.google.com^$generichide
+@@||drive.google.com^$generichide
+@@||gemini.google.com^$generichide
+@@||mail.google.com^$generichide
+@@||meet.google.com^$generichide
+@@||music.youtube.com^$generichide
+@@||myaccount.google.com^$generichide
+@@||notebooklm.google.com^$generichide
+@@||photos.google.com^$generichide
+@@||reddit.com^$generichide
+@@||tv.youtube.com^$generichide
+@@||www.youtube.com^$generichide
+@@||googleads.g.doubleclick.net/ads/controlcookies/getcookies$domain=adssettings.google.com
+@@||tpc.googlesyndication.com/archive/$image,subdocument,xmlhttprequest,domain=adstransparency.google.com
+@@||ads.google.com^$domain=ads.google.com|analytics.google.com
+@@||cloud.google.com^$~third-party
+@@||developers.google.com^$domain=developers.google.com
+@@||support.google.com^$domain=support.google.com
+@@||tpc.googlesyndication.com^$domain=ads.google.com
+@@||accounts.google.com^$popup
+@@||ads.google.com^$popup
+@@||doubleclick.net/clk;$popup,domain=3g.co.uk|4g.co.uk|hotukdeals.com|jobamatic.com|play.google.com|santander.co.uk|techrepublic.com
 ||analytics.google.com^$third-party
 ||vortex.data.msn.com^
 ||browser.events.data.msn.com^
