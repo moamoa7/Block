@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260605-rev1
+! Version: 20260607-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -1444,6 +1444,10 @@
 ||innity.net^
 ||wtg-ads.com^
 ||adpnut.com^
+! - 티맵 관련
+||ads-mmt.tmobiapi.com^
+||cdn-ads.tmap.co.kr^
+!
 ! ⚠️ 앱테크 적립 서비스 사용 시 예외
 @@||nsl.pincrux.com^
 @@||api.pincrux.com^
