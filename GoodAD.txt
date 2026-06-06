@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260606
+! Version: 20260607
 !
 !
 !
@@ -57,10 +57,10 @@
 !
 !
 !
+! - 내가 어떤 사이트에 있든, 광고 회사나 추적 서버로 내 클릭 정보를 몰래 전송하는 모든 백그라운드 핑(Ping) 통신을 원천 봉쇄해라
+*$ping,3p
 !
 !
-!
-
 ! - Google의 클릭 추적 기능을 무력화
 ! - - - AdGuard Tracking Protection filter
 !www.google.*#%#//scriptlet('remove-attr', 'ping', 'div[id="search"] a[data-ved][ping]')
@@ -155,6 +155,47 @@ youtube.com##.sticker-layer.ytd-reel-video-renderer
 poooo.ml#@#[class*="sticker" i]
 !
 !
+! 디스코드 (https://discord.com/)
+! - 상단 공지
+discord.com##div[class*="notice"]
+! - 기타
+&client_ad_session_id=
+/sentry.*.js^$script,from=~powerthesaurus.org
+discord.com##+js(prevent-xhr, /discord\.com\/api\/v[0-9]+\/science/)
+discord.com##+js(prevent-fetch, /discord\.com\/api\/v[0-9]+\/science/)
+!
+!
+! X (https://x.com/)
+! - 기타
+/referrer.js
+||x.com/1.1/graphql/user_flow.json
+x.com##html:style(overflow: auto !important;)
+x.com##+js(set-cookie, twtr_pixel_opt_in, N)
+x.com##+js(ubo-aeld, mouseleave)
+x.com##+js(ubo-set, navigator.globalPrivacyControl, false)
+x.com##+js(ubo-set, Navigator.prototype.globalPrivacyControl, false)
+!
+!
+! 인스타 (https://www.instagram.com/)
+! - 기타
+||instagram.com/ajax/qm/?
+instagram.com##._aagv[style^="padding-bottom:"] + [class]
+instagram.com##.x1n327nk.xeq5yr9.x13vifvy.xixxii4:style(position: absolute !important;)
+instagram.com##div[class]:has(> div[class]:first-child > a[href="/explore/people/"]):style(position: absolute !important; left: -3000px !important;)
+instagram.com##body:style(overflow: auto !important;)
+instagram.com##body:style(overflow: visible!important;)
+instagram.com##[class]:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
+instagram.com##+js(ubo-set-session-storage-item, loggedOutCTAIsShown, 1)
+instagram.com##+js(ubo-set-session-storage-item, lodum, 1)
+instagram.com##+js(set-session-storage-item, loggedOutCTAIsShown, 1)
+instagram.com##+js(set-session-storage-item, loggedOutAppSheetIsMinimized, 1)
+instagram.com##+js(set-session-storage-item, lodum, 1)
+instagram.com##+js(set-constant, _sharedData.is_whitelisted_crawl_bot, true)
+instagram.com##+js(close-window, /[Ss][Mm][Oo][Ss][Tt][Aa][Ff][Aa][Mm][Oo][Oo][Ss][Aa][Vv][Ii]/)
+instagram.com##+js(prevent-addEventListener, mouseleave)
+!
+!
+!
 ! wikipedia.org
 wikipedia.org###siteNotice
 wikipedia.org###centralNotice
@@ -185,6 +226,10 @@ baidu.com###s-hotsearch-wrapper
 !||rlcdn.com^
 ! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
 open.spotify.com##html,body:style(overflow: auto !important;)
+! - 기타
+spotify.com##+js(ubo-set, navigator.globalPrivacyControl, false)
+spotify.com##+js(ubo-set, Navigator.prototype.globalPrivacyControl, false)
+
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -231,6 +276,8 @@ m.naver.com##script#MM_search_disaster ~*
 ! - 기타 해제
 ! - - - 네이버 사이트(naver.com)에 접속해 있을 때, 네이버 정적 서버(ssl.pstatic.net)에서 불러오는 이미지나 스크립트가 광고로 오인되어 차단되는 일이 없도록 무조건 허용하라
 !@@||ssl.pstatic.net^$from=naver.com
+! - 기타
+||ntm.pstatic.net/scripts/ntm_$from=naver.com
 !
 !
 ! 네이버 스토어 (https://smartstore.naver.com/)
@@ -428,6 +475,13 @@ sooplive.com##.adballoon_icon
 chzzk.naver.com##[class*="loading" i]
 ! - 로그인 팝업 안뜨는거 해결
 chzzk.naver.com#@#[class*="popup" i]
+!  - 기타
+chzzk.naver.com##+js(json-prune-fetch-response, ads advertiserDomains adDuplicationKeys, '', veta.naver.com/gfp)
+naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
+@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,from=chzzk.naver.com
+@@||veta.naver.com/gfp$xhr,from=chzzk.naver.com
+@@||veta.naver.com/call|$xhr,from=chzzk.naver.com
+@@||nam.veta.naver.com/vas$xhr,from=chzzk.naver.com
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -450,11 +504,33 @@ www.twitch.tv###twilight-sticky-footer-root
 !www.twitch.tv##.top-bar:style(background:unset!important)
 ! - 영상 하단 지저분한거
 !www.twitch.tv##div[data-a-target=player-controls]:style(background:unset!important)
+! -기타
+twitch.tv##+js(twitch-videoad)
+twitch.tv##+js(set-constant, Navigator.prototype.globalPrivacyControl, false)
+twitch.tv##+js(set-constant, navigator.globalPrivacyControl, false)
+twitch.tv##+js(prevent-window-open, amazon-adsystem)
+!
+!
+! 킥 (https://kick.com/)
+! - 쿠키 배너
+kick.com##.contents > div.z-modal.fixed.bottom-4
+! - 기타
+||datadoghq-browser-agent.com^
+kick.com##+js(set-local-storage-item, cookies_accepted, true)
+kick.com##+js(ubo-set-local-storage-item, cookies_accepted, true)
 !
 !
 ! 틱톡 (https://www.tiktok.com/)
 !@@||tiktok.com^$generichide
 !||mon.tiktokv.com^
+! - 기타
+tiktok.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
+tiktok.com##+js(ubo-set-session-storage-item, webapp_first_open_cta, 1)
+tiktok.com##+js(json-prune-fetch-response, itemList.*.ad_info.ad_id, '', api/recommend/item_list)
+tiktok.com##+js(set-session-storage-item, webapp_first_open_cta, 1)
+tiktok.com##+js(prevent-addEventListener, touchmove, .preventDefault():void)
+tiktok.com##+js(prevent-addEventListener, keydown)
+tiktok.com##+js(prevent-addEventListener, contextmenu, preventDefault)
 !
 !
 ! 다음 (https://www.daum.net/)
@@ -914,6 +990,8 @@ todayhumor.co.kr##.under_ad_div
 !##[class*="call_banner" i]
 ! - 페이지 이상해지는거 해결 ( kr: List-KR Classic)
 fomos.kr#@#.board_view .related_area:style(height: 300px !important;)
+! - 기타
+fmkorea.com##+js(set-constant, var7, 0)
 !
 !
 ! 와이고수 (https://ygosu.com/)
@@ -1404,8 +1482,8 @@ poooo.ml#@#.ad
 ###bannerList
 ! -  - 티비몬
 !##[class*="row-banner" i]
-! - 목록 위 위크 표시
-[$domain=/^tvwiki\d+\.net$/]##.mov_type222
+! - 목록 위 위크 표시 - 없어짐
+![$domain=/^tvwiki\d+\.net$/]##.mov_type222
 ! - 영상 하단 배너 공간 (티비위키/티비몬)
 ! - - - 애드가드 사용시에만 나타나는 공간 (uBlock Origin 사용시 안나타남)
 ! -  -- PC
@@ -2569,7 +2647,7 @@ javgg.net##.home_iframead
 ! - 영상 하단 배너
 ##.dark-banner-group
 !  - 팝업 방지 (uBlock filters – Ads)
-||a.magsrv.com/ad-provider.js$redirect-rule=noopjs
+!||a.magsrv.com/ad-provider.js$redirect-rule=noopjs
 !
 !
 ! 7MMTV (https://7tv076.com/)
@@ -2890,6 +2968,8 @@ javtiful.com##.front-feature-placement-side
 ##section:has([target] img[src*="/wp-content/uploads/"])
 ! - 예외 - https://apkmody.com/ - 본문 안보임
 apkmody.com#@#section:has([target] img[src*="/wp-content/uploads/"])
+! -예외 - https://07.avsee.ru/ - 일부 게시판내 링크를 사용할경우 이미지 등 본문 안보임
+avsee.ru#@#section:has([target] img[src*="/wp-content/uploads/"])
 ##section:has(img[width="1200"])
 ! - 배너 남는 공간
 aniya24.com##.elementor-element-5fc256c
@@ -4351,9 +4431,10 @@ mypikpak.com##.operation-container
 mypikpak.com##div.el-overlay:nth-of-type(23)
 ! - 사용자의 활동을 추적하고 데이터를 수집하는 분석 및 트래킹 도구들을 차단
 ! - - - PikPak 사이트를 이용할 때 내 클릭 기록, 마우스 움직임, 이용 습관 등이 서버로 전송되는 것을 원천 봉쇄
-||mypikpak.com/scripts/track.js
-||mypikpak.com/scripts/clarity.js
-||mypikpak.com/scripts/adjust.min.js
+! - - - AdGuard Tracking Protection filter
+!||mypikpak.com/scripts/track.js
+!||mypikpak.com/scripts/clarity.js
+!||mypikpak.com/scripts/adjust.min.js
 mypikpak.com##+js(set-cookie, allow_analysis, false)
 !
 !
@@ -4402,7 +4483,7 @@ hotword.site##div.col-md-6:nth-of-type(2)
 ! - - - https://checkwhoiam.tistory.com/685
 tistory.com##+js(set, adblockChecker, noopFunc)
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-*##[class*='adsense']:not([style*='1px']):not(:has(p))
+!*##[class*='adsense']:not([style*='1px']):not(:has(p))
 !
 !
 ! 조드 (https://zod.kr/)
@@ -5007,6 +5088,17 @@ popkontv.com#@#[class*="img-box" i]
 ! SSG (https://www.ssg.com/)
 @@||ssg.com^$generichide,xhr
 @@||ssgcdn.com^$image
+!
+!
+! 텔레그램 (https://t.me/)
+@@||t.me^
+!
+!
+! 노션 (https://www.notion.so/)
+! - 기타
+||notion.so/api/v3/etclient
+notion.so##+js(set-cookie, notion_cookie_consent, 0)
+notion.so##+js(set-cookie, notion_check_cookie_consent, true)
 !
 !
 !
@@ -5620,8 +5712,37 @@ zod.kr##a[target*="blank"] img
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
 !
+! = = = = = (기타 또 다른 규칙들) = = = = =
+
+google.com##+js(ubo-set-local-storage-item, mapslitepromosdismissed, 1)
+www.google.*##+js(remove-attr, onmousedown|data-mousedown|ping|data-click, 'a[href][onmousedown], a[href][ping]')
+
+google.com##.ExCKkf:style(width: 24px !important;)
+
+www.google.*##div[jsmodel*=" "]:style(max-width:2000px!important)
+
+||accounts.google.com/gsi/client^$third-party,script,domain=dtf.ru|stackoverflow.com|vc.ru|pikabu.ru|nytimes.com|baltimoresun.com|rozetka.com.ua|estadao.com.br|medium.com|gzt.com|mercurynews.com|drukarnia.com.ua|diffchecker.com|kaystls.site|kaystls.site|overclock.net|nissanclub.com|crazygames.com|notion.so|usnews.com|nypost.com|etnownews.com|timesnownews.com|menshealth.com|themirror.com|cq.ru|voetbalzone.nl|perplexity.ai|lefigaro.fr|lifehacker.ru|app.notta.ai|vnexpress.net|chatgpt.com
+
+
+/client_204?$ping
+
+/stat.js?
+
+##[id^="ad_"]
+
+||jsdelivr.net/npm/disable-devtool
+
+
+
+
+
+
+
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !
-! = = = = = (필요한지 안한지 모르는 규칙들) = = = = =
+!
+!
+! = = = = = (기타 또 다른 규칙들) = = = = =
 
 ##.afs_ads
 ##.jw-reset-text:not(button)
@@ -5638,6 +5759,8 @@ www.google.com##html:style(overflow: visible !important)
 
 ##[data-ad-client]
 ##[data-ad-slot]
+##[data-ad-type]
+
 
 ##[id*="google_ads"]:not(.rb-adbanner)
 ##[id^="aswift"]
@@ -5645,8 +5768,6 @@ www.google.com##html:style(overflow: visible !important)
 zoneid=
 
 ##[id^="ad-"]
-
-||jsdelivr.net/npm/disable-devtool$script
 
 /akam^
 
@@ -5658,7 +5779,55 @@ zoneid=
 
 /generate_204^$image
 
+/gen_204^
+
 ||google.com/v1/survey/trigger/trigger_anonymous^
+
+##[src*="ad.a-ads.com"]
+
+##.adBlock
+
+||viglink.com^
+
+/gtag.js^$script
+
+@@||127.0.0.1^
+
+google.*##+js(remove-attr, data-jsarwt, #rcnt [data-ved] a)
+||google.com/log^
+www.google.*##+js(remove-attr, jsaction, #islsp c-wiz a[href^="http"][data-ved][target], stay)
+google.com##+js(set-local-storage-item, mapslitepromosdismissed, 1)
+
+
+||google.com/async/bgasy^
+
+||adtrafficquality.google^
+
+
+##.adsbox
+
+||syndication.twitter.com^
+
+/cast_sender.js^$script
+
+||cookielaw.org^
+
+
+
+
+
+
+
+
+
+
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+www.google.*##+js(href-sanitizer, #main a[href^="/url?q=http"], ?q)
+
+
 
 
 
