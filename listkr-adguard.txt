@@ -1,7 +1,7 @@
 [Adblock Plus 2.0]
 ! Title: List-KR Merged (AdGuard)
 ! Description: classic + normal + unified merged & deduped
-! Updated: Fri Jun  5 02:05:35 UTC 2026
+! Updated: Sat Jun  6 01:57:19 UTC 2026
 ###admaru
 ###livereAdWrapper
 ##._popIn_recommend_article_ad
@@ -302,6 +302,7 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 /gnetwork/adforus.
 /https:\/\/(www\.)?koreatimes\.net\/images\/attach\/[A-Z0-9]+-[0-9]+\//$domain=koreatimes.net
 /https:\/\/[a-z0-9]+\.wp\.com\/wowtale\.net\/wp-content\/uploads\/[0-9]{4}\/[0-9]{2}\/wowtale\.net-.+[0-9]{2,}(x|-)[0-9]{2,}\./$domain=wowtale.net
+/https:\/\/majorlink[0-9]+\.com\/uploads\/post\//$domain=/majorlink[0-9]+\.com/
 /https:\/\/tvwiki[0-9]+\.com\/AD\//$domain=/tvwiki[0-9]+\.com/
 /https:\/\/tvwiki[0-9]+\.com\/AD\//$domain=tvwiki22.com|tvwiki23.com|tvwiki24.com|tvwiki25.com|tvwiki26.com|tvwiki27.com|tvwiki28.com|tvwiki29.com|tvwiki30.com|tvwiki31.com|tvwiki32.com|tvwiki33.com|tvwiki34.com
 /https:\/\/tvwiki[0-9]+\.com\/data\/banner\//$domain=/tvwiki[0-9]+\.com/
@@ -315,6 +316,7 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 /mnt/webdata/ad/*$domain=ekn.kr|yeongnam.com|kyeongin.com
 /mobus/resources/images/route_inquiry_addBoxImg$domain=m.bustago.or.kr
 /partners/*$domain=kilho.net
+/resolver/api/resolve/v3/config/?expType=AppConfig&expInstance=default&apptype=weather&$domain=msn.com
 /skin/images/banner$domain=xn--ok0bj0i6sfoyp9no.com
 /studio_backend/adforus.
 /theme/basic/img/banner/*$domain=/nunu[0-9]+\.tv/
@@ -375,6 +377,8 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@https://adwords.google.$document,domain=google.ad|google.ae|google.al|google.am|google.as|google.at|google.az|google.ba|google.be|google.bf|google.bg|google.bi|google.bj|google.bs|google.bt|google.by|google.ca|google.cat|google.cd|google.cf|google.cg|google.ch|google.ci|google.cl|google.cm|google.cn|google.co.ao|google.co.bw|google.co.ck|google.co.cr|google.co.id|google.co.il|google.co.in|google.co.jp|google.co.ke|google.co.kr|google.co.ls|google.co.ma|google.co.mz|google.co.nz|google.co.th|google.co.tz|google.co.ug|google.co.uk|google.co.uz|google.co.ve|google.co.vi|google.co.za|google.co.zm|google.co.zw|google.com|google.com.af|google.com.ag|google.com.ai|google.com.ar|google.com.au|google.com.bd|google.com.bh|google.com.bn|google.com.bo|google.com.br|google.com.bz|google.com.co|google.com.cu|google.com.cy|google.com.do|google.com.ec|google.com.eg|google.com.et|google.com.fj|google.com.gh|google.com.gi|google.com.gt|google.com.hk|google.com.jm|google.com.kh|google.com.kw|google.com.lb|google.com.ly|google.com.mm|google.com.mt|google.com.mx|google.com.my|google.com.na|google.com.nf|google.com.ng|google.com.ni|google.com.np|google.com.om|google.com.pa|google.com.pe|google.com.pg|google.com.ph|google.com.pk|google.com.pr|google.com.py|google.com.qa|google.com.sa|google.com.sb|google.com.sg|google.com.sl|google.com.sv|google.com.tj|google.com.tr|google.com.tw|google.com.ua|google.com.uy|google.com.vc|google.com.vn|google.cv|google.cz|google.de|google.dj|google.dk|google.dm|google.dz|google.ee|google.es|google.fi|google.fm|google.fr|google.ga|google.ge|google.gg|google.gl|google.gm|google.gp|google.gr|google.gy|google.hn|google.hr|google.ht|google.hu|google.ie|google.im|google.iq|google.is|google.it|google.je|google.jo|google.kg|google.ki|google.kz|google.la|google.li|google.lk|google.lt|google.lu|google.lv|google.md|google.me|google.mg|google.mk|google.ml|google.mn|google.ms|google.mu|google.mv|google.mw|google.ne|google.nl|google.no|google.nr|google.nu|google.pl|google.pn|google.ps|google.pt|google.ro|google.rs|google.ru|google.rw|google.sc|google.se|google.sh|google.si|google.sk|google.sm|google.sn|google.so|google.sr|google.st|google.td|google.tg|google.tk|google.tl|google.tm|google.tn|google.to|google.tt|google.vg|google.vu|google.ws
 @@https://www.google.*/adsense$document,domain=google.ad|google.ae|google.al|google.am|google.as|google.at|google.az|google.ba|google.be|google.bf|google.bg|google.bi|google.bj|google.bs|google.bt|google.by|google.ca|google.cat|google.cd|google.cf|google.cg|google.ch|google.ci|google.cl|google.cm|google.cn|google.co.ao|google.co.bw|google.co.ck|google.co.cr|google.co.id|google.co.il|google.co.in|google.co.jp|google.co.ke|google.co.kr|google.co.ls|google.co.ma|google.co.mz|google.co.nz|google.co.th|google.co.tz|google.co.ug|google.co.uk|google.co.uz|google.co.ve|google.co.vi|google.co.za|google.co.zm|google.co.zw|google.com|google.com.af|google.com.ag|google.com.ai|google.com.ar|google.com.au|google.com.bd|google.com.bh|google.com.bn|google.com.bo|google.com.br|google.com.bz|google.com.co|google.com.cu|google.com.cy|google.com.do|google.com.ec|google.com.eg|google.com.et|google.com.fj|google.com.gh|google.com.gi|google.com.gt|google.com.hk|google.com.jm|google.com.kh|google.com.kw|google.com.lb|google.com.ly|google.com.mm|google.com.mt|google.com.mx|google.com.my|google.com.na|google.com.nf|google.com.ng|google.com.ni|google.com.np|google.com.om|google.com.pa|google.com.pe|google.com.pg|google.com.ph|google.com.pk|google.com.pr|google.com.py|google.com.qa|google.com.sa|google.com.sb|google.com.sg|google.com.sl|google.com.sv|google.com.tj|google.com.tr|google.com.tw|google.com.ua|google.com.uy|google.com.vc|google.com.vn|google.cv|google.cz|google.de|google.dj|google.dk|google.dm|google.dz|google.ee|google.es|google.fi|google.fm|google.fr|google.ga|google.ge|google.gg|google.gl|google.gm|google.gp|google.gr|google.gy|google.hn|google.hr|google.ht|google.hu|google.ie|google.im|google.iq|google.is|google.it|google.je|google.jo|google.kg|google.ki|google.kz|google.la|google.li|google.lk|google.lt|google.lu|google.lv|google.md|google.me|google.mg|google.mk|google.ml|google.mn|google.ms|google.mu|google.mv|google.mw|google.ne|google.nl|google.no|google.nr|google.nu|google.pl|google.pn|google.ps|google.pt|google.ro|google.rs|google.ru|google.rw|google.sc|google.se|google.sh|google.si|google.sk|google.sm|google.sn|google.so|google.sr|google.st|google.td|google.tg|google.tk|google.tl|google.tm|google.tn|google.to|google.tt|google.vg|google.vu|google.ws
 @@https://www.google.*/adwords$document,domain=google.ad|google.ae|google.al|google.am|google.as|google.at|google.az|google.ba|google.be|google.bf|google.bg|google.bi|google.bj|google.bs|google.bt|google.by|google.ca|google.cat|google.cd|google.cf|google.cg|google.ch|google.ci|google.cl|google.cm|google.cn|google.co.ao|google.co.bw|google.co.ck|google.co.cr|google.co.id|google.co.il|google.co.in|google.co.jp|google.co.ke|google.co.kr|google.co.ls|google.co.ma|google.co.mz|google.co.nz|google.co.th|google.co.tz|google.co.ug|google.co.uk|google.co.uz|google.co.ve|google.co.vi|google.co.za|google.co.zm|google.co.zw|google.com|google.com.af|google.com.ag|google.com.ai|google.com.ar|google.com.au|google.com.bd|google.com.bh|google.com.bn|google.com.bo|google.com.br|google.com.bz|google.com.co|google.com.cu|google.com.cy|google.com.do|google.com.ec|google.com.eg|google.com.et|google.com.fj|google.com.gh|google.com.gi|google.com.gt|google.com.hk|google.com.jm|google.com.kh|google.com.kw|google.com.lb|google.com.ly|google.com.mm|google.com.mt|google.com.mx|google.com.my|google.com.na|google.com.nf|google.com.ng|google.com.ni|google.com.np|google.com.om|google.com.pa|google.com.pe|google.com.pg|google.com.ph|google.com.pk|google.com.pr|google.com.py|google.com.qa|google.com.sa|google.com.sb|google.com.sg|google.com.sl|google.com.sv|google.com.tj|google.com.tr|google.com.tw|google.com.ua|google.com.uy|google.com.vc|google.com.vn|google.cv|google.cz|google.de|google.dj|google.dk|google.dm|google.dz|google.ee|google.es|google.fi|google.fm|google.fr|google.ga|google.ge|google.gg|google.gl|google.gm|google.gp|google.gr|google.gy|google.hn|google.hr|google.ht|google.hu|google.ie|google.im|google.iq|google.is|google.it|google.je|google.jo|google.kg|google.ki|google.kz|google.la|google.li|google.lk|google.lt|google.lu|google.lv|google.md|google.me|google.mg|google.mk|google.ml|google.mn|google.ms|google.mu|google.mv|google.mw|google.ne|google.nl|google.no|google.nr|google.nu|google.pl|google.pn|google.ps|google.pt|google.ro|google.rs|google.ru|google.rw|google.sc|google.se|google.sh|google.si|google.sk|google.sm|google.sn|google.so|google.sr|google.st|google.td|google.tg|google.tk|google.tl|google.tm|google.tn|google.to|google.tt|google.vg|google.vu|google.ws
+@@||accounts.google.com^$generichide
+@@||accounts.google.com^$popup
 @@||acdn.adnxs.com/ast/ast.js$domain=msn.com
 @@||ad.doubleclick.net/*/adi/com.ytbc/$domain=youtube.com
 @@||ad.doubleclick.net/*/pfadx/$domain=m.youtube.com
@@ -385,9 +389,12 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||adblockanalytics.com$domain=hub.weirdhost.xyz,xmlhttprequest
 @@||adimg.nate.com/img/*?n=$domain=tv.nate.com
 @@||admob.google.com/static/$domain=admob.google.com
+@@||adnxs.com/ast/ast.js$domain=zone.msn.com
 @@||ads-api.twitter.com/|$domain=3dpchip.com
 @@||ads.google.com^$domain=accounts.google.com
 @@||ads.google.com^$domain=ads.google.com
+@@||ads.google.com^$domain=ads.google.com|analytics.google.com
+@@||ads.google.com^$popup
 @@||ads.pinterest.com/|$domain=3dpchip.com
 @@||ads.reddit.com^$domain=ads.reddit.com
 @@||ads.youtube.com^|$domain=technorj.com
@@ -425,6 +432,7 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||blog.dalso.org^$generichide
 @@||boardlife.co.kr^$generichide
 @@||bser-koroshi.vercel.app/_vercel/insights/script.js$domain=bser-koroshi.vercel.app,xmlhttprequest
+@@||calendar.google.com^$generichide
 @@||cdn.kbmaeil.com/bannerpop/uploads/image/16224295341851316158.png
 @@||cdn.kbmaeil.com/bannerpop/uploads/js/976.js
 @@||cdn.taboola.com/libtrc/3dp/loader.js$domain=3dpchip.com
@@ -438,15 +446,23 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||chrome.google.com/webstore/detail/$stealth=3p-cookie
 @@||clickmon.co.kr/ADVER_server/ad_view/pop_ad.php$subdocument,domain=ilsangt.tistory.com
 @@||clients4.google.com/chrome-sync/$stealth=useragent
+@@||cloud.google.com^$generichide
+@@||cloud.google.com^$~third-party
 @@||cloudfront.net/media/banner/$domain=phdkim.net
 @@||compass.adop.cc/assets/js/adop/adopJ.js$domain=3dpchip.com
+@@||console.cloud.google.com^$generichide
+@@||contacts.google.com^$generichide
 @@||cse.google.com/adsense/search/async-ads.js$domain=asiaon.top
 @@||d2i2w6ttft7yxi.cloudfront.net/ad_banner/$domain=witchform.com
 @@||dasibogo.net/wp-content/uploads/sites/23/2024/04/dasibogologo$domain=dasibogo.net
 @@||daumcdn.net/tistory/2903718/attach/*#ad&adv_keywords=
 @@||daumcdn.net/tistory/3522240/skin/images/ic_menu_white_48dp_2x.png#ad&adv_keywords=
 @@||developers.google.com^
+@@||developers.google.com^$domain=developers.google.com
+@@||docs.google.com^$generichide
+@@||doubleclick.net/clk;$popup,domain=3g.co.uk|4g.co.uk|hotukdeals.com|jobamatic.com|play.google.com|santander.co.uk|techrepublic.com
 @@||doubleclick.net|$domain=etoland.co.kr,xmlhttprequest
+@@||drive.google.com^$generichide
 @@||enjoytaiwan.co.kr/thema/Basic/assets/img/logo.png#ad&adv_keywords=
 @@||errornight.com^$generichide
 @@||fafan.kr^$genericblock
@@ -466,9 +482,11 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||fundingchoicesmessages.google.com^$stealth=referrer,domain=stooq.pl|stooq.com
 @@||fundingchoicesmessages.google.com^$stealth=referrer,script,domain=player.addradio.de
 @@||gateway.reddit.com/desktopapi/v*/sidebar_ad$xmlhttprequest
+@@||gemini.google.com^$generichide
 @@||google-analytics.com/analytics.js$domain=developers.google.com
 @@||google-analytics.com/ga.js$domain=7digital.com|account.hirezstudios.com|aebn.net|aftonbladet.se|alatest.com|americanapparel.net|apps.facebook.com|asus.com|avast.com|babylon.com|bangbros.com|banshee.fm|billabong.com|billboard.com|bolha.com|bookadumpster.com|boostmobile.com|break.com|brobible.com|change.org|cinemassacre.com|comingsoon.net|everydayhealth.com|dailysteals.com|echo.msk.ru|ehow.com|eonline.com|filmweb.pl|fora.tv|fossil.com|foxsports.com.au|frequency.com|gasbuddy.com|globaltv.com|google.com|gumtree.com.au|hoerzu.de|imageshack.us|intellicast.com|jetbrains.com|jobsite.co.uk|justjared.com|juxtapoz.com|kaspersky.pl|kleinanzeigen.ebay.de|latimes.com|lemonfree.com|liptonicetea.com|logitech.com|lucasarts.com|mashable.com|medonet.pl|meetme.com|mevio.com|mommyish.com|newyorker.com|nme.com|nuts.co.uk|opendns.com|oyster.com|philips.com|photobucket.com|priceme.co.nz|salon.com|search.diy.com|seekingalpha.com|sundance.org|techbargains.com|tempe12.com|theblaze.com|thegrindstone.com|thevine.com.au|theweek.com|threatfire.com|timberland.com|tomshardware.com|tube8.com|tvunetworks.com|tweetgrid.com|umbro.com|videochart.net|weeworld.com|wonka.com|xda-developers.com|yellow.co.nz|youtube.com|zoo.org.au
 @@||google.com/adsense/start/images/favicon.ico
+@@||google.com/images/integrations/$image,~third-party
 @@||google.com/js/bg/$domain=xhamster.com
 @@||google.com/js/gweb/analytics/$domain=google.com
 @@||google.com/js/gweb/analytics/doubletrack.js$domain=android.com
@@ -477,14 +495,20 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||google.com/maps/embed/v*/place?key=$stealth=referrer
 @@||google.com/pagead/landing$domain=godaddy.com
 @@||google.com/pagead/|$xmlhttprequest,domain=hentaihaven.xxx
+@@||google.com/recaptcha/$csp,subdocument
 @@||google.com/recaptcha/$domain=pornhub.com|pornhub.org|pornhub.net
 @@||google.com/recaptcha/$domain=vidoza.net
 @@||google.com/recaptcha/$domain=xhamster.com
+@@||google.com/recaptcha/api.js
+@@||google.com/recaptcha/api2/
 @@||google.com/recaptcha/api2/$document
 @@||google.com/recaptcha/api2/$subdocument
+@@||google.com/recaptcha/enterprise.js
+@@||google.com/recaptcha/enterprise/
 @@||google.com/settings/ads/onweb$urlblock
 @@||google.com/uds/api/search/$domain=thewindowsclub.com
 @@||google.com/usability/$domain=google.com,document
+@@||googleads.g.doubleclick.net/ads/controlcookies/getcookies$domain=adssettings.google.com
 @@||googleads.g.doubleclick.net/pagead/id$domain=etoland.co.kr,xmlhttprequest
 @@||googleads.g.doubleclick.net|$domain=etoland.co.kr,xmlhttprequest
 @@||googleadservices.com^$domain=google.ae|google.at|google.be|google.by|google.ca|google.ch|google.cl|google.cn|google.co.id|google.co.in|google.co.jp|google.co.th|google.co.uk|google.co.ve|google.co.za|google.com|google.com.ar|google.com.au|google.com.bd|google.com.br|google.com.co|google.com.eg|google.com.hk|google.com.mx|google.com.my|google.com.ng|google.com.pe|google.com.ph|google.com.pk|google.com.sa|google.com.sg|google.com.tr|google.com.tw|google.com.ua|google.com.vn|google.de|google.dk|google.ee|google.es|google.fr|google.gr|google.hu|google.ie|google.it|google.nl|google.no|google.pl|google.pt|google.ro|google.rs|google.ru|google.se|google.sk|google.tn
@@ -495,6 +519,7 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||grimoireoss-pa.clients6.google.com/batch?$stealth=referrer,domain=cs.android.com
 @@||grimoireoss-pa.clients6.google.com^$domain=source.chromium.org,stealth=referrer
 @@||grimoireoss-pa.clients6.google.com^$stealth=referrer,domain=cs.opensource.google
+@@||gstatic.com/ads/external/images/$image,domain=support.google.com
 @@||gstatic.com/ads/external/images/logo_google_ads_*px.png$domain=support.google.com
 @@||gstatic.com/images/branding/product/*/adsense_$image,domain=support.google.com
 @@||gstatic.com/marketing-cms/assets/images/$image,domain=business.google.com
@@ -517,7 +542,9 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||kpanews.co.kr^$generichide
 @@||m.sktuniverse.co.kr/html/template/*.html$xmlhttprequest,elemhide,jsinject,extension
 @@||mail.google.com/mail/$stealth
+@@||mail.google.com^$generichide
 @@||meeco.kr^$generichide
+@@||meet.google.com^$generichide
 @@||msn.com/advertisement.ad.js
 @@||msn.com/c.gif?rid=$image,domain=my.msn.com
 @@||msn.com^$app=msedgewebview2.exe,removeparam=ocid
@@ -525,7 +552,9 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||mssl.fwmrm.net/p/msn_live/AdManager.swf$domain=msn.com
 @@||mtag.mman.kr/get_ad.mezzo/$xmlhttprequest,domain=maxmovie.com
 @@||muirim.com/admin/data/banner/
+@@||music.youtube.com^$generichide
 @@||mvod.jtbc.co.kr^$generichide
+@@||myaccount.google.com^$generichide
 @@||mylocation.co.kr^$generichide
 @@||nam.veta.naver.com/nac/$xmlhttprequest,domain=smartstore.naver.com
 @@||namu.news/$subdocument,script,domain=namu.wiki
@@ -535,6 +564,7 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||new-in.pmirnc.com/public/fingerprint2.js$script
 @@||newliweb.com/$subdocument,script,domain=namu.wiki
 @@||newliweb.com/$subdocument,script,domain=namu.wiki|~board.namu.wiki
+@@||notebooklm.google.com^$generichide
 @@||ntp.msn.com/edge/$stealth=useragent
 @@||onair.jtbc.co.kr^$generichide
 @@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$domain=1alpha1.com
@@ -558,6 +588,7 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$xmlhttprequest,domain=tsuvod.com
 @@||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js$xmlhttprequest,domain=www.msn.com
 @@||pagead2.googlesyndication.com/pagead/managed/js/adsense/*/show_ads_impl_fy2021.js$domain=t.hi098123.com
+@@||photos.google.com^$generichide
 @@||planetad.co.kr/images/visual/img_ad_$domain=planetad.co.kr
 @@||play.google.com/log?$domain=meet.google.com
 @@||play.google.com/log?format=json$domain=news.google.com
@@ -570,6 +601,7 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||rad.msn.com/crossdomain.xml
 @@||reddit.com/r/*_advertising/
 @@||reddit.com/r/*_banner_ads_
+@@||reddit.com^$generichide
 @@||reddit.com^$generichide,badfilter
 @@||remiz.co.kr/theme/remiz_n/img/logo.png#ad&adv_keywords=
 @@||s.youtube.com/api/stats/playback?
@@ -600,6 +632,7 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||static.dable.io/dist/plugin.min.js$domain=maxmovie.com
 @@||static.doubleclick.net/instream/ad_status.js$domain=youtube.com
 @@||support.google.com/google-ads/
+@@||support.google.com^$domain=support.google.com
 @@||svrforum.com^$generichide
 @@||sysnet.pe.kr^$generichide
 @@||t1.daumcdn.net/adfit/static/kp.js$domain=laftel.net
@@ -611,11 +644,14 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||tinnews.co.kr/data/tinnews_co_kr/banner/2020040642392902
 @@||tinnews.co.kr/data/tinnews_co_kr/banner/favicon.ico
 @@||tistory.com^$generichide
+@@||tpc.googlesyndication.com/archive/$image,subdocument,xmlhttprequest,domain=adstransparency.google.com
 @@||tpc.googlesyndication.com/pimgad/$image,domain=ads.google.com
 @@||tpc.googlesyndication.com/simgad/$domain=ads.google.com
+@@||tpc.googlesyndication.com^$domain=ads.google.com
 @@||trc.taboola.com/msn-msn/*$domain=msn.com
 @@||tv.jtbc.co.kr^$generichide
 @@||tv.kakao.com/embed/player/image/ads.png$domain=tv.kakao.com|play-tv.kakao.com|kakaotv.daum.net
+@@||tv.youtube.com^$generichide
 @@||videoads.kakao.com/adserver/api/v*/vmap|$domain=kakao.com|daum.net|namu.wiki
 @@||videoads.kakao.com/adserver/api/v2/vmap$domain=tv.kakao.com|play-tv.kakao.com|entertain.daum.net
 @@||videoads.kakao.com/adserver/api/v2/vmap$domain=tv.kakao.com|play-tv.kakao.com|kakaotv.daum.net
@@ -627,11 +663,15 @@ $xmlhttprequest,third-party,denyallow=mega.co.nz|mega.nz|libs.baidu.com|ilfcdn.l
 @@||withukor.com^$generichide
 @@||www.besteleven.com/bannerpop/uploads/image/
 @@||www.google-analytics.com|$domain=etoland.co.kr,xmlhttprequest
+@@||www.google.*/search?$xmlhttprequest,domain=google.ae|google.at|google.be|google.bg|google.by|google.ca|google.ch|google.cl|google.co.id|google.co.il|google.co.in|google.co.jp|google.co.ke|google.co.kr|google.co.nz|google.co.th|google.co.uk|google.co.ve|google.co.za|google.com|google.com.ar|google.com.au|google.com.br|google.com.co|google.com.ec|google.com.eg|google.com.hk|google.com.mx|google.com.my|google.com.pe|google.com.ph|google.com.pk|google.com.py|google.com.sa|google.com.sg|google.com.tr|google.com.tw|google.com.ua|google.com.uy|google.com.vn|google.cz|google.de|google.dk|google.dz|google.ee|google.es|google.fi|google.fr|google.gr|google.hr|google.hu|google.ie|google.it|google.lt|google.lv|google.nl|google.no|google.pl|google.pt|google.ro|google.rs|google.ru|google.se|google.sk
+@@||www.google.com/ads/preferences/$image,script,subdocument
+@@||www.youtube.com^$generichide
 @@||www3.doubleclick.net/|$xmlhttprequest,domain=blackkiwi.net
 @@||x86.co.kr^$generichide
 @@||youtube.com/$stealth=useragent,app=MicrosoftEdgeCP.exe
 @@||youtube.com/embed/$domain=masterani.me
 @@||youtube.com/get_video_info*&el=editpage
+@@||youtube.com/get_video_info?$xmlhttprequest,domain=music.youtube.com|tv.youtube.com
 @@||youtube.com/get_video_info?*embedded$~third-party,other
 @@||youtube.com/iframe_api?$stealth=referrer
 @@||youtube.com/live_chat$stealth=referrer
@@ -658,6 +698,7 @@ academy.prompie.com#$#body.modal-open:has(> #academyMainModal a[href^="https://a
 acmicpc.net#?#.text-center > a[onclick^="App.trackOutboundLink"]:has(> img[class^="visible-"][class$="-block"])
 actingbaum.co.kr,picknpicker.com,moneyissues.co.kr,sotrychatter.com,skysky138.com,keela.co.kr,jiwootube.com,news.ssongyi.co.kr,xn--wh1b751afvcpsb.com#%#//scriptlet('abort-current-inline-script', 'jQuery.prototype.on', 'is_coupang')
 ads.google.com#@#div[aria-label="Ads"]
+ads.google.com,youtube.com#@#.video-ads
 agitnovel.*##.banner
 agitwebtoon.*##.advx
 ajunews.com###articleBody > div[style*="height:"]
@@ -691,6 +732,7 @@ anewsa.com,sports.chosun.com##div[id^="mobonDivBanner_"]
 anilife.*##.MainBnnWrap
 anilife.*##div[class] > a[class][href^="http"][target="_blank"]
 anilife.*##div[data-page] > div[class]:has(a[target="_blank"])
+animalfactguide.com,msn.com,portlandmonthlymag.com,romsgames.net,sportsmediawatch.com##.adlabel
 aniwolf.*##.banner-area
 aniya24.com##.popup-container
 aniya24.com#$?#div[class*="-player-wrapper"] > .play-media-control ~ div[class^="beeteam"][class*="-player-sub-element"] { remove: true; }
@@ -1027,6 +1069,7 @@ dealsite.co.kr##a[class^="main-banner"]
 defensetimes.kr#?#table[id^="index_"] tr:has(ins.adsbygoogle)
 deokhu.com,3dpchip.com#%#//scriptlet('abort-current-inline-script', 'chp_ads_blocker_detector')
 detegice.github.io#%#//scriptlet('abort-on-property-read', '$.prototype.fadeIn')
+developers.google.com#@##google-ads
 dicoall.com#@##AD_Top
 dicoall.com#@##AdHeader
 dicoall.com#@##ad-lead
@@ -1286,6 +1329,10 @@ google.ad,google.ae,google.al,google.am,google.as,google.at,google.az,google.ba,
 google.ad,google.ae,google.al,google.am,google.as,google.at,google.az,google.ba,google.be,google.bf,google.bg,google.bi,google.bj,google.bs,google.bt,google.by,google.ca,google.cat,google.cd,google.cf,google.cg,google.ch,google.ci,google.cl,google.cm,google.cn,google.co.ao,google.co.bw,google.co.ck,google.co.cr,google.co.id,google.co.il,google.co.in,google.co.jp,google.co.ke,google.co.kr,google.co.ls,google.co.ma,google.co.mz,google.co.nz,google.co.th,google.co.tz,google.co.ug,google.co.uk,google.co.uz,google.co.ve,google.co.vi,google.co.za,google.co.zm,google.co.zw,google.com,google.com.af,google.com.ag,google.com.ai,google.com.ar,google.com.au,google.com.bd,google.com.bh,google.com.bn,google.com.bo,google.com.br,google.com.bz,google.com.co,google.com.cu,google.com.cy,google.com.do,google.com.ec,google.com.eg,google.com.et,google.com.fj,google.com.gh,google.com.gi,google.com.gt,google.com.hk,google.com.jm,google.com.kh,google.com.kw,google.com.lb,google.com.ly,google.com.mm,google.com.mt,google.com.mx,google.com.my,google.com.na,google.com.nf,google.com.ng,google.com.ni,google.com.np,google.com.om,google.com.pa,google.com.pe,google.com.pg,google.com.ph,google.com.pk,google.com.pr,google.com.py,google.com.qa,google.com.sa,google.com.sb,google.com.sg,google.com.sl,google.com.sv,google.com.tj,google.com.tr,google.com.tw,google.com.ua,google.com.uy,google.com.vc,google.com.vn,google.cv,google.cz,google.de,google.dj,google.dk,google.dm,google.dz,google.ee,google.es,google.fi,google.fm,google.fr,google.ga,google.ge,google.gg,google.gl,google.gm,google.gp,google.gr,google.gy,google.hn,google.hr,google.ht,google.hu,google.ie,google.im,google.iq,google.is,google.it,google.je,google.jo,google.kg,google.ki,google.kz,google.la,google.li,google.lk,google.lt,google.lu,google.lv,google.md,google.me,google.mg,google.mk,google.ml,google.mn,google.ms,google.mu,google.mv,google.mw,google.ne,google.nl,google.no,google.nr,google.nu,google.pl,google.pn,google.ps,google.pt,google.ro,google.rs,google.ru,google.rw,google.sc,google.se,google.sh,google.si,google.sk,google.sm,google.sn,google.so,google.sr,google.st,google.td,google.tg,google.tk,google.tl,google.tm,google.tn,google.to,google.tt,google.vg,google.vu,google.ws#?#.rlfl__tls > div[jstcache="0"]:not([class]):not([id]):has(span._mB)
 google.ad,google.ae,google.al,google.am,google.as,google.at,google.az,google.ba,google.be,google.bf,google.bg,google.bi,google.bj,google.bs,google.bt,google.by,google.ca,google.cat,google.cd,google.cf,google.cg,google.ch,google.ci,google.cl,google.cm,google.cn,google.co.ao,google.co.bw,google.co.ck,google.co.cr,google.co.id,google.co.il,google.co.in,google.co.jp,google.co.ke,google.co.kr,google.co.ls,google.co.ma,google.co.mz,google.co.nz,google.co.th,google.co.tz,google.co.ug,google.co.uk,google.co.uz,google.co.ve,google.co.vi,google.co.za,google.co.zm,google.co.zw,google.com,google.com.af,google.com.ag,google.com.ai,google.com.ar,google.com.au,google.com.bd,google.com.bh,google.com.bn,google.com.bo,google.com.br,google.com.bz,google.com.co,google.com.cu,google.com.cy,google.com.do,google.com.ec,google.com.eg,google.com.et,google.com.fj,google.com.gh,google.com.gi,google.com.gt,google.com.hk,google.com.jm,google.com.kh,google.com.kw,google.com.lb,google.com.ly,google.com.mm,google.com.mt,google.com.mx,google.com.my,google.com.na,google.com.nf,google.com.ng,google.com.ni,google.com.np,google.com.om,google.com.pa,google.com.pe,google.com.pg,google.com.ph,google.com.pk,google.com.pr,google.com.py,google.com.qa,google.com.sa,google.com.sb,google.com.sg,google.com.sl,google.com.sv,google.com.tj,google.com.tr,google.com.tw,google.com.ua,google.com.uy,google.com.vc,google.com.vn,google.cv,google.cz,google.de,google.dj,google.dk,google.dm,google.dz,google.ee,google.es,google.fi,google.fm,google.fr,google.ga,google.ge,google.gg,google.gl,google.gm,google.gp,google.gr,google.gy,google.hn,google.hr,google.ht,google.hu,google.ie,google.im,google.iq,google.is,google.it,google.je,google.jo,google.kg,google.ki,google.kz,google.la,google.li,google.lk,google.lt,google.lu,google.lv,google.md,google.me,google.mg,google.mk,google.ml,google.mn,google.ms,google.mu,google.mv,google.mw,google.ne,google.nl,google.no,google.nr,google.nu,google.pl,google.pn,google.ps,google.pt,google.ro,google.rs,google.ru,google.rw,google.sc,google.se,google.sh,google.si,google.sk,google.sm,google.sn,google.so,google.sr,google.st,google.td,google.tg,google.tk,google.tl,google.tm,google.tn,google.to,google.tt,google.vg,google.vu,google.ws#@#a[href^="https://go.xxxjmp.com"]
 google.co.uk,google.com#@#a[href^="http://www.google.com/aclk?"]
+google.com##.GC3LC41DERB + div[style="position: relative; height: 170px;"]
+google.com##.GGQPGYLCD5
+google.com##.GGQPGYLCMCB
+google.com##.GISRH3UDHB
 google.com,google.ru##body > table[width="100%"][style^="border: 1px solid #"]
 gorani.kr##[class*="_banner"]
 gorani.kr#$#.column_content { margin-top: 50px !important; }
@@ -1853,6 +1900,9 @@ m.yna.co.kr##section[class^="box-type"].bg11 ul[class^="list"] > li[class^="asid
 m.yna.co.kr#?##container aside[class^="aside-"]:has(ul[id^="ad"], iframe:matches-css(display: none))
 m.yonhapnewstv.co.kr##main > div[style*=" "].section
 m.yonhapnewstv.co.kr,kyeongin.com,youtu.co,dfast.kr,mememedia.co.kr,tvreport.co.kr,m.tenbizt.com,acmicpc.net,www.auction.co.kr,m.11st.co.kr,todaysppc.com,gmarket.co.kr,kpenews.com,m.diningcode.com,insight.co.kr,cgv.co.kr,m.inven.co.kr,tipsandtrickskorea.com,gamemeca.com,yeongnam.com##div[class$="-ad"]
+m.youtube.com##lazy-list > ad-slot-renderer
+m.youtube.com##ytm-companion-slot[data-content-type] > ytm-companion-ad-renderer
+m.youtube.com##ytm-rich-item-renderer > ad-slot-renderer
 m.youtube.com#%#(()=>{const t={apply:(t,e,n)=>{if(location.href.includes("/shorts/")||location.href.includes("youtube.com/tv")||location.href.includes("youtube.com/embed/"))return Reflect.apply(t,e,n);try{const a=n[0];if(!a?.context?.client)return Reflect.apply(t,e,n);const o=String(Date.now());a.playbackContext&&void 0===a.playbackContext.adPlaybackContext&&(a.playbackContext.contentPlaybackContext.lactMilliseconds=o),a.playerRequest&&void 0===a.playerRequest.playbackContext?.adPlaybackContext&&(a.playerRequest.playbackContext.contentPlaybackContext.lactMilliseconds=o),n[0]=a}catch(t){}return Reflect.apply(t,e,n)}};window.JSON.stringify=new Proxy(window.JSON.stringify,t)})();
 m.youtube.com#%#//scriptlet('json-prune', 'playerResponse.messages.[].youThereRenderer')
 m.youtube.com,www.youtube.com#%#(()=>{window.JSON.parse=new Proxy(JSON.parse,{apply(r,e,t){const n=Reflect.apply(r,e,t);if(!location.pathname.startsWith("/shorts/"))return n;const a=n?.entries;return a&&Array.isArray(a)&&(n.entries=n.entries.filter((r=>{if(!r?.command?.reelWatchEndpoint?.adClientParams?.isAd)return r}))),n}});})();
@@ -1867,6 +1917,9 @@ m.ytn.co.kr#@#.ad_1200
 m.ytn.co.kr#@#.ad_300
 m.ytn.co.kr#@#.recomm_news_slider.YTN_CSA_editorrecomm
 m.ytn.co.kr#@#div[class*="YTN_CSA_mainbnr"]
+mail.google.com##.aeF > .nH > .nH[role="main"] > .aKB
+mail.google.com##.nH.PS
+mail.google.com##a[href^="http://li.blogtrottr.com/click?"]
 mail.google.com#?#.aeF > .nH > .nH[role="main"] > .aKB:has(> div)
 mail.naver.com##.mail_toolbar ~ .smart_channel
 manatoki469.net,manatoki470.net,manatoki471.net,manatoki472.net,manatoki473.net,manatoki474.net,manatoki475.net,manatoki476.net,manatoki477.net##.basic-banner.row.row-10
@@ -1991,33 +2044,92 @@ mrealfoods.heraldcorp.com##.wrap > div[id^="AD_MOBILE_VIEW"] ~ div[style^="width
 msearch.shopping.naver.com##div[class^="products_search_list"] div[class^="adProduct_"][id*="lst_"]
 msearch.shopping.naver.com#%#//scriptlet('json-prune', 'adRecommend.adUnits.[]')
 msearch.wemakeprice.com#?#article[data-list-container="searchList"] li:has(span:contains(AD).gray_round_badge)
+msn.com###displayAdCard
 msn.com###main > div[aria-label^="microsoft store"][data-section-id="stripe.msstore"]
+msn.com###partners
+msn.com###promotions
 msn.com###taboola-above-homepage-thumbnails
 msn.com###taboola-below-article-thumbnails-card-layout-short
 msn.com###ticklerI
+msn.com##.DisplayAdsWC
+msn.com##.ad-banner-wrapper
+msn.com##.ad-container
 msn.com##.adchoicesjs
 msn.com##.adprocess
 msn.com##.apppromocard
+msn.com##.articlePage_bannerAd_wrapper-DS-EntryPoint1-1
+msn.com##.articlePage_eoabNativeAd_new-DS-EntryPoint1-1
 msn.com##.articlebody > .floatleft > iframe[src^="https://products.gobankingrates.com/r/"]
 msn.com##.articlebody > .floatleft > iframe[src^="https://widgets.informars.com/"][src*="/mortgage/widgets/MiniMortgageTable.aspx?"]
+msn.com##.banner-placeholder-container
+msn.com##.bannerAdContainer-DS-EntryPoint1-1
 msn.com##.bannersectionad
 msn.com##.colombiaintraarticleads
+msn.com##.consumption-page-banner-wrapper
+msn.com##.display-ad-container
+msn.com##.display-ads-container
+msn.com##.drrTopAdWrapper
+msn.com##.eocb-ads
+msn.com##.galleryPage_eoabContent_new-DS-EntryPoint1-1
 msn.com##.galleryPage_eoabNativeAd_new-DS-EntryPoint1-1
+msn.com##.gem-display-ad-wrapper
+msn.com##.intra-article-ad-full
+msn.com##.intra-article-ad-half
+msn.com##.me-stripe-tile-content:has(a[href*="?"] .me-stripe-title-subtitle)
 msn.com##.mediumcard-placeholder
+msn.com##.modernRightRail_stickyTopBannerAd-DS-EntryPoint1-1
+msn.com##.modernRightRail_topAd_container_2col_newRR-DS-EntryPoint1-1
+msn.com##.outeradcontainer
 msn.com##.pagingsection.loaded[data-section-id="newshub.store"]
 msn.com##.partnerlogo-img
 msn.com##.provAd
+msn.com##.qohvco-DS-EntryPoint1-1
+msn.com##.river-background
 msn.com##.secondary > li[data-m*='NativeAdHeadlineItemViewModel']
+msn.com##.sportsPageHorizontalTopLevelContainer-DS-EntryPoint1-1:has(> div[id*="banner"] > display-ads)
 msn.com##.stripecontainer[data-section-id="stripe.msstore"]
 msn.com##.tbla
 msn.com##.todayshowcasead
 msn.com##.trc_related_container
 msn.com##.vd-ad
+msn.com##.views-right-rail-top-display
+msn.com##.views-right-rail-top-display-ad
+msn.com##.windowsBannerAdContainer-DS-EntryPoint1-1
+msn.com##[class^="articlePage_eoabContent"]
+msn.com##[data-m*="Infopane_CMSBasicCardstore_article"]
+msn.com##[id^="nativead"]
+msn.com##a[aria-label="AliExpress"]
+msn.com##a[aria-label="Amazon Assistant"]
+msn.com##a[aria-label="Amazon"]
+msn.com##a[aria-label="Bol.com"]
+msn.com##a[aria-label="Booking.com"]
+msn.com##a[aria-label="Ricardo"]
+msn.com##a[aria-label="Today's Deals"]
+msn.com##a[aria-label="eBay"]
+msn.com##a[href*=".booking.com/"]
+msn.com##a[href*="/aff_m?offer_id="]
+msn.com##a[href*="?sub_aff_id="]
+msn.com##a[href="https://aka.ms/QVC"]
 msn.com##a[href^="https://afflnk.microsoft.com/"]:not([href*="u=https://www.microsoft.com"])
+msn.com##a[href^="https://amzn.to/"]
 msn.com##a[href^="https://clk.tradedoubler.com/"]:not([href*="microsoft.com"])
+msn.com##a[href^="https://clk.tradedoubler.com/click?"]
+msn.com##a[href^="https://clkde.tradedoubler.com/click?"]
+msn.com##a[href^="https://disneyplus.bn5x.net/"]
+msn.com##a[href^="https://prf.hn/click/camref:"]
+msn.com##a[href^="https://ww55.affinity.net/"]
+msn.com##above-river-block
+msn.com##cs-native-ad-card
+msn.com##cs-native-ad-card-24
+msn.com##cs-native-ad-card-no-hover
+msn.com##div.body:has(> img[id^="nativead"])
+msn.com##div.footer:has(> a.ad-slug)
 msn.com##div[aria-label="from our partners"]
 msn.com##div[aria-label="property by domain"]
 msn.com##div[class^="adsContainer-DS-EntryPoint"]
+msn.com##div[class^="articlePage_topBannerAdContainer_"]
+msn.com##div[class^="card-DS-card"][data-t*="RiverPlaceholder"]
+msn.com##div[class^="galleryPage_bannerAd"]
 msn.com##div[class^="galleryPage_eoabNativeAd-"]
 msn.com##div[data-aop*="taboolawidgetvnext"]
 msn.com##div[data-aop="stripe.deals_stripe"]
@@ -2028,13 +2140,25 @@ msn.com##div[data-section-id="stripe.shopping1"]
 msn.com##div[data-t*="campid="]
 msn.com##div[data-t*="subid1="]
 msn.com##div[data-yvef*="stripe"][data-yvef*="ad"]
+msn.com##div[id^="mrr-topad-"]
+msn.com##div[id^="nativeAd"]
+msn.com##div[id^="watch-feed-native-ad-"]
 msn.com##div[id^="weather-forecast-"] div[id^="NativeAdsCarouselSection-"]
 msn.com##iframe[src^="//www.dianomi.com/"]
 msn.com##iframe[src^="https://products.gobankingrates.com/pub/"]
 msn.com##li.smalla[data-m*="NativeAd"]
 msn.com##li[data-m*="NativeAdHeadlineItemViewModel"] > a.nativead
+msn.com##li[data-m*="NativeAdItem"] > a > *
+msn.com##li[data-provider="gemini"]
+msn.com##li[data-provider="outbrain"]
 msn.com##li[data-yvef*="adblockMediumCardContainer"]
 msn.com##msft-article-card:not([class])
+msn.com##msft-article-card[class=""]
+msn.com##msft-content-card[data-t*="NativeAd"]
+msn.com##msft-content-card[href^="https://api.taboola.com/"]
+msn.com##msft-content-card[id^="contentcard_nativead-"]
+msn.com##msn-info-pane-panel[id^="tab_panel_nativead-"]
+msn.com##partner-upsell-card
 msn.com##views-native-ad
 msn.com#$##map-layout-root div[class^="sideBarContainer-DS-EntryPoint"] > div[class^="scrollContainer-DS-EntryPoint"] { height: 100% !important; }
 msn.com#$#[id^="-"] { position: absolute!important; left: -3000px!important; }
@@ -2058,7 +2182,9 @@ msn.com#?#div[class^="displayAds"]:upward(1)
 msn.com#?#div[data-template-key] > div[style]:has(> div[class] > div[data-t*="NativeAd"])
 msn.com#@#.banner
 msn.com#@#.morefromproviderrr
+msn.com#@#.native-ad
 msn.com#@#.nativead
+msn.com#@#.serversidenativead
 msn.com#@#[id^="-"]
 msn.com#@#a[href^="https://afflnk.microsoft.com/"]
 msn.com#@#a[href^="https://clk.tradedoubler.com/"]
@@ -2213,6 +2339,7 @@ ohmynews.com##div[class^="m_ad"]
 ohmynews.com##div[class^="new_ad"]
 ohmytaxinews.com#?#table[bgcolor][cellspacing] td[bgcolor] table[width][cellspacing]:not([bgcolor]):has(tr marquee#innovationGA)
 okky.kr##main div[class*="space-"].hidden.flex-none
+old.reddit.com##.native-ad-container
 old.reddit.com##.sb-unit
 ombudsmannews.com,kpja.kr,hungryapp.co.kr,usjournal.kr,socialvalue.kr,happycampus.com,chimhaha.net##div[id^="banner"]
 onair.jtbc.co.kr,news.jtbc.co.kr#%#//scriptlet('spoof-css', '.ad-banner.adsbox.ad-unit.ad-zone', 'display', 'block')
@@ -2257,6 +2384,7 @@ plankim.com##body > div:not([class]):not([id])
 plankim.com#%#//scriptlet('abort-current-inline-script', 'ai_adb.init')
 platformgreat.kr#%#//scriptlet('set-constant', 'commonTrailer', 'undefined')
 play.aidungeon.io,tamrieltradecentre.com,downloads.descendant.me,html5.gamedistribution.com,paraphraser.io,sekai-kabuka.com,teemo.gg,xtremestream.co#@#ins.adsbygoogle[data-ad-slot]
+play.google.com#@#div[aria-label="Ads"]
 playcraft.tistory.com##.module.module_plugin a[href*="//coinone.co.kr/user/signup?ref="]
 playcraft.tistory.com##.module.module_plugin a[href*="//link.coupang.com/"]
 playwares.com##a[href*="../api/redirectAd.php?"]
@@ -2342,6 +2470,9 @@ rdsong.com##.entry-content > div[style*="height:"]
 readersnews.com##.user-aside > div[style^="padding"]
 realty.chosun.com##.bnr_area a[target]:not([href*="//realty.chosun.com/"])
 realty.chosun.com##iframe[src*="//realty.chosun.com/RealtyCommon/Promotion"][src$=".html"]
+reddit.com##[data-faceplate-tracking-context*="\"promoted\":true"]
+reddit.com##div[data-before-content="advertisement"]
+reddit.com##shreddit-ad-post
 reddit.com#%#//scriptlet('set-constant', 'navigator.sendBeacon', 'noopFunc')
 reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion###ad_main_top
 reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##.ii4q9d-0.fePAzF > div.s1g6rpxu-1
@@ -2351,6 +2482,7 @@ reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##a[hre
 reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##div[data-before-content]
 reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##div[id^="sidebar-btf"]
 reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##shreddit-comment-tree-ad
+reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion##shreddit-comments-page-ad
 reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion#$##adblock-test { display: block !important; }
 reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion#?#.ListingLayout-outerContainer > div[class] > div[style][class] > div[style][class] > div[class] div[class]:not([data-redditstyle]):has(> div[class] > div[class] > .SidebarAd)
 reddit.com,reddittorjg6rue252oqsxryoxengawnmo46qy4kyii5wtqnwfj4ooad.onion#?#div[data-redditstyle] > div[style] > div[data-slot] > div[data-before-content]:upward(div[data-redditstyle])
@@ -2450,6 +2582,7 @@ semoi.kr,deliverypoint.co.kr#?##container > div[style*="margin-bottom:"]:has(img
 seoul.co.kr##table[id*="Ad"]
 serieamania.com###index > div[class^="box_shadow_"][style]
 serieamania.com#$##index > div[id^="index_box"][class]:not(.index_row_full) { margin-left: calc(50% - 145.5px) !important; }
+seura.fi,www.msn.com#@#.nativead
 shopping.interpark.com###btnlist > #listChoiceScope
 shopping.interpark.com##.AdvertisingList
 shopping.interpark.com##.productListWrap > #idRecommendWrap
@@ -2640,6 +2773,7 @@ torrentbot200.site,torrentbot201.site,torrentbot202.site,torrentbot203.site,torr
 torrentmode.com##a[href^="https://torrentmode.com/bbs/bannerhit.php"]
 torrentqq390.com,torrentqq391.com,torrentqq392.com,torrentqq393.com,torrentqq394.com,torrentqq395.com,torrentqq396.com,torrentqq397.com##.at-banner
 torrentqq390.com,torrentqq391.com,torrentqq392.com,torrentqq393.com,torrentqq394.com,torrentqq395.com,torrentqq396.com,torrentqq397.com##.row-banner
+transparencyreport.google.com#@#.ad-icon
 tv.jtbc.co.kr,mvod.jtbc.co.kr,onair.jtbc.co.kr#%#//scriptlet('prevent-setTimeout', 'getComputedStyle(t).getPropertyValue("visibility")')
 tv.kakao.com,play-tv.kakao.com,kakaotv.daum.net#%#//scriptlet('prevent-fetch', '/^https.\/\/videoads\.kakao\.com\/adserver\/api\/v[0-9]{1,2}\/vmap$/')
 tv.kakao.com,play-tv.kakao.com,kakaotv.daum.net#%#//scriptlet('prevent-xhr', '/^https.\/\/videoads\.kakao\.com\/adserver\/api\/v[0-9]{1,2}\/vmap$/')
@@ -2867,6 +3001,20 @@ yongtj.com#?##sidebar-wrapper div[id^="HTML"]:has(ins.adsbygoogle)
 yonhapnewstv.co.kr##.cont-row > div[class^="cont-item"] > .detail-rel
 youthassembly.kr,blockchainhub.kr,wowtv.co.kr,mobiinside.co.kr,phdkim.net,quasarzone.com##div[class*="-banner-"]
 youtu.co,dfast.kr#%#//scriptlet('prevent-addEventListener', 'hashchange', '#viewus-explore-more')
+youtube.com###description-inner > ytd-merch-shelf-renderer > #main.ytd-merch-shelf-renderer
+youtube.com###shopping-timely-shelf
+youtube.com###shorts-inner-container > .ytd-shorts:has(> .ytd-reel-video-renderer > ytd-ad-slot-renderer)
+youtube.com###sticker-layer
+youtube.com##.grid.ytd-browse > #primary > .style-scope > .ytd-rich-grid-renderer > .ytd-rich-grid-renderer > .ytd-ad-slot-renderer
+youtube.com##.ytReelMetapanelViewModelHost > .ytReelMetapanelViewModelMetapanelItem > .ytShortsSuggestedActionViewModelStaticHost
+youtube.com##.ytd-rich-item-renderer.style-scope > .ytd-rich-item-renderer > .ytd-ad-slot-renderer.style-scope
+youtube.com##.ytd-section-list-renderer > .ytd-item-section-renderer > ytd-search-pyv-renderer.ytd-item-section-renderer
+youtube.com##.ytd-two-column-browse-results-renderer > ytd-rich-grid-renderer > #masthead-ad.ytd-rich-grid-renderer
+youtube.com##.ytd-watch-flexy > .ytd-watch-next-secondary-results-renderer > ytd-ad-slot-renderer.ytd-watch-next-secondary-results-renderer
+youtube.com##.ytd-watch-flexy > ytd-merch-shelf-renderer > #main.ytd-merch-shelf-renderer
+youtube.com##.ytp-suggested-action > .ytp-suggested-action-badge
+youtube.com##ytd-item-section-renderer > .ytd-item-section-renderer > ytd-ad-slot-renderer.style-scope
+youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
 youtube.com#%#//scriptlet('json-prune', 'entries.[-].command.reelWatchEndpoint.adClientParams.isAd')
 youtube.com#%#//scriptlet('json-prune', 'playerResponse.adPlacements playerResponse.adSlots', 'playerResponse.streamingData.serverAbrStreamingUrl')
 youtube.com#%#//scriptlet('json-prune-fetch-response', 'playerResponse.adPlacements playerResponse.playerAds playerResponse.adSlots adPlacements playerAds adSlots', '', '/playlist\?list=|player\?|watch\?[tv]=/')
@@ -3087,6 +3235,7 @@ zzzz.lol#?#.widget-side .widget-title:has(+ div a[href^="/bbs/link.php?bo_table=
 ||ads.ahnlab.com^
 ||ads.betweendigital.com^
 ||ads.gamemeca.com^
+||ads.google.com^$xmlhttprequest,domain=ynet.co.il
 ||ads.imbc.com^
 ||ads.inven.co.kr^
 ||ads.kmib.co.kr^
@@ -3374,6 +3523,7 @@ zzzz.lol#?#.widget-side .widget-title:has(+ div a[href^="/bbs/link.php?bo_table=
 ||cpaheaven.co.kr/files/pr_banner/
 ||criteo.com^$third-party
 ||criteo.net^
+||cse.google.com/cse_v2/ads$subdocument
 ||cubec.gomtv.com/TextAdInfo_new.gom
 ||cultureland.co.kr/etc/main_AD_$document
 ||cvsnet.co.kr/image/2024/4/202404230404320090.png
@@ -3559,18 +3709,29 @@ zzzz.lol#?#.widget-side .widget-title:has(+ div a[href^="/bbs/link.php?bo_table=
 ||google.com/ads/search/app?
 ||google.com/adsense/ad
 ||google.com/adsense/domains
+||google.com/adsense/domains/caf.js
 ||google.com/adsense/search/$third-party
+||google.com/adsense/search/ads.js
+||google.com/adsense/search/async-ads.js
+||google.com/afs/ads?
 ||google.com/apis/gpf_metrics?
 ||google.com/async/ddllog
 ||google.com/ccm/collect?
+||google.com/favicon.ico$popup
 ||google.com/gsi/log?
 ||google.com/images/phd/gfl.gif
 ||google.com/images/phd/px.gif
 ||google.com/log?$redirect=nooptext
 ||google.com/pagead/1p-conversion/
+||google.com/pagead/1p-user-list/
+||google.com/pagead/conversion_async.js
+||google.com/pagead/drt/
+||google.com/pagead/landing?
 ||googleadapis.l.google.com^
+||googleadapis.l.google.com^$third-party
 ||googleadservices.com^
 ||googlesyndication.com/pagead/
+||googlesyndication.com^$domain=blogto.com|youtube.com
 ||googletagservices.com/tag/js/gpt.js$script,redirect=googletagservices-gpt
 ||googletagservices.com^
 ||googlevideo.com/initplayback?source=youtube&*&c=TVHTML5&oad=$xmlhttprequest,domain=youtube.com
@@ -3852,10 +4013,12 @@ zzzz.lol#?#.widget-side .widget-title:has(+ div a[href^="/bbs/link.php?bo_table=
 ||m.segye.com/static/*_segyeMobile/resources/js/commonAD.js
 ||m.sportschosun.com/ad/
 ||m.stock.naver.com/front-api/ad/reward
+||m.youtube.com/get_midroll_$domain=youtube.com
 ||m.ytn.co.kr/ad/
 ||m.ytn.co.kr/img/etc/btn_ad_close.png
 ||m2.nateimg.co.kr/cms/*.gif|$image
 ||magazine.hankyung.com/magazine_images/banner/
+||mail-ads.google.com^
 ||mail.google.com^*/flushimpressions?
 ||mangacat.cc/mainhover/
 ||manhwa.co.kr/xml/*banner_*_json.php
@@ -4018,6 +4181,7 @@ zzzz.lol#?#.widget-side .widget-title:has(+ div a[href^="/bbs/link.php?bo_table=
 ||panel.co.kr/user/img/banner/
 ||pangolin*.sgsnssdk.com^
 ||partner.googleadservices.com^
+||partner.video.syndication.msn.com^$~object,third-party
 ||paxnet.co.kr/banner/
 ||paxnet.co.kr/common/*BannerAjax|
 ||payments.google.com/gp/w/*/PaymentsPortals/web-reports?
@@ -4368,6 +4532,7 @@ zzzz.lol#?#.widget-side .widget-title:has(+ div a[href^="/bbs/link.php?bo_table=
 ||wtg-ads.com^
 ||www-google-analytics.l.google.com^
 ||www.naver.com/nvhaproxy/*/lazy?*&target=PC-MEDIA-SHOPPING-TODAY
+||www.youtube.com/get_midroll_$domain=youtube.com
 ||www.youtube.com/s/player/*/base.js$script,xmlhttprequest,replace=/if\(\!U\|\|\!U\.adPlacements&&\!U\.adSlots\)/if(!U||0)/
 ||www.youtube.com^$replace=/<script id="bc-def" nonce=".*?">/<script>\/\//,document
 ||www3.doubleclick.net^$script,redirect=noopjs,domain=srank.kr
@@ -4404,16 +4569,20 @@ zzzz.lol#?#.widget-side .widget-title:has(+ div a[href^="/bbs/link.php?bo_table=
 ||youtube.com/embed/$domain=akhbarelyom.com
 ||youtube.com/embed/$domain=icutit.ca|sxyprn.net
 ||youtube.com/embed/*?*&origin=*.filma24.*&widgetid$domain=filma24.*,important
+||youtube.com/embed/C-iDzdvIg1Y$domain=biznews.com
 ||youtube.com/embed/s64CHqUrzYY?autoplay=$domain=instadp.com
 ||youtube.com/gen_204
 ||youtube.com/get_video_info?$~third-party,badfilter
 ||youtube.com/get_video_info?*=adunit&$important
+||youtube.com/get_video_info?*adunit$~third-party
+||youtube.com/pagead/
 ||youtube.com/pcs/activeview?xai=
 ||youtube.com/player_204?
 ||youtube.com/ptracking?html5=1&
 ||youtube.com/shorts/$removeparam=si
 ||youtube.com/watch$replace=/adSlots/no_ads/,document
 ||youtube.com/youtubei/v1/log_event?
+||youtube.com/youtubei/v1/player/ad_break
 ||youtube.com^$domain=sarapbabe.com
 ||youtube.com^$removeparam=pp
 ||ytn.co.kr/img/banner/
