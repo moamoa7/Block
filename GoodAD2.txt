@@ -31,7 +31,7 @@
 ! Title: Personal Privacy & Traffic Filter
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260527-rev1
+! Version: 20260607-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -114,6 +114,7 @@ $removeparam=ymclid
 $removeparam=_openstat
 $removeparam=_ym_uid
 $removeparam=_ym_counter
+$removeparam=sk
 
 ! ───── Yahoo / Verizon ─────
 $removeparam=guce_referrer
