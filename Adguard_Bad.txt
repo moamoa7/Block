@@ -60,6 +60,10 @@ www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 @@||coupang.com^$stealth
 !#endif
 
+! 네이버 카페 (https://cafe.naver.com/)
+! - 카페 사진 첨부 오류 해결
+@@*$stealth=dpi,app=com.nhn.android.navercafe
+
 ||kamp.kakao.com^$app=com.kakao.talk
 ||shortformstats.kakao.com^$app=com.kakao.talk
 ||thumb.kakaocdn.net^$app=com.kakao.talk
