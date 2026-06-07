@@ -1104,8 +1104,10 @@ namu.wiki#?#div:has(> div > span > svg > path[d^="M12.2031"])
 !namu.wiki##div:has(> form input[type="search"]) > div:has(svg)
 ! - 검색 후 메인 상단 빈공간
 namu.wiki##div:has(> div > div[id^="_a"])
-! - 검색 후 나오는 메인 중간 배너 공간
-namu.wiki##div[class][data-v-2c28122a]
+! - 검색 후 나오는 상단 2군대 배너 공간 (모바일) - 이걸로 모바일 빈공간은 다 해결됨
+namu.wiki##div:has(> ins.adsbygoogle)
+! - 검색 후 나오는 메인 중간 배너 공간 (모바일)
+!namu.wiki##div[class][data-v-2c28122a]
 !
 !
 ! 모두의 후방 (https://data.pureugong.com/)
