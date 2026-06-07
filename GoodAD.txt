@@ -280,9 +280,11 @@ m.naver.com##script#MM_search_disaster ~*
 ||ntm.pstatic.net/scripts/ntm_$from=naver.com
 !
 !
-! 네이버 스토어 (https://smartstore.naver.com/)
+! 네이버 스토어 (https://shopping.naver.com/)
 ! - 배너
 ##.ad-container
+! - 광고 물품 삭제
+shopping.naver.com##li:has([class*="productCard"]>[class*="adButton"])
 !
 ! - 사용자 클릭 궤적 및 활동 분석 스크립트인 clickcrD.js를 특정 도메인들을 제외하고 모두 차단하라는 설정
 ! - - - 네이버의 정적 파일 서버(pstatic.net)에서 불러오는 클릭 기록(Click Cursors/Click Log) 전송용 자바스크립트 파일
@@ -4090,7 +4092,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl8.com/)
+! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl10.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl3.com/)
 ! - - - 야동닷컴 (https://ydong.net/ (https://yadong7.com/)
@@ -4173,9 +4175,13 @@ hitomi.la###immersive-translate-popup
 !
 !
 ! 주소핑 (https://jusoping2.net/)
-! - 순위 리스트 복원 및 상단 배너 삭제
+! - 순위 리스트 복원
 [$domain=/^jusoping\d+.net/]#@#[class*="banner" i]
-[$domain=/^jusoping\d+.net/]##.bg-black.carousel-inner 
+! - 상단 배너
+[$domain=/^jusoping\d+.net/]##[class*="carousel-inner"]
+! -그 외 상단 공간
+[$domain=/^jusoping\d+.net/]##div.col-md-12 > div:nth-of-type(1)
+[$domain=/^jusoping\d+.net/]##div.col-md-12 > div:nth-of-type(2)
 !
 !
 ! 야주소 (https://xn--9l4b15e2td.com/)
@@ -4717,10 +4723,14 @@ theporndude.com##.drawer-opener
 ! 
 ! - 아이보스 (https://www.i-boss.co.kr/)
 ! - 상단 배너
-###topAd
+!###topAd
 ! - 배너 복원 (List-KR)
 !i-boss.co.kr#@#a[class*="_banner"]
 !i-boss.co.kr#@#[class*="sponsor" i]
+! - 오른쪽 3단 목록글 AD글
+i-boss.co.kr##.cellAd
+! - 커뮤니티/정보공유/뉴스 상단 AD
+i-boss.co.kr##[class*="notice" i]
 !
 !
 ! 투디갤 (https://tdgall.com/)
@@ -5171,6 +5181,9 @@ muko.kr##[id="popupadoverlay" i]
 ! - 오른쪽에 나타나는 회원가입 작은 팝업
 !###xt_join_site_addons
 ##[id*="addons" i]
+! - 상단 앱설치 팝업 (모바일)
+!muko.kr##.lp-install-chip
+##[class*="install" i]
 !
 !
 !
@@ -5762,7 +5775,7 @@ of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
 ! - - - 야동그라운드 (https://yagro48.com/)
 ! - - - 토팡 (https://torpang119.com/)
 ! - - - 토렌트썰 (http://torrentsir175.com/)
-! - - - 다크걸 (https://darkgirl8.com/)
+! - - - 다크걸 (https://darkgirl10.com/)
 ! - - - AV쏘걸 (https://kr86.sogirl.so/)
 ! - - - 애니24(https://ohli24.net/)
 ! - - - 19다모아 (www.19damoa.org/)
@@ -5815,6 +5828,9 @@ www.google.*##div[jsmodel*=" "]:style(max-width:2000px!important)
 /ad0*
 
 /?sentry_version=
+
+/log/log.php?
+
 
 
 
