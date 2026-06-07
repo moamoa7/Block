@@ -4600,9 +4600,13 @@ fc-info.com##[class*="videoContainer"]
 [$domain=/^yadongtv\d+.com/]##div[class*="object-none"]:has([class*="object-top"] a[href][target])
 !
 !
-! https://kio.ac/
-! - - 하단 배너
+! 무료 임시 파일 공유 Kiosk (https://kio.ac/)
+! - 하단 배너
 kio.ac##div.flex.w-full:has(> div.flex):nth-of-type(2)
+! - 도와주세오 팝업
+kio.ac###bits-1
+! - 기타
+kio.ac##+js(inject-css-in-shadow-dom, style + [class][style="pointer-events: auto;"] { display: none !important; })
 !
 !
 ! https://noonnu.cc/
@@ -5135,14 +5139,9 @@ notion.so##+js(set-cookie, notion_check_cookie_consent, true)
 ! - 기타
 @@||captcha-backgrounds.s3.yandex.net^
 ||csp.yandex.net^
-yandex.*##.DistributionPopup
 yandex.*##.HeaderDesktop:style(position: absolute !important;)
 yandex.*##.AppAdvancedSearch:style(position: relative !important; top: 0 !important;)
 yandex.*##div[role="list"] > div.JustifierRowLayout-Incut
-||yandex.com/clck/
-yandex.*##+js(remove-class, document_disable-feed-scroll_yes, body[style*="overflow:"])
-yandex.*##+js(abort-on-property-write, __pcodeAllActiveTestIds)
-yandex.*##+js(set-cookie, gdpr, 0)
 !
 !
 ! 제미나이 (https://gemini.google.com/)
@@ -5183,6 +5182,7 @@ muko.kr##[id="popupadoverlay" i]
 ##[id*="addons" i]
 ! - 상단 앱설치 팝업 (모바일)
 !muko.kr##.lp-install-chip
+! - 숲 (https://play.sooplive.com/) - 먼지 모름 (후에 문제 생기면 확인해볼것)
 ##[class*="install" i]
 !
 !
@@ -5613,10 +5613,11 @@ manhwabang.org##a[target*="target"] img
 ##[src*="banner" i]
 ! 18모아 (https://18moa028.com/)
 ! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
+! 킥 (https://kick.com/) - 영상 이미지 안보임
 [$domain=/^t\d+.xtoon365.com/]#@#[src*="banner" i]
 !/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
 /^(www\.)?18moa\d+\.com$/#@#[src*="banner" i]
-
+kick.com#@#[src*="banner" i]
 
 
 *banner*
@@ -5626,10 +5627,12 @@ manhwabang.org##a[target*="target"] img
 ! 쿠팡플레이 (https://www.coupangplay.com/)
 ! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
 ! https://github.com/ - 일부 페이지 오류 발생
+! 킥 (https://kick.com/) - 영상 이미지 안보임
 @@||*banner*$image,domain=coupangplay.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 @@||*banner*$domain=github.com
 @@*banner*$image,domain=xtoon365.com
+@@*banner*$image,domain=kick.com
 ! - 아래 안풀어도 됨 (배너 막혀서 나오는 메시지임. 검색과는 무관)
 !@@*banner*$xhr,domain=rememberapp.co.kr
 ! - wixpress.com - 주소에 banner이 들어가지면 배너 아님 (일단 아래 2규칙 보류)
