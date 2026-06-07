@@ -19,10 +19,10 @@ jobs:
           SRC="https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-classic.txt"
           {
             echo "[Adblock Plus 2.0]"
-            echo "! Title: List-KR classic (converted / generic)"
-            echo "! Description: !#if guard removed so non-uBO/AdGuard engines load the rules"
+            echo "! Title: List-KR filters list Classic for uBlock Origin"
+            echo "! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다."
             echo "! Updated: $(date -u)"
-          } > listkr-classic-generic.txt
+          } > listkr-classic-uBlock.txt
           curl -fsSL "$SRC" \
             | sed 's/\r$//' \
             | grep -v '^!#if' \
@@ -34,14 +34,14 @@ jobs:
             | grep -v '^! Expires:' \
             | grep -v '^! Homepage:' \
             | grep -v '^! Licence:' \
-            >> listkr-classic-generic.txt
-          echo "lines: $(wc -l < listkr-classic-generic.txt)"
+            >> listkr-classic-uBlock.txt
+          echo "lines: $(wc -l < listkr-classic-uBlock.txt)"
 
       - name: Commit
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add listkr-classic-generic.txt
+          git add listkr-classic-uBlock.txt
           if git diff --staged --quiet; then
             echo "No changes"
           else
