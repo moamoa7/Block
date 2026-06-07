@@ -4,7 +4,7 @@
 ! Title: Adguard_Bad
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260606
+! Version: 20260607
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
