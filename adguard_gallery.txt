@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.06.07.3
+! Version: 2026.06.08.0
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -117,6 +117,8 @@ m.ppomppu.co.kr##ul:has(> .mobile-ad-sponsor)
 m.ruliweb.com##tr:has(.nbp_container)
 m.wowtv.co.kr##.container > div[style]
 m.wowtv.co.kr,inven.co.kr##[id*='Banner']
+map.naver.com##.marker_icon_area.main:has(img[src*="/ad-marker/"])
+map.naver.com##div[class*="StyledAdGuideTooltip"]
 maplescouter.com,loawa.com###popup
 mimint.co.kr###anchor-layer:has(.anchor-slot)
 mimint.co.kr##.ads-container, .banner-split-reveal, .g-center-wrap, .index-right-banner
@@ -159,6 +161,7 @@ seoul.co.kr###bottomScrollBox
 seoul.co.kr##[class^='ad']
 shopping.naver.com##div[class^="_carouselProductList_mobile_carousel_product_list_"]
 soccerline.kr##.bottBann
+ssalmuk.com##+js(json-prune, data.[-].popupCode)
 svrforum.com$$ins[class="adsbygoogle"]
 tdgall.com,hygall.com##.admanager-row
 te31.com##table:has(td > script)
@@ -195,7 +198,6 @@ jusocon1.com,jusocon2.com##.banner_box
 mingky.live,ydparty.tv##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
 redbogo2.com,redbogo3.com##.ad-banner-section
 sbxh3.com,sbxh4.com,sbxh5.com##[data-pm-ov="1"]
-tkor124.com,tkor125.com,tkor127.com##.main_top_bann
 xxzone23.top,xxzone24.top##[id*="main-banner"], .gplayer-ad-overlay, #popupBannerModal
 !
 !#if (adguard && adguard_app_ios && adguard_ext_safari && adguard_ext_chromium && adguard_ext_edge && adguard_ext_firefox)
@@ -247,7 +249,7 @@ ruliweb.com##+js(remove-class, ai_blind, #board_read)
 @@||piku.co.kr^$generichide
 aagag.com##+js(set-cookie, ab, 0)
 aagag.com#$#.la { position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
-damoang.net##[aria-label="광고 차단 안내"]
+damoang.net##.adblock-notice
 dcinside.com###moveOverlay, #gaejukimg
 m.fmkorea.com##+js(set, _make_power_link_identifier, noopFunc)
 m.fmkorea.com##script ~ div.bd_mobile.bd:matches-css(margin: /[0-5]px [0-5]px/):matches-css(padding: /[0-5]px/):remove()
