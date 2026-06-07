@@ -95,3 +95,11 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/bookmark.js
 ```
+
+※ Pokkok.js
+- 광고 요소 차단기
+- https://github.com/hooray804/Picky 스크립트에서 착안 및 참고해서 만듬
+
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/Pokkok.js
+```
