@@ -124,7 +124,7 @@ tv.kakao.com#@#div.ads
 !
 !
 ! 유튜브 (https://www.youtube.com/)
-!@@||www.youtube.com^$generichide
+@@||youtube.com^$generichide
 ! 차단목록 (Adblock-Rule-Collection-Lite)
 ! - 유튜브의 통계 및 시청 기록 시스템의 핵심 관문을 차단하는 규칙
 ! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
@@ -2567,12 +2567,23 @@ j91.asia##+js(window.open-defuser)
 @@||tiktokcdn.com^$3p
 @@||p16-ad-sg.ibyteimg.com^
 @@tiktokcdn.com/obj/$xhr
+@@||streamtape.$generichide
 !nicholasbreakplan.com,fc2stream.tv#@#[class*="floating" i]
 !@@*$generichide,from=streamtape.*
 ! - 기타
 ! - - - https://javgg.net/
 ! - - - https://javplayer.org/ (여러 재생 스크림 중에서)
 ##[class*="ad-placement" i]
+/log_js_error$ping
+/^https:\/\/(?:[a-z]{2}\.)?[a-z]{7,14}\.[a-z]{3,7}\/[fgprst][0-9A-Za-z]{10,16}\/\d{3,6}$/$script,3p,match-case
+streamtape.*##+js(remove-node-text, script, /parseInt.*push.*setTimeout.*try.*catch/)
+streamtape.*##+js(disable-newtab-links)
+streamtape.*##+js(prevent-addEventListener, contextmenu, event.dispatch.apply)
+streamtape.*##+js(prevent-addEventListener, contextmenu)
+streamtape.*##+js(abort-on-property-write, _pop)
+streamtape.*##+js(adjust-setTimeout, counter, '', 0.02)
+jessicayeahcatch.com##+js(prevent-addEventListener, contextmenu)
+jessicayeahcatch.com##+js(google-ima3)
 ! - 팝업 유발하는 플레이어 차단
 ||bryantenunder.com^
 !
@@ -2698,12 +2709,20 @@ javgiga.com##+js(window.open-defuser)
 !##[class^="videos"] - 쏘걸 (https://kr86.sogirl.so/) - 영상 아미지 안나옴
 !
 !
-! https://www.xnxx.com/
+! XNXX.COM (https://www.xnxx.com/)
 ! - 광고
 !##[class*="widget"]
 !##[class*="-widget-"] - 다른 사이트 (https://pigav.com/) 안보임
-! ##[class*="-ad-"] img - 다시 나타남. ###ad-footer로 공간 지워야 사라짐
-##[class*="-ad-" i] img
+! - 하단 광고
+!##[class*="-ad-"] img - 다시 나타남. ###ad-footer로 공간 지워야 사라짐
+xnxx.com###ad-footer
+! - 프리미엄 영상
+xnxx.*##.premium-results-line
+! - 기타
+||xnxx.com/picserror/
+xnxx.com##body:style(overflow: auto !important;)
+xnxx.com##+js(prevent-fab-3.2.0)
+xnxx.com##+js(set-local-storage-item, xvutils.nb_tabs_opened, 1)
 !
 !
 ! 쏘걸 (https://kr1.4kjav.co/) (https://kr86.sogirl.so/)
@@ -5101,6 +5120,58 @@ notion.so##+js(set-cookie, notion_cookie_consent, 0)
 notion.so##+js(set-cookie, notion_check_cookie_consent, true)
 !
 !
+! 얀덱스 (https://yandex.com/)
+! - 기타
+@@||captcha-backgrounds.s3.yandex.net^
+||csp.yandex.net^
+yandex.*##.DistributionPopup
+yandex.*##.HeaderDesktop:style(position: absolute !important;)
+yandex.*##.AppAdvancedSearch:style(position: relative !important; top: 0 !important;)
+yandex.*##div[role="list"] > div.JustifierRowLayout-Incut
+||yandex.com/clck/
+yandex.*##+js(remove-class, document_disable-feed-scroll_yes, body[style*="overflow:"])
+yandex.*##+js(abort-on-property-write, __pcodeAllActiveTestIds)
+yandex.*##+js(set-cookie, gdpr, 0)
+!
+!
+! 제미나이 (https://gemini.google.com/)
+! - 기타
+gemini.google.com##.input-area-container:style(max-width:1600px!important)
+!
+!
+! ChatGPT (https://chatgpt.com/)
+! - 기타
+chatgpt.com##+js(ubo-set-session-storage-item, oai/apps/noAuthHasDismissedSoftRateLimitModal, true)
+chatgpt.com##+js(ubo-set-local-storage-item, oai/apps/hasSeenNoAuthImagegenNux, true)
+chatgpt.com##+js(ubo-set-cookie, oai_consent_marketing, false)
+chatgpt.com##+js(ubo-set-cookie, oai_consent_analytics, false)
+chatgpt.com##+js(set-cookie, oai_consent_marketing, false)
+chatgpt.com##+js(set-cookie, oai_consent_analytics, false)
+chatgpt.com##+js(set-cookie, oai-allow-ne, false)
+!
+!
+! StackSocial (https://www.stacksocial.com/)
+! - 기타
+||typekit.net^$3p
+||lightboxcdn.com/vendor/$script,3p
+stacksocial.com##+js(set-cookie, sc_cookie_consent, 0)
+stacksocial.com##body:style(overflow: auto !important;)
+stacksocial.com##html > body:not(#style_important):style(overflow: visible !important;)
+stacksocial.com##html:style(overflow: auto !important;)
+!
+!
+! 무코 (https://muko.kr/)
+! - 팝업 차단 후 화면 뿌연거 해결
+!muko.kr###popupAdOverlay
+muko.kr##[id="popupadoverlay" i]
+! - 상단 배너 공간
+!##.muko-ad-impression
+##[class*="-ad-" i]
+! - 오른쪽에 나타나는 회원가입 작은 팝업
+!###xt_join_site_addons
+##[id*="addons" i]
+!
+!
 !
 !
 !
@@ -5149,6 +5220,8 @@ notion.so##+js(set-cookie, notion_check_cookie_consent, true)
 !
 !
 *##.ad
+! - 예외 - https://www.ad.co.kr/ - 메뉴 사라짐
+ad.co.kr#@#.ad
 !
 !
 *_ad.*
@@ -5167,7 +5240,7 @@ notion.so##+js(set-cookie, notion_check_cookie_consent, true)
 !
 ##[src*="/ad/" i]
 ! - 예외
-auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
+ad.co.kr,auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
 ##[src*="/ads/" i]
@@ -5273,6 +5346,8 @@ auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
 ##[href*="/ad/" i]
+! - 예외 - https://www.ad.co.kr/ - 사라지면 안되는 링크 사라짐
+ad.co.kr#@#[href*="/ad/" i]
 !
 !
 ##[href*="/ads/" i]
@@ -5338,6 +5413,8 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 ||ad.*
+! - 예외 - https://www.ad.co.kr/ - 도메인 자체가 ad.로 시작하는 사이트
+@@||ad.*$domain=ad.co.kr
 ||ad-*
 ||ads.*
 ||ads-*
@@ -5732,6 +5809,12 @@ www.google.*##div[jsmodel*=" "]:style(max-width:2000px!important)
 
 ||jsdelivr.net/npm/disable-devtool
 
+##.grecaptcha-badge[data-style]
+
+/ad0*
+
+
+
 
 
 
@@ -5781,6 +5864,9 @@ zoneid=
 
 /gen_204^
 
+/pagead^
+
+
 ||google.com/v1/survey/trigger/trigger_anonymous^
 
 ##[src*="ad.a-ads.com"]
@@ -5798,6 +5884,8 @@ google.*##+js(remove-attr, data-jsarwt, #rcnt [data-ved] a)
 www.google.*##+js(remove-attr, jsaction, #islsp c-wiz a[href^="http"][data-ved][target], stay)
 google.com##+js(set-local-storage-item, mapslitepromosdismissed, 1)
 
+accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
+
 
 ||google.com/async/bgasy^
 
@@ -5811,6 +5899,14 @@ google.com##+js(set-local-storage-item, mapslitepromosdismissed, 1)
 /cast_sender.js^$script
 
 ||cookielaw.org^
+
+||signifyd.com^
+
+||gladly.com/chat-sdk/$script
+
+##[id*="gpt-ad-"]
+
+
 
 
 
