@@ -859,7 +859,8 @@ m.inven.co.kr##.goto_top_arrow
 ! 엠팍 (https://mlbpark.donga.com/)
 ! - 상단 배너
 !##[class*="top_ad" i]
-##.top_ad
+! - AdGuard Base filter + EasyList
+!##.top_ad
 ! - 오른쪽 배너
 !##[class*="big_banner" i]
 !##.big_banner
@@ -1261,7 +1262,8 @@ damoang.net##.dm-card
 ! - 하단 광고 차단 팝업
 !damoang.net##.adblock-notice
 ##[class*="-notice" i]
-damoang.net##[aria-label="광고 차단 안내"]
+!damoang.net##[aria-label="광고 차단 안내"]
+##[aria-label*="광고"], [aria-label*="차단"]
 ! - 배너
 !damoang.net##.adsbygoogle
 ! - 오른쪽 스크롤도구
@@ -5193,6 +5195,14 @@ muko.kr##[id="popupadoverlay" i]
 !###gdpr-cookie-notice
 !##[id*="cookie-notice" i]
 ##[id*="cookie" i]
+!
+!
+! 윈도우 포럼 (https://windowsforum.kr/)
+! - 안티-애드블록 우회
+windowsforum.kr##+js(noeval-if, top_banner)
+windowsforum.kr##+js(no-window-open-if)
+windowsforum.kr##+js(aopr, alert)
+windowsforum.kr##+js(set, location.reload, noopFunc)
 !
 !
 !
