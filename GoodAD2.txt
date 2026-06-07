@@ -1794,7 +1794,8 @@ x.com/*/videoads/
 ||n9k.run^$third-party
 ||yax.zone^$doc
 ||yax.zone^$third-party
-
+||shm.to^$doc
+||shm.to^$third-party
 
 ! ═══════════════════════════════════════════
 ! [16] 선택 적용 (주의: 결제·로그인·기능 영향 가능)
