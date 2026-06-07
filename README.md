@@ -38,7 +38,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
 ```
-<br/>
+
 ..... DNS 필터
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
