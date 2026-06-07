@@ -1,4 +1,5 @@
 name: Convert List-KR classic (uBO)
+
 on:
   schedule:
     - cron: '0 */6 * * *'   # 6시간마다
@@ -16,17 +17,29 @@ jobs:
       - name: Fetch & convert
         run: |
           SRC="https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-classic.txt"
+
+          # 원본을 한 번만 받아서 임시 파일로 저장
+          curl -fsSL "$SRC" | sed 's/\r$//' > src.txt
+
+          # 원본에서 Version 줄만 추출
+          VERSION=$(grep -m1 '^! Version:' src.txt | sed 's/^! Version:[[:space:]]*//')
+
           {
-            echo "[Adblock Plus 2.0]"
             echo "! Title: List-KR filters list Classic for uBlock Origin"
             echo "! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다."
+            echo "! Version: $VERSION"
+            echo "! Expires: 1 day (update frequency)"
+            echo "! Homepage: https://github.com/List-KR/List-KR"
+            echo "! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE"
             echo "! Updated: $(date -u)"
           } > listkr-classic-uBlock.txt
-          curl -fsSL "$SRC" \
-            | sed 's/\r$//' \
+
+          # 본문에서 #if/#endif/#include 와 기존 헤더 줄 제거
+          cat src.txt \
             | grep -v '^!#if' \
             | grep -v '^!#endif' \
             | grep -v '^!#include' \
+            | grep -v '^\[Adblock' \
             | grep -v '^! Title:' \
             | grep -v '^! Description:' \
             | grep -v '^! Version:' \
@@ -34,6 +47,7 @@ jobs:
             | grep -v '^! Homepage:' \
             | grep -v '^! Licence:' \
             >> listkr-classic-uBlock.txt
+
           echo "lines: $(wc -l < listkr-classic-uBlock.txt)"
 
       - name: Commit
