@@ -32,7 +32,7 @@ jobs:
             echo "! Homepage: https://github.com/List-KR/List-KR"
             echo "! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE"
             echo "! Updated: $(date -u)"
-          } > listkr-classic-uBlock.txt
+          } > Listkr-uBlock-classic.txt
 
           # 본문에서 #if/#endif/#include 와 기존 헤더 줄 제거
           cat src.txt \
@@ -46,18 +46,18 @@ jobs:
             | grep -v '^! Expires:' \
             | grep -v '^! Homepage:' \
             | grep -v '^! Licence:' \
-            >> listkr-classic-uBlock.txt
+            >> Listkr-uBlock-classic.txt
 
-          echo "lines: $(wc -l < listkr-classic-uBlock.txt)"
+          echo "lines: $(wc -l < Listkr-uBlock-classic.txt)"
 
       - name: Commit
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add listkr-classic-uBlock.txt
+          git add Listkr-uBlock-classic.txt
           if git diff --staged --quiet; then
             echo "No changes"
           else
-            git commit -m "Update converted List-KR classic list"
+            git commit -m "Update converted Listkr-uBlock-classic"
             git push
           fi
