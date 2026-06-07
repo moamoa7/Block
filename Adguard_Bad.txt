@@ -38,7 +38,8 @@ $@$link[rel="manifest"]
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||truefriend.com^$stealth=dpi
 @@||wcs.naver.net^$domain=seorinexpress.com|naver.com
-m.fmkorea.com#@$?#*.bd.bd_mobile:not(:has(#bd_capture ~ #comment)):has(form[action="./"]:matches-css(height: auto)) { remove: true; }
+! - 모바일에서 에펨코리아 상단 공백이 안줄어들어서 주석 처리
+!m.fmkorea.com#@$?#*.bd.bd_mobile:not(:has(#bd_capture ~ #comment)):has(form[action="./"]:matches-css(height: auto)) { remove: true; }
 m.gmarket.co.kr#@#.ReactVirtualized__Grid__innerScrollContainer .box__banner-wrap > .box__banner--today
 m.gmarket.co.kr#@#.js-impressionable
 meeco.kr#@##cCon + aside.sidebar2
