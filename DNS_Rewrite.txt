@@ -165,8 +165,9 @@
 !||logs.is.com^
 !||outcome-arpc.is.com^
 ||vungle.com^
-||applovin.com^
-||ironsrc.com^
+! - 아래 2개는 HaGeZi's Pro DNS Blocklist에서 차단하므로 주석 처리
+!||applovin.com^
+!||ironsrc.com^
 ||ironsrc.mobi^
 ||tapjoy.com^
 ||chartboost.com^
