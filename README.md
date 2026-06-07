@@ -69,7 +69,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Tools.js
 ```
 <br/>
 
-※ Mobile Gesture
+※ Mobile_Gesture.js
 - 모바일에서만 사용가능한 영상내 제스처
 - HTML5视频手势 스크립트에서 필요없는거 제거하고 만든 스크립트
 ```
