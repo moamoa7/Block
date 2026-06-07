@@ -1263,7 +1263,8 @@ damoang.net##.dm-card
 !damoang.net##.adblock-notice
 ##[class*="-notice" i]
 !damoang.net##[aria-label="광고 차단 안내"]
-##[aria-label*="광고"], [aria-label*="차단"]
+! - [aria-label*="차단"] : 제품 중 햇빛 차단 제품이 사라질 수 잇음
+!##[aria-label*="광고"]
 ! - 배너
 !damoang.net##.adsbygoogle
 ! - 오른쪽 스크롤도구
@@ -1354,6 +1355,8 @@ hungryapp.co.kr##body:style(pointer-events: auto !important; overflow: auto !imp
 !
 !
 ! ZUM (https://zum.com/)
+! - 리워드 받아가세요 (오른쪽 하단 팝업)
+zum.com###app > div > div
 ! - 가운데 위치 빈 공간 (배너)
 !##[id="big_banner" i]
 ###big_banner
@@ -1372,13 +1375,11 @@ zum.com##[class*="coupang-shopping" i]
 ! - 오른쪽 즐겨찾기
 !##[class*="favorite_site" i]
 ##.favorite_site
-! - 검색 하단 광고
-!##[class*="PowerLinkContainer"]
-!##[class*="PowerShoppingList"]
-!##[class*="CoupangContainer"]
-##.PowerLinkContainer
-##.PowerShoppingList
-##.CoupangContainer
+! - 검색 후 나오는 상품 광고
+! - - - 상단 파워쇼핑
+##[class*="powershopping" i]
+! - - - 중간 관련 인기 상품
+zum.com##[class*="coupang" i]
 !
 !
 ! 벅스 (https://music.bugs.co.kr/)
@@ -2223,7 +2224,8 @@ coupang.com##.main-today
 coupang.com###todayDiscoveryUnit
 ! - ㅡ이상품 놓치지 마세요
 !##.personalized_ads
-coupang.com##[class*="personalized_ads" i]
+!coupang.com##[class*="personalized_ads" i]
+##[class$="_ads" i]
 ! - 카테고리별 추천 광고상품
 coupang.com###categoryBestUnit
 ! - 지금 이 상품이 필요하신가요
@@ -2996,7 +2998,7 @@ javtiful.com##.front-feature-placement-side
 apkmody.com#@#section:has([target] img[src*="/wp-content/uploads/"])
 ! -예외 - https://07.avsee.ru/ - 일부 게시판내 링크를 사용할경우 이미지 등 본문 안보임
 avsee.ru#@#section:has([target] img[src*="/wp-content/uploads/"])
-##section:has(img[width="1200"])
+aniya24.com##section:has(img[width="1200"])
 ! - 배너 남는 공간
 aniya24.com##.elementor-element-5fc256c
 aniya24.com##.elementor-element-48515f4
@@ -4680,8 +4682,8 @@ newduck.net##.code-list-top
 ! - 게시물 하단 배너 (댓글 바로 위)
 !##.custom-banner
 ! - 최하단 파워링크
-!##[class*="powerlink" i]
-##.powerlink
+##[class*="powerlink" i]
+!##.powerlink
 
 !
 !
@@ -5205,6 +5207,11 @@ windowsforum.kr##+js(aopr, alert)
 windowsforum.kr##+js(set, location.reload, noopFunc)
 !
 !
+! 테라박스 (https://www.terabox.com/) (https://www.1024tera.com/)
+! -  본문 안보이는거 방지 (타 규칙에 의한 차단해제)
+#@#div[class*="share-link"]
+!
+!
 !
 !
 !
@@ -5458,6 +5465,21 @@ linkareer.com#@#[src*="advert" i]
 ||*/?ref=*$doc
 !
 !
+##[aria-label*=sponsor i]
+!
+##[class*="-sponsor" i]
+!
+!
+##[class*="_ad_" i]
+!
+##[class$="_ad" i]
+!
+!
+##iframe[title*="배너"]
+!
+##iframe[title*="banner"]
+!
+!
 !
 !
 !
@@ -5647,11 +5669,13 @@ kick.com#@#[src*="banner" i]
 ! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
 ! https://github.com/ - 일부 페이지 오류 발생
 ! 킥 (https://kick.com/) - 영상 이미지 안보임
+! ZUM (https://zum.com/) - 일부 내용 안보임
 @@||*banner*$image,domain=coupangplay.com
 @@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
 @@||*banner*$domain=github.com
 @@*banner*$image,domain=xtoon365.com
 @@*banner*$image,domain=kick.com
+@@*banner*$xhr,domain=zum.com
 ! - 아래 안풀어도 됨 (배너 막혀서 나오는 메시지임. 검색과는 무관)
 !@@*banner*$xhr,domain=rememberapp.co.kr
 ! - wixpress.com - 주소에 banner이 들어가지면 배너 아님 (일단 아래 2규칙 보류)
