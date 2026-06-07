@@ -39,22 +39,6 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
 ```
 <br/>
-
-- 유저스크립트
-<br/>
-
-..... 에펨코리아 익스텐션 (Gallery Extension)
-```
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/Gallery%20Extension.user.js
-```
-..... 디시인사이드 엑스퍼트 익스텐션 (Dcinside Expert Extension)
-```
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/dc.user.js
-```
-..... antiadblck-sbxh.user
-```
-https://raw.githubusercontent.com/hooray804/octopus/main/antiadblck-sbxh.user.js
-```
 ..... DNS 필터
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
