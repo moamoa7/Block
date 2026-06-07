@@ -19,13 +19,13 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/White_DNS.txt
 ※ GoodAD.txt
 <br/>
 
-개인적으로 추가한 Filter List (한국사이트 위주)
+개인 Filter List (한국사이트 위주) - ublock
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br/>
 
-※ adguard_gallery.txt (추천 필터)
+※ adguard_gallery.txt (추천 필터) - adguard
 <br/>
 
 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter (2026년 2월 21일 폐쇄)
