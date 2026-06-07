@@ -1,67 +1,50 @@
-name: Merge List-KR filters
+name: Convert List-KR classic (uBO) for generic adblockers
 
 on:
   schedule:
-    - cron: '0 0 * * *'   # 매일 1회 (UTC)
+    - cron: '0 */6 * * *'   # 6시간마다
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  merge:
+  convert:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Merge uBlock Origin lists
+      - name: Fetch & convert
         run: |
-          BASE="https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist"
+          SRC="https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-classic.txt"
           {
             echo "[Adblock Plus 2.0]"
-            echo "! Title: List-KR Merged (uBlock Origin)"
-            echo "! Description: classic + normal + unified merged & deduped"
+            echo "! Title: List-KR classic (converted / generic)"
+            echo "! Description: !#if guard removed so non-uBO/AdGuard engines load the rules"
             echo "! Updated: $(date -u)"
-          } > listkr-ublock.txt
-          for f in filterslist-uBlockOrigin-classic.txt filterslist-uBlockOrigin.txt filterslist-uBlockOrigin-unified.txt ; do
-            curl -fsSL "$BASE/$f" || echo "! WARN: failed $f"
-          done \
+          } > listkr-classic-generic.txt
+          curl -fsSL "$SRC" \
             | sed 's/\r$//' \
-            | grep -v '^!' \
-            | grep -v '^\[' \
-            | grep -v '^[[:space:]]*$' \
-            | sort -u \
-            >> listkr-ublock.txt
-          echo "uBlock total lines: $(wc -l < listkr-ublock.txt)"
+            | grep -v '^!#if' \
+            | grep -v '^!#endif' \
+            | grep -v '^!#include' \
+            | grep -v '^! Title:' \
+            | grep -v '^! Description:' \
+            | grep -v '^! Version:' \
+            | grep -v '^! Expires:' \
+            | grep -v '^! Homepage:' \
+            | grep -v '^! Licence:' \
+            >> listkr-classic-generic.txt
+          echo "lines: $(wc -l < listkr-classic-generic.txt)"
 
-      - name: Merge AdGuard lists
-        run: |
-          BASE="https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist"
-          {
-            echo "[Adblock Plus 2.0]"
-            echo "! Title: List-KR Merged (AdGuard)"
-            echo "! Description: classic + normal + unified merged & deduped"
-            echo "! Updated: $(date -u)"
-          } > listkr-adguard.txt
-          for f in filterslist-AdGuard-classic.txt filterslist-AdGuard.txt filterslist-AdGuard-unified.txt ; do
-            curl -fsSL "$BASE/$f" || echo "! WARN: failed $f"
-          done \
-            | sed 's/\r$//' \
-            | grep -v '^!' \
-            | grep -v '^\[' \
-            | grep -v '^[[:space:]]*$' \
-            | sort -u \
-            >> listkr-adguard.txt
-          echo "AdGuard total lines: $(wc -l < listkr-adguard.txt)"
-
-      - name: Commit results
+      - name: Commit
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add listkr-ublock.txt listkr-adguard.txt
+          git add listkr-classic-generic.txt
           if git diff --staged --quiet; then
-            echo "No changes to commit"
+            echo "No changes"
           else
-            git commit -m "Update merged List-KR lists"
+            git commit -m "Update converted List-KR classic list"
             git push
           fi
