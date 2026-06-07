@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260607-rev1
+! Version: 20260608-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -33,12 +33,13 @@
 ||clientservices.googleapis.com^
 !
 ! ───── Google Firebase / Crashlytics 관련 ─────
-||crashlyticsreports-pa.googleapis.com^
-||firebaselogging-pa.googleapis.com^
-||app-measurement.com^
-||crashlytics.com^
-||firebaseinstallations.googleapis.com^
-! - WIFI에서 디시인사이드 구동 안됨 → 차단 해제
+! - 아래 4개는 HaGeZi's Pro DNS Blocklist에서 차단하므로 주석 처리
+!||crashlyticsreports-pa.googleapis.com^
+!||firebaselogging-pa.googleapis.com^
+!||app-measurement.com^
+!||crashlytics.com^
+! - 아래 2개는 WIFI에서 디시인사이드 구동 안됨 → 차단 해제
+!||firebaseinstallations.googleapis.com^
 !||firebaseremoteconfig.googleapis.com^
 ||firebaseperformance.googleapis.com^
 ||firebaseinappmessaging.googleapis.com^
