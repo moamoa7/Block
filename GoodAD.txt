@@ -1102,6 +1102,10 @@ namu.wiki#?#div:has(> div > span > svg > path[d^="M12.2031"])
 !namu.wiki##div[data-v-513cdb46]
 ! - 출처 : https://gall.dcinside.com/adguard/9576 - PC는 그대로임
 !namu.wiki##div:has(> form input[type="search"]) > div:has(svg)
+! - 검색 후 메인 상단 빈공간
+namu.wiki##div:has(> div > div[id^="_a"])
+! - 검색 후 나오는 메인 중간 배너 공간
+namu.wiki##div[class][data-v-2c28122a]
 !
 !
 ! 모두의 후방 (https://data.pureugong.com/)
