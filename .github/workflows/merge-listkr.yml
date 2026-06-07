@@ -1,5 +1,4 @@
-name: Convert List-KR classic (uBO) for generic adblockers
-
+name: Convert List-KR classic (uBO)
 on:
   schedule:
     - cron: '0 */6 * * *'   # 6시간마다
