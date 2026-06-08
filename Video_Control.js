@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.0.5)
+// @name         Video_Control (v33.0.6)
 // @namespace    https://github.com/moamoa7
-// @version      33.0.5
-// @description  v33.0.5: 부스트트랩 오류 수정 - iframe 부스트 호출
+// @version      33.0.6
+// @description  v33.0.6: 도라마코리아 예외 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -12,6 +12,7 @@
 // @exclude      *://*.paypal.com/*
 // @exclude      *://challenges.cloudflare.com/*
 // @exclude      *://*.cloudflare.com/cdn-cgi/*
+// @exclude      *://*.dorama.kr/*
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
@@ -33,7 +34,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.0.5';
+  const VSC_VERSION = '33.0.6';
   const DEBUG = true;
 
   const log = {
