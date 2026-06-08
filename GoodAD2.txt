@@ -1289,7 +1289,7 @@ $cookie=/^__hstc$/
 ||pubads.g.doubleclick.net^$xmlhttprequest,redirect=noopvast-2.0
 ||pubads.g.doubleclick.net/gampad/ads^$xmlhttprequest,redirect=noopvast-2.0
 ||pubads.g.doubleclick.net/gampad/live/ads^$xmlhttprequest,redirect=noopvast-2.0
-||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=googletagservices.com/gpt.js,domain=~dorama.kr
+||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=googletagservices.com/gpt.js
 ||imasdk.googleapis.com/js/sdkloader/ima3_dai.js^$script,redirect=noopjs
 ||youtube.com^$removeparam=si
 ||youtube.com^$removeparam=ab_channel
