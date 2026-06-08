@@ -5971,6 +5971,8 @@ accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
 
 ##[id*="gpt-ad-"]
 
+
+/stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com,badfilter
 /stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com|~adguard-dns.io
 
 
