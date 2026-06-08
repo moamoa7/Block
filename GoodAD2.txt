@@ -823,17 +823,17 @@ $cookie=/^__hstc$/
 ||static.cloudflareinsights.com^$script,redirect=noopjs
 
 ! ───── VAST/VMAP 광고 응답 → 빈 응답 ─────
-||*/vast/*$xmlhttprequest,redirect=noopvast-2.0,domain=~dorama.kr
-||*/vmap/*$xmlhttprequest,redirect=noopvmap-1.0,domain=~dorama.kr
-||*/vast.xml$xmlhttprequest,redirect=noopvast-2.0,domain=~dorama.kr
-||*/vast?*$xmlhttprequest,redirect=noopvast-2.0,domain=~dorama.kr
-||*/vmap?*$xmlhttprequest,redirect=noopvmap-1.0,domain=~dorama.kr
-||*/ads.xml$xmlhttprequest,redirect=noopvast-2.0,domain=~dorama.kr
-||*/preroll*$xmlhttprequest,redirect=noopvast-2.0,domain=~dorama.kr
-||*/midroll*$xmlhttprequest,redirect=noopvast-2.0,domain=~dorama.kr
-||*/postroll*$xmlhttprequest,redirect=noopvast-2.0,domain=~dorama.kr
-||doubleclick.net/pagead/*$xmlhttprequest,redirect=noopvast-3.0,domain=~dorama.kr
-||doubleclick.net/instream/ad_status.js$script,redirect=noopjs,domain=~dorama.kr
+||*/vast/*$xmlhttprequest,redirect=noopvast-2.0
+||*/vmap/*$xmlhttprequest,redirect=noopvmap-1.0
+||*/vast.xml$xmlhttprequest,redirect=noopvast-2.0
+||*/vast?*$xmlhttprequest,redirect=noopvast-2.0
+||*/vmap?*$xmlhttprequest,redirect=noopvmap-1.0
+||*/ads.xml$xmlhttprequest,redirect=noopvast-2.0
+||*/preroll*$xmlhttprequest,redirect=noopvast-2.0
+||*/midroll*$xmlhttprequest,redirect=noopvast-2.0
+||*/postroll*$xmlhttprequest,redirect=noopvast-2.0
+||doubleclick.net/pagead/*$xmlhttprequest,redirect=noopvast-3.0
+||doubleclick.net/instream/ad_status.js$script,redirect=noopjs
 
 ! ───── JSON API 응답 → 빈 JSON ─────
 ||*/adsense/*$xmlhttprequest,redirect=noopjson
@@ -1160,7 +1160,7 @@ $cookie=/^__hstc$/
 ||video-edge-*.abs.hls.ttvnw.net/*/stats^$empty
 ||twitchcdn.net^$xmlhttprequest,redirect=noopvast-2.0
 ||*twitch.tv*/ads^$xmlhttprequest,empty
-!||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=noopjs
+||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=noopjs
 ||twitch.tv^$removeparam=tt_content
 ||twitch.tv^$removeparam=tt_medium
 ||twitch.tv^$removeparam=tt_term
@@ -1289,7 +1289,7 @@ $cookie=/^__hstc$/
 ||pubads.g.doubleclick.net^$xmlhttprequest,redirect=noopvast-2.0
 ||pubads.g.doubleclick.net/gampad/ads^$xmlhttprequest,redirect=noopvast-2.0
 ||pubads.g.doubleclick.net/gampad/live/ads^$xmlhttprequest,redirect=noopvast-2.0
-||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=googletagservices.com/gpt.js
+||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=googletagservices.com/gpt.js,domain=~dorama.kr
 ||imasdk.googleapis.com/js/sdkloader/ima3_dai.js^$script,redirect=noopjs
 ||youtube.com^$removeparam=si
 ||youtube.com^$removeparam=ab_channel
