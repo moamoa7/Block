@@ -4,7 +4,7 @@
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Mon Jun  8 03:59:51 UTC 2026
+! Updated: Mon Jun  8 10:54:30 UTC 2026
 
 ||adv.imadrep.co.kr^
 ||delivery.pryzmads.com^
