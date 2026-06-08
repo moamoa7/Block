@@ -826,7 +826,7 @@ $cookie=/^__hstc$/
 ||*/vast/*$xmlhttprequest,redirect=noopvast-2.0
 ||*/vmap/*$xmlhttprequest,redirect=noopvmap-1.0
 ||*/vast.xml$xmlhttprequest,redirect=noopvast-2.0
-||*/vast?*$xmlhttprequest,redirect=noopvast-2.0
+||*/vast?*$xmlhttprequest,redirect=noopvast-2.0,domain=~dorama.kr
 ||*/vmap?*$xmlhttprequest,redirect=noopvmap-1.0
 ||*/ads.xml$xmlhttprequest,redirect=noopvast-2.0
 ||*/preroll*$xmlhttprequest,redirect=noopvast-2.0
