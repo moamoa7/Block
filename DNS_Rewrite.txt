@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260608-rev1
+! Version: 20260609-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -1276,7 +1276,8 @@
 ||ads.twitch.tv^
 !
 ! Twitch 광고 메타데이터 (IMA SDK)
-||imasdk.googleapis.com^
+! - - - https://www.dorama.kr/ 에서 영상 지연 발생으로 주석 처리
+!||imasdk.googleapis.com^
 ||pubads.g.doubleclick.net^
 !
 ! ⚠️ 절대 차단 금지 (방송 송출/이미지 끊김)
