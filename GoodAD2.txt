@@ -1160,7 +1160,7 @@ $cookie=/^__hstc$/
 ||video-edge-*.abs.hls.ttvnw.net/*/stats^$empty
 ||twitchcdn.net^$xmlhttprequest,redirect=noopvast-2.0
 ||*twitch.tv*/ads^$xmlhttprequest,empty
-||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=noopjs
+!||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=noopjs
 ||twitch.tv^$removeparam=tt_content
 ||twitch.tv^$removeparam=tt_medium
 ||twitch.tv^$removeparam=tt_term
