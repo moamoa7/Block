@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20611.0
+! Version: 2026.20612.1
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Mon Jun  8 15:52:12 UTC 2026
+! Updated: Mon Jun  8 20:15:18 UTC 2026
 
 ||adv.imadrep.co.kr^
 ||delivery.pryzmads.com^
@@ -1472,6 +1472,7 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 !
 ! DOMAIN-REFRESHER: START
 !
+/^https:\/\/www\.tfreeca[0-9]+\.[a-z]+\/ad\//$domain=/tfreeca[0-9]+\.[a-z]+/
 /^https:\/\/imancomics\.com\/wp-content\/uploads\/[0-9]+/$domain=imancomics.com
 /https:\/\/majorlink[0-9]+\.com\/uploads\/post\//$domain=/majorlink[0-9]+\.com/
 /\/data\/apms\/banner\//$domain=/mato[0-9]+\.com/
@@ -1753,6 +1754,7 @@ eegosa.com##section[id*="_ads_"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+mlbpark.donga.com##.naver_place.place_view:has(a[href*="ader.naver.com"])
 muko.kr###popupAdOverlay
 muko.kr##.muko-ad-impression
 damoang.net##div[data-dm-slot]
