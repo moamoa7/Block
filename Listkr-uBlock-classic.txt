@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20613.1
+! Version: 2026.20613.4
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Tue Jun  9 14:50:45 UTC 2026
+! Updated: Tue Jun  9 20:07:04 UTC 2026
 
 ||adv.imadrep.co.kr^
 ||delivery.pryzmads.com^
@@ -1472,6 +1472,8 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 !
 ! DOMAIN-REFRESHER: START
 !
+*$image,denyallow=tvchak.live|smartnote.blog|wiselife.blog,domain=tvchak.live
+/^https:\/\/nooo[0-9]+\.tv\/theme\/renew\/img\/banner\//$domain=/nooo[0-9]+\.tv/
 /^https:\/\/www\.tfreeca[0-9]+\.[a-z]+\/ad\//$domain=/tfreeca[0-9]+\.[a-z]+/
 /^https:\/\/imancomics\.com\/wp-content\/uploads\/[0-9]+/$domain=imancomics.com
 /https:\/\/majorlink[0-9]+\.com\/uploads\/post\//$domain=/majorlink[0-9]+\.com/
@@ -3088,6 +3090,7 @@ kio.ac##main > div:has(> div > div > a > img)
 !
 ! DOMAIN-REFRESHER: START
 !
+tvchak.live##.banner-box
 [$domain=/xtoon[0-9]+\.com/]##.container > div.row > div > a[target="_blank"] > picture
 [$domain=/funbe[0-9]+\.com/]##.mobile-banner > div[class^="main_top_bann"]
 [$domain=/funbe[0-9]+\.com/]##.mobile-banner div.banner_m
