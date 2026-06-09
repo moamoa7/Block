@@ -31,7 +31,7 @@
 ! Title: Personal Privacy & Traffic Filter
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260609-rev1
+! Version: 20260609-rev2
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -1788,6 +1788,8 @@ x.com/*/videoads/
 ! [추가] 의심스러운 단축 URL 리다이렉트 차단
 ! ═══════════════════════════════════════════
 ! 광고/스팸에서 TikTok·AliExpress·기타로 강제 유입되는 패턴 차단
+||19hot.news^$doc
+||19hot.news^$third-party
 ||ho.fi^$doc
 ||ho.fi^$third-party
 ||n9k.run^$doc
