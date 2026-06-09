@@ -91,6 +91,20 @@ tv.kakao.com#@#div.ads
 ||smartmediarep.com^$badfilter
 !
 !
+! 구글 (https://www.google.com/)
+! - 기타
+www.google.com###tads, .ads-ad
+google.com##.Gdd5U, .goxjub, .Tg7LZd svg:style(height: 24px !important; width: 24px !important;)
+google.com##.zLSRge.w2jn8d:style(top: 0 !important;)
+www.google.*##div[data-st-cnt] div[role="list"] > div[role="listitem"]:has(a[href*="&udm=50&"])
+www.google.*##div[jsmodel*=" "]:style(max-width:2000px!important)
+google.com##.CTOaxb:style(position: absolute !important; top: unset !important; background-color: unset !important; border-bottom: unset !important;)
+google.com##.VHFyob .pcTkSc:not(.IDVnvc > .cRV9hb > .pcTkSc):style(padding: 6px 0 !important;)
+google.com##.TRXNOc:style(position: relative !important; top: 0 !important;)
+www.google.*##div[data-subtree^="ai"] > div[data-wiz-uids] > div[class]:not([class=""]):first-of-type
+www.google.com##.OMqmfd:style(position: relative !important;)
+!
+!
 ! 구글 광고 차단
 !##ins.adsbygoogle - ##[class*="adsby" i]로 대체
 !##[class*="ins.adsbygoogle" i]
@@ -195,6 +209,41 @@ instagram.com##+js(close-window, /[Ss][Mm][Oo][Ss][Tt][Aa][Ff][Aa][Mm][Oo][Oo][S
 instagram.com##+js(prevent-addEventListener, mouseleave)
 !
 !
+! 레딧 (https://www.reddit.com/)
+! - 기타
+||redditstatic.com/shreddit/sentry-
+reddit.com##alert-controller:style(position: absolute !important;)
+reddit.com###left-sidebar:style(position: relative !important; top: 0 !important; height: unset !important;)
+reddit.com##reddit-sidebar-nav:style(overflow-y: unset !important; overflow-x: unset !important;)
+reddit.com###left-sidebar-container:style(position: relative !important; top: 0 !important; overflow-y: unset !important;)
+reddit.com###flex-left-nav-container:style(position: absolute !important;)
+reddit.com###right-sidebar-container:style(position: relative !important; top: 0 !important; overflow-x: unset !important; overflow-y: unset !important;)
+reddit.com##.z-\[4\].fixed:style(position: absolute !important;)
+www.reddit.com##body:style(overflow: auto !important;)
+reddit.com##body:style(pointer-events:auto !important;)
+reddit.com##span.hidden[class$="m:block"]
+reddit.com##+js(hide-in-shadow-dom, faceplate-tracker[source="xpromo"] #get-app)
+reddit.com##+js(ubo-set-local-storage-item, xpromo-consolidation, 1)
+reddit.com##+js(ubo-set-cookie, over18, 1)
+reddit.com##+js(ubo-remove-class, scroll-is-blocked, body, stay)
+reddit.com##+js(ubo-remove-class, rpl-scroll-lock, body, stay)
+reddit.com##+js(ubo-rc, thumbnail-blur, '', stay)
+reddit.com##+js(ubo-rc, scroll-disabled, body, stay)
+reddit.com##+js(ubo-aeld, block-body-scrolling)
+reddit.com##+js(hide-in-shadow-dom, xpromo-app-selector)
+!
+!
+! GitHub (https://github.com/)
+! - 기타
+github.com###dashboard:style(position: relative !important)
+github.com##.dashboard-sidebar:style(position: relative !important;)
+github.com##.marketing-banner
+github.com##html:style(overflow-x: hidden !important; overflow-y: scroll !important; padding-right: 0 !important;)
+github.com##.dashboard-changelog:contains(Latest from our changelog)
+github.com##.container-xl:style(max-width: none !important)
+github.com##.repository-content:style(width: 100% !important)
+!
+!
 !
 ! wikipedia.org
 wikipedia.org###siteNotice
@@ -229,7 +278,6 @@ open.spotify.com##html,body:style(overflow: auto !important;)
 ! - 기타
 spotify.com##+js(ubo-set, navigator.globalPrivacyControl, false)
 spotify.com##+js(ubo-set, Navigator.prototype.globalPrivacyControl, false)
-
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -431,7 +479,9 @@ sooplive.com##.adballoon_icon
 ! -무한 버퍼링 문제?  (AdGuard DNS filter 필터 해제) - 내 환경에서는 그런일이 일어난적이 없어서 일단 보류
 ! - -- 출처 : https://gall.dcinside.com/adguard/9010
 ! - - - DNS 서버 확인 필요 후 등록 필요
-!||exlogcollector.sooplive.com^$badfilter
+!||exlogcollector.sooplive.com^$badfilter}
+! - 기타 차단? - WebSocket 차단은 맞으나 채팅이 정상인걸 보면 다른 용도(시청자 상태 동기화, 통계, 접속 세션 유지, 실시간 이벤트 신호 같은 것)를 맡고 있다는 의미가 됩니다
+!*/stream?*
 !
 !
 ! 시네티 (https://cinety.sooplive.com/)
@@ -885,6 +935,8 @@ mlbpark.donga.com##.btn_top01
 ##.naver_place
 ! - ||content-loader.com^ 해제 (사이트 깨짐) ( RK’s ZeroHosts — Network Filters 필터 차단 해제 )
 @@||content-loader.com^
+! - 기타
+/acecounter/*
 !
 !
 ! 루리 (https://www.ruliweb.com/)
@@ -1237,7 +1289,6 @@ clien.net##.active.button_sidemenu
 clien.net###hongboInfoList
 ! - 댓글 사라지는거 방지
 clien.net#@#[class*="banner" i]
-
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -1248,7 +1299,8 @@ hungryapp.co.kr#@#[src*="/ad/" i]
 ! 다모앙 (https://damoang.net/)
 ! - 메인 전체 배너
 !damoang.net##.ad-slot-empty-collapsed
-##div[class*="frame"]
+!damoang.net##[class*="frame"]
+1##[style][class*="frame"]
 ! - 메인 배너 공간
 damoang.net##.dm-card
 !damoang.net##.svelte-f0o7xm
@@ -1519,6 +1571,9 @@ poooo.ml#@#.ad
 ! - - - dns에 ||googlesyndication.com^ 기 차단 등록으로 필요치 않음
 !||safeframe.googlesyndication.com^
 !||player.bunny-frame.online/js/ad_fetcher.js - */ad_ 로 대체
+!- 추가 차단 (js)
+*/track*
+*/p2p*
 !
 !
 ! 티비착 (https://tvchak.org/)  (https://tvchak.live/)  (https://tvchak203.com/) 
@@ -1688,6 +1743,8 @@ ttattack.com###thema_wrapper
 !
 !
 ! 헐크티비 (https://www.hulk24.com/) (https://xn--2p7bp2h.tv/)
+! - 필요없는 이미지
+||www.hulk24.com/images/*.jpg
 ! - 오른쪽 상단 배너
 ![$domain=/^www.hulk\d+.com/]##.right_top_banner
 !##[class*="top_banner" i]
@@ -2218,7 +2275,7 @@ sports.donga.com##.view_center
 !
 ! 쿠팡 (https://www.coupang.com/)
 ! - 광고 도메인 차단 (DNS에서 차단하는지 확인 후 등록 필요 / Adguard DNS에서는 기등록)
-||mercury.coupang.com^
+!||mercury.coupang.com^
 ! - 메인 배너
 coupang.com##.main-today
 ! - 오늘의 발견
@@ -4475,7 +4532,9 @@ mypikpak.com##div.el-overlay:nth-of-type(23)
 !||mypikpak.com/scripts/track.js
 !||mypikpak.com/scripts/clarity.js
 !||mypikpak.com/scripts/adjust.min.js
-mypikpak.com##+js(set-cookie, allow_analysis, false)
+!mypikpak.com##+js(set-cookie, allow_analysis, false)
+! - 기타
+/gtag.js
 !
 !
 ! 제타 (https://zeta-ai.io)
@@ -5191,6 +5250,9 @@ stacksocial.com##html:style(overflow: auto !important;)
 ! - 상단 배너 공간
 !##.muko-ad-impression
 ##[class*="-ad-" i]
+! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결
+tktube.com#@#[class*="-ad-" i]
+
 ! - 오른쪽에 나타나는 회원가입 작은 팝업
 !###xt_join_site_addons
 ##[id*="addons" i]
@@ -5228,6 +5290,41 @@ windowsforum.kr##+js(set, location.reload, noopFunc)
 ! JustWatch (https://www.justwatch.com/)
 ! - 기타
 ||tw.cx^
+!
+!
+! 닌자TV (https://njtv-01.com/)
+! - 필요없는 부분 안보이게
+/^(www\.)?njtv/##.details-wrap
+/^(www\.)?njtv/##.imgframe
+!
+!
+! 고릴라TV (https://t.me/s/gorillatv24notice) (https://gorillatv24.com/) (https://visitorstv.com/)
+! - 필요없는 부분 안보이게
+/^(www\.)?visitorstv/##[class*="list-item"]>[class*="na-title"]
+! - 오른쪽 이벤트
+!/^(www\.)?visitorstv/##.eventSide
+##[class*="eventside" i]
+!
+!
+! VIP TV (https://viptv24.com/)
+! - 필요없는 부분 안보이게
+/^(www\.)?viptv/##.warranty_site
+!
+!
+! 콕티비 (https://coktv1.com/)
+! - 흐르는 글자
+/^(www\.)?coktv/##.text-marquee_allopen_container
+!
+!
+! 로얄TV (https://royaltv01.com/)
+! - 필요없는 부분 안보이게
+/^(www\.)?royaltv/##.image
+/^(www\.)?royaltv/##.add-to-cart
+!
+!
+! 유우베 (https://www.uuoobe.com/)
+! - 상단 빈 공간
+uuoobe.com##td:has(> .adsbygoogle)
 !
 !
 !
@@ -5496,6 +5593,34 @@ linkareer.com#@#[src*="advert" i]
 ##iframe[title*="배너"]
 !
 ##iframe[title*="banner"]
+!
+!
+*/cookie/*
+!
+##[src*="cookie" i]
+!
+!
+*/smartpop/*
+!
+!
+*/widget.*
+@@||*/widget.*$css
+!
+*/widgets/*
+@@||*/widgets/*$css,xhr
+!
+!
+##div[style*="z-index:"][style*="position: fixed"][style]
+!
+!
+*/iframe
+!
+*.iframe
+!
+##div>iframe:not([src*="embed"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="play"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"])
+!
+!
+!
 !
 !
 !
@@ -5991,7 +6116,7 @@ accounts.google.com##+js(set-local-storage-item, wf-promo-1::d, 1)
 
 
 /stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com,badfilter
-/stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com|~adguard-dns.io
+/stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com|~adguard-dns.io|~mlbpark.donga.com
 
 
 
