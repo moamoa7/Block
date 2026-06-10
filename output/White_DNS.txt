@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-06-10 04:53:24 UTC
+! Generated: 2026-06-10 08:40:43 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,477
+! Exception Rules: 6,483
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -818,7 +818,6 @@
 @@||c2-eu.piano.io^
 @@||c2-sandbox.piano.io^
 @@||c2.piano.io^
-@@||c2827.dotomi.com^
 @@||c6bank.com.br^
 @@||ca24.credit-agricole.pl^
 @@||cabinet.altbb.ru^
@@ -1113,6 +1112,7 @@
 @@||cloudmail18.netcore.co.in^
 @@||cloudmail19.netcore.co.in^
 @@||cloudmail20.netcore.co.in^
+@@||cloudmail5.netcore.co.in^
 @@||cltr.wargaming.net^
 @@||clustrmaps.com^
 @@||cm.naukri.com^
@@ -1553,6 +1553,7 @@
 @@||elster.de^
 @@||email-link.adtidy.info^
 @@||email-link.adtidy.org^
+@@||email.microsoft.com^
 @@||email.microsoftonline.com^
 @@||email.namebase.io^
 @@||email.office.com^
@@ -2770,7 +2771,6 @@
 @@||lloydsbank.com^
 @@||lloydsbank.nl^
 @@||lndata.com^
-@@||lner-cdn.exponea.com^
 @@||lnks.co.in^
 @@||loader.adrelayer.com^
 @@||loadercdn.com^
@@ -2996,6 +2996,7 @@
 @@||mkto-ab070069.com^
 @@||mkto-ab080055.com^
 @@||mkto-ab080061.com^
+@@||mkto-ab100241.com^
 @@||mkto-ab110171.com^
 @@||mkto-ab130037.com^
 @@||mkto-ab130188.com^
@@ -3115,9 +3116,11 @@
 @@||mkto-lon050143.com^
 @@||mkto-lon050200.com^
 @@||mkto-lon060131.com^
+@@||mkto-lon070192.com^
 @@||mkto-lon080006.com^
 @@||mkto-lon080059.com^
 @@||mkto-lon080118.com^
+@@||mkto-lon090040.com^
 @@||mkto-lon090045.com^
 @@||mkto-lon090082.com^
 @@||mkto-lon090106.com^
@@ -3128,6 +3131,7 @@
 @@||mkto-m0111.com^
 @@||mkto-mlm10010008.com^
 @@||mkto-n0092.com^
+@@||mkto-n0243.com^
 @@||mkto-nld1010057.com^
 @@||mkto-nld1010079.com^
 @@||mkto-nld1010097.com^
@@ -5170,6 +5174,7 @@
 @@||subesizbankacilik.vakifbank.com.tr^
 @@||subscriptions.costco.com^
 @@||succeedscene.com^
+@@||suite0.emarsys.net^
 @@||suite1.emarsys.net^
 @@||suite10-cf.emarsys.net^
 @@||suite10.emarsys.net^
@@ -5192,6 +5197,7 @@
 @@||suite30-cdnnet.emarsys.net^
 @@||suite30-cf.emarsys.net^
 @@||suite30.emarsys.net^
+@@||suite32.emarsys.net^
 @@||suite33-cf.emarsys.net^
 @@||suite33.emarsys.net^
 @@||suite34.emarsys.net^
