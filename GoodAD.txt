@@ -989,7 +989,7 @@ mlbpark.donga.com##.btn_top01
 !##[class*="naver_place" i]
 ##.naver_place
 ! - ||content-loader.com^ 해제 (사이트 깨짐) ( RK’s ZeroHosts — Network Filters 필터 차단 해제 )
-@@||content-loader.com^
+!@@||content-loader.com^
 ! - 기타
 /acecounter/*
 /t/*/a^$image,from=~permies.com
@@ -6222,3 +6222,147 @@ aniya24.com,t-browser.com,vexfile.com,etoland.co.kr#@#[class*="banner" i]
 
 
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+!@@|^$generichide,badfilter
+! - 위 잘못된 규칙으로 아래 2개 규칙 추가
+!@@||challenges.cloudflare.com^$generichide,ehide,shide
+!@@||avsee.ru^$generichide
+
+! - 폰트 깨짐
+/fontawesome-$font,3p,badfilter
+||fonts.gstatic.com^$3p,badfilter
+||fonts.googleapis.com/css?$badfilter
+
+@@||github.com/*/$1p.badfilter
+
+/ss/ss$badfilter
+
+-ads.$badfilter
+
+/advertisement/*$badfilter
+
+||discord.com^$badfilter
+
+@@||fundingchoicesmessages.google.com^$script,badfilter
+@@||fundingchoicesmessages.google.com^$script,badfilter
+
+?adid=$badfilter
+
+/image/banner/*$image,from=~bilinovel.com,badfilter
+
+!/ad_$badfilter
+
+/gg_$badfilter
+/gg/*$badfilter
+*/gg/$domain=~cnr.cn|~20-0.net|~health.dahe.cn,badfilter
+
+/banners?$badfilter
+
+
+.cur|$image,domain=~pixiv.net|~deviantart.com,badfilter
+
+||bamgrid.com^$badfilter
+
+#@#div#loading
+
+@@://www3.doubleclick.net^|$xhr,badfilter
+
+||terabox.com/nodeapi/reporterror?$badfilter
+
+yna.co.kr#@#.fixed-navigation01, .progress-bar01
+
+
+
+
+!============================================
+
+/^(\S+\.)?widgets?\./$badfilter
+
+
+
+
+!
+!
+!##[class*="ad_" i]
+! - 예외
+! - 더쿠 (https://theqoo.net/) - 본문 다 날라감
+!theqoo.net#@#[class*="ad_" i]
+! - 클리앙 - 댓글 날라감
+!clien.net#@#[class*="ad_" i]
+!
+!
+#a[href*="adclick"]
+!
+!
+!##[class*="banner_m" i]
+!
+!
+!##[class^="basic-banner" i]
+
+!*.ads.*
+!
+!
+!*-ads*
+
+! https://www.hankyung.com/
+!*ads.js
+
+! - 일부 이미지도 지워질수 잇어 주석처리
+!##[alt*="광고"]
+! - 일부 이미지도 지워질수 잇어 주석처리
+!##[alt*="배너"]
+! - 일부 이미지도 지워질수 잇어 주석처리
+!##[alt*="스폰"]
+! - 일부 이미지도 지워질수 잇어 주석처리
+!##[alt*="혜택"]
+
+!||platform.twitter.com^$3p,from=~tweetdeck.com|~twitter.com|~twitter.jp,badfilter
+!||platform.twitter.com^$3p,from=~tweetdeck.com|~twitter.com|~twitter.jp|~x.com,badfilter
+
+!*$frame,3p,from=~goo.gl|~google.com|~youtu.be|~youtube.com,badfilter
+
+!*$frame,3p,from=~facebook.com|~flickr.com|~google.com|~instagram.com|~linkedin.com|~meta.com|~pinterest.com|~quora.com|~reddit.com|~tiktok.com|~tumblr.com|~twitter.com|~vimeo.com|~wattpad.com|~youtube.com,badfilter
+
+
+! - 기타
+!##[id*="taboola-"]
+!##[id^="aswift"]
+!##[id^="aswift_"]
+!##iframe[src*="about"]
+!##div[data-ad]
+!##[data-ad-slot]
+!##[data-ad-client]
+!##.adsbox
+
+||xn--$document.badfilter
+
+/advertise-*.js^$script,badfilter
+
+/share.*.js^$script,badfilter
+
+!!!!!!!!!!====================================================
+
