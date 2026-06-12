@@ -1,6 +1,6 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-06-12 05:10:54 UTC
+! Generated: 2026-06-12 09:38:37 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
 ! Exception Rules: 6,487
 !
@@ -31,7 +31,6 @@
 @@||2ip.ua^
 @@||2performant.com^
 @@||3-aclk.net^
-@@||341850582.group0.sites.hscoscdn-na3.net^
 @@||3cinteractive.com^
 @@||3ds.bankofbaku.com^
 @@||3ds.mdmbank.ru^
@@ -297,7 +296,6 @@
 @@||api-na2.hubapi.com^
 @@||api-na3.hubapi.com^
 @@||api-notify.dropbox.com^
-@@||api-stage.cleverpush.com^
 @@||api.accuweather.com^
 @@||api.adguard.com^
 @@||api.adguard.org^
@@ -333,6 +331,7 @@
 @@||api.webengage.com^
 @@||apigw.tosspayments.com^
 @@||apis.live.net^
+@@||apiservices.krxd.net^
 @@||apmebf.com^
 @@||apms5.com^
 @@||apobank.de^
@@ -3017,6 +3016,7 @@
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
 @@||mkto-ab280067.com^
+@@||mkto-ab280126.com^
 @@||mkto-ab290102.com^
 @@||mkto-ab290138.com^
 @@||mkto-ab300154.com^
@@ -3037,6 +3037,7 @@
 @@||mkto-ab400103.com^
 @@||mkto-ab400124.com^
 @@||mkto-ab400143.com^
+@@||mkto-ab400187.com^
 @@||mkto-ab400189.com^
 @@||mkto-ab420081.com^
 @@||mkto-ab420198.com^
@@ -3063,7 +3064,6 @@
 @@||mkto-ab540186.com^
 @@||mkto-ab550041.com^
 @@||mkto-ab550140.com^
-@@||mkto-ab550144.com^
 @@||mkto-ab550184.com^
 @@||mkto-ab560068.com^
 @@||mkto-ab560119.com^
