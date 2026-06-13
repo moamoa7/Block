@@ -1215,6 +1215,9 @@ namu.wiki##div:has(> ins.adsbygoogle)
 ! 모두의 후방 (https://data.pureugong.com/)
 ! - 모바일 하단 배너?
 !data.pureugong.com##[data-test-id="beehiiv-embed"]
+! - Back to top 버튼
+data.pureugong.com##.vue-back-to-top
+! - 기타
 ||embeds.beehiiv.com^
 !
 !
@@ -2714,6 +2717,8 @@ avsee.ru#@#.tabs
 !avsee.ru#@#[class*="floating" i]
 ! - 팝업 (새창) 방지
 j91.asia##+js(window.open-defuser)
+! - 기타
+/provider.cast.js^$script
 !
 !
 ! supjav (https://supjav.com/)
@@ -2973,6 +2978,8 @@ xnxx.com##+js(set-local-storage-item, xvutils.nb_tabs_opened, 1)
 !||waust.at^
 ! - 영상 차단 해제 (List-KR)
 @@||hcdn1.maxsocdn.net^$from=sogirl.so
+! - 기타
+/s.js*
 !
 !
 ! 쏘걸.net (https://www.xn--av-t21i858e.net/) - 없어진듯
@@ -3037,7 +3044,7 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !###imgDiv13
 !###imgDiv21
 !###imgDiv22
-! - - - AV핑유걸 (https://avpingyou19.com/) - 없어진듯
+! - - - AV핑유걸 (https://avpingyou20.com/)
 ! - 로그 없어지는거 해결
 [$domain=/^pinkbo\d+.com/]#@#.loading
 ! - 최상단 오른쪽 배너
@@ -3056,6 +3063,11 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 ##.bounce
 ###imgDiv > table
 ##.execphpwidget
+!
+!
+! 핑유걸 (https://avpingyou20.com)
+! - 기타
+||maccms.com^
 !
 !
 ! JavFinder (https://javfinder.ai/)
@@ -3226,7 +3238,7 @@ avdbs.com##.dbs-bnr-wrp
 !avdbs.com##.__b-popup1__.b-modal
 !
 !
-! AV조아 (https://avjoa74.com//)
+! AV조아 (https://avjoa75.com//)
 ! 영상 하단 텍스트 배너
 ! - - https://pinkbo47.com/
 ![$domain=/^avjoa\d+.com/],[$domain=/^pinkbo\d+.com/]##.button
@@ -3685,7 +3697,7 @@ jamakyadong.me##[class*="g-col"]
 [$domain=/^redvi\d+.com/]#@#iframe[sandbox][src]
 !
 !
-! 밤포탈 (https://bampt3.com/)
+! 밤포탈 (https://bampt4.com/)
 ! - 팝업 및 뿌연거 해결  (PC)
 ! - - - 뉴토끼 (https://sbxh5.com/)
 !##[class*="popup-overlay" i]
@@ -3698,7 +3710,7 @@ jamakyadong.me##[class*="g-col"]
 !##[class*="premium-ad" i]
 ##[class*="small-ad" i]
 ! - 오른쪽 배너 공간
-##.ads-section
+!##.ads-section
 ! - 영상 목록 사이 배너 (PC)
 ##[class*="infeed-ad" i]
 ! - 영상 목록 사이 / 영상 하단 배너 (모바일)
@@ -3707,6 +3719,9 @@ jamakyadong.me##[class*="g-col"]
 ##.ad-active
 ! - 영상 재생 해제
 [$domain=/^bampt\d+.com/],iframe.mediadelivery.net#@#[src*="frame"]
+! - 기타
+/vast^$xhr
+||mediadelivery.net/rum.js
 
 !
 !
@@ -4565,6 +4580,12 @@ chaturbate.com##.react-tooltip__place-top
 !stripchatgirls.com##.Modal__scrollableOverlay\#SW.Modal__overlay_clickable\#ho.Modal__overlay\#s0
 !
 !
+! https://adult.contents.fc2.com/
+! - 기타
+||matomo2000.fc2.com^
+||media.fc2.com^
+||gdpr.fc2.com^
+!
 ! FC2 18세 이상 박스
 ! - https://adult.contents.fc2.com/
 !##.z9KsZnYS.c-modal-101
@@ -4574,7 +4595,7 @@ chaturbate.com##.react-tooltip__place-top
 ! - - -  18세 이상 물어보는 박스 사라진 후 전체 화면 뿌연거 사라지게 하기
 ! - - - wavve에도 적용되어 영상이 소리만 나오는 현상 발생 - 도메인 넣는걸로 변경
 ! - - - AdGuard에서는 제대로 작동 안하는듯 (uBlock / 유니콘Pro 작동 ok)
-fc1adult.com##.fullscreen
+!fc1adult.com##.fullscreen
 !
 !
 ! 눈누 (https://noonnu.cc)
@@ -4748,7 +4769,7 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 !
 ! https://www.daejeonsarangcard.kr/
 ! - 팝업 해제에 따른 뿌연거 해결
-daejeonsarangcard.kr##.popupContainer
+!daejeonsarangcard.kr##.popupContainer
 ! - ##[class^="ad" i] 해제 - 일부 주소 삭제
 !daejeonsarangcard.kr#@#[class^="ad" i]
 !
@@ -5608,6 +5629,16 @@ ilbe.com##.sidePoll
 /track^$from=~spotify.com|~podtrac.com|~megap.fm|~wolf359.fm|~pdst.fm|~twitch.tv
 !
 !
+! https://ouo.io/
+! - 기타
+ouo.io##+js(prevent-fab-3.2.0)
+!
+!
+! https://imgbox.com/
+! - 상단 공백
+imgbox.com##div[id^="aad-header-"]
+!
+!
 !
 !
 !
@@ -5882,28 +5913,6 @@ linkareer.com#@#[src*="advert" i]
 !
 !*/widgets/*
 !@@||*/widgets/*$css,xhr
-!
-!
-! - 아래 규칙으로 하면 브라우저에서 로그인시 bitwarden에서 못가져옴
-!##[style*="z-index:9999"], [style*="z-index: 9999"], [style*="z-index:2147483647"], [style*="z-index: 2147483647"]
-!##div[style*="z-index:9999"], div[style*="z-index: 9999"], div[style*="z-index:2147483647"], div[style*="z-index: 2147483647"]
-! - 2147483647값은 스크립트에서 많이 사용해서 보류
-
-##div[style*="z-index:10" i], div[style*="z-index: 10" i]
-!
-##div[style*="z-index:99" i], div[style*="z-index: 99" i]
-! - 예외 - https://m.ilbe.com/ - 일부 사라짐
-ilbe.com#@#div[style*="z-index:99" i], div[style*="z-index: 99" i]
-
-##div[style*="z-index:2000" i], div[style*="z-index: 2000" i]
-! - 예외 - https://www.genspark.ai/ - 왼쪽 하단 메뉴 클릭시 반응없음
-genspark.ai#@#div[style*="z-index:2000" i], div[style*="z-index: 2000" i]
-
-##div[style*="z-index:12345" i], div[style*="z-index: 12345" i]
-
-##div[style="position: fixed" i]
-
-##div[style*="'display: block" i]
 
 !
 !
@@ -5917,10 +5926,15 @@ genspark.ai#@#div[style*="z-index:2000" i], div[style*="z-index: 2000" i]
 ! - - - javsubid.sx - /ws/  /lf/  /st/
 ! - - - https://sigundul.site/ - /te/
 ! - - - https://www.fomos.kr/ - (댓글란) /comments/ / .fmkorea.com
-##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"])
+! - - - AV조아https://avjoa75.com/ -  /player-x.php
+! - - - 핑유걸 https://avpingyou20.com/ - /player/dplayer.html
+! - - - 쏘걸 - https://kr86.sogirl.so/  -  about:blank
+##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"])
+
+
 
 ! - 예외 - https://tcafe21.com/ - src가 about:blank 임 (출석포인트시 필요)
-tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"])
+tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"])
 !
 !
 !##[class*="push" i]
@@ -6197,7 +6211,7 @@ yandex.com/maps#@#[class*="banner" i]
 ! - avsee - community
 ! - - -  ##[target] > img 순서대로되야 차단 가능
 ! - - - ##[target] img 깊이에 상관없이 자식, 손자, 그 아래 모든 후손 img가 대상
-##[target] img:not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/upload/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*="twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"])
+##[target] img:not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/upload/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"])
 
 
 ##[target] picture
