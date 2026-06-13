@@ -6213,7 +6213,7 @@ yandex.com/maps#@#[class*="banner" i]
 ! - avsee - community
 ! - - -  ##[target] > img 순서대로되야 차단 가능
 ! - - - ##[target] img 깊이에 상관없이 자식, 손자, 그 아래 모든 후손 img가 대상
-##[target] img:not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/upload/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"])img
+##[target] img:not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/upload/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"])
 
 
 ##[target] picture
