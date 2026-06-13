@@ -418,8 +418,9 @@ sooplive.com##.loading
 ! - 에외 - themoviedb.org - 이미지 사라짐
 !themoviedb.org#@#.loading
 ! - 채팅 공지 (필요시)
-!sooplive.com##.chat_notice
-##[class$="_notice" i]
+sooplive.com##.chat_notice
+! - 더쿠 본문 사라짐
+!##[class$="_notice" i]
 ! - 채팅 상단 배너 & 채팅 공지 (필요시)
 sooplive.com##.chat_topbox
 ! - 채팅 버블 메시지
@@ -863,7 +864,7 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! 더쿠 (https://theqoo.net/)
 ! - 로딩중 글자
 ! - - - (Adblock-Rule-Collection-Lite) (AdRules AdBlock List Plus)
-theqoo.net##.theqoo-counter
+!theqoo.net##.theqoo-counter
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
@@ -5915,11 +5916,11 @@ genspark.ai#@#div[style*="z-index:2000" i], div[style*="z-index: 2000" i]
 ! - - - 네어버 - my.html
 ! - - - javsubid.sx - /ws/  /lf/  /st/
 ! - - - https://sigundul.site/ - /te/
-! - - - https://www.fomos.kr/ - (댓글란) /comments/ / media.fmkorea.com / ext.fmkorea.com
-##div iframe:not([src*="embed"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="media.fmkorea.com"]):not([src*="ext.fmkorea.com"])
+! - - - https://www.fomos.kr/ - (댓글란) /comments/ / .fmkorea.com
+##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"])
 
 ! - 예외 - https://tcafe21.com/ - src가 about:blank 임 (출석포인트시 필요)
-tcafe21.com#@#div iframe:not([src*="embed"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="media.fmkorea.com"]):not([src*="ext.fmkorea.com"])
+tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"])
 !
 !
 !##[class*="push" i]
