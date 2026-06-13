@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260613
+! Version: 20260614
 !
 !
 !
@@ -176,7 +176,6 @@ discord.com##div[class*="notice"]
 &client_ad_session_id=
 /sentry.*.js^$script,from=~powerthesaurus.org
 @@||discord.com^$generichide
-/cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
 !
 !
 ! X (https://x.com/)
@@ -856,8 +855,6 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - - - 개인정보 처리방침 / 이용약관 삭제
 ! - - - 특정 팝업, 모달, 혹은 하단 쿠키/개인정보 처리방침 안내 바(Bar) 같은 독립된 요소에만 스타일을 안전하게 입히고 싶을 때 사용
 !##.privacy-container:not(body):not(html):not(.content-container)
-! - 기타
-##.adsbox
 !
 !
 !
@@ -1646,8 +1643,6 @@ poooo.ml#@#.ad
 ! - - - https://cdn.jsdelivr.net/npm/p2p-media-loader-core@latest/build/p2p-media-loader-core.min.js
 ! - - - https://cdn.jsdelivr.net/npm/p2p-media-loader-hlsjs@latest/build/p2p-media-loader-hlsjs.min.js
 */p2p*
-! - 기타
-/cast_sender.js^$script
 !
 !
 ! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak204.com/) 
@@ -1987,7 +1982,7 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
 !
 !
-! 뉴토끼 (https://sbxh5.com/)
+! 뉴토끼 (https://sbxh6.com/)
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
@@ -2001,6 +1996,8 @@ joatoon-oa.com##.bg-opacity-50
 ! - 팝업 및 이용 안내 팝업
 [$domain=/^sbxh\d*\./]##[data-pm-ov="1"]
 [$domain=/^sbxh\d*\./]##.vw-swipe-hint
+! - 상단 배너
+!##section:has(> script) img
 ! - 배너 공간내 작게 적힌 텍스트 (광고를 화면밖으로 보내서 필요없음)
 ![$domain=/^sbxh\d*\./]##span > span:nth-of-type(2)
 ! - 실제 팝업 차단
@@ -2694,7 +2691,7 @@ pedia.watcha.com##.adFixed
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
 ! - - - 오늘의 중계 (https://today-sports9.com/)
 ! - - - 야동망고 (https://www.mango54.net/)
-! - - -  밍키넷 (https://mingky.live/)
+! - - -  밍키넷 (https://mingky04.live/)
 !##[target='_blank']:has([src*='.gif'])
 !##[target='_blank']:has([src$='.gif'])
 ! - - - - - 예외
@@ -3699,7 +3696,7 @@ jamakyadong.me##[class*="g-col"]
 !
 ! 밤포탈 (https://bampt4.com/)
 ! - 팝업 및 뿌연거 해결  (PC)
-! - - - 뉴토끼 (https://sbxh5.com/)
+! - - - 뉴토끼 (https://sbxh6.com/)
 !##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
 ##[id="popupoverlay" i]
@@ -3725,7 +3722,7 @@ jamakyadong.me##[class*="g-col"]
 
 !
 !
-! 야동존 (https://xxzone21.cc/)
+! 야동존 (https://xxzone24.top/)
 ! - 영상 광고 차단
 */data/file/admin_banner/*.mp4
 ! - 팝업 일부
@@ -3753,7 +3750,7 @@ jamakyadong.me##[class*="g-col"]
 !##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner > .draggable.slick-list
 !##[class^="live-stream-banner" i]
 ! - 게시물내 한칸짜리 배너
-!##[src*="event_banner" i]
+##[src*="event_banner" i]
 !##[src*="event_banner"]
 ! - 모바일 왼쪽 사람 아이콘 없애기
 ##.sidebar-user-trigger
@@ -3846,7 +3843,7 @@ emuokunmaster.com#@#.external
 !1004sweet.com,1004deep.com##.swip-ticker
 !
 !
-! 조개파티 (https://jogaeparty164.com/)
+! 조개파티 (https://jogaeparty176.com/)
 ! - 영상 위 배너
 ! - - - 오른쪽 작은 배너
 ! - - - - - 토렌트 제이 (https://torrentj165.com/) - 접속불가
@@ -3865,12 +3862,12 @@ emuokunmaster.com#@#.external
 [$domain=/^\d+clf\.com$/]##html
 !
 !
-! 야동위키 (https://hanyasa.com/)
+! 야동위키 (https://hanyasa.com/) - 주소모음으로 이동? 보류
 ! - 상단 배너 / 영상 하단 배너 공간
-hanyasa.com##.gofollow
+!hanyasa.com##.gofollow
 !
 !
-! 야부리존 (https://yaburi63.com/)
+! 야부리존 (https://yaburi65.com/)
 ! - 팝업  잔상 없애기 (모바일)
 ! - - -  광역규칙으로 하면 AV탑걸 이미지가 안보임 (https://kr42.topgirl.co/)
 [$domain=/^yaburi\d+.com/]##div.centered
@@ -3916,7 +3913,7 @@ sexygirl.cc##div.overflow-auto
 !||beetlestaircaselobster.com^
 !
 !
-! 야동대학 (https://ydu14.com/)
+! 야동대학 (https://ydu15.com/)
 ! 왼쪽 배너
 ##.bxslider
 !
@@ -4219,12 +4216,12 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ##[class*="videoad" i]
 !
 !
-! 밍키넷 (https://xn--2g3bo4hg5g8pi.net/) (https://mingky.live/)
+! 밍키넷 (https://xn--2g3bo4hg5g8pi.net/) (https://mingky04.live/)
 ! - 배너 이미지
 ||img.imagedive.net/assets/*
 ! - 배너 공간
-[$domain=/^mingky\d*\./]##.gp
-[$domain=/^mingky\d*\./]##.sp
+![$domain=/^mingky\d*\./]##.gp
+![$domain=/^mingky\d*\./]##.sp
 ! 상단 텍스트 배너
 !mingky.net##div.mb-sm-4.mb-3:nth-of-type(1)
 ! - 오른쪽 배너
@@ -4248,7 +4245,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 [$domain=/^mingky\d*\./]##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
 !
 !
-! - - - 야동파티 (https://xn--2q1bv3xm4cpse87p1e.net/) (https://ydparty.tv/)
+! - - - 야동파티 (https://xn--2q1bv3xm4cpse87p1e.net/) (https://ydparty02.tv/)
 ! - 배너 이미지
 ||img.imagecoco.net/assets/*
 ! - -  배너 공간
@@ -4316,10 +4313,10 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl10.com/)
+! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl11.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl3.com/)
-! - - - 야동닷컴 (https://ydong.net/ (https://yadong7.com/)
+! - - - 야동닷컴 (https://ydong.net/ (https://yadong8.com/)
 ! - - -  싸나이 (https://xn--910bl26apid.net/) (https://sanai17.com/)
 ! - - - 언리샷 (https://unlishot.top/) (https://unlishot56cc/) - 영상 안나오는듯
 !||darkg*.com/data/file/admin_banner/*
@@ -4451,8 +4448,8 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 18모아 (https://18moa028.com/)
 ! - 이미지 복원
-!!/^([\w-]+\.)?18moa\d+\.com$/#@#[class*="banner" i]
-!/^(www\.)?18moa\d+\.com$/#@#[class*="banner" i]
+!/^([\w-]+\.)?18moa\d+\.com$/#@#[class*="banner" i]
+/^(www\.)?18moa\d+\.com$/#@#[class*="banner" i]
 !!/^([\w-]+\.)?18moa\d+\.com$/##.banner
 !/^(www\.)?18moa\d+\.com$/##.banner
 !
@@ -4484,7 +4481,9 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 주소타운 (https://www.jusotw.com/)
 ! - 상단 배너 (링크 없이 만들어진 배너)
-jusotw.com###comp-m56ecem7
+jusotw.com##.wixui-section.comp-lt8phbbp
+! - 기타
+||frog.wix.com^
 !
 !
 ! 주소주라 (https://www.jusojula.com/)
@@ -4542,6 +4541,8 @@ jusojula.com##.slide-container
 ##.wixui-image
 ! - 예외 - https://www.xn--9y2bn4wuzfxpb.com/ - 이미지 안나옴
 www.xn--9y2bn4wuzfxpb.com#@#.wixui-image
+! - 예외 - www.jusotw.com - 이미지 안나옴
+jusotw.com#@#.wixui-image
 !
 !
 ! 링크봇 (https://linkbot3.com/)
@@ -5068,13 +5069,13 @@ hearheart.com##.mb-6.relative
 hearheart.com##section.relative
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto12.com/) (https://mato12.com/) (https://bookto12.com/)
+! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto13.com/) (https://mato13.com/) (https://bookto13.com/)
 ! - 이미지
-! - - - 뉴토끼 (https://newto12.com/)
+! - - - 뉴토끼 (https://newto13.com/)
 ||newto*.com/data/apms/*
-! - - - 마나토끼 (https://mato12.com/)
+! - - - 마나토끼 (https://mato13.com/)
 ||mato*.com/data/apms/*
-! - - - 북토끼 (https://bookto12.com/)
+! - - - 북토끼 (https://bookto13.com/)
 ||bookto*.com/data/apms/*
 !
 !
@@ -5641,6 +5642,12 @@ ouo.io##+js(prevent-fab-3.2.0)
 imgbox.com##div[id^="aad-header-"]
 !
 !
+! 메이저 링크 (https://majorlink2.com/)
+! - 이미지 복원
+/^(www\.)?majorlink/#@#[rel*="sponsored"]
+
+!
+!
 !
 !
 !
@@ -5931,12 +5938,13 @@ linkareer.com#@#[src*="advert" i]
 ! - - - AV조아https://avjoa75.com/ -  /player-x.php
 ! - - - 핑유걸 https://avpingyou20.com/ - /player/dplayer.html
 ! - - - 쏘걸 - https://kr86.sogirl.so/  -  about:blank
-##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"])
+! - - - 야동닷컴 https://yadong8.com/ - /player.html
+##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"])
 
 
 
 ! - 예외 - https://tcafe21.com/ - src가 about:blank 임 (출석포인트시 필요)
-tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"])
+tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"])
 !
 !
 !##[class*="push" i]
@@ -6204,16 +6212,18 @@ yandex.com/maps#@#[class*="banner" i]
 
 
 
-
+! - /wp-content/uploads/ 제외시킴
+! - |static.wixstatic.com 제외시킴
 ! - 인벤 댓글 이미지 - /sticker/
 ! - 디시인사이드 - viewimage.php
 ! - https://tcafe21.com/ - lamu.club
 ! - 얀덱스 - avatars / yastatic / yandex
 ! - 기상청 - /vi/  base64
 ! - avsee - community
+! - https://today-sports9.com/ - /data/file/photo/
 ! - - -  ##[target] > img 순서대로되야 차단 가능
 ! - - - ##[target] img 깊이에 상관없이 자식, 손자, 그 아래 모든 후손 img가 대상
-##[target] img:not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/upload/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"])
+##[target] img:not([src*="trand"]):not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/uploads/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/rank"]):not([src*="static.wixstatic.com"]):not([src*="jusocon"])
 
 
 ##[target] picture
@@ -6221,18 +6231,6 @@ yandex.com/maps#@#[class*="banner" i]
 
 
 
-
-!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-##[id*="gpt-ad-"]
-##[id^="ad_"]
-##div[id][style^="min-width: 728px; min-height: 90px"]
-
-###advt
-##.afs_ads
-##.jw-reset-text:not(button)
 
 
 
