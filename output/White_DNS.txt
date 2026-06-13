@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-06-13 06:42:59 UTC
+! Generated: 2026-06-13 09:47:55 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,487
+! Exception Rules: 6,489
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -1552,7 +1552,6 @@
 @@||elster.de^
 @@||email-link.adtidy.info^
 @@||email-link.adtidy.org^
-@@||email.microsoft.com^
 @@||email.microsoftonline.com^
 @@||email.namebase.io^
 @@||email.office.com^
@@ -2840,6 +2839,7 @@
 @@||m-tcg.custobar.com^
 @@||m-tfe.custobar.com^
 @@||m-tmsif.custobar.com^
+@@||m-ueuba.custobar.com^
 @@||m-va.custobar.com^
 @@||m-vek.custobar.com^
 @@||m-vq63s.custobar.com^
@@ -3011,7 +3011,6 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
-@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -3046,6 +3045,7 @@
 @@||mkto-ab430111.com^
 @@||mkto-ab430114.com^
 @@||mkto-ab430126.com^
+@@||mkto-ab430167.com^
 @@||mkto-ab430187.com^
 @@||mkto-ab440025.com^
 @@||mkto-ab440026.com^
@@ -3189,6 +3189,7 @@
 @@||mkto-sj240021.com^
 @@||mkto-sj250062.com^
 @@||mkto-sj250111.com^
+@@||mkto-sj250171.com^
 @@||mkto-sj250187.com^
 @@||mkto-sj270072.com^
 @@||mkto-sj270078.com^
@@ -3196,6 +3197,7 @@
 @@||mkto-sj290167.com^
 @@||mkto-sj300124.com^
 @@||mkto-sj310061.com^
+@@||mkto-sj310157.com^
 @@||mkto-sj310186.com^
 @@||mkto-sj320047.com^
 @@||mkto-sj330006.com^
@@ -3347,7 +3349,6 @@
 @@||ndirect.ppro.de^
 @@||nedbank.co.za^
 @@||neobux.com^
-@@||neoengage-va-cdn.exponea.com^
 @@||neon.com.br^
 @@||nest.com^
 @@||net.kentbank.hr^
@@ -5179,7 +5180,6 @@
 @@||subesizbankacilik.vakifbank.com.tr^
 @@||subscriptions.costco.com^
 @@||succeedscene.com^
-@@||suite0.emarsys.net^
 @@||suite1.emarsys.net^
 @@||suite10-cf.emarsys.net^
 @@||suite10.emarsys.net^
@@ -5202,6 +5202,7 @@
 @@||suite30-cdnnet.emarsys.net^
 @@||suite30-cf.emarsys.net^
 @@||suite30.emarsys.net^
+@@||suite32.emarsys.net^
 @@||suite33-cf.emarsys.net^
 @@||suite33.emarsys.net^
 @@||suite34.emarsys.net^
@@ -5232,6 +5233,7 @@
 @@||suite59.emarsys.net^
 @@||suite6-cf.emarsys.net^
 @@||suite6.emarsys.net^
+@@||suite60-cf.emarsys.net^
 @@||suite60.emarsys.net^
 @@||suite63-cf.emarsys.net^
 @@||suite63.emarsys.net^
