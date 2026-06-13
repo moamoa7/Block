@@ -754,7 +754,7 @@ gall.dcinside.com#@#.r_dcmedia
 !##[id*="google_ads"]
 ! - - - 파워 링크
 ##div[class*="naver_power_link"]
-##div[class^="ad" i]:not([class^="add"])
+##div[class^="ad" i]:not([class^="add"]):not([class^="ads"]):not([class^="ads-"])
 !##[class*="ad_"] [style]
 ! - - - 예외
 ! - - - https://theqoo.net/- 프레임 깨짐
@@ -2813,7 +2813,10 @@ momoiroadult.com##.pc-header
 ! https://emuokunmaster.com/
 ! - 상단 빈공간
 emuokunmaster.com##div:nth-of-type(3)
-!
+! - 상단 빈공간 (모바일)
+emuokunmaster.com###myplace-999
+emuokunmaster.com##div:nth-of-type(5)
+emuokunmaster.com##div:nth-of-type(7)
 !
 ! https://alive-video.com/
 ! - 기타
@@ -5351,6 +5354,7 @@ popkontv.com#@#[class*="img-box" i]
 ! AVovo (https://01.avovo.net/)
 ! - 상단 배너 공간 (별도의 이미지가 아직 없는 공간)
 [$domain=/^\d+.avovo.net/]##.h-auto.w-full
+[$domain=/^\d+.avovo.net/]##a[rel*="noopener\ noreferrer"]
 !
 !
 ! SSG (https://www.ssg.com/)
@@ -5645,6 +5649,11 @@ imgbox.com##div[id^="aad-header-"]
 ! 메이저 링크 (https://majorlink2.com/)
 ! - 이미지 복원
 /^(www\.)?majorlink/#@#[rel*="sponsored"]
+!
+!
+! MMZ (https://www.mmzone.co.kr/)
+! 상단 로그 안보임 해결
+mmzone.co.kr#@#.ads-wrap
 
 !
 !
