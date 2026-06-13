@@ -99,9 +99,6 @@ tv.kakao.com#@#div.ads
 /browserinfo?f.sid=$xhr
 ||ogads-pa.clients6.google.com^
 www.google.*##+js(href-sanitizer, #main a[href^="/url?q=http"], ?q)
-google.*##+js(remove-attr, data-jsarwt, #rcnt [data-ved] a)
-www.google.com##html:style(overflow: visible !important)
-www.google.*##+js(remove-attr, jsaction, #islsp c-wiz a[href^="http"][data-ved][target], stay)
 !
 !
 ! 구글 광고 차단
@@ -2729,7 +2726,6 @@ j91.asia##+js(window.open-defuser)
 @@||tiktokcdn.com^$3p
 @@||p16-ad-sg.ibyteimg.com^
 @@tiktokcdn.com/obj/$xhr
-@@||streamtape.$generichide
 !nicholasbreakplan.com,fc2stream.tv#@#[class*="floating" i]
 !@@*$generichide,from=streamtape.*
 ! - 기타
@@ -2739,11 +2735,7 @@ j91.asia##+js(window.open-defuser)
 /log_js_error$ping
 /^https:\/\/(?:[a-z]{2}\.)?[a-z]{7,14}\.[a-z]{3,7}\/[fgprst][0-9A-Za-z]{10,16}\/\d{3,6}$/$script,3p,match-case
 streamtape.*##+js(remove-node-text, script, /parseInt.*push.*setTimeout.*try.*catch/)
-streamtape.*##+js(disable-newtab-links)
 streamtape.*##+js(prevent-addEventListener, contextmenu, event.dispatch.apply)
-streamtape.*##+js(prevent-addEventListener, contextmenu)
-streamtape.*##+js(abort-on-property-write, _pop)
-streamtape.*##+js(adjust-setTimeout, counter, '', 0.02)
 jessicayeahcatch.com##+js(prevent-addEventListener, contextmenu)
 jessicayeahcatch.com##+js(google-ima3)
 ! - 팝업 유발하는 플레이어 차단
@@ -2805,18 +2797,16 @@ javneon.tv,javeve.tv,javsaga.ninja,javbull.tv##.ad-twos
 ! 
 ! https://momoiroadult.com/
 ! - 배너
-momoiroadult.com##.pc-header
+!momoiroadult.com##.pc-header
 ! - 기타
 ||hananokai.tv^
 !
 !
 ! https://emuokunmaster.com/
 ! - 상단 빈공간
-emuokunmaster.com##div:nth-of-type(3)
+emuokunmaster.com##div:has(> .elogch_blogparts_iframe)
 ! - 상단 빈공간 (모바일)
 emuokunmaster.com###myplace-999
-emuokunmaster.com##div:nth-of-type(5)
-emuokunmaster.com##div:nth-of-type(7)
 ! - 기타
 ||js.blozoo.info^
 !
@@ -5150,11 +5140,24 @@ javso.com###playera
 !
 !  게이코리아 (https://www.gaykorea.net/)
 ! - - -  여보여보 (https://www.yoboyobo.kr/)
-! - 광고
-##[href*="link.coupang.com"]
+! - 오늘의 특가
+yoboyobo.kr,gaykorea.net##.side_product-latest
+! - 쇼핑 프로모션
+gaykorea.net##div.m-b-30:nth-of-type(9)
+! - 추천 상품
+gaykorea.net##div.m-b-30:nth-of-type(13)
+! - 제휴 할인
+yoboyobo.kr##div.m-b-30:nth-of-type(14)
+! - 이벤트
+gaykorea.net##div:nth-of-type(15)
+yoboyobo.kr##div.m-b-30:nth-of-type(8)
 ! - 광고 빈공간
 yoboyobo.kr,gaykorea.net##.main-slider
-!yoboyobo.kr,gaykorea.net##[class*="img-box" i]
+! - 게시판내 광고
+##[href^="https://link.coupang.com/"]
+yoboyobo.kr##[class*="headline"]:has([class*="powered"])
+! - 기타
+/image/affiliate/*
 !
 !
 !  플레이랜드 (https://playidol.org/)
@@ -5215,7 +5218,7 @@ playidol.org##.max-w-\[426px\]
 ! - 팝업 (기존 티카페회원 가입안내)
 !tcafe21.com###migration-popup-overlay
 ##[id*="popup-overlay" i]
-tcafe21.com#@#div[style*="z-index:99" i], div[style*="z-index: 99" i]
+!tcafe21.com#@#div[style*="z-index:99" i], div[style*="z-index: 99" i]
 ! - 메인 하단 배너 공간
 [$domain=/^tcafe\d+.com/]##.main-p10
 !
@@ -5657,6 +5660,21 @@ imgbox.com##div[id^="aad-header-"]
 ! MMZ (https://www.mmzone.co.kr/)
 ! 상단 로그 안보임 해결
 mmzone.co.kr#@#.ads-wrap
+!
+!
+! https://streamtape.com/
+! - 기타
+||mulchimbiber.com^
+||nableroberto.com^
+!
+!
+! 요즘IT (https://yozm.wishket.com/)
+! - 배너 빈 공간
+##[data-testid$="banner"]
+! - 일부 사라지는거 해결 (배너를 지우나 다른것도 같이 지워서 해제)
+yozm.wishket.com#@#div[class*="border"]:has(> [target] img)
+! - 배너
+yozm.wishket.com##[data-testid^="advert"]
 
 !
 !
@@ -5924,6 +5942,9 @@ linkareer.com#@#[src*="advert" i]
 ##iframe[title*="배너"]
 !
 ##iframe[title*="banner"]
+!
+!
+*_track/
 !
 !
 !*/smartpop/*
