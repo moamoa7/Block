@@ -792,7 +792,7 @@ m.fmkorea.com##.m_rd_nav_side
 ||nhnace.com^
 !
 !
-! 이토랜드 (https://www.etoland.co.kr/)
+! 이토랜드 (https://etoland.co.kr/)
 ! - - - - - - - - 신버젼
 ! - 팝업
 !##[class^="fixed" i]
@@ -5676,36 +5676,26 @@ yozm.wishket.com#@#div[class*="border"]:has(> [target] img)
 ! - 배너
 yozm.wishket.com##[data-testid^="advert"]
 
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
-!
+
+
+
+
+
+
+
+
+
+
+
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
-!
-!
-! ((기타))
-!
-!
-!
-! 기타 프레임 규칙들
 
-! - https://javplayer.org/
-!##iframe[width="300"][height="250"][sandbox][src]
-!##iframe[width="728"][height="90"][sandbox][src]
-!##iframe[width="160"][height="600"][sandbox][src]
-!##iframe[width="320"][height="50"][sandbox][src]
-!##iframe[width="336"][height="280"][sandbox][src]
-!##iframe[width="970"][height="250"][sandbox][src]
-!
-!
+
+! ((기타))
+
+
+
+
 ! 홍보글 링크 주의
 ||event.filesun.com^
 !
@@ -5945,19 +5935,9 @@ linkareer.com#@#[src*="advert" i]
 !
 !
 *_track/
-!
-!
-!*/smartpop/*
-!
-!
-!*/widget.*
-!@@||*/widget.*$css
-!
-!*/widgets/*
-!@@||*/widgets/*$css,xhr
 
-!
-!
+
+
 ! 참고
 ! - ##iframe -- 이렇게 하면 ublck이 작동을 안하므로 반드시 div iframe 로 사용 (참고 : div > iframe 로 하면 직계만 가능)
 ! - - - https://spochak.com/ - :not([src*="/content/"])
@@ -5978,25 +5958,18 @@ linkareer.com#@#[src*="advert" i]
 
 ! - 예외 - https://tcafe21.com/ - src가 about:blank 임 (출석포인트시 필요)
 tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"])
-!
-!
-!##[class*="push" i]
-!##[src*="/push" i]
-!*/push*
-! - 위에꺼가 광범위하면 아래로
-! - https://static.pfrt.yna.co.kr/www/js/pushMessaging.js?v=20260326_0935 (연합뉴스 푸시 알림)
-! - https://api-talks.naver.com/jsonp/push/count/v2/services/chat?callback=showTalkCount (네이버 쇼핑  톡(채팅/상담)의 읽지 않은 메시지 수나 대화 수 같은 카운트가 안보일 수 잇음)
-!*/push*$script
-!
-!
+
+
+
 ##[target] video
-!
-!
-!
-!
-!
-!
-!
+
+
+
+
+
+
+
+
 ==================================
 
 !
@@ -6033,87 +6006,6 @@ tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"
 
 
 
-##[href*="/pop/" i]
-##[href*="popup" i]
-! - 예외 - 쿠팡플레이 (https://www.coupangplay.com/) - 라이브 시청하기 버튼 사라짐
-! - 예외 -  에펨코리아 (https://www.fmkorea.com/) - 아바타 이미지 사라짐
-! - 예외 - https://trand.co.kr/ - 즐겨찿기내 popup 들어간 링크 사라짐
-! - 예외 - https://mail.naver.com/ - 메일 텍스트 사라짐
-mail.naver.com,trand.co.kr,fmkorea.com,coupangplay.com#@#[href*="popup" i]
-
-
-
-
-##[href*="pop-up" i]
-##[href*="pop_up" i]
-
-##[src*="/pop/" i]
-! - 예외 - 도도티비 (https://dodotv11.com/) - 영상 안나옴
-! - 예외 - 땡땡티비 (http://www.ootv41.com/) - 영상 안나옴
-! - 예외 - 뷰티비 (https://vitv79.com/) - 영상 안나옴
-/^(www\.)?vitv/,/^(www\.)?ootv/,/^(www\.)?dodotv/#@#[src*="/pop/" i]
-##[src*="popup" i]
-! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
-accounts.kakao.com#@#[src*="popup" i]
-##[src*="pop-up" i]
-##[src*="pop_up" i]
-
-
-!*/*pop*/*
-!@@/*pop*/*$font
-
-!*pop*
-!@@*pop*$css
-!@@*pop*$font
-! - 예외 - https://today-sports9.com/ - 틀 깨짐
-! - 예외 - https://trand.co.kr/ - 일부 이미지 사라짐
-! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
-! - 예외 - https://chzzk.naver.com/ - 라이브 목록 안나옴
-! - 예외 - m.naver.com - 치지직 동영상 재생 안됨
-!@@*pop*$domain=today-sports9.com|trand.co.kr|accounts.kakao.com|chzzk.naver.com|m.naver.com
-
-
-*/popup/*
-/popups/*
-*popup*
-! - 예외 - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
-! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
-! - 예외 - https://map.naver.com/ - 팝업스토어 이미지 삭제
-! - 예외 - https://today-sports9.com/ - 틀 깨짐
-! - 예외 - https://www.redgifs.com/ - 본문 안보임
-! - 예외 - https://www.cnine.kr/ - 페이지 이동이 안됨
-@@||*popup*$css
-@@||*popup*$frame,domain=accounts.kakao.com
-@@||*popup*$image,domain=map.naver.com
-@@||*popup*$script,domain=/^today-sports\d*/
-@@||*popup*$script,domain=redgifs.com
-@@||*popup*$script,domain=cnine.kr
-
-
-*pop-up*
-*pop_up*
-!*pop*up*
-
-
-
-
-##[class*="popup" i]
-! - 예외 - https://javgiga.com/ - 플레이어가 사라짐
-! - 예외 - https://yandex.com/ - 검색란 사라짐
-! - 예외 - https://www.a-ha.io/ - 본문 사라짐
-javgiga.com#@#[class*="popup" i]
-yandex.com#@#[class*="popup" i]
-a-ha.io#@#[class*="popup" i]
-##[src*="popup" i]
-
-
-##[class*="pop-up" i] 
-##[class*="pop_up" i] 
-! - 예외
-! 다이닝코드 (https://www.diningcode.com/) - 팝업 차단시 랜덤 뿌연화면 발생 및 타지역 선택 불가
-diningcode.com#@#[class*="popup" i] 
-! 픽팍 (https://mypikpak.com/) - 화면이 안보임
-mypikpak.com#@#[class*="popup" i]
 
 
 ##[class*="adspop" i]
@@ -6122,66 +6014,7 @@ mypikpak.com#@#[class*="popup" i]
 ##[src*="/ads." i]
 
 
-!*ads*
 
-!##[class*="ads" i]
-!#@#img[src*="ads" i]
-
-!!! 광역
-
-! - https://06.avsee.ru/
-!##a[href][target="_blank"] > img[width="100%"][src$=".gif"]
-!##a[target*="blank"] > img[width="100%"][src*=".gif"]
-
-
-
-
-! - 자브걸 (https://kr28.javgirl.co/)
-! - 티비핫 (https://tvhot1.com/)
-!i-boss.co.kr,~avsee.ru##a[target*="blank"] > img[src*=".gif"]
-
-
-
-! - 특이
-! - - - 만화방 (https://manhwabang.net/)
-!manhwabang.org##a[target*="target"] img
-
-
-!##[href*="banner" i]
-! 18모아 (https://18moa028.com/)
-!/^([\w-]+\.)?18moa\d+\.com$/#@#[href*="banner" i]
-!/^(www\.)?18moa\d+\.com$/#@#[href*="banner" i]
-
-!##[src*="banner" i]
-! 18모아 (https://18moa028.com/)
-! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
-! 킥 (https://kick.com/) - 영상 이미지 안보임
-![$domain=/^t\d+.xtoon365.com/]#@#[src*="banner" i]
-!!/^([\w-]+\.)?18moa\d+\.com$/#@#[src*="banner" i]
-!/^(www\.)?18moa\d+\.com$/#@#[src*="banner" i]
-!kick.com#@#[src*="banner" i]
-
-
-!*banner*
-! - 11번가 - 사이트 구동이 안됨
-!@@||*banner*$script,domain=11st.co.kr|cookmana53.com
-! 18모아 (https://18moa028.com/)
-! 쿠팡플레이 (https://www.coupangplay.com/)
-! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
-! https://github.com/ - 일부 페이지 오류 발생
-! 킥 (https://kick.com/) - 영상 이미지 안보임
-! ZUM (https://zum.com/) - 일부 내용 안보임
-!@@||*banner*$image,domain=coupangplay.com
-!@@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
-!@@||*banner*$domain=github.com
-!@@*banner*$image,domain=xtoon365.com
-!@@*banner*$image,domain=kick.com
-!@@*banner*$xhr,domain=zum.com
-! - 아래 안풀어도 됨 (배너 막혀서 나오는 메시지임. 검색과는 무관)
-!@@*banner*$xhr,domain=rememberapp.co.kr
-! - wixpress.com - 주소에 banner이 들어가지면 배너 아님 (일단 아래 2규칙 보류)
-!@@wixpress.com*banner*
-!@@siteassets.parastorage.com*banner*
 
 
 
@@ -6203,34 +6036,6 @@ aniya24.com,t-browser.com,vexfile.com,etoland.co.kr#@#[class*="banner" i]
 /^(www\.)?(11toon|spotv)/#@#[class*="banner" i]
 /^(www\.)?mrds/#@#[class*="banner" i]
 yandex.com/maps#@#[class*="banner" i]
-
-
-
-! - 예외
-! - 옥션 (https://www.auction.co.kr/)
-! - 쿠팡 (https://www.coupang.com/)
-! - 네이버스토어 (https://shopping.naver.com/)
-!- 네이버쇼핑라이브 (https://shoppinglive.naver.com/)
-! - 스마트스토어 (https://smartstore.naver.com/)
-! - 브랜드스토어 (https://brand.naver.com)
-! - G마켓 (https://www.gmarket.co.kr/)
-! - 성심당몰 (https://www.sungsimdangmall.co.kr/)
-! - 와디즈 (https://www.wadiz.kr/)
-! - 11번가 (https://www.11st.co.kr/)
-! - 톡딜 (https://store.kakao.com/)
-! - 중고나라 (https://web.joongna.com/)
-! - 엑스툰 (https://t3.xtoon365.com/)
-! - 아이허브 (https://kr.iherb.com/)
-! - ZUM (https://zum.com/)
-! - GS샵 (https://www.gsshop.com/)
-! - 쿠팡플레이 (https://www.coupangplay.com/)
-! - 숲토어 (https://sooptore.sooplive.com/)
-! - 카카오TV (https://tv.kakao.com/)
-! - 애니라이프 (https://anilife.app/)
-!auction.co.kr,coupang.com,shopping.naver.com,shoppinglive.naver.com,smartstore.naver.com,brand.naver.com,gmarket.co.kr,sungsimdangmall.co.kr,wadiz.kr,11st.co.kr,store.kakao.com,web.joongna.com,t2.xtoon365.com,kr.iherb.com,zum.com,gsshop.com,coupangplay.com,sooptore.sooplive.com,tv.kakao.com,anilife.app#@#[class*="banner" i]
-! - 트위치 (https://www.twitch.tv/) - 하지말아볼것
-
-
 
 
 
