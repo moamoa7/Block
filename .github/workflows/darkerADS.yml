@@ -27,7 +27,7 @@ jobs:
           DATE=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
           {
-            echo "! Title: darkerADS domain blocklist"
+            echo "! Title: darkerADS blocklist"
             echo "! Description: ||domain^ 형식 규칙만 추출한 블록리스트"
             echo "! Source: $SOURCE"
             echo "! Homepage: https://github.com/execute-darker/darkerADS"
