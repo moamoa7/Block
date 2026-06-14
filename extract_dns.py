@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 DNS Block/Allow List Generator (Union-based)
-- Block list = AdRules DNS List ∪ HaGeZi's Pro.txt
+- Block list = AdRules DNS List ∪ HaGeZi's Pro.txt ∪ 1Hosts Lite
 - Apply: External Whitelist (auto-filtered) → Personal Blocklist → Personal Whitelist
 - Outputs:
     Block_DNS.txt  (||domain^)
@@ -28,6 +28,7 @@ from urllib.error import URLError, HTTPError
 # ---------- Configuration ----------
 PRIMARY_FILTER_URL = "https://raw.githubusercontent.com/Cats-Team/AdRules/main/dns.txt"
 SECONDARY_FILTER_URL = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/pro.txt"
+TERTIARY_FILTER_URL = "https://cdn.jsdelivr.net/gh/badmojr/1Hosts@master/Lite/adblock.txt"
 
 EXCLUSION_URLS = [
     "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/exclusions.txt",
@@ -241,6 +242,7 @@ def short_name(url: str) -> str:
     mapping = [
         ("main/dns.txt", "AdRules DNS List"),
         ("hagezi/dns-blocklists", "HaGeZi DNS Pro"),
+        ("badmojr/1Hosts", "1Hosts Lite"),
         ("AdGuardSDNSFilter", "AdGuard SDNS Exclusions"),
         ("HttpsExclusions/master/exclusions/banks", "AdGuard HTTPS Banks"),
         ("HttpsExclusions/master/exclusions/sensitive", "AdGuard HTTPS Sensitive"),
@@ -355,23 +357,22 @@ def main():
     report.append(f"Generated: {ts}")
     report.append("=" * 60)
 
-    # 1. 기본 차단 = AdRules DNS List ∪ HaGeZi Pro (합집합)
+    # 1. 기본 차단 = AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite (합집합)
     report.append("\n[1] Reference Filters")
     primary_set = fetch_filter_set(PRIMARY_FILTER_URL, "Primary (AdRules DNS List)", report)
     secondary_set = fetch_filter_set(SECONDARY_FILTER_URL, "Secondary (HaGeZi Pro)", report)
+    tertiary_set = fetch_filter_set(TERTIARY_FILTER_URL, "Tertiary (1Hosts Lite)", report)
 
-    if primary_set or secondary_set:
-        base_block_set = primary_set | secondary_set
-        overlap = len(primary_set & secondary_set)
-        only_primary = len(primary_set - secondary_set)
-        only_secondary = len(secondary_set - primary_set)
+    if primary_set or secondary_set or tertiary_set:
+        base_block_set = primary_set | secondary_set | tertiary_set
         report.append(f"[Union] {len(base_block_set):,} domains")
-        report.append(f"  - Overlap (in both)    : {overlap:,}")
-        report.append(f"  - Only in AdRules      : {only_primary:,}")
-        report.append(f"  - Only in HaGeZi Pro   : {only_secondary:,}")
+        report.append(f"  - Only in AdRules      : {len(primary_set - secondary_set - tertiary_set):,}")
+        report.append(f"  - Only in HaGeZi Pro   : {len(secondary_set - primary_set - tertiary_set):,}")
+        report.append(f"  - Only in 1Hosts Lite  : {len(tertiary_set - primary_set - secondary_set):,}")
+        report.append(f"  - In all three sources : {len(primary_set & secondary_set & tertiary_set):,}")
     else:
         base_block_set = set()
-        report.append("[ERROR] Both reference filters failed to load")
+        report.append("[ERROR] All reference filters failed to load")
 
     # 2. 외부 화이트리스트 로드
     report.append("\n[2] External Whitelist Sources")
@@ -463,7 +464,7 @@ def main():
         f.write(f"! Title: Personal Block List (DNS)\n")
         f.write(f"! Homepage: https://github.com/moamoa7/adblock\n")
         f.write(f"! Generated: {ts}\n")
-        f.write(f"! Method: (AdRules DNS List ∪ HaGeZi Pro) - ExtWhite + PersonalBlock - PersonalWhite\n")
+        f.write(f"! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite\n")
         f.write(f"! Block Rules: {len(final_block_set):,}\n!\n")
         for d in sorted(final_block_set):
             f.write(f"||{d}^\n")
