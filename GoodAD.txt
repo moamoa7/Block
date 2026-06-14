@@ -5698,6 +5698,11 @@ yozm.wishket.com##[data-testid^="advert"]
 
 /fingerprint2.min.js
 /api/front/v2/observability$ping
+!
+!
+! https://uploadrar.com/
+! - 하단 쿠키 안내
+uploadrar.com###gdpr-cookie-notice
 
 
 
@@ -6056,12 +6061,14 @@ tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"
 ! - 야애니24 (https://www.aniya24.com/) - 플레이어가 안나옴
 ! - https://www.mrds66.com/ - 본문 안보임
 ! - https://yandex.com/maps/ - 보이지 않음
+! - https://adblockultimate.net/ - 본문 안보임
 aniya24.com,t-browser.com,vexfile.com,etoland.co.kr#@#[class*="banner" i]
 /^tkor/#@#[class*="banner" i]
 /^funbe/#@#[class*="banner" i]
 /^(www\.)?(11toon|spotv)/#@#[class*="banner" i]
 /^(www\.)?mrds/#@#[class*="banner" i]
 yandex.com/maps#@#[class*="banner" i]
+adblockultimate.net#@#[class*="banner" i]
 
 
 
