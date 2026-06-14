@@ -1512,11 +1512,16 @@
 !
 !
 ! ───── Quetta 브라우저 (임시) ─────
+! - 의심스러운 브라우저
 ||qt.quetta.net^
 ||f.quetta.net^
+||assets.quetta.net^
 ||feedback.quetta.net^
 ||bcp.quetta.net^
 ||account.quetta.net^
+||online-sync.quetta.net^
+||update.quetta.net^
+||bookshelf.quetta.net^
 !
 !
 ! ───── Helium 브라우저 (참고용) ─────
