@@ -96,9 +96,15 @@ tv.kakao.com#@#div.ads
 ! - 기타
 /gen_204^
 /generate_204?$image
-/browserinfo?f.sid=$xhr
 ||ogads-pa.clients6.google.com^
 www.google.*##+js(href-sanitizer, #main a[href^="/url?q=http"], ?q)
+!
+!
+! 구글 플레이 (https://play.google.com/)
+! - 기타
+/log?format=
+/gen204/*
+/browserinfo?f.sid=$xhr
 !
 !
 ! 구글 광고 차단
@@ -179,8 +185,6 @@ discord.com##div[class*="notice"]
 ! - 기타
 /referrer.js
 ||x.com/1.1/graphql/user_flow.json
-x.com##+js(set-cookie, twtr_pixel_opt_in, N)
-x.com##+js(ubo-set, navigator.globalPrivacyControl, false)
 x.com##+js(ubo-set, Navigator.prototype.globalPrivacyControl, false)
 !
 !
@@ -206,10 +210,8 @@ www.facebook.com##+js(json-prune, require.0.3.0.__bbox.define.[].2.is_linkshim_s
 ! 레딧 (https://www.reddit.com/)
 ! - 기타
 ||redditstatic.com/shreddit/sentry-
-reddit.com##span.hidden[class$="m:block"]
+reddit.com##shreddit-comments-page-ad
 reddit.com##+js(hide-in-shadow-dom, faceplate-tracker[source="xpromo"] #get-app)
-reddit.com##+js(remove-class, scroll-disabled, body, stay)
-reddit.com##+js(abort-on-property-write, STICKY_CANARY)
 reddit.com##body:style(overflow: auto !important;)
 !
 !
@@ -1164,7 +1166,7 @@ humorpick.com##.ie-center.ie-zone > p
 !
 ! 다나와 디피지 (https://dpg.danawa.com/)
 ! - 상단 팝업
-dpg.danawa.com##[class="floatbnr_btm"]
+!dpg.danawa.com##[class="floatbnr_btm"]
 ! - 스폰서 pick
 !##[class*="sponsor" i]
 !##ul[class*="sponsor" i]
@@ -1546,7 +1548,6 @@ tving.com##.py-8
 !  숏츠
 tving.com##.py-4.z-\[1\]
 ! - 기타
-/akam^
 ||onelinksmartscript.appsflyer.com^
 !
 !
@@ -1563,6 +1564,9 @@ wavve.com##.banner_2
 !
 ! 쿠팡플레이 (https://www.coupangplay.com/)
 !@@||coupangplay.com^$generichide
+! - 로그인 안되는 문제 해결
+@@||asset*.coupangcdn.com/customjs/coupang-web-log/*/web-log.umd.min.js$from=login.coupang.com
+
 !
 !
 ! 왓챠 (https://watcha.com/)
@@ -2711,8 +2715,6 @@ avsee.ru#@#.tabs
 !avsee.ru#@#[class*="floating" i]
 ! - 팝업 (새창) 방지
 j91.asia##+js(window.open-defuser)
-! - 기타
-/provider.cast.js^$script
 !
 !
 ! supjav (https://supjav.com/)
@@ -3380,7 +3382,7 @@ missav.*,njavtv.com##[class^="mx-auto" i]
 !##[src*="/widgets/" i]
 !##[src*="/smartpop/" i]
 !##[class*="bottomright" i]
-##[rel*="sponsored"]
+##[rel*="sponsor"]
 ! - 예외 - https://adguard-dns.io/ - 버튼 눌러도 반응 없음
 !adguard-dns.io#@#[class*="bottomright" i]
 ! - 예외 - https://www.sooplive.com/ - 개인방송국 팝업 사라짐
@@ -3390,7 +3392,6 @@ missav.*,njavtv.com##[class^="mx-auto" i]
 @@||fourhoi.com^
 ! - 기타
 ! - 공간 남으며 위의 규칙으로 이미 다 지워진거라 필요가 없음
-!##[rel*="sponsor" i]
 !##[src*="//ads.adxadserv.com/" i]
 ! - 하단 배너
 missav.fans###b-a-b
@@ -5368,10 +5369,6 @@ popkontv.com#@#[class*="img-box" i]
 @@||ssgcdn.com^$image
 !
 !
-! 텔레그램 (https://t.me/)
-@@||t.me^
-!
-!
 ! 노션 (https://www.notion.so/)
 ! - 기타
 ||notion.so/api/v3/etclient
@@ -5437,6 +5434,8 @@ tktube.com#@#[class*="-ad-" i]
 !muko.kr##.lp-install-chip
 ! - 숲 (https://play.sooplive.com/) - 먼지 모름 (후에 문제 생기면 확인해볼것)
 ##[class*="install" i]
+! - 예외 - https://greasyfork.org/
+greasyfork.org#@#[class*="install" i]
 !
 !
 ! Up-4ever (https://www.up-4ever.net/)
@@ -5654,7 +5653,7 @@ imgbox.com##div[id^="aad-header-"]
 !
 ! 메이저 링크 (https://majorlink2.com/)
 ! - 이미지 복원
-/^(www\.)?majorlink/#@#[rel*="sponsored"]
+/^(www\.)?majorlink/#@#[rel*="sponsor"]
 !
 !
 ! MMZ (https://www.mmzone.co.kr/)
@@ -5675,6 +5674,27 @@ mmzone.co.kr#@#.ads-wrap
 yozm.wishket.com#@#div[class*="border"]:has(> [target] img)
 ! - 배너
 yozm.wishket.com##[data-testid^="advert"]
+!
+!
+! https://linktr.ee/
+! - 기타
+||datagrail.io^
+!
+!
+! https://www.tokyomotion.net/
+! - 기타
+/^https?:\/\/([0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.)?[0-9a-z-][0-9a-z-][0-9a-z-][0-9a-z-][0-9a-z-]+\.com\/\/?([0-9a-z][0-9a-z]\/)([0-9a-z][0-9a-z]\/)([0-9a-z][0-9a-z]\/)?[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\.js/$script,xmlhttprequest,third-party
+!
+!
+! https://ko.javfc2.live/
+! - 기타
+@@||strpst.com^
+||doppiocdn.com^
+@@||doppiocdn.org^
+||sc-apps.com^
+
+/fingerprint2.min.js
+/api/front/v2/observability$ping
 
 
 
@@ -5837,6 +5857,9 @@ ad.co.kr,auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 !
 !
 ##[id*="topbanner" i]
+!
+!
+##[id$="-ad"]
 !
 !
 ##[href*="/ad/" i]
@@ -6059,9 +6082,11 @@ yandex.com/maps#@#[class*="banner" i]
 ! - 기상청 - /vi/  base64
 ! - avsee - community
 ! - https://today-sports9.com/ - /data/file/photo/
+! - https://www.i-boss.co.kr/ - cdn.ibos.kr  /design/upload_file/
+! - https://dpg.danawa.com/bbs - img.danuri.io/catalog-image/
 ! - - -  ##[target] > img 순서대로되야 차단 가능
 ! - - - ##[target] img 깊이에 상관없이 자식, 손자, 그 아래 모든 후손 img가 대상
-##[target] img:not([src*="trand"]):not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/uploads/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/rank"]):not([src*="static.wixstatic.com"]):not([src*="jusocon"])
+##[target] img:not([src*="trand"]):not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/uploads/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/rank"]):not([src*="static.wixstatic.com"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"])
 
 
 ##[target] picture
@@ -6072,4 +6097,6 @@ yandex.com/maps#@#[class*="banner" i]
 
 
 
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
