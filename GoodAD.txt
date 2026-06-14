@@ -5349,7 +5349,7 @@ mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
 ! - 이벤트
 mimint.co.kr##.event_right_new
 ! - 본문 하단에 필요없는 숲 영상 첨부 안보이게
-||sooplive.com^$domain=mimint.co.kr
+!||sooplive.com^$domain=mimint.co.kr
 !mimint.co.kr###soop_player_video
 ! - 모바일 맨 밑 하단 고정되어있는 흰색 네모박스
 m.mimint.co.kr###anchor-layer
@@ -5983,7 +5983,8 @@ linkareer.com#@#[src*="advert" i]
 ! - - - 핑유걸 https://avpingyou20.com/ - /player/dplayer.html
 ! - - - 쏘걸 - https://kr86.sogirl.so/  -  about:blank
 ! - - - 야동닷컴 https://yadong8.com/ - /player.html
-##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"])
+! - - - 숲 - /embed?
+##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"])
 
 
 
