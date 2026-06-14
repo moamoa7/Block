@@ -914,6 +914,7 @@ m.inven.co.kr##.goto_top_arrow
 ! - 오류 방지
 !  - -- 타 규칙 해제
 ||07c225f3.online^$document,popup,badfilter
+||07c225f3.online^$popup,badfilter
 ! - - - 차단 방지
 @@||07c225f3.online^
 !
