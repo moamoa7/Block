@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260614
+! Version: 20260615
 !
 !
 !
@@ -652,6 +652,13 @@ r##.text-center
 !
 !
 ! 디시인사이드 (https://gall.dcinside.com)
+! - 게시물내 배너 이미지
+*/ad/*
+! - 예외
+@@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
+##[src*="/ad/" i]
+! - 예외
+ad.co.kr,auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
 ! - 오른쪽 배너 공간
 ! - - - 유니콘Pro에 없는거 (List-KR)
 !##[class*="rightbanner" i]
@@ -671,6 +678,9 @@ dcinside.com##.stickyunit
 !gall.dcinside.com##li.block-disable
 ! - 글쓰기시 빈공간
 dcinside.com##div:has(> .kakao_ad_area)
+! - 게시물내 상단 이미지 및 공간
+dcinside.com##img[src*="dcimg2\.dcinside\.co\.kr"]
+dcinside.com##p:has(> br)
 ! 디시 뉴스 없애기 (중앙일보)
 ! - - - PC
 !dcinside.com##.news_result.integrate_cont
@@ -4736,6 +4746,11 @@ hotword.site##div.col-md-6:nth-of-type(2)
 tistory.com##+js(set, adblockChecker, noopFunc)
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !*##[class*='adsense']:not([style*='1px']):not(:has(p))
+! - 광고 차단이 감지 되었습니다
+! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+tistory.com###adb-overlay
+! - - - 스크롤 잠금 해제
+tistory.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
 ! 조드 (https://zod.kr/)
@@ -5710,9 +5725,26 @@ yozm.wishket.com##[data-testid^="advert"]
 ! AV플릭스 (https://kr2.avflix.co/)
 !  배너 및 공간
 [$domain=/avflix/]##div.grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3.xl\:grid-cols-4.gap-3.md\:gap-4.px-4.md\:px-20.py-1.md\:py-6:has(> div)
-
-
-
+!
+!
+! 링커리어 (https://linkareer.com/)
+! - 팝업 차단으로 스크롤 잠금 해제
+linkareer.com##html,body:style(overflow: auto !important;)
+! - 인기 공고
+linkareer.com##[class*="PopularActivity" i]
+!
+!
+! 딸튜브 (https://kr10.ddaltube.com/) - 광고 영상이 재생시 나옴
+! 야동스타 (https://kr1.yastar.xyz/) - 광고 영상이 재생시 나옴
+! - 플레이어 안보이는거 해결
+[$domain=/yastar/],[$domain=/ddaltube/]#@#[class*="-ad-" i]
+! - 광고 영상 진행시 실수로 팝업 뜨는거 방지
+[$domain=/yastar/],[$domain=/ddaltube/]#%#//scriptlet('prevent-window-open')
+!
+!
+! https://www.similarweb.com/
+! - 타 규칙에 의해 로딩 차단하는규칙 해제
+||awswaf.com^$badfilter
 
 
 
@@ -5758,16 +5790,7 @@ ad.co.kr#@#.ad
 !
 !
 */ad.*
-@@*/ad.*$css
-!
-!
-*/ad/*
-@@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
-!
-!
-##[src*="/ad/" i]
-! - 예외
-ad.co.kr,auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
+@@*/ad.*$cs
 !
 !
 ##[src*="/ads/" i]
