@@ -4437,9 +4437,10 @@ xn--9l4b15e2td.com##.widget-box
 ##.wixui-gallery
 !
 !
-! 여기여 (https://www.yugiyu.com/) (https://www.ygy01.com/)  - 서로 다른 여기여 지만 같은 사이트
+! 여기여 (https://xn--ok0bt1cu7yjqdmxaba206c.com/) (https://www.xn--ok0b408a79cba430b.com/) (https://www.yugiyu.com/) (https://www.ygy02.com/)  - 서로 다른 여기여 지만 같은 사이트
 ! - 팝업
 !##.popup_wrap
+##div[class*="popup"]
 ! - - - 모바일 겸용
 !##[class*="popup_1" i]
 ! - 배너
@@ -6095,9 +6096,11 @@ adblockultimate.net#@#[class*="banner" i]
 ! - https://today-sports9.com/ - /data/file/photo/
 ! - https://www.i-boss.co.kr/ - cdn.ibos.kr  /design/upload_file/
 ! - https://dpg.danawa.com/bbs - img.danuri.io/catalog-image/
+! - 밤가드 - com/data/editor/
+! - https://www.ibric.org/ - /bric_now    /app/board/attach/image/
 ! - - -  ##[target] > img 순서대로되야 차단 가능
 ! - - - ##[target] img 깊이에 상관없이 자식, 손자, 그 아래 모든 후손 img가 대상
-##[target] img:not([src*="trand"]):not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/uploads/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/rank"]):not([src*="static.wixstatic.com"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"])
+##[target] img:not([src*="trand"]):not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/uploads/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/rank"]):not([src*="static.wixstatic.com"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"])
 
 
 ##[target] picture
