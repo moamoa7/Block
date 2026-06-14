@@ -5704,7 +5704,12 @@ yozm.wishket.com##[data-testid^="advert"]
 !
 ! https://uploadrar.com/
 ! - 하단 쿠키 안내
-uploadrar.com###gdpr-cookie-notice
+!uploadrar.com###gdpr-cookie-notice
+!
+!
+! AV플릭스 (https://kr2.avflix.co/)
+!  배너 및 공간
+[$domain=/avflix/]##div.grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3.xl\:grid-cols-4.gap-3.md\:gap-4.px-4.md\:px-20.py-1.md\:py-6:has(> div)
 
 
 
@@ -6069,6 +6074,7 @@ tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"
 ! - https://www.mrds66.com/ - 본문 안보임
 ! - https://yandex.com/maps/ - 보이지 않음
 ! - https://adblockultimate.net/ - 본문 안보임
+! - 딸즈니 (https://xn--9i1b69bzz4a.com/) (https://kr6.ddalsney.com/) - 영상 안보임
 aniya24.com,t-browser.com,vexfile.com,etoland.co.kr#@#[class*="banner" i]
 /^tkor/#@#[class*="banner" i]
 /^funbe/#@#[class*="banner" i]
@@ -6076,6 +6082,7 @@ aniya24.com,t-browser.com,vexfile.com,etoland.co.kr#@#[class*="banner" i]
 /^(www\.)?mrds/#@#[class*="banner" i]
 yandex.com/maps#@#[class*="banner" i]
 adblockultimate.net#@#[class*="banner" i]
+[$domain=/ddalsney/]#@#[class*="banner" i]
 
 
 
