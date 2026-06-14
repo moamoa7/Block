@@ -1,4 +1,4 @@
-name: Extract domain rules
+name: darkerADS 도메인 추출
 
 on:
   workflow_dispatch:        # 수동 실행 버튼
