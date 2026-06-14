@@ -31,7 +31,7 @@
 ! Title: Personal Privacy & Traffic Filter
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260609-rev2
+! Version: 20260615-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -354,6 +354,9 @@ $removeparam=/^stm_/
 $removeparam=/^xtor/
 $removeparam=/^wt_/
 $removeparam=/^matomo_/
+
+! - mypikpak.com
+*$document,removeparam=/^(sp|ut|fro?)m(_|\b)/
 
 
 !///////////////////////////////////////////////
