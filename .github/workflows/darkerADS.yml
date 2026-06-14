@@ -1,0 +1,50 @@
+name: Extract domain rules
+
+on:
+  workflow_dispatch:        # 수동 실행 버튼
+  schedule:
+    - cron: '0 */12 * * *'  # 12시간마다 (원본이 12시간마다 갱신됨)
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download and extract ||domain^ rules
+        run: |
+          curl -sL https://raw.githubusercontent.com/execute-darker/darkerADS/main/data/rules/adblock.txt -o adblock.txt
+
+          # ||로 시작, ^로 끝나고, 중간에 경로(/)나 옵션($)이 없는 줄만 추출
+          grep -E '^\|\|[^/$]+\^$' adblock.txt \
+            | sort -u > body.txt
+
+          COUNT=$(wc -l < body.txt)
+
+          {
+            echo "# darkerADS 에서 추출한 ||domain^ 규칙"
+            echo "# 원본: https://github.com/execute-darker/darkerADS"
+            echo "# 추출 시각(UTC): $(date -u '+%Y-%m-%d %H:%M:%S')"
+            echo "# 총 개수: ${COUNT}"
+            echo "rules:"
+            sed -E 's/^/  - "/; s/$/"/' body.txt
+          } > domains.yml
+
+          rm -f adblock.txt body.txt
+          echo "추출 완료: ${COUNT} 개"
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add domains.yml
+          if git diff --staged --quiet; then
+            echo "변경 사항 없음"
+          else
+            git commit -m "Update domains.yml ($(date -u '+%Y-%m-%d %H:%M'))"
+            git push
+          fi
