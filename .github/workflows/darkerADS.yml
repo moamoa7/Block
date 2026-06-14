@@ -35,7 +35,7 @@ jobs:
             echo "! Count: $COUNT"
             echo "!"
             cat body.txt
-          } > adblock.txt
+          } > darkerADS_block.txt
 
           echo "추출 완료: $COUNT 개"
           rm -f adblock.txt body.txt
