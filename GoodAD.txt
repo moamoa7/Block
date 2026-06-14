@@ -97,7 +97,6 @@ tv.kakao.com#@#div.ads
 /gen_204^
 /generate_204?$image
 ||ogads-pa.clients6.google.com^
-www.google.*##+js(href-sanitizer, #main a[href^="/url?q=http"], ?q)
 !
 !
 ! 구글 플레이 (https://play.google.com/)
@@ -185,7 +184,6 @@ discord.com##div[class*="notice"]
 ! - 기타
 /referrer.js
 ||x.com/1.1/graphql/user_flow.json
-x.com##+js(ubo-set, Navigator.prototype.globalPrivacyControl, false)
 !
 !
 ! 인스타 (https://www.instagram.com/)
@@ -194,25 +192,13 @@ x.com##+js(ubo-set, Navigator.prototype.globalPrivacyControl, false)
 ||instagram.com/ajax/qm/?
 ||facebook.com/ajax/qm/
 ||com/ads
-instagram.com##div[style^="display: flex; flex-direction: column; padding-bottom:"] div[style^="padding-bottom:"] + div.x1ey2m1c.xtijo5x.x1o0tod.x10l6tqk.x13vifvy:empty
-instagram.com##div[class]:has(> div[class]:first-child > a[href="/explore/people/"]):style(position: absolute !important; left: -3000px !important;)
-instagram.com##+js(set-session-storage-item, loggedOutCTAIsShown, 1)
-instagram.com##+js(set-session-storage-item, loggedOutAppSheetIsMinimized, 1)
-instagram.com##+js(set-constant, _sharedData.is_whitelisted_crawl_bot, true)
-instagram.com##[class]:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
-instagram.com##body:style(overflow: visible!important;)
-facebook.com##+js(prevent-addEventListener, scroll, showPopup)
-facebook.com##+js(remove-class, _31e, body > ._li)
-www.facebook.com##+js(json-prune, require.0.3.0.__bbox.require.[].3.[-].__bbox.result.data.node.sponsored_data.ad_id)
-www.facebook.com##+js(json-prune, require.0.3.0.__bbox.define.[].2.is_linkshim_supported require.0.3.0.__bbox.define.[].2.click_ids)
 !
 !
 ! 레딧 (https://www.reddit.com/)
+! - 하단 Reddit 앱에서 보기 팝업 (모바일)
+reddit.com##.justify-end
 ! - 기타
 ||redditstatic.com/shreddit/sentry-
-reddit.com##shreddit-comments-page-ad
-reddit.com##+js(hide-in-shadow-dom, faceplate-tracker[source="xpromo"] #get-app)
-reddit.com##body:style(overflow: auto !important;)
 !
 !
 ! GitHub (https://github.com/)
@@ -253,10 +239,6 @@ baidu.com###s-hotsearch-wrapper
 !||rlcdn.com^
 ! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
 !open.spotify.com##html,body:style(overflow: auto !important;)
-! - 기타
-open.spotify.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -khtml-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important; -webkit-tap-highlight-color: revert !important;)
-spotify.com##+js(set-constant, Navigator.prototype.globalPrivacyControl, false)
-spotify.com##+js(set-constant, navigator.globalPrivacyControl, false)
 !
 !
 ! 픽팍 (https://mypikpak.com/)
@@ -277,8 +259,6 @@ mypikpak.com##div.el-overlay:nth-of-type(23)
 !||mypikpak.com/scripts/clarity.js
 !||mypikpak.com/scripts/adjust.min.js
 !mypikpak.com##+js(set-cookie, allow_analysis, false)
-! - 기타
-/gtag.js
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -332,13 +312,6 @@ m.naver.com##script#MM_search_disaster ~*
 ! 네이버 블로그 (blog.naver.com)
 ! - 기타
 ||ssl.pstatic.net/t.static.blog/nmobile/versioning/ntmbalog-*.js
-blog.naver.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
-m.blog.naver.com##html:style(-webkit-touch-callout: default !important; -moz-user-select: text !important; -webkit-user-select: text !important; -ms-user-select: text !important; -o-user-select: text !important; user-select: text !important; -khtml-user-select: text !important;)
-blog.naver.com##+js(set-constant, rightClickOpenYn, false)
-blog.naver.com##+js(set-constant, autoSourcingYn, false)
-blog.naver.com##+js(prevent-addEventListener, /contextmenu|selectstart|copy/)
-naver.com##+js(set-cookie, ba.uuid, 0, /, naver.com)
-naver.com##+js(prevent-addEventListener, /contextmenu|selectstart|dragstart/)
 !
 !
 ! 네이버 스토어 (https://shopping.naver.com/)
@@ -579,11 +552,6 @@ www.twitch.tv##.video-player__default-player.Layout-sc-1xcs6mc-0
 !www.twitch.tv##div[data-a-target=player-controls]:style(background:unset!important)
 ! -기타
 ||reporting.cdndex.io^
-www.twitch.tv##div[data-a-target=player-controls]:style(background:unset!important)
-twitch.tv##+js(twitch-videoad)
-twitch.tv##+js(set-constant, Navigator.prototype.globalPrivacyControl, false)
-twitch.tv##+js(set-constant, navigator.globalPrivacyControl, false)
-twitch.tv##+js(prevent-window-open, amazon-adsystem)
 !
 !
 ! 킥 (https://kick.com/)
@@ -591,21 +559,12 @@ twitch.tv##+js(prevent-window-open, amazon-adsystem)
 kick.com##.contents > div.z-modal.fixed.bottom-4
 ! - 기타
 ||datadoghq-browser-agent.com^
-kick.com##+js(set-local-storage-item, cookies_accepted, true)
-kick.com##+js(ubo-set-local-storage-item, cookies_accepted, true)
 !
 !
 ! 틱톡 (https://www.tiktok.com/)
 ! - 기타
 -ads-$script
 ||mon-sg.tiktokv.com^
-tiktok.com##*:style(-webkit-touch-callout: default !important; -webkit-user-select: text !important; -moz-user-select: text !important; -ms-user-select: text !important; user-select: text !important;)
-tiktok.com##+js(ubo-set-session-storage-item, webapp_first_open_cta, 1)
-tiktok.com##+js(json-prune-fetch-response, itemList.*.ad_info.ad_id, '', api/recommend/item_list)
-tiktok.com##+js(set-session-storage-item, webapp_first_open_cta, 1)
-tiktok.com##+js(prevent-addEventListener, touchmove, .preventDefault():void)
-tiktok.com##+js(prevent-addEventListener, keydown)
-tiktok.com##+js(prevent-addEventListener, contextmenu, preventDefault)
 !
 !
 ! 다음 (https://www.daum.net/)
@@ -952,12 +911,10 @@ inven.co.kr##.inven-float-alarm
 inven.co.kr###invenAppSuggestion
 ! - 맨 위로 버튼 (모바일)
 m.inven.co.kr##.goto_top_arrow
-! - 기타
-inven.co.kr##+js(prevent-setTimeout, error-report.com)
-inven.co.kr##+js(abort-on-stack-trace, Object.defineProperty, html-load.com)
-inven.co.kr##+js(prevent-setTimeout, /document\.querySelectorAll[\s\S]*?\.remove\(\)[\s\S]*?alert/)
-inven.co.kr##+js(abort-on-stack-trace, document.getElementById, onerror)
 ! - 오류 방지
+!  - -- 타 규칙 해제
+||07c225f3.online^$document,popup,badfilter
+! - - - 차단 방지
 @@||07c225f3.online^
 !
 !
@@ -1012,6 +969,8 @@ mlbpark.donga.com##.btn_top01
 !ruliweb.com##.user_view:style(width: 100% !important;)
 !ruliweb.com###board_read .board_main_top .member_reward_wrapper:style(margin-top: 20px !important; float: right !important; margin-right: 20px !important;)
 !ruliweb.com##div[style].ti_wrapper
+! - 메인화면 오른쪽 빈 공간
+ruliweb.com##aside.main_aside.row:has(> .ad_300_600)
 ! - 댓글 아래 배너
 !ruliweb.com##div[class^="nbp_container"]
 ! - - - 맨 밑 하단 따라다니는 배너
@@ -1655,7 +1614,7 @@ poooo.ml#@#.ad
 */p2p*
 !
 !
-! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak204.com/) 
+! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak205.com/) 
 ! - 팝업
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 !tvchak.live##[class*="popup_mdd" i]
@@ -1664,6 +1623,8 @@ poooo.ml#@#.ad
 ! - 배너 공간
 ![$domain=/^tvchak\d+\.com$/],tvchak.live###advertiseMain
 ##[id*="advert" i]
+! - 각 프로그램 내용 안보이는거 해결 (List-KR 규칙 해제)
+/^tvchak[0-9]+\.com/#@#div[style].border-shadow
 !
 !
 ! 짭플릭스 (https://zzap204.com)
@@ -4761,7 +4722,7 @@ tistory.com##body:style(pointer-events: auto !important; overflow: auto !importa
 !zod.kr##.app-clearfix.app-content > .swiper-backface-hidden.swiper-horizontal.swiper-initialized.swiper
 !
 !
-! 주소콘 (https://www.jusocon.com/) (https://jusocon1.com/)
+! 주소콘 (https://t.me/s/jusoconcom) (https://www.jusocon.com/) (https://jusocon1.com/)
 ! - 상단 배너
 !##.banner_box
 !##[class*="banner_box" i]
@@ -5995,7 +5956,8 @@ linkareer.com#@#[src*="advert" i]
 ##iframe[title*="banner"]
 !
 !
-*_track/
+_track/
+
 
 
 
@@ -6018,12 +5980,13 @@ linkareer.com#@#[src*="advert" i]
 ! - - - 콕콕티비 (https://cokcok10.com/) / 티비위키 (https://tvwiki301.com/) - cokcok.stream  //  p2p막으면 플레이 안되게 되어잇음
 ! - -- 고구마티비 (https://gogumatv80.com/) /티비조타 (https://tvzota170.com/) - ply.catopolice.com/dplayer
 ! - - - 뷰티비 (https://vitv81.com/) / 냥티비 (https://nortv82.com/) - xiaoca.top/one/onet.php?url=
-##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="])
+! - - - 티비착 (https://tvchak205.com/) - /chak/chaktt.php?url=
+##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="])
 
 
 
 ! - 예외 - https://tcafe21.com/ - src가 about:blank 임 (출석포인트시 필요)
-tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"])
+tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="])
 
 
 
