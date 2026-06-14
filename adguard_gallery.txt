@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.06.15.2
+! Version: 2026.06.15.3
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -120,6 +120,7 @@ m.dcinside.com##li:not(.notice):has(> .detail-top-lnk)
 m.ppomppu.co.kr##.js-ad_slot.JS-div_gpt_ad
 m.ppomppu.co.kr##div[style^='text-align:center;']
 m.ppomppu.co.kr##ul:has(> .mobile-ad-sponsor)
+m.ruliweb.com##aside.native_timeline_ad
 m.ruliweb.com##tr:has(.nbp_container)
 m.wowtv.co.kr##.container > div[style]
 m.wowtv.co.kr,inven.co.kr##[id*='Banner']
@@ -200,11 +201,9 @@ bampt3.com,bampt4.com,bampt5.com##.small-banners-grid, .small-ad-item, .premium-
 darkgirl11.com,darkgirl12.com,darkgirl13.com###adskip, #posterWrap, #main-banner
 darkgirl11.com,darkgirl12.com,darkgirl13.com##.banner, a[href*="clickadu.net"]
 darkgirl11.com,darkgirl12.com,darkgirl13.com#%#//scriptlet('trusted-click-element', '#adbtn')
-jusocon1.com,jusocon2.com,jusocon3.com##.banner_box
 mingky04.live,ydparty02.tv##.grid-asset
 sbxh6.com,sbxh7.com,sbxh8.com##[data-pm-ov="1"]
 xxzone24.top,xxzone25.top,xxzone26.top##[id*="main-banner"], .gplayer-ad-overlay, #popupBannerModal
-yugiyu2.com,yugiyu3.com,yugiyu4.com##ul:has(> li.banner-item)
 !
 !#if (adguard && adguard_app_ios && adguard_ext_safari && adguard_ext_chromium && adguard_ext_edge && adguard_ext_firefox)
 ###img_row_container
