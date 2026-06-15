@@ -2,7 +2,7 @@
 !
 !
 ! Title: GoodAD
-! Description: Personal Block List
+! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
 ! Version: 20260615
 !
@@ -195,8 +195,8 @@ discord.com##div[class*="notice"]
 !
 !
 ! 레딧 (https://www.reddit.com/)
-! - 하단 Reddit 앱에서 보기 팝업 (모바일)
-reddit.com##.justify-end
+! - 하단 Reddit 앱에서 보기 팝업 (모바일) - PC 가입/로그인/설정메뉴열기를 지워서 다른걸로 찾아야함
+!reddit.com##.justify-end
 ! - 기타
 ||redditstatic.com/shreddit/sentry-
 !
@@ -639,7 +639,7 @@ dcinside.com##.stickyunit
 dcinside.com##div:has(> .kakao_ad_area)
 ! - 게시물내 상단 이미지 및 공간
 dcinside.com##img[src*="dcimg2\.dcinside\.co\.kr"]
-dcinside.com##p:has(> br)
+!dcinside.com##p:has(> br)
 ! 디시 뉴스 없애기 (중앙일보)
 ! - - - PC
 !dcinside.com##.news_result.integrate_cont
@@ -5778,7 +5778,8 @@ ad.co.kr#@#.ad
 
 !@@||/ads*$domain=login.coupang.com
 !
-!*/ads-*
+*/ads-*
+@@*/ads-*$css
 !
 !*/ads.*
 !
@@ -5921,6 +5922,7 @@ linkareer.com#@#[src*="advert" i]
 ##[id*="adsby" i]
 !
 !
+! - 레댓 홍보글
 ##[aria-label*="advert" i]
 !
 !
@@ -5967,7 +5969,7 @@ _track/
 ! - - - 네어버 - my.html
 ! - - - javsubid.sx - /ws/  /lf/  /st/
 ! - - - https://sigundul.site/ - /te/
-! - - - https://www.fomos.kr/ - (댓글란) /comments/ / .fmkorea.com
+! - - - https://www.fomos.kr/ - (댓글란) /comments/ / mediag5jvqbd.fmkorea.com/  ext.fmkorea.com/
 ! - - - AV조아https://avjoa75.com/ -  /player-x.php
 ! - - - 핑유걸 https://avpingyou20.com/ - /player/dplayer.html
 ! - - - 쏘걸 - https://kr86.sogirl.so/  -  about:blank
@@ -5978,13 +5980,12 @@ _track/
 ! - -- 고구마티비 (https://gogumatv80.com/) /티비조타 (https://tvzota170.com/) - ply.catopolice.com/dplayer
 ! - - - 뷰티비 (https://vitv81.com/) / 냥티비 (https://nortv82.com/) - xiaoca.top/one/onet.php?url=
 ! - - - 티비착 (https://tvchak205.com/) - /chak/chaktt.php?url=
-##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="])
+##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="])
 
 
 
 ! - 예외 - https://tcafe21.com/ - src가 about:blank 임 (출석포인트시 필요)
-tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*=".fmkorea.com"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="])
-
+tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="])
 
 
 ##[target] video
