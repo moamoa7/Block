@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-06-15 07:42:21 UTC
+! Generated: 2026-06-15 13:42:33 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,491
+! Exception Rules: 6,494
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -3065,7 +3065,6 @@
 @@||mkto-ab540186.com^
 @@||mkto-ab550041.com^
 @@||mkto-ab550140.com^
-@@||mkto-ab550144.com^
 @@||mkto-ab550184.com^
 @@||mkto-ab560068.com^
 @@||mkto-ab560119.com^
@@ -5184,6 +5183,7 @@
 @@||subesizbankacilik.vakifbank.com.tr^
 @@||subscriptions.costco.com^
 @@||succeedscene.com^
+@@||suite0.emarsys.net^
 @@||suite1.emarsys.net^
 @@||suite10-cf.emarsys.net^
 @@||suite10.emarsys.net^
@@ -5194,6 +5194,7 @@
 @@||suite15.emarsys.net^
 @@||suite16.emarsys.net^
 @@||suite17.emarsys.net^
+@@||suite19.emarsys.net^
 @@||suite20.emarsys.net^
 @@||suite22-cf.emarsys.net^
 @@||suite22.emarsys.net^
@@ -5211,6 +5212,7 @@
 @@||suite34.emarsys.net^
 @@||suite35-cf.emarsys.net^
 @@||suite36.emarsys.net^
+@@||suite38-cf.emarsys.net^
 @@||suite38.emarsys.net^
 @@||suite4-cf.emarsys.net^
 @@||suite4.emarsys.net^
@@ -5647,6 +5649,7 @@
 @@||trustedid.com^
 @@||try.abtasty.com^
 @@||ts.seb.se^
+@@||ts.tradetracker.net^
 @@||tsb.co.nz^
 @@||tsb.co.uk^
 @@||tsbank.no^
