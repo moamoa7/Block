@@ -1,6 +1,6 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-06-16 02:03:23 UTC
+! Generated: 2026-06-16 08:23:26 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
 ! Exception Rules: 6,494
 !
@@ -31,6 +31,7 @@
 @@||2ip.ua^
 @@||2performant.com^
 @@||3-aclk.net^
+@@||341676991.group0.sites.hscoscdn-na3.net^
 @@||3cinteractive.com^
 @@||3ds.bankofbaku.com^
 @@||3ds.mdmbank.ru^
@@ -3012,7 +3013,6 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
-@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -3020,6 +3020,7 @@
 @@||mkto-ab280126.com^
 @@||mkto-ab290102.com^
 @@||mkto-ab290138.com^
+@@||mkto-ab300154.com^
 @@||mkto-ab310115.com^
 @@||mkto-ab320028.com^
 @@||mkto-ab320182.com^
@@ -3201,6 +3202,7 @@
 @@||mkto-sj310157.com^
 @@||mkto-sj310186.com^
 @@||mkto-sj320047.com^
+@@||mkto-sj320080.com^
 @@||mkto-sj330006.com^
 @@||mkto-sj340004.com^
 @@||mkto-sj360104.com^
@@ -3350,7 +3352,6 @@
 @@||ndirect.ppro.de^
 @@||nedbank.co.za^
 @@||neobux.com^
-@@||neoengage-va-cdn.exponea.com^
 @@||neon.com.br^
 @@||nest.com^
 @@||net.kentbank.hr^
@@ -5194,7 +5195,6 @@
 @@||suite15.emarsys.net^
 @@||suite16.emarsys.net^
 @@||suite17.emarsys.net^
-@@||suite19.emarsys.net^
 @@||suite20.emarsys.net^
 @@||suite22-cf.emarsys.net^
 @@||suite22.emarsys.net^
@@ -5207,12 +5207,12 @@
 @@||suite30-cdnnet.emarsys.net^
 @@||suite30-cf.emarsys.net^
 @@||suite30.emarsys.net^
+@@||suite32.emarsys.net^
 @@||suite33-cf.emarsys.net^
 @@||suite33.emarsys.net^
 @@||suite34.emarsys.net^
 @@||suite35-cf.emarsys.net^
 @@||suite36.emarsys.net^
-@@||suite38-cf.emarsys.net^
 @@||suite38.emarsys.net^
 @@||suite4-cf.emarsys.net^
 @@||suite4.emarsys.net^
