@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260615
+! Version: 20260616
 !
 !
 !
@@ -47,6 +47,14 @@
 ! - - - 불필요한 이동 링크를 제거하여 화면을 깔끔하게 정리하려는 의도
 ! - - - https://web.humoruniv.com/ - 웹소설 링크 삭제됨 (위 목적과 맞지 않는듯)
 !##ul > li > A[href$="_list.html"]
+!
+!
+!
+!
+!@@*.or.kr^$generichide,image,css,font,script,xhr,frame,other
+@@*.or.kr^$generichide
+!@@*.go.kr^$generichide,image,css,font,script,xhr,frame,other
+@@*.go.kr^$generichide
 !
 !
 !
@@ -1665,15 +1673,13 @@ poooo.ml#@#.ad
 [$domain=/^www.nnuutv\d+.tv/]###comp-lhh974mf2
 !
 !
-! 콕콕티비 (https://cokcok10.com/)
-! - -  티비위키 (https://tvwiki300.com/)
+! 콕콕티비 (https://cokcok10.com/) - p2p 해제해야 시청 가능
+! - -  티비위키 (https://tvwiki301com/) - p2p 해제해야 시청 가능
 ! - 팝업 - ##[class*="popup-banner" i]으로 대체
 !##[class*="popup-banners" i]
 ! - 상단 배너 공간
 ![$domain=/^cokcok\d+.com/],tvwiki.app##.custom_banner_wrap
 !##[class*="custom_banner" i]
-! - 기타
-||jsdelivr.net/npm/devtools-detector
 !
 !
 ! 무비킹 (https://t.me/s/mvking777)  (https://xn--v92b29c9uy.com/)  (https://mvking.mov/)
@@ -1952,7 +1958,7 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^happytoon\d+.com/]##[class^="webtoon-ads"]
 !
 !
-! 뉴토끼 (https://sbxh6.com/)
+! 뉴토끼 (https://sbxh7.com/)
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
@@ -2103,11 +2109,11 @@ www.donga.com#@#[class*="ad_"] [style]
 !##[class*="aside-ad" i]
 ##.aside-ad
 ! - 메인 하단 배너
-##.ad-bottom
+!##.ad-bottom
 ! - 기사 상단/본문 배너
 ##.ad-box
 ! - 기사 배너 라벨
-!##.ad-label
+##.ad-label
 ! - 기사 배너 라벨 제외 모든 배너
 ##.ad-wrap:not(#google_ads_iframe_checktag)
 ! - 기사 모든 베너 (라벨 포함)
@@ -2262,6 +2268,8 @@ edaily.co.kr##.special_area
 ! 한국경제TV (https://www.wowtv.co.kr/)
 ! - 상단 배너
 !##[class*="box-banner" i]
+! - 불필요없는 공간
+wowtv.co.kr##div:has(> .wrap-BannerBox)
 !
 !
 ! 매일경제 (https://www.mk.co.kr/)
@@ -2405,6 +2413,9 @@ auction.co.kr##.hp_bot_ad
 ! - 검색시 나오는 하단 스폰서링크 삭제
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !auction.co.kr##.component--sponsor_link.component
+! - 지마켓 기타
+gmarket.co.kr##+js(ubo-set, document.oncontextmenu, noopFunc)
+gmarket.co.kr##+js(ubo-set, document.onmousedown, noopFunc)
 !
 !
 ! G마켓 (https://www.gmarket.co.kr/)
@@ -2497,9 +2508,16 @@ c.appstory.co.kr###modalPreventExit
 @@||service.wadiz.kr/api/*/wadizad/host/keyvisual
 !
 !
-!!! 다나와 (https://danawa.com/)
+! 다나와 (https://danawa.com/)
+@@||danawa.com^$generichide,xhr
+! - 오늘 그만보기 및 뿌연거 해결
+danawa.com/##[id*="mdnw-main" i]
+! - 빈 배너 공간
+danawa.com###t1Banner
 ! - 오른쪽 빈 배너 / 상단 텍스트
 danawa.com##.main-top__right
+! - 중간 배너 공간
+danawa.com##.main__grid--bg
 ! 상단 배너 보이게
 ! - - -  List-KR 해제
 !danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-middlebnr
@@ -2535,7 +2553,6 @@ danawa.com##[id^='powerShoppingArea']
 ! - 한국경제 (https://www.hankyung.com/) 모바일
 !hankyung.com#@#*:has(> iframe[title*="광고"]):not(html):not(body)
 !danawa.com#@#*:has(> iframe[title*="광고"]):not(html):not(body)
-##[class*="main-event" i]
 !
 !
 ! 당근 (https://www.daangn.com/)
@@ -3496,7 +3513,7 @@ javmov.com##.spot
 ! 야플릭스 (https://live9xxx.net/)
 ! - 상단 배너 공간
 !##.bannerbox
-##[class*="bannerbox" i]
+!##[class*="bannerbox" i]
 !
 !
 ! https://kr.nudogram.com/
@@ -3664,7 +3681,7 @@ jamakyadong.me##[class*="g-col"]
 !
 ! 밤포탈 (https://bampt4.com/)
 ! - 팝업 및 뿌연거 해결  (PC)
-! - - - 뉴토끼 (https://sbxh6.com/)
+! - - - 뉴토끼 (https://sbxh7.com/)
 !##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
 ##[id="popupoverlay" i]
@@ -3883,7 +3900,7 @@ sexygirl.cc##div.overflow-auto
 !
 ! 야동대학 (https://ydu15.com/)
 ! 왼쪽 배너
-##.bxslider
+![$domain=/^ydui\d+.com/]##.bxslider
 !
 !
 ! WatchJAVOnline (https://watchjavonline.com/)
@@ -4090,14 +4107,15 @@ jusogall.com###banner-container
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 보지넷 (https://bo-zi65.net/)
-! 야동다운 (https://av031.xyz/)
-! - 상.하 배너
-![$domain=/^bo-zi\d+.net/]##.banners-container
-![$domain=/^av\d+.xyz/]##.banners-container
-!##.banners-container
-! - 영상 하단 텍스트
-###h_tag_link
+! 야동투어 (https://xn--2q1bl84a3e140c.com/) (https://ydtour39.sbs/) - /p2p* 해제해야 영상재생 가능
+! - 팝업 이미지
+!##[id*="popup-ads-" i]
+##[id*="-ads" i]
+! - 배너 이미지
+##[src*="/ads/" i]
+##[alt*="banner" i]
+! - 영상 하단 텍스트 배너
+##[class*=-ads-]
 !
 !
 ! 일구핫 (https://01.19hot.net/)
@@ -4538,7 +4556,6 @@ jusotw.com#@#.wixui-image
 ! - 툴팁
 chaturbate.com##.react-tooltip__place-top
 ! - 기타
-/fingerprint2.min.js
 @@||chaturbate.com^
 ||fpcdn.io^
 ||nwr.static.mmcdn.com^
@@ -4934,6 +4951,8 @@ theporndude.com##.drawer-opener
 !
 ! 
 ! - 아이보스 (https://www.i-boss.co.kr/)
+! - 팝업
+i-boss.co.kr###adrop-popup
 ! - 상단 배너
 !###topAd
 ! - 배너 복원 (List-KR)
@@ -5046,7 +5065,9 @@ hearheart.com##.mb-6.relative
 hearheart.com##section.relative
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼  (https://뉴토끼평생.net) (https://newto13.com/) (https://mato13.com/) (https://bookto13.com/)
+! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/newtoki_ch)  (https://뉴토끼평생.net) (https://newto13.com/) (https://mato13.com/) (https://bookto13.com/)
+! - 뉴토끼평생 팝업
+뉴토끼평생.net##.show.op_popup_overlay
 ! - 이미지
 ! - - - 뉴토끼 (https://newto13.com/)
 ||newto*.com/data/apms/*
@@ -5107,6 +5128,8 @@ svrforum.com##html,body:style(overflow: auto !important;)
 ! 꾸르 (https://ggoorr.net/)
 ! - adsbygoogle 삭제 후 남은 공간
 ggoorr.net##.code-list-middle
+! - 기타
+/x.js*
 !
 !
 ! KGIRLS.NET (https://www.kgirls.net/)
@@ -5415,7 +5438,8 @@ tktube.com#@#[class*="-ad-" i]
 ! - 숲 (https://play.sooplive.com/) - 먼지 모름 (후에 문제 생기면 확인해볼것)
 ##[class*="install" i]
 ! - 예외 - https://greasyfork.org/
-greasyfork.org#@#[class*="install" i]
+! - 예외 - https://linkareer.com/
+linkareer.com,greasyfork.org#@#[class*="install" i]
 !
 !
 ! Up-4ever (https://www.up-4ever.net/)
@@ -5672,8 +5696,6 @@ yozm.wishket.com##[data-testid^="advert"]
 ||doppiocdn.com^
 @@||doppiocdn.org^
 ||sc-apps.com^
-
-/fingerprint2.min.js
 /api/front/v2/observability$ping
 !
 !
@@ -5694,7 +5716,7 @@ linkareer.com##html,body:style(overflow: auto !important;)
 linkareer.com##[class*="PopularActivity" i]
 !
 !
-! 딸튜브 (https://kr10.ddaltube.com/) - 광고 영상이 재생시 나옴
+! 딸튜브 (http://xn--301bl1og0r.com/) (https://kr10.ddaltube.com/) - 광고 영상이 재생시 나옴
 ! 야동스타 (https://kr1.yastar.xyz/) - 광고 영상이 재생시 나옴
 ! - 플레이어 안보이는거 해결
 [$domain=/yastar/],[$domain=/ddaltube/]#@#[class*="-ad-" i]
@@ -5705,6 +5727,49 @@ linkareer.com##[class*="PopularActivity" i]
 ! https://www.similarweb.com/
 ! - 타 규칙에 의해 로딩 차단하는규칙 해제
 ||awswaf.com^$badfilter
+!
+!
+! 서울신문 (https://seoul.co.kr/)
+! - 기사 하단 배너공간
+!seoul.co.kr###bottomScrollBox
+##[id*="scrollbox" i]
+!
+!
+! 머니투데이 (https://www.mt.co.kr/)
+! - 기타
+||mtgroup.kr^
+!
+!
+! 환산주스탯 (https://maplescouter.com/)
+! - 팝업
+###popup
+!
+!
+! 꽃밤 (https://xn--js0b77vw8duzi.com/) (https://ggbam14.com/)
+! - 필요없는거
+[$domain=/ggbam/]##.nav-row-2
+! - 광고 영상 진행시 실수로 팝업 뜨는거 방지
+/bet\d+-kr\.com/$popup
+!
+!
+! 레드걸 야동 (https://redgirl-now.cc/) (https://adultredgirl.top/) (https://redgg50.cc/)
+! - 필요없는거
+[$domain=/redgg/]##li:has([id*="strike"])
+[$domain=/redgg/]##li.menu_blank.menu_item_.gnb_1dli_ > .gnb_1da > .btn-12.custom-btn
+!
+!
+! https://18av.mm-cg.com/
+! - 메인화면 배너 및 빈공간
+18av.mm-cg.com##[class*="ut1_img"]
+! - 미리보기 영상 안나오는 문제 해결
+18av.mm-cg.com#@#[target] video
+!
+!
+! https://postshare.co.kr/
+! - 기타
+postshare.co.kr##+js(abort-on-property-read, getSelection)
+
+
 
 
 
@@ -5735,7 +5800,7 @@ linkareer.com##[class*="PopularActivity" i]
 ##[class*="header-banners" i]
 !
 !
-##.ad-pc
+!##.ad-pc
 !
 !
 *##.ad
@@ -5751,9 +5816,6 @@ ad.co.kr#@#.ad
 !
 */ad.*
 @@*/ad.*$cs
-!
-!
-##[src*="/ads/" i]
 !
 !
 */ad_
@@ -5915,7 +5977,7 @@ linkareer.com#@#[src*="advert" i]
 */csp/report*
 !
 !
-##[src$="iframe" i]
+!##[src$="iframe" i]
 !
 !
 ! - 폰허브 ##.adsbytrafficjunky 과 구글 ##[class*="ins.adsbygoogle" i] 응용
@@ -5952,9 +6014,9 @@ linkareer.com#@#[src*="advert" i]
 !##[class$="_ad" i]
 !
 !
-##iframe[title*="배너"]
+!##iframe[title*="배너"]
 !
-##iframe[title*="banner"]
+!##iframe[title*="banner"]
 !
 !
 _track/
@@ -5983,12 +6045,16 @@ _track/
 ! - - - 뷰티비 (https://vitv81.com/) / 냥티비 (https://nortv82.com/) - xiaoca.top/one/onet.php?url=
 ! - - - 티비착 (https://tvchak205.com/) - /chak/chaktt.php?url=
 ! - - - Linkkf 애니 TV (https://linkkf.drewpx.xyz/) - /static/player/artplayer/    .php?&id=
-##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="]):not([src*="/static/player/artplayer/"]):not([src*=".php?&id="])
+! - - - 서울신문 - yna.co.kr/program/
+! - - - 한국경제신문 - stockwin.thinkpool.com/html/hktv/index.html
+! - - - https://redgg50.cc/ - upload18.com/play/
+! - - - https://18av.mm-cg.com/ - 18av.mm-cg.com/js/player/play.php?
+##div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="]):not([src*="/static/player/artplayer/"]):not([src*=".php?&id="]):not([src*="yna.co.kr/program/"]):not([src*="stockwin.thinkpool.com/html/hktv/index.html"]):not([src*="upload18.com/play/"]):not([src*="18av.mm-cg.com/js/player/play.php?"])
 
 
 
 ! - 예외 - https://tcafe21.com/ - src가 about:blank 임 (출석포인트시 필요)
-tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="]):not([src*="/static/player/artplayer/"]):not([src*=".php?&id="])
+tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="/content/"]):not([src*="/index.php"]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="]):not([src*="/static/player/artplayer/"]):not([src*=".php?&id="]):not([src*="yna.co.kr/program/"]):not([src*="stockwin.thinkpool.com/html/hktv/index.html"]):not([src*="upload18.com/play/"]):not([src*="18av.mm-cg.com/js/player/play.php?"])
 
 
 ##[target] video
@@ -5996,30 +6062,6 @@ tcafe21.com#@#div iframe:not([src*="/embed/"]):not([src*="/h/"]):not([src*="/t/"
 
 
 
-
-
-
-
-==================================
-
-!
-!
-!
-! - 모든 웹사이트에서 우클릭 방지나 이미지 저장 차단 스크립트를 무력
-!*##section:remove-class(image-copy-protection)
-!
-!
-!
-! - 출처 : Adblock-Rule-Collection-Lite
-! - - - Funding Choices 서비스 삽입 (광고 차단 감지(Anti-AdBlock) / GDPR/쿠키 동의 배너 / 광고 수익 보호)
-!##iframe[name="googlefcPresent" i]
-##iframe[name="googlefcPresent"]
-!
-!
-! - .top으로 끝나는 사이트들은 기본적으로 다 막아버리되, 뒤에 나열된 도메인들은 안전하거나 필요한 곳이니 접속을 허용해라"라는 화이트리스트(백색목록) 규칙
-! - -  .top 도메인의 특성: .com이나 .net에 비해 도메인 등록 비용이 매우 저렴해서, 스팸 사이트, 피싱 사이트, 악성 광고 유포지 등으로 악용되는 경우가 굉장히 많습니다.
-! - - - 출처 : Adblock-Rule-Collection-Lite
-||top^$document,domain=~caitlin.top|~callmebymygender.top|~corriente.top|~gdtot.top|~nicenature.top|~reminder.top|~magocoro.top|~castlevania.top|~suiten.top|~shucks.top|~1stream.top|~ambr.top|~changlam10.top|~changlam11.top|~pdcdn1.top|~pressplay.top|~chillx.top|~strims.top|~thedesk.top|~audioforyou.top|~awavenue.top|~reyhub.top|~iboxs.top|~adrules.top|~hostingowy.top|~to|~yggtorrent.top|~yggleak.top|~asiaon.top|~voxel.top|~passt.top|~polar.top|~rifton.top|~rugaming.top|~doubledouble.top|~hedon-haven.top|~outlands.top|~tk-web.top|~qpmegathread.top|~qmk.top
 
 
 
@@ -6099,9 +6141,12 @@ adblockultimate.net#@#[class*="banner" i]
 ! - https://www.ibric.org/ - /bric_now    /app/board/attach/image/
 ! - 고구마티비(https://gogumatv80.com/) / 티비조타 (https://tvzota170.com/) - inlist
 ! - 나무위키 - i.namu.wiki/i/
+! - 서울신문 - img.seoul.co.kr/img/upload/   img.seoul.co.kr//img/newsletter/
+! - https://18av.mm-cg.com/ - imgstream3.com/s/  mmfree2.com/A_PH/  18av.mm-cg.com/images/
+! - 코인판 (https://coinpan.com/) - /widgets/coin_currency/tpl/gears.png
 ! - - -  ##[target] > img 순서대로되야 차단 가능
 ! - - - ##[target] img 깊이에 상관없이 자식, 손자, 그 아래 모든 후손 img가 대상
-##[target] img:not([src*="trand"]):not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/uploads/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/rank"]):not([src*="static.wixstatic.com"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"]):not([class*="inlist"]):not([src*="i.namu.wiki/i/"])
+##[target] img:not([src*="trand"]):not([class*="favicon"]):not([src*="live"]):not([src*="player"]):not([src*="/uploads/"]):not([data-src*="/uploads/"]):not([src*="viewimage.php"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/rank"]):not([src*="static.wixstatic.com"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"]):not([class*="inlist"]):not([src*="i.namu.wiki/i/"]):not([src*="img.seoul.co.kr/img/upload/"]):not([src*="img.seoul.co.kr//img/newsletter/"]):not([src*="avppomppu.com/data/file/gallery/"]):not([src*="imgstream3.com/s/"]):not([src*="mmfree2.com/A_PH/"]):not([src*="18av.mm-cg.com/images/"]):not([src*="/widgets/coin_currency/tpl/gears.png"])
 
 
 ##[target] picture
