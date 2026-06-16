@@ -2512,7 +2512,7 @@ c.appstory.co.kr###modalPreventExit
 @@||danawa.com^$generichide,xhr
 ! - 오늘 그만보기 및 뿌연거 해결 (모바일)
 danawa.com##div.layer-bottom-sheet.show:has(> .box__banner)
-danawa.com#mdnw-main-dimm
+danawa.com###mdnw-main-dimm
 ! - 빈 배너 공간
 danawa.com###t1Banner
 ! - 오른쪽 빈 배너 / 상단 텍스트
