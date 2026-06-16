@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.0.6)
+// @name         Video_Control (v33.0.7)
 // @namespace    https://github.com/moamoa7
-// @version      33.0.6
-// @description  v33.0.6: 도라마코리아 예외 추가
+// @version      33.0.7
+// @description  v33.0.7: 파이어폭스 계열 스크립트 실행 차단
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,8 +33,24 @@
 
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
+    const IS_GECKO = (() => {
+    try {
+      const ua = navigator.userAgent || '';
+      const uaHit = /\bGecko\//.test(ua) || /Firefox\/|FxiOS|Focus\/|Fennec/i.test(ua);
+      const isFxiOS = /FxiOS/i.test(ua);
+      const mozGlobals =
+        typeof window.InstallTrigger !== 'undefined' ||
+        typeof window.mozInnerScreenX !== 'undefined' ||
+        (typeof CSS !== 'undefined' && CSS.supports && CSS.supports('-moz-appearance', 'none'));
+      return (uaHit || mozGlobals) && !isFxiOS;
+    } catch (_) {
+      return false;
+    }
+  })();
+
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.0.6';
+  const VSC_VERSION = '33.0.7';
   const DEBUG = true;
 
   const log = {
@@ -2594,7 +2610,11 @@
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
   }
 
-  function bootstrap() {
+   function bootstrap() {
+    if (IS_GECKO) {
+      try { console.info('[VSC] Firefox(Gecko) 미지원 — 스크립트 비활성화'); } catch (_) {}
+      return;
+    }
     const Scheduler = createScheduler();
     const Store = createLocalStore(DEFAULTS, Scheduler);
     const Persist = createPersistence();
