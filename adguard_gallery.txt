@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.06.17.7
+! Version: 2026.06.18.2
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -81,6 +81,7 @@ chimhaha.net##div[style='margin-top: 50px; ']
 coinpan.com##li:has(> span.wgp_ad)
 coinpan.com##li:has(ins.adsbygoogle)
 coinpan.com##p > strong > span:contains(AD):upward(p)
+cola16.app##+js(acis, decodeURIComponent, ABCDEFGHIJKLMNOPQRSTUVWXYZ)
 community.rememberapp.co.kr##[alt="배너 광고 이미지"]
 damoang.net##.dm-card:has(#gam-index-top-damoang-banner-index)
 daum.net##div[data-slot-type="AD_BRANDING_STATION"]
@@ -181,9 +182,11 @@ ssalmuk.com##+js(json-prune, data.[-].popupCode)
 svrforum.com$$ins[class="adsbygoogle"]
 te31.com##table:has(td > script)
 teamblind.com##.coupang_gnb
+teamblind.com##.top_banner
 teamblind.com##[href^='https://link.coupang.com/re/AFFSDP']
 teamblind.com##div.article-list-pre:has([href^='https://link.coupang.com/re/AFFSDP'])
 teamblind.com##div.article:has(> [href^='https://link.coupang.com/re/AFFSDP'])
+teamblind.com##div.border-b:has(> div.flex > div[id^="infeed-home-"])
 teamblind.com##div.comment_area.wrap-comment[style='cursor: pointer;']
 tvroom.*##.banner_l
 uppity.co.kr##.adrop-outer
@@ -211,7 +214,7 @@ darkgirl11.com,darkgirl12.com,darkgirl13.com#%#//scriptlet('trusted-click-elemen
 ggbam14.com,ggbam15.com,ggbam16.com##+js(nano-stb, adGate)
 mingky04.live,ydparty02.tv##.grid-asset
 redgg60.top,redgg61.top,redgg70.cc##+js(nano-sib, countdown)
-sbxh7.com,sbxh8.com,sbxh9.com##[data-pm-ov="1"]
+sbxh8.com,sbxh9.com,sbxh10.com##[data-pm-ov="1"]
 xxzone24.top,xxzone25.top,xxzone26.top##[id*="main-banner"], .gplayer-ad-overlay, #popupBannerModal
 !
 !#if (adguard && adguard_app_ios && adguard_ext_safari && adguard_ext_chromium && adguard_ext_edge && adguard_ext_firefox)
@@ -255,7 +258,7 @@ search.dcinside.com##.right_content
 search.naver.com##.api_subject_bx div:has(.fds-aib-answer-expand-button-wrapper:not([style*="none"])) + div
 search.naver.com##.api_subject_bx div:has(.fds-aib-answer-expand-button-wrapper:not([style*="none"])) + div + div
 !
-sbxh7.com,sbxh8.com,sbxh9.com##.vw-swipe-hint
+sbxh8.com,sbxh9.com,sbxh10.com##.vw-swipe-hint
 !
 
 ! Annoyances
@@ -272,7 +275,7 @@ aagag.com##+js(set-cookie, ab, 0)
 aagag.com#$#.la { position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 chatgpts.kr,free4u.tistory.com##+js(nostif, checkRealAdBlock)
 chatgpts.kr,free4u.tistory.com##+js(nostif, checkAdBlock)
-damoang.net##.adblock-notice
+damoang.net##+js(nostif, bait_hidden)
 dcinside.com###moveOverlay, #gaejukimg
 m.fmkorea.com##+js(set, _make_power_link_identifier, noopFunc)
 m.fmkorea.com##script ~ div.bd_mobile.bd:matches-css(margin: /[0-5]px [0-5]px/):matches-css(padding: /[0-5]px/):remove()
@@ -287,7 +290,7 @@ shipdago.com##+js(set-attr, ins.adsbygoogle, data-adsbygoogle-status, true)
 toronon.kr##+js(prevent-fetch, site_id=, emptyObj)
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
 !
-sbxh7.com,sbxh8.com,sbxh9.com#@#[data-brs][data-br]
+sbxh8.com,sbxh9.com,sbxh10.com#@#[data-brs][data-br]
 !
 
 ! Incorrect blocking
