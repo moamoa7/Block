@@ -2815,8 +2815,10 @@ emuokunmaster.com##.entry-third
 !
 !
 ! https://shirotomaster.com/
-! - 상단 빈공간
+! - 상단 빈공간 (PC)
 shirotomaster.com##div:nth-of-type(5)
+! - 상단 빈공간 (모바일)
+shirotomaster.com###container > div:nth-of-type(3)
 ! - 필요없는 거
 shirotomaster.com##[class*="entry-third"]:has([href*="https://market.laxd.com/"])
 shirotomaster.com##[class*="entry-third"]:has([href*="https://adult.contents.fc2.com"])
