@@ -2808,8 +2808,18 @@ javneon.tv,javeve.tv,javsaga.ninja,javbull.tv##.ad-twos
 emuokunmaster.com##div:has(> .elogch_blogparts_iframe)
 ! - 상단 빈공간 (모바일)
 emuokunmaster.com###myplace-999
+! - 필요없는 거
+emuokunmaster.com##.entry-third
 ! - 기타
 ||js.blozoo.info^
+!
+!
+! https://shirotomaster.com/
+! - 상단 빈공간
+shirotomaster.com##div:nth-of-type(5)
+! - 필요없는 거
+shirotomaster.com##[class*="entry-third"]:has([href*="https://market.laxd.com/"])
+shirotomaster.com##[class*="entry-third"]:has([href*="https://adult.contents.fc2.com"])
 !
 !
 ! https://alive-video.com/
@@ -5855,7 +5865,6 @@ minkch.com###execphp-5
 
 
 
-
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
 
@@ -6229,16 +6238,17 @@ adblockultimate.net#@#[class*="banner" i]
 ! - https://18av.mm-cg.com/ - imgstream3.com/s/  mmfree2.com/A_PH/  18av.mm-cg.com/images/
 ! - 코인판 (https://coinpan.com/) - /widgets/coin_currency/tpl/gears.png
 ! - https://balbums.st/   https://of996.com/ - thumb
-! - https://adult-live.com/ - lozad-img
+! - https://adult-live.com/ - adult-live.com/wp-content/uploads/
 ! - https://alive-video.com/ - /alive-video
 ! - https://emuokunmaster.com/ -size-full  / size-large
 ! - https://momoiroadult.com/ - size-checathlon / Image1
 ! - https://minkch.com/ - imgs.minkch.com/imgs/
 ! - 7MMTV - _content  /amateur/s  /censored/s/  /uncensored/s/  /live_show/s/
 ! - https://www.teamblind.com/ - teamblind.com/img/channel/logo/
+! - https://shirotomaster.com/ - /player_button
 ! - - -  ##[target] > img 순서대로되야 차단 가능
 ! - - - ##[target] img 깊이에 상관없이 자식, 손자, 그 아래 모든 후손 img가 대상
-##[target] img:not([src*="trand"]):not([class*="favicon"]):not([class*="img-tag"]):not([src*="sooplive"]):not([src*="viewimage.php?"]):not([class*="og-img"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/rank"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"]):not([class*="inlist"]):not([src*="i.namu.wiki/i/"]):not([src*="img.seoul.co.kr/img/upload/"]):not([src*="img.seoul.co.kr//img/newsletter/"]):not([src*="avppomppu.com/data/file/gallery/"]):not([src*="imgstream3.com/s/"]):not([src*="mmfree2.com/A_PH/"]):not([src*="18av.mm-cg.com/images/"]):not([src*="/widgets/coin_currency/tpl/gears.png"]):not([src*="image.fomos.kr/contents/images/"]):not([class*="thumb"]):not([cass*="lozad-img"]):not([src*="/alive-video"]):not([class*="size-full"]):not([class*="size-large"]):not([class*="size-checathlon"]):not([id*="Image1"]):not([src*="/v1/fill/"]):not([src*="imgs.minkch.com/imgs/"]):not([src*="/m_webp/"]):not([src*="/amateur/s"]):not([src*="/censored/s/"]):not([src*="/uncensored/s/"]):not([src*="/live_show/s/"]):not([src*="teamblind.com/img/channel/logo/"])
+##[target] img:not([src*="trand"]):not([class*="favicon"]):not([class*="img-tag"]):not([src*="sooplive"]):not([src*="viewimage.php?"]):not([class*="og-img"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="/vi/"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/rank"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"]):not([class*="inlist"]):not([src*="i.namu.wiki/i/"]):not([src*="img.seoul.co.kr/img/upload/"]):not([src*="img.seoul.co.kr//img/newsletter/"]):not([src*="avppomppu.com/data/file/gallery/"]):not([src*="imgstream3.com/s/"]):not([src*="mmfree2.com/A_PH/"]):not([src*="18av.mm-cg.com/images/"]):not([src*="/widgets/coin_currency/tpl/gears.png"]):not([src*="image.fomos.kr/contents/images/"]):not([class*="thumb"]):not([src*="adult-live.com/wp-content/uploads/"]):not([src*="/alive-video"]):not([class*="size-full"]):not([class*="size-large"]):not([class*="size-checathlon"]):not([id*="Image1"]):not([src*="/v1/fill/"]):not([src*="imgs.minkch.com/imgs/"]):not([src*="/m_webp/"]):not([src*="/amateur/s"]):not([src*="/censored/s/"]):not([src*="/uncensored/s/"]):not([src*="/live_show/s/"]):not([src*="teamblind.com/img/channel/logo/"]):not([src*="/player_button"])
 
 
 ##[target] picture
