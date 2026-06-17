@@ -5857,7 +5857,12 @@ minkch.com###execphp-5
 ##[id|="ad"]
 ||aimtell.com^
 ||dn0qt3r0xannq.cloudfront.net^
-
+!
+!
+! https://frdl.my/
+! - 기타
+###adblock_detected
+frdl.my##+js(adjust-setTimeout, seconds, *, 0.02)
 
 
 
