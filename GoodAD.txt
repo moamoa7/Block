@@ -2822,6 +2822,7 @@ shirotomaster.com###container > div:nth-of-type(3)
 ! - 필요없는 거
 shirotomaster.com##[class*="entry-third"]:has([href*="https://market.laxd.com/"])
 shirotomaster.com##[class*="entry-third"]:has([href*="https://adult.contents.fc2.com"])
+shirotomaster.com##[class*="entry-third"]:has([href*="https://www.luscio.jp"])
 !
 !
 ! https://alive-video.com/
