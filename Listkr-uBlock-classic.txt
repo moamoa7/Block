@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20621.0
+! Version: 2026.20622.0
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Wed Jun 17 20:12:25 UTC 2026
+! Updated: Thu Jun 18 03:57:58 UTC 2026
 
 ||api.adapi.co.kr^
 ||adv.imadrep.co.kr^
@@ -614,6 +614,7 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 /^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 /data/banner.json?$domain=~nintendo.*
 
+||danawa.com/main/ajax/getAdSmartProductList.ajax.php
 ||nng-phinf.pstatic.net/*.PNG/PC_$domain=chzzk.naver.com,image
 ||muko.kr/files/attach/ads/
 ||static.fmkorea.com/modules/fmad/tpl/*/naver_power_link.
@@ -1758,6 +1759,7 @@ eegosa.com##section[id*="_ads_"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+section.blog.naver.com##.area_advertisement
 i-boss.co.kr##div[data-unit]
 chzzk.naver.com##div[class^="skin_container__"]
 m.ilbe.com##.cutin_banner_new
@@ -1778,8 +1780,6 @@ damoang.net##div[style^="--ad-slot-min-height:"]
 damoang.net##.gap-4.flex-col > div:has(> div[data-position="side-image-text-banner"])
 ruliweb.com##.ti_reserved_slot[style^="min-height:"]
 etoland.co.kr###list-header + section li.h-fit.min-h-14:not(.border-b-etoDivider-1)
-zod.kr##a[rel="sponsored"]
-zod.kr##.swiper-container.swiper-initialized.swiper-horizontal li[style^="width:"] > a[target]
 tenasia.co.kr###article-body > div[style^="min-height:"]
 tenasia.co.kr##.article-view > div[style^="min-height:"]:has(> div[id^="dablewidget_"])
 mbiz.heraldcorp.com##div[data-svcad]
