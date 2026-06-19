@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v27.4)
-// @version      27.4
-// @description  cosmetic filter 회피 (호스트 인라인 style 최소화)
+// @name         북마크 (Glassmorphism v27.5)
+// @version      27.5
+// @description  그룹 관리 수정 후 저장 클릭시 밖으로 나가는 문제 해결
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -717,7 +717,7 @@
         const ov = shadow.querySelector('#bm-overlay');
         if (!ov) return;
         _ctxAC?.abort();
-        ov.className = isSortMode ? 'sort-active' : '';
+        ov.className = (_isOpen ? 'bm-show' : '') + (isSortMode ? ' sort-active' : '');
         ov.replaceChildren();
 
         const p = curPage(), frag = document.createDocumentFragment();
