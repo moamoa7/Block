@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v27.3)
-// @version      27.3
-// @description  v27.2 기반 — cosmetic filter 회피 (호스트 인라인 style 최소화)
+// @name         북마크 (Glassmorphism v27.4)
+// @version      27.4
+// @description  cosmetic filter 회피 (호스트 인라인 style 최소화)
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -457,7 +457,7 @@
             }}
         ];
         // ★ 인라인 style 제거. 클래스로 처리
-        const m = $('div', { cls: 'bm-ctx bm-popup-floating' },
+        const m = $('div', { cls: 'bm-ctx bm-flt' },
             actions.map(a => $('div', {
                 cls: `bm-ctx-item ${a.c || ''}`, text: a.t,
                 onclick: () => { m.remove(); ac.abort(); a.fn(); }
@@ -814,7 +814,7 @@
                     { i: '📥', t: '복구', fn: importJSON }
                 ];
                 // ★ 인라인 style 제거
-                const m = $('div', { cls: 'bm-admin-menu bm-popup-floating' },
+                const m = $('div', { cls: 'bm-admin-menu bm-flt' },
                     menuItems.map(a => $('div', {
                         cls: 'bm-admin-item', text: `${a.i} ${a.t}`,
                         onclick: () => { m.remove(); _ctxAC.abort(); a.fn(); }
@@ -1350,7 +1350,7 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,.55);backdrop-filter:blur(8px
 .bm-modal-content h3{font-size:16px;font-weight:700;background:linear-gradient(135deg,var(--c-neon),var(--c-purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .bm-mt-0{margin-top:0}
 .bm-mt-5{margin-top:5px}
-.bm-popup-floating{position:fixed;z-index:999999}
+.bm-flt{position:fixed;z-index:999999}
 .bm-ctx,.bm-admin-menu{background:var(--c-glass);border:1px solid var(--c-glass-border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.3);min-width:150px;overflow:hidden;backdrop-filter:var(--c-glass-blur);-webkit-backdrop-filter:var(--c-glass-blur);animation:bm-ctx-in .2s var(--ease)}
 @keyframes bm-ctx-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
 .bm-ctx-item,.bm-admin-item{padding:11px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .15s;color:var(--c-text)}
