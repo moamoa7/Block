@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         Video Tools
-// @namespace    https://github.com/moamoa7
+// @namespace    https://github.com/moamoa7/Block
 // @version      11.0.0
 // @description  비디오 최대화 + 좌우 반전 + 확대/축소
+// @author       moamoa7
 // @match        *://*/*
 // @exclude      *://challenges.cloudflare.com/*
 // @grant        none
