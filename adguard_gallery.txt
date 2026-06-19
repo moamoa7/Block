@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.06.19.3
+! Version: 2026.06.19.5
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -19,7 +19,7 @@
 ##[id^='hd_pop']
 ##[target='_blank']:has([src*='/banner/'])
 *##[target='_blank']:has([src*='/banner/'])
-*$script,third-party,domain=nimi.wiki|kissjav.*
+*$script,third-party,domain=nimi.wiki
 *tcid=$all
 !
 ! Common rules
@@ -60,7 +60,6 @@ wowtv.co.kr,cafe.naver.com##[class*='Banner']
 [$domain=/yadongtv[0-9]*\.com/]##div[style*="top: 215px"]:has(img[src*="/banners/"]), img[src*="/banners/"]
 3rd.supply##.h-hori-ad
 3rd.supply##.text-center:has(sp-common-adsense)
-a-ha.io##div[aria-label="advertisement"]
 algumon.com##div:has([data-tip^='파트너스'], div[style*='height'], ins):is(.card, .deal-2col)
 arca.live##.vrow.hybrid:has(.category-badge)
 asked.kr##div[class^="kad_"]:has(ins.kakao_ad_area)
@@ -121,8 +120,6 @@ khan.co.kr##div[class*="banner"]:has(div[class*="ad-wrapper"])
 kidd.co.kr##.product-recommendations
 kidd.co.kr##slidebanner
 kissjav.com##+js(nowoif)
-kissjav.com##+js(set-attr, img.lazy-load, src, [data-original])
-kissjav.com##+js(set-attr, img.lazy-load, src, [data-webp])
 linkareer.com##[role="advertisement"]:not([class^="card-item"])
 linkareer.com##ins.adsbygoogle:upward(div[style*="min-height"])
 litomi.in##[data-juicy-ads-slot]
@@ -173,7 +170,6 @@ samgakgame.com###homeAdSlot, #bannerAd, #resultBannerAd, #frontAdMedia
 samgakgame.com##+js(nano-sib, adRemaining)
 search.danawa.com##[id^='powerShoppingArea']
 search.danawa.com##li[data-itemtype='adsmart']
-section.blog.naver.com##.area_advertisement
 seoul.co.kr###bottomScrollBox
 seoul.co.kr##[class^='ad']
 shopping.naver.com##div[class^="_carouselProductList_mobile_carousel_product_list_"]
@@ -193,7 +189,6 @@ veritas-a.com##article.grid.body > div.clearfix:has(.ad-template)
 xtoon365.com##[class$='-ad']
 yozm.wishket.com##[data-testid^="advertisement-"]
 yozm.wishket.com##[data-testid="top-banner"]
-zod.kr##div[id]:has(> [target] > img)
 !
 ||*nestads.*
 ||ader.naver.com/*?c=m_$all
@@ -253,12 +248,10 @@ namu.wiki##li:has(a > time):not(:has([href*='/raw/'])):upward(2)
 naver.com##div.sds-comps-vertical-layout.fds-shortents-compact-block[data-template-id="layout"]
 phdkim.net##.app-smart-banner
 quasarzone.com##.best-official-news, .new-official-news, .best-official-news-container, .new-official-news-container, .new-partner-saleinfo-container
+sbxh8.com,sbxh9.com,sbxh10.com##.vw-swipe-hint
 search.dcinside.com##.right_content
 search.naver.com##.api_subject_bx div:has(.fds-aib-answer-expand-button-wrapper:not([style*="none"])) + div
 search.naver.com##.api_subject_bx div:has(.fds-aib-answer-expand-button-wrapper:not([style*="none"])) + div + div
-!
-sbxh8.com,sbxh9.com,sbxh10.com##.vw-swipe-hint
-!
 
 ! Annoyances
 cafe.naver.com##+js(remove-class, disable-select, #ct)
@@ -283,15 +276,13 @@ m.fmkorea.com##section.fmWidgetStyle2019.bd_mobile.bd:matches-css(margin: /[0-5]
 money-master-365.tistory.com##+js(nostif, detectAdblock)
 namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
 postshare.co.kr##+js(set-cookie, ad_unlocked_timer_final_v2, true)
+sbxh8.com,sbxh9.com,sbxh10.com#@#[data-brs][data-br]
 shipdago.com##+js(no-fetch-if, adsbygoogle.js)
 shipdago.com##+js(nostif, adsbygoogle-status)
 shipdago.com##+js(set-attr, ins.adsbygoogle, data-ad-status, true)
 shipdago.com##+js(set-attr, ins.adsbygoogle, data-adsbygoogle-status, true)
 toronon.kr##+js(prevent-fetch, site_id=, emptyObj)
 ||maxmovie.com/_next/static/chunks/framework.aa400efa16f23e2b0cfe.js
-!
-sbxh8.com,sbxh9.com,sbxh10.com#@#[data-brs][data-br]
-!
 
 ! Incorrect blocking
 $@$link[rel="manifest"]
@@ -302,7 +293,6 @@ $@$link[rel="manifest"]
 @@||ad.co.kr^$ghide
 @@||adtouch.*
 @@||arca.live^$ghide
-@@||assets1.cdnhop.com/static/js/*$script,important,domain=kissjav.com
 @@||blog.kakaocdn.net*/img.gif
 @@||code-pia.com^$stealth=dpi
 @@||fs2.joycity.com^$stealth=dpi
