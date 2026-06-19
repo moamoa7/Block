@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
-// @namespace    https://github.com/moamoa7
+// @namespace    https://github.com/moamoa7/Block
 // @version      25.0
 // @description  Lean web optimizer v25 – Font FOIT prevention, LCP boost, below-fold lazy, iframe lazy. No chat DOM intervention.
+// @author       moamoa7
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://maps.google.com/*
