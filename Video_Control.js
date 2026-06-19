@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         Video_Control (v33.0.7)
-// @namespace    https://github.com/moamoa7
+// @namespace    https://github.com/moamoa7/Block
 // @version      33.0.7
 // @description  v33.0.7: 파이어폭스 계열 스크립트 실행 차단
+// @author       moamoa7
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
