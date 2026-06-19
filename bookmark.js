@@ -421,9 +421,15 @@
         const d = document.createElement('dialog');
         if (opts.id) d.id = opts.id;
         d.className = 'bm-modal-bg';
+                let _downInside = false;
+        d.addEventListener('pointerdown', e => {
+            const r = d.getBoundingClientRect();
+            _downInside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        });
         d.onclick = e => {
             const r = d.getBoundingClientRect();
-            if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close();
+            const upOutside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+            if (upOutside && !_downInside) d.close();
         };
         d.onclose = () => { opts.onClose?.(); d.remove(); };
         d.addEventListener('dragover', e => e.stopPropagation());
