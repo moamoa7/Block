@@ -3,7 +3,7 @@
 // @namespace    https://github.com/moamoa7
 // @version      16.2.2
 // @description  라이브 방송의 딜레이를 자동 감지·제어
-// @author       DelayMeter
+// @author       moamoa7
 // @match        *://*.youtube.com/*
 // @match        *://*.chzzk.naver.com/*
 // @match        *://*.play.sooplive.com/*
