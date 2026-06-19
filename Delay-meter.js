@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
-// @namespace    https://github.com/moamoa7
+// @namespace    https://github.com/moamoa7/Block
 // @version      16.2.2
 // @description  라이브 방송의 딜레이를 자동 감지·제어
 // @author       moamoa7
