@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v27.5)
-// @version      27.5
-// @description  그룹 관리 수정 후 저장 클릭시 밖으로 나가는 문제 해결
+// @name         북마크 (Glassmorphism v27.6)
+// @version      27.6
+// @description  그룹관리에서 주소줄에 드래그시 팅기는 문제 수정
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -417,7 +417,7 @@
         _toastTimer = setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, dur);
     };
 
-    const modal = (opts = {}) => {
+        const modal = (opts = {}) => {
         const d = document.createElement('dialog');
         if (opts.id) d.id = opts.id;
         d.className = 'bm-modal-bg';
@@ -426,6 +426,8 @@
             if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close();
         };
         d.onclose = () => { opts.onClose?.(); d.remove(); };
+        d.addEventListener('dragover', e => e.stopPropagation());
+        d.addEventListener('drop', e => e.stopPropagation());
         if (opts.prevent) d.oncancel = e => e.preventDefault();
         shadow.appendChild(d); d.showModal();
         return d;
