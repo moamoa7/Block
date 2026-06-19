@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         북마크 (Glassmorphism v27.6)
+// @namespace    https://github.com/moamoa7/Block
 // @version      27.6
 // @description  그룹관리에서 주소줄에 드래그시 팅기는 문제 수정
-// @author       User
+// @author       moamoa7
 // @match        *://*/*
 // @grant        GM_setValue
 // @grant        GM_getValue
