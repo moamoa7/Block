@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260614-rev2
+! Version: 20260620-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -1440,8 +1440,8 @@
 ||mobon.net^
 ||tg.widerplanet.com^
 ||teralog.techhub.co.kr^
-! - 치지직 무료 치지 할려면 해제 필요
-||pincrux.com^
+! - 치지직 무료 치즈 할려면 해제 필요
+@@||pincrux.com^
 ||ad.aceplanet.co.kr^
 ||zicf.inven.co.kr^
 ||contentsfeed.com^
