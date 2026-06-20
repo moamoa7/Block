@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-06-20 06:13:48 UTC
+! Generated: 2026-06-20 09:46:14 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,507
+! Exception Rules: 6,504
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -31,7 +31,6 @@
 @@||2ip.ua^
 @@||2performant.com^
 @@||3-aclk.net^
-@@||341676991.group0.sites.hscoscdn-na3.net^
 @@||3cinteractive.com^
 @@||3ds.bankofbaku.com^
 @@||3ds.mdmbank.ru^
@@ -1559,7 +1558,6 @@
 @@||elster.de^
 @@||email-link.adtidy.info^
 @@||email-link.adtidy.org^
-@@||email.microsoft.com^
 @@||email.microsoftonline.com^
 @@||email.namebase.io^
 @@||email.office.com^
@@ -3004,6 +3002,7 @@
 @@||mkto-ab070069.com^
 @@||mkto-ab080055.com^
 @@||mkto-ab080061.com^
+@@||mkto-ab100192.com^
 @@||mkto-ab100241.com^
 @@||mkto-ab110171.com^
 @@||mkto-ab120150.com^
@@ -3022,7 +3021,6 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
-@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -3079,7 +3077,6 @@
 @@||mkto-ab550184.com^
 @@||mkto-ab560068.com^
 @@||mkto-ab560119.com^
-@@||mkto-ab560171.com^
 @@||mkto-ab570110.com^
 @@||mkto-ab570128.com^
 @@||mkto-ab580004.com^
@@ -3364,7 +3361,6 @@
 @@||ndirect.ppro.de^
 @@||nedbank.co.za^
 @@||neobux.com^
-@@||neoengage-va-cdn.exponea.com^
 @@||neon.com.br^
 @@||nest.com^
 @@||net.kentbank.hr^
@@ -4732,6 +4728,7 @@
 @@||sites.hscoscdn-ap1.net^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
+@@||sites.hscoscdn-na3.net^
 @@||sites.hscoscdn00.net^
 @@||sites.hscoscdn10.net^
 @@||sites.hscoscdn20.net^
