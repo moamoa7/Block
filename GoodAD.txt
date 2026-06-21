@@ -1850,6 +1850,7 @@ nuevosiglonews.com###menu-item-88,  #menu-item-87
 ! - 개별 만화 각 회수별 배너
 !||tkor*.com/bann/*$image
 !||funbe*.com/bann/*$image
+##[id*="banner_" i]
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
 !#[class*="mobile-banner"]
 !##img[id*="banner"]
@@ -4323,7 +4324,7 @@ ya-world.net,[$domain=/^yakong\d+.net/]##.__se_tbl
 ! - 영상 광고
 ||sexzoa*.com/ad.json?
 ! - 영상 옆 텍스트 배너 (모바일은 영상 아래 위치)
-##[class*="videoad" i]
+##[class^="videoad" i]
 !
 !
 ! 밍키넷 (https://xn--2g3bo4hg5g8pi.net/) (https://mingky04.live/)
@@ -6494,6 +6495,8 @@ aniya24.com#@#[class*="banner" i]
 ! 현대몰 - sc-co-popup
 ! https://www.a-ha.io/ - popup-open
 ##[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"])
+clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"])
+
 
 
 
@@ -6516,7 +6519,8 @@ aniya24.com#@#[class*="banner" i]
 
 ! - https://frdl.my/ - class="container py-5 download-page"  d-flex align-items-center file-info mb-3 upload-list  class*="download-btn
 ! - https://rapidgator.net/ - class*="download-prepare"
-##[class*="ad-" i]:not([class="container py-5 download-page"]):not([class="d-flex align-items-center file-info mb-3 upload-list"]):not([class*="download-btn"]):not([class*="download-prepare"])
+! - 인벤 - class="commu-content ad-layout"
+##[class*="ad-" i]:not([class="container py-5 download-page"]):not([class="d-flex align-items-center file-info mb-3 upload-list"]):not([class*="download-btn"]):not([class*="download-prepare"]):not([class="commu-content ad-layout"])
 
 
 
