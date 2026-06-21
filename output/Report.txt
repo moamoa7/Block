@@ -1,19 +1,19 @@
 DNS Blocklist Build Report
-Generated: 2026-06-21 20:08:22 UTC
+Generated: 2026-06-21 21:48:24 UTC
 ============================================================
 
 [1] Reference Filters
 [Primary (AdRules DNS List)] 177,916 domains
-[Secondary (HaGeZi Pro)] 233,983 domains
+[Secondary (HaGeZi Pro)] 234,234 domains
 [Tertiary (1Hosts Lite)] 97,360 domains
-[Union] 361,370 domains
-  - Only in AdRules      : 96,011
-  - Only in HaGeZi Pro   : 137,282
-  - Only in 1Hosts Lite  : 27,967
-  - In all three sources : 47,779
+[Union] 361,553 domains
+  - Only in AdRules      : 95,936
+  - Only in HaGeZi Pro   : 137,465
+  - Only in 1Hosts Lite  : 27,973
+  - In all three sources : 47,778
 
 [2] External Whitelist Sources
-  - AdGuard SDNS Exclusions: 542 extracted
+  - AdGuard SDNS Exclusions: 543 extracted
   - AdGuard HTTPS Banks: 3,981 extracted
   - AdGuard HTTPS Sensitive: 180 extracted
   - AdGuard HTTPS Issues: 68 extracted
@@ -25,7 +25,7 @@ Generated: 2026-06-21 20:08:22 UTC
   - Discord Official Domains: 43 extracted
   - anudeepND Whitelist: 191 extracted
   - DandelionSprout AGH Whitelist: 285 extracted
-[External Whitelist Total] 6,702 domains
+[External Whitelist Total] 6,703 domains
 
 [Tracker Auto-Filter] Removed 205 trackers from external whitelist
   [Blacklist hits] 8 base domains:
@@ -113,8 +113,8 @@ Generated: 2026-06-21 20:08:22 UTC
 [Personal Whitelist Total] 13 domains
 
 [5] Apply Priority Rules
-  Step 1 (base - external whitelist): 360,982
-  Step 2 (+ personal block): 360,998  (forced added: 16)
-  Step 3 (- personal white): 360,998  (whitelist override: 0)
+  Step 1 (base - external whitelist): 361,165
+  Step 2 (+ personal block): 361,181  (forced added: 16)
+  Step 3 (- personal white): 361,181  (whitelist override: 0)
 
-[6] Final Whitelist: 6,504 domains
+[6] Final Whitelist: 6,505 domains
