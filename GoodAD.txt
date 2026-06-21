@@ -6012,6 +6012,13 @@ camconsole.com##div.clearfix.block:nth-of-type(2)
 /pop.js^$from=~autohome.com.cn|~patch.ali213.net|~socpk.com
 @@/prebid.min.js$1p,from=adblockeronstape.me|adblockplustape.xyz|adblockstreamtape.*|adblockstrtape.link|adblockstrtech.link|advertape.net|advertisertape.com|antiadtape.com|gettapeads.com|noblocktape.com|shavetape.*|stape.fun|strcloud.link|streamadblocker.*|streamadblockplus.com|streamtape.*|streamtape.com|strtape.cloud|tapeadsenjoyer.com|tapeadvertisement.com|tapelovesads.org|tapepops.com|tapewithadblock.org|tpead.net|watchadsontape.com
 @@||i.doodcdn.io/ads/ad.js
+!
+!
+! https://katfile.space/
+! - 하단 오른쪽 프리미엄 세일 팝업 (PC)
+katfile.space###container > div > div
+! - 하단 오른쪽 프리미엄 세일 팝업 (모바일)
+katfile.space###container > div:nth-of-type(2)
 
 
 
@@ -6362,7 +6369,8 @@ _track/
 ! 얀덱스맵 - raise-masstransit-banner-experiment
 ! https://archivebate.com/ - class="banner-watch"
 ! - 덕덕고 - ssg-mobile-banner-hidden
-##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"])
+! - 클리앙 댓글 - class="comment ad_banner"
+##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"])
 
 
 
@@ -6493,7 +6501,7 @@ aniya24.com#@#[class*="banner" i]
 ! - 숲 - float_box
 ! - https://javgiga.com/ - jw-floating
 ! - https://cineaste.co.kr/ - nav-float
-! - https://www.issuelink.co.kr/ - float-e-margins border-bottom  /  [class*="ibox float-e-margins"][class*="ibox"]
+! - https://www.issuelink.co.kr/ - float-e-margins border-bottom  /  [class*="ibox float-e-margins"][class*="ibox"]ㅁㅁㅁㅁㅁㅁㅁㅁㅁㅁㅁㅁㅁ
 ! - https://www.avdbs.com/ - float-left  float-right
 ! - https://shopping.naver.com/ - FloatingTab
 ! - https://hungryapp.co.kr/ - cntwrapfloat
@@ -6506,8 +6514,9 @@ aniya24.com#@#[class*="banner" i]
 
 
 
-
-##[class*="ad-" i]
+! - https://frdl.my/ - class="container py-5 download-page"  d-flex align-items-center file-info mb-3 upload-list  class*="download-btn
+! - https://rapidgator.net/ - class*="download-prepare"
+##[class*="ad-" i]:not([class="container py-5 download-page"]):not([class="d-flex align-items-center file-info mb-3 upload-list"]):not([class*="download-btn"]):not([class*="download-prepare"])
 
 
 
