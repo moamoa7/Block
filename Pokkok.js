@@ -4,7 +4,7 @@
 // @version      1.3.0
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수·:has), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing
 // @author       moamoa7
-// @license      MIT
+// @license      MPL-2.0
 // @homepage     https://github.com/moamoa7/Block
 // @match        *://*/*
 // @grant        GM_setValue
