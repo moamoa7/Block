@@ -1557,7 +1557,7 @@
           out.sharp = sharpProfile.autoBase;   // mul 보정 없이 프로필 값 그대로 = 정확히 0.20
         } else if (presetS !== 'none') {
           const PRESET_SHARP = IS_MOBILE
-          ? { S: 0.18, M: 0.24, L: 0.30, XL: 0.36 }
+          ? { S: 0.18, M: 0.26, L: 0.32, XL: 0.40 }
           : { S: 0.12, M: 0.20, L: 0.28, XL: 0.36 };
           out.sharp = PRESET_SHARP[presetS] || 0;
         }
