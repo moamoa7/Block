@@ -1,49 +1,16 @@
-! = = = = = = = = = = = = = = = = = = = = = = = = =
-!
-!!! ══════════════════════════════════════════
-!!! AdGuard 전용 트래킹/텔레메트리 차단 필터
-!!! ══════════════════════════════════════════
-!!!
-!!! [동작 방식]
-!!! $empty 옵션은 요청을 차단하는 대신 빈 응답(200 OK + 빈 본문)을
-!!! 돌려주는 방식입니다. 서버에는 데이터가 전송되지 않지만,
-!!! 응답을 기다리는 앱·스크립트가 오류 없이 정상 동작합니다.
-!!!
-!!! [효과]
-!!! - 개인정보·사용 패턴이 외부 서버로 전송되는 것을 차단
-!!! - 불필요한 네트워크 트래픽 절감 (모바일 데이터 절약)
-!!! - 단순 차단(||domain^) 대비 앱·웹 호환성 우수
-!!!
-!!! [주의사항]
-!!! - uBlock Origin에서는 $empty가 deprecated 되었으므로
-!!!   AdGuard(데스크톱/홈/앱/브라우저 확장)에서만 사용하세요.
-!!! - 결제·로그인·일부 정상 기능에 영향을 줄 수 있는 규칙은
-!!!   "선택 적용" 섹션에 주석 처리해 두었습니다.
-!!! - 도메인 단위 차단은 DNS_Rewrite.txt(AdGuard Home)에서 담당.
-!!!   본 파일은 경로/쿼리/리소스 타입 단위 정밀 차단 위주.
-!!!
-!!! [본 파일에서 다루지 않는 항목]
-!!! - CMP / 쿠키 동의 배너: AdGuard Annoyances → Cookie Notices 구독
-!!!   (consent.truste.com, cookielaw.org, cookiebot.com, trustarc.com 등)
-!
-! = = = = = = = = = = = = = = = = = = = = = = = = =
-!
-! Title: Personal Privacy & Traffic Filter
+! Title: Personal Privacy & Traffic Filter (uBO)
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260621-rev1
+! Version: 20260621-rev1-uBO
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
-
-
-!///////////////////////////////////////////////
 
 
 ! ═══════════════════════════════════════════
 ! [1] URL 추적 파라미터 제거 ($removeparam)
 ! ═══════════════════════════════════════════
 
-! ───── 광범위 추적 파라미터 제거 (높은 효과) ─────
+! ───── 광범위 추적 파라미터 제거 ─────
 *$removeparam=fbclid
 *$removeparam=gclid
 *$removeparam=msclkid
@@ -67,34 +34,33 @@
 *$removeparam=NaPm
 
 ! ───── Google Analytics / Google Ads ─────
-$removeparam=_ga
-$removeparam=_gl
-$removeparam=gclsrc
-$removeparam=gbraid
-$removeparam=wbraid
-$removeparam=dclid
-$removeparam=gad_source
-$removeparam=gad
-$removeparam=gad_campaignid
-$removeparam=gas
-$removeparam=gclid_field
-$removeparam=srsltid,domain=google.com|google.co.kr|google.co.jp|google.co.uk
-$removeparam=opi,domain=google.com|google.co.kr|googleadservices.com
-!$removeparam=ved
-!$removeparam=usg
+*$removeparam=_ga
+*$removeparam=_gl
+*$removeparam=gclsrc
+*$removeparam=gbraid
+*$removeparam=wbraid
+*$removeparam=dclid
+*$removeparam=gad_source
+*$removeparam=gad
+*$removeparam=gad_campaignid
+*$removeparam=gas
+*$removeparam=gclid_field
+*$removeparam=srsltid,domain=google.com|google.co.kr|google.co.jp|google.co.uk
+*$removeparam=opi,domain=google.com|google.co.kr|googleadservices.com
+!*$removeparam=ved
+!*$removeparam=usg
 
 ! ───── Facebook / Meta ─────
-$removeparam=fb_action_ids
-$removeparam=fb_action_types
-$removeparam=fb_source
-$removeparam=fb_ref
-$removeparam=fbadid
-$removeparam=action_object_map
-$removeparam=action_type_map
-$removeparam=action_ref_map
+*$removeparam=fb_action_ids
+*$removeparam=fb_action_types
+*$removeparam=fb_source
+*$removeparam=fb_ref
+*$removeparam=fbadid
+*$removeparam=action_object_map
+*$removeparam=action_type_map
+*$removeparam=action_ref_map
 
 ! ───── Instagram ─────
-! ⚠️ 모바일 앱에는 효과 없음 (앱은 시스템 네트워크 직접 사용)
 ||cdninstagram.com^$removeparam=efg
 ||cdninstagram.com^$removeparam=ccb
 ||cdninstagram.com^$removeparam=_nc_sid
@@ -102,581 +68,531 @@ $removeparam=action_ref_map
 ||graph.instagram.com/logging_client_events
 
 ! ───── Microsoft / Bing ─────
-$removeparam=cvid,domain=bing.com|cn.bing.com
-$removeparam=oicd,domain=bing.com|cn.bing.com
-$removeparam=form,domain=bing.com|cn.bing.com
-$removeparam=ocid,domain=bing.com|microsoft.com|msn.com
-$removeparam=qs,domain=bing.com|cn.bing.com
+*$removeparam=cvid,domain=bing.com|cn.bing.com
+*$removeparam=oicd,domain=bing.com|cn.bing.com
+*$removeparam=form,domain=bing.com|cn.bing.com
+*$removeparam=ocid,domain=bing.com|microsoft.com|msn.com
+*$removeparam=qs,domain=bing.com|cn.bing.com
 
 ! ───── Yandex ─────
-$removeparam=yclid
-$removeparam=ymclid
-$removeparam=_openstat
-$removeparam=_ym_uid
-$removeparam=_ym_counter
-$removeparam=sk
+*$removeparam=yclid
+*$removeparam=ymclid
+*$removeparam=_openstat
+*$removeparam=_ym_uid
+*$removeparam=_ym_counter
+*$removeparam=sk
 
 ! ───── Yahoo / Verizon ─────
-$removeparam=guce_referrer
-$removeparam=guce_referrer_sig
-$removeparam=guccounter
-$removeparam=soc_src
-$removeparam=soc_trk
-$removeparam=yptr
+*$removeparam=guce_referrer
+*$removeparam=guce_referrer_sig
+*$removeparam=guccounter
+*$removeparam=soc_src
+*$removeparam=soc_trk
+*$removeparam=yptr
 
 ! ───── Instagram / TikTok ─────
-$removeparam=igshid
-$removeparam=igsh
-$removeparam=ig_rid
-$removeparam=ig_mid
-$removeparam=tt_medium
-$removeparam=tt_content
-$removeparam=_t,domain=tiktok.com|vt.tiktok.com
-$removeparam=gd_label,domain=tiktok.com|vt.tiktok.com
+*$removeparam=igshid
+*$removeparam=igsh
+*$removeparam=ig_rid
+*$removeparam=ig_mid
+*$removeparam=tt_medium
+*$removeparam=tt_content
+*$removeparam=_t,domain=tiktok.com|vt.tiktok.com
+*$removeparam=gd_label,domain=tiktok.com|vt.tiktok.com
 
 ! ───── Twitter / X ─────
-$removeparam=twclid
-$removeparam=ref_src
-$removeparam=ref_url
-$removeparam=refsrc
-$removeparam=s,domain=twitter.com|x.com
-$removeparam=t,domain=twitter.com|x.com
-$removeparam=cn,domain=twitter.com|x.com
+*$removeparam=twclid
+*$removeparam=ref_src
+*$removeparam=ref_url
+*$removeparam=refsrc
+*$removeparam=s,domain=twitter.com|x.com
+*$removeparam=t,domain=twitter.com|x.com
+*$removeparam=cn,domain=twitter.com|x.com
 
 ! ───── LinkedIn ─────
-$removeparam=li_fat_id
-$removeparam=lipi
-$removeparam=licu
+*$removeparam=li_fat_id
+*$removeparam=lipi
+*$removeparam=licu
 
 ! ───── Snapchat ─────
-$removeparam=sc_referrer
-$removeparam=sc_channel
-$removeparam=sc_content
-$removeparam=sc_medium
-$removeparam=sc_publisher
-$removeparam=sc_campaign
-$removeparam=sclid
+*$removeparam=sc_referrer
+*$removeparam=sc_channel
+*$removeparam=sc_content
+*$removeparam=sc_medium
+*$removeparam=sc_publisher
+*$removeparam=sc_campaign
+*$removeparam=sclid
 
 ! ───── Pinterest / Reddit / Telegram ─────
-$removeparam=epik
-$removeparam=rdt_cid
-$removeparam=share_id
-$removeparam=correlation_id
-$removeparam=tgWebAppStartParam
-$removeparam=tgWebAppPlatform
+*$removeparam=epik
+*$removeparam=rdt_cid
+*$removeparam=share_id
+*$removeparam=correlation_id
+*$removeparam=tgWebAppStartParam
+*$removeparam=tgWebAppPlatform
 
 ! ───── 한국 서비스 ─────
-$removeparam=nv_mid
-$removeparam=ssc
-$removeparam=qvt
-$removeparam=mkt_cmpgn
-$removeparam=kakao_track_id
-$removeparam=trackingCode
-$removeparam=tracking_code
-$removeparam=clickArea
-$removeparam=lptag
-$removeparam=cmp_code
-$removeparam=tcd_code
+*$removeparam=nv_mid
+*$removeparam=ssc
+*$removeparam=qvt
+*$removeparam=mkt_cmpgn
+*$removeparam=kakao_track_id
+*$removeparam=trackingCode
+*$removeparam=tracking_code
+*$removeparam=clickArea
+*$removeparam=lptag
+*$removeparam=cmp_code
+*$removeparam=tcd_code
 
 ! ───── 이메일 마케팅 / CRM ─────
-$removeparam=mailing_id
-$removeparam=email_source
-$removeparam=email_campaign
-$removeparam=ck_subscriber_id
-$removeparam=hsCtaTracking
-$removeparam=_kx
-$removeparam=klaviyo_id
-!$removeparam=campaign_id
+*$removeparam=mailing_id
+*$removeparam=email_source
+*$removeparam=email_campaign
+*$removeparam=ck_subscriber_id
+*$removeparam=hsCtaTracking
+*$removeparam=_kx
+*$removeparam=klaviyo_id
+!*$removeparam=campaign_id
 
 ! ───── Adobe / Criteo / Shopify ─────
-$removeparam=s_kwcid
-$removeparam=ef_id
-$removeparam=icid
-$removeparam=cto_pld
-$removeparam=cto_lid
-$removeparam=_pos
-$removeparam=_sid
-$removeparam=_ss
-!$removeparam=cid
+*$removeparam=s_kwcid
+*$removeparam=ef_id
+*$removeparam=icid
+*$removeparam=cto_pld
+*$removeparam=cto_lid
+*$removeparam=_pos
+*$removeparam=_sid
+*$removeparam=_ss
+!*$removeparam=cid
 
 ! ───── 아마존 ─────
-$removeparam=ascsubtag
-$removeparam=asc_campaign
-$removeparam=asc_refurl
-$removeparam=asc_source
-$removeparam=linkCode
-$removeparam=linkId
-$removeparam=tag,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de|amazon.fr|amazon.it|amazon.es
-$removeparam=ref_,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
-$removeparam=psc,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
-$removeparam=th,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
-$removeparam=_encoding,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
-$removeparam=smid,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
-$removeparam=spIA,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
-$removeparam=qid,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
-$removeparam=sr,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
+*$removeparam=ascsubtag
+*$removeparam=asc_campaign
+*$removeparam=asc_refurl
+*$removeparam=asc_source
+*$removeparam=linkCode
+*$removeparam=linkId
+*$removeparam=tag,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de|amazon.fr|amazon.it|amazon.es
+*$removeparam=ref_,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
+*$removeparam=psc,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
+*$removeparam=th,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
+*$removeparam=_encoding,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk|amazon.de
+*$removeparam=smid,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
+*$removeparam=spIA,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
+*$removeparam=qid,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
+*$removeparam=sr,domain=amazon.com|amazon.co.kr|amazon.co.jp|amazon.co.uk
 
 ! ───── eBay ─────
-$removeparam=_trkparms
-$removeparam=_trksid
-$removeparam=hash,domain=ebay.com|ebay.co.kr|ebay.co.uk|ebay.de
-$removeparam=mkevt
-$removeparam=mkcid
-$removeparam=mkrid
-$removeparam=campid
-$removeparam=toolid
-$removeparam=customid
+*$removeparam=_trkparms
+*$removeparam=_trksid
+*$removeparam=hash,domain=ebay.com|ebay.co.kr|ebay.co.uk|ebay.de
+*$removeparam=mkevt
+*$removeparam=mkcid
+*$removeparam=mkrid
+*$removeparam=campid
+*$removeparam=toolid
+*$removeparam=customid
 
 ! ───── 알리/타오바오/중국 ─────
-$removeparam=scm
-$removeparam=pvid
-$removeparam=algo_pvid
-$removeparam=algo_exp_id
-$removeparam=businessType
-$removeparam=terminal_id
-$removeparam=afSmartRedirect
-$removeparam=cv
+*$removeparam=scm
+*$removeparam=pvid
+*$removeparam=algo_pvid
+*$removeparam=algo_exp_id
+*$removeparam=businessType
+*$removeparam=terminal_id
+*$removeparam=afSmartRedirect
+*$removeparam=cv
 
 ! ───── 유튜브 ─────
-$removeparam=si
-$removeparam=kw
-$removeparam=ab_channel
-!$removeparam=feature
-!$removeparam=pp
+*$removeparam=si
+*$removeparam=kw
+*$removeparam=ab_channel
+!*$removeparam=feature
+!*$removeparam=pp
 
 ! ───── 구글 광고 추적 ─────
-$removeparam=iu_parts
-$removeparam=correlator
-$removeparam=adurl
-$removeparam=ad_id
-$removeparam=adgroupid
-$removeparam=campaignid
-$removeparam=matchtype
-$removeparam=targetid
-$removeparam=loc_physical_ms
-$removeparam=loc_interest_ms
-$removeparam=adposition
-$removeparam=ad_position
-$removeparam=ad_format
-$removeparam=ad_type
+*$removeparam=iu_parts
+*$removeparam=correlator
+*$removeparam=adurl
+*$removeparam=ad_id
+*$removeparam=adgroupid
+*$removeparam=campaignid
+*$removeparam=matchtype
+*$removeparam=targetid
+*$removeparam=loc_physical_ms
+*$removeparam=loc_interest_ms
+*$removeparam=adposition
+*$removeparam=ad_position
+*$removeparam=ad_format
+*$removeparam=ad_type
 
-! ───── DS 시리즈 (보수적 처리 - 주석으로 보존) ─────
-! 광범위 정규식 - 일부 사이트에서 ds_lang, ds_session 등 정상 사용 가능
-!$removeparam=/^ds_/
+! ───── DS 시리즈 (주석 보존) ─────
+!*$removeparam=/^ds_/
 
 ! ───── 일반 단어형 (도메인 한정) ─────
-$removeparam=source,domain=google.com|google.co.kr|google.co.jp|google.co.uk|googleadservices.com|doubleclick.net
-$removeparam=device,domain=google.com|google.co.kr|google.co.jp|google.co.uk|googleadservices.com|doubleclick.net
-$removeparam=network,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
-$removeparam=target,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
-$removeparam=keyword,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
-$removeparam=placement,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
-$removeparam=creative,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
-$removeparam=devicemodel,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+*$removeparam=source,domain=google.com|google.co.kr|google.co.jp|google.co.uk|googleadservices.com|doubleclick.net
+*$removeparam=device,domain=google.com|google.co.kr|google.co.jp|google.co.uk|googleadservices.com|doubleclick.net
+*$removeparam=network,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+*$removeparam=target,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+*$removeparam=keyword,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+*$removeparam=placement,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+*$removeparam=creative,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
+*$removeparam=devicemodel,domain=google.com|google.co.kr|googleadservices.com|doubleclick.net
 
 ! ───── 제휴 마케팅 ─────
-$removeparam=affiliate_id
-$removeparam=aff_id
-$removeparam=aff
-$removeparam=affid
-$removeparam=partner_id
-$removeparam=partnerid
-$removeparam=clickid
-$removeparam=click_id
-$removeparam=irclickid
-$removeparam=irgwc
-$removeparam=ranSiteID
-$removeparam=ranEAID
-$removeparam=ranMID
-$removeparam=siteID
-$removeparam=publisherId
-$removeparam=cjevent
-$removeparam=AID
-$removeparam=PID
-$removeparam=SID
-$removeparam=awc
-$removeparam=zanpid
+*$removeparam=affiliate_id
+*$removeparam=aff_id
+*$removeparam=aff
+*$removeparam=affid
+*$removeparam=partner_id
+*$removeparam=partnerid
+*$removeparam=clickid
+*$removeparam=click_id
+*$removeparam=irclickid
+*$removeparam=irgwc
+*$removeparam=ranSiteID
+*$removeparam=ranEAID
+*$removeparam=ranMID
+*$removeparam=siteID
+*$removeparam=publisherId
+*$removeparam=cjevent
+*$removeparam=AID
+*$removeparam=PID
+*$removeparam=SID
+*$removeparam=awc
+*$removeparam=zanpid
 
 ! ───── 기타 일반 추적 ─────
-$removeparam=referrer
-$removeparam=src_source
-$removeparam=trk,domain=linkedin.com
-$removeparam=trkCampaign,domain=linkedin.com
-$removeparam=spReportId
-$removeparam=spJobID
-$removeparam=spUserID
-$removeparam=spMailingID
-$removeparam=ref,domain=twitter.com|x.com|github.com|medium.com|reddit.com
-$removeparam=src,domain=twitter.com|x.com|github.com|medium.com
-!$removeparam=trackingId
-!$removeparam=tracking_id
-!$removeparam=tracking_source
+*$removeparam=referrer
+*$removeparam=src_source
+*$removeparam=trk,domain=linkedin.com
+*$removeparam=trkCampaign,domain=linkedin.com
+*$removeparam=spReportId
+*$removeparam=spJobID
+*$removeparam=spUserID
+*$removeparam=spMailingID
+*$removeparam=ref,domain=twitter.com|x.com|github.com|medium.com|reddit.com
+*$removeparam=src,domain=twitter.com|x.com|github.com|medium.com
+!*$removeparam=trackingId
+!*$removeparam=tracking_id
+!*$removeparam=tracking_source
 
 ! ───── 분석 도구 일반 ─────
-$removeparam=__cf_chl_jschl_tk__
-$removeparam=__cf_chl_captcha_tk__
-$removeparam=otc
-$removeparam=ito
+*$removeparam=__cf_chl_jschl_tk__
+*$removeparam=__cf_chl_captcha_tk__
+*$removeparam=otc
+*$removeparam=ito
 
 ! ───── 라이브 스트리밍 공통 ─────
-$removeparam=stream_id
-$removeparam=tracking_session
-$removeparam=watch_session
-!$removeparam=session_id
-!$removeparam=visitor_id
-!$removeparam=device_id
-!$removeparam=client_id
+*$removeparam=stream_id
+*$removeparam=tracking_session
+*$removeparam=watch_session
+!*$removeparam=session_id
+!*$removeparam=visitor_id
+!*$removeparam=device_id
+!*$removeparam=client_id
 
 ! ───── 정규식 일괄 처리 ─────
-$removeparam=/^utm_/
-$removeparam=/^(fb|g|y|ms|tt|tw|sc|li|rdt|d)clid$/
-$removeparam=/^_hs/
-$removeparam=/^hsa_/
-$removeparam=/^pk_/
-$removeparam=/^mtm_/
-$removeparam=/^pi_/
-$removeparam=/^elq/
-$removeparam=/^sfmc_/
-$removeparam=/^ml_/
-$removeparam=/^mc_/
-$removeparam=/^mkt_/
-$removeparam=/^pf_rd_/
-$removeparam=/^pd_rd_/
-$removeparam=/^n_(ad|campaign|keyword|media|match|query|rank)/
-$removeparam=/^aff_/
-$removeparam=/^at_/
-$removeparam=/^oly_/
-$removeparam=/^spm[_\b]/
-$removeparam=/^frm[_\b]/
-$removeparam=/^vero_/
-$removeparam=/^_branch_/
-$removeparam=/^stm_/
-$removeparam=/^xtor/
-$removeparam=/^wt_/
-$removeparam=/^matomo_/
+*$removeparam=/^utm_/
+*$removeparam=/^(fb|g|y|ms|tt|tw|sc|li|rdt|d)clid$/
+*$removeparam=/^_hs/
+*$removeparam=/^hsa_/
+*$removeparam=/^pk_/
+*$removeparam=/^mtm_/
+*$removeparam=/^pi_/
+*$removeparam=/^elq/
+*$removeparam=/^sfmc_/
+*$removeparam=/^ml_/
+*$removeparam=/^mc_/
+*$removeparam=/^mkt_/
+*$removeparam=/^pf_rd_/
+*$removeparam=/^pd_rd_/
+*$removeparam=/^n_(ad|campaign|keyword|media|match|query|rank)/
+*$removeparam=/^aff_/
+*$removeparam=/^at_/
+*$removeparam=/^oly_/
+*$removeparam=/^spm[_\b]/
+*$removeparam=/^frm[_\b]/
+*$removeparam=/^vero_/
+*$removeparam=/^_branch_/
+*$removeparam=/^stm_/
+*$removeparam=/^xtor/
+*$removeparam=/^wt_/
+*$removeparam=/^matomo_/
 
 ! - mypikpak.com
 *$document,removeparam=/^(sp|ut|fro?)m(_|\b)/
 
-
-!///////////////////////////////////////////////
-
-
 ! ═══════════════════════════════════════════
 ! [2] HTTP 헤더 정리 ($removeheader)
 ! ═══════════════════════════════════════════
-! ⚠️ DNS_Rewrite.txt가 도메인을 NXDOMAIN으로 막으므로
-!    헤더 제거 룰은 DNS에서 누락된 (또는 화이트리스트된) 도메인에만 유효.
-
-! ───── 구글 광고/분석 ─────
-||doubleclick.net^$removeheader=set-cookie
-||google-analytics.com^$removeheader=set-cookie
-||googletagmanager.com^$removeheader=set-cookie
-||googlesyndication.com^$removeheader=set-cookie
-||googleadservices.com^$removeheader=set-cookie
-||googletagservices.com^$removeheader=set-cookie
-||adservice.google.com^$removeheader=set-cookie
-
-! ───── 메타(페이스북) ─────
-||facebook.com^$removeheader=set-cookie,domain=~facebook.com
-||facebook.net^$removeheader=set-cookie
-||connect.facebook.net^$removeheader=set-cookie
-||an.facebook.com^$removeheader=set-cookie
-
-! ───── 광고 네트워크/RTB ─────
-||criteo.com^$removeheader=set-cookie
-||criteo.net^$removeheader=set-cookie
-||adnxs.com^$removeheader=set-cookie
-||rubiconproject.com^$removeheader=set-cookie
-||pubmatic.com^$removeheader=set-cookie
-||openx.net^$removeheader=set-cookie
-||amazon-adsystem.com^$removeheader=set-cookie
-||adsrvr.org^$removeheader=set-cookie
-||casalemedia.com^$removeheader=set-cookie
-||bidswitch.net^$removeheader=set-cookie
-||smartadserver.com^$removeheader=set-cookie
-||contextweb.com^$removeheader=set-cookie
-||3lift.com^$removeheader=set-cookie
-||sharethrough.com^$removeheader=set-cookie
-||gumgum.com^$removeheader=set-cookie
-||sonobi.com^$removeheader=set-cookie
-||yieldlab.net^$removeheader=set-cookie
-||mathtag.com^$removeheader=set-cookie
-||adform.net^$removeheader=set-cookie
-||turn.com^$removeheader=set-cookie
-||mediamath.com^$removeheader=set-cookie
-||serving-sys.com^$removeheader=set-cookie
-||agkn.com^$removeheader=set-cookie
-||advertising.com^$removeheader=set-cookie
-||indexww.com^$removeheader=set-cookie
-||yieldmo.com^$removeheader=set-cookie
-
-! ───── CDP / 식별자 그래프 ─────
-||liadm.com^$removeheader=set-cookie
-||id5-sync.com^$removeheader=set-cookie
-||tapad.com^$removeheader=set-cookie
-
-! ───── 콘텐츠 추천/네이티브 광고 ─────
-||outbrain.com^$removeheader=set-cookie
-||taboola.com^$removeheader=set-cookie
-||revcontent.com^$removeheader=set-cookie
-||mgid.com^$removeheader=set-cookie
-
-! ───── 측정/리서치/검증 ─────
-||scorecardresearch.com^$removeheader=set-cookie
-||quantserve.com^$removeheader=set-cookie
-||quantcount.com^$removeheader=set-cookie
-||moatads.com^$removeheader=set-cookie
-||adsafeprotected.com^$removeheader=set-cookie
-||doubleverify.com^$removeheader=set-cookie
-||chartbeat.com^$removeheader=set-cookie
-||chartbeat.net^$removeheader=set-cookie
-
-! ───── 분석/세션 리플레이 ─────
-||hotjar.com^$removeheader=set-cookie
-||mixpanel.com^$removeheader=set-cookie
-||amplitude.com^$removeheader=set-cookie
-||clarity.ms^$removeheader=set-cookie
-||fullstory.com^$removeheader=set-cookie
-||logrocket.com^$removeheader=set-cookie
-||smartlook.com^$removeheader=set-cookie
-||mouseflow.com^$removeheader=set-cookie
-||luckyorange.com^$removeheader=set-cookie
-||contentsquare.net^$removeheader=set-cookie
-||quantummetric.com^$removeheader=set-cookie
-||segment.io^$removeheader=set-cookie
-||segment.com^$removeheader=set-cookie
-||heap.io^$removeheader=set-cookie
-||heapanalytics.com^$removeheader=set-cookie
-||statcounter.com^$removeheader=set-cookie
-||histats.com^$removeheader=set-cookie
-||cloudflareinsights.com^$removeheader=set-cookie
-||newrelic.com^$removeheader=set-cookie
-||nr-data.net^$removeheader=set-cookie
-||datadoghq.com^$removeheader=set-cookie
-
-! ───── A/B 테스트 / 개인화 ─────
-||optimizely.com^$removeheader=set-cookie
-||vwo.com^$removeheader=set-cookie
-||dynamicyield.com^$removeheader=set-cookie
-||monetate.net^$removeheader=set-cookie
-||kameleoon.com^$removeheader=set-cookie
-||abtasty.com^$removeheader=set-cookie
-
-! ───── 마케팅 자동화/CRM ─────
-||hubspot.com^$removeheader=set-cookie
-||hs-analytics.net^$removeheader=set-cookie
-||hs-scripts.com^$removeheader=set-cookie
-||marketo.net^$removeheader=set-cookie
-||mktoresp.com^$removeheader=set-cookie
-||pardot.com^$removeheader=set-cookie
-||eloqua.com^$removeheader=set-cookie
-||klaviyo.com^$removeheader=set-cookie
-||intercom.io^$removeheader=set-cookie
-||drift.com^$removeheader=set-cookie
-||sailthru.com^$removeheader=set-cookie
-||iterable.com^$removeheader=set-cookie
-
-! ───── 소셜 트래킹 픽셀 ─────
-||ads-twitter.com^$removeheader=set-cookie
-||analytics.twitter.com^$removeheader=set-cookie
-||analytics.tiktok.com^$removeheader=set-cookie
-||tr.snapchat.com^$removeheader=set-cookie
-||sc-static.net^$removeheader=set-cookie
-||px.ads.linkedin.com^$removeheader=set-cookie
-||snap.licdn.com^$removeheader=set-cookie
-||analytics.pinterest.com^$removeheader=set-cookie
-
-! ───── Microsoft ─────
-||bat.bing.com^$removeheader=set-cookie
-
-! ───── CDP/태그 매니저/쿠키 매칭 ─────
-||tealiumiq.com^$removeheader=set-cookie
-||tiqcdn.com^$removeheader=set-cookie
-||krxd.net^$removeheader=set-cookie
-||bluekai.com^$removeheader=set-cookie
-||demdex.net^$removeheader=set-cookie
-||omtrdc.net^$removeheader=set-cookie
-||2o7.net^$removeheader=set-cookie
-||everesttech.net^$removeheader=set-cookie
-||rlcdn.com^$removeheader=set-cookie
-||eyeota.net^$removeheader=set-cookie
-||adsymptotic.com^$removeheader=set-cookie
-||lytics.io^$removeheader=set-cookie
-||exelator.com^$removeheader=set-cookie
-
-! ───── 어도비 ─────
-||sstats.adobe.com^$removeheader=set-cookie
-||stats.adobe.com^$removeheader=set-cookie
-||cc-api-data.adobe.io^$removeheader=set-cookie
-
-! ───── 한국 트래커 ─────
-||cc.naver.com^$removeheader=set-cookie
-||lcs.naver.com^$removeheader=set-cookie
-||tiara.kakao.com^$removeheader=set-cookie
-||tiara.daum.net^$removeheader=set-cookie
-||analytics.ad.daum.net^$removeheader=set-cookie
-||stat.ad.kakao.com^$removeheader=set-cookie
-||click.coupang.com^$removeheader=set-cookie
-||tg.socdm.com^$removeheader=set-cookie
-||tg.widerplanet.com^$removeheader=set-cookie
-||cauly.co.kr^$removeheader=set-cookie
-||mobon.net^$removeheader=set-cookie
-
-! ───── 중국/러시아 ─────
-||hm.baidu.com^$removeheader=set-cookie
-||tongji.baidu.com^$removeheader=set-cookie
-||mc.yandex.ru^$removeheader=set-cookie
-||metrica.yandex.com^$removeheader=set-cookie
-
-! ───── 제휴/클릭 트래커 ─────
-||awin1.com^$removeheader=set-cookie
-||linksynergy.com^$removeheader=set-cookie
-||shareasale.com^$removeheader=set-cookie
-||cj.com^$removeheader=set-cookie
-||anrdoezrs.net^$removeheader=set-cookie
-||tkqlhce.com^$removeheader=set-cookie
-||jdoqocy.com^$removeheader=set-cookie
-||dpbolvw.net^$removeheader=set-cookie
-||kqzyfj.com^$removeheader=set-cookie
-||impactradius-event.com^$removeheader=set-cookie
-||ojrq.net^$removeheader=set-cookie
-||rdrct.cc^$removeheader=set-cookie
-
-! ───── Referer 헤더 제거 ─────
-||doubleclick.net^$removeheader=request:referer
-||google-analytics.com^$removeheader=request:referer
-||googlesyndication.com^$removeheader=request:referer
-||googletagmanager.com^$removeheader=request:referer
-||googleadservices.com^$removeheader=request:referer
-||facebook.net^$removeheader=request:referer
-||connect.facebook.net^$removeheader=request:referer
-||scorecardresearch.com^$removeheader=request:referer
-||criteo.com^$removeheader=request:referer
-||adnxs.com^$removeheader=request:referer
-||rubiconproject.com^$removeheader=request:referer
-||pubmatic.com^$removeheader=request:referer
-||outbrain.com^$removeheader=request:referer
-||taboola.com^$removeheader=request:referer
-||quantserve.com^$removeheader=request:referer
-||amazon-adsystem.com^$removeheader=request:referer
-||adsrvr.org^$removeheader=request:referer
-||hotjar.com^$removeheader=request:referer
-||mixpanel.com^$removeheader=request:referer
-||segment.io^$removeheader=request:referer
-||fullstory.com^$removeheader=request:referer
-||clarity.ms^$removeheader=request:referer
-||analytics.tiktok.com^$removeheader=request:referer
-||tr.snapchat.com^$removeheader=request:referer
-||px.ads.linkedin.com^$removeheader=request:referer
-||bat.bing.com^$removeheader=request:referer
-||hm.baidu.com^$removeheader=request:referer
-||mc.yandex.ru^$removeheader=request:referer
-||tiara.kakao.com^$removeheader=request:referer
-
-
-!///////////////////////////////////////////////
+! [uBO 미지원] $removeheader 옵션은 uBlock Origin에 존재하지 않습니다.
+! 아래 set-cookie / referer 제거 규칙은 변환 대상이 없어 전부 비활성(주석) 처리합니다.
+! (원본 보존용)
+!
+!||doubleclick.net^$removeheader=set-cookie
+!||google-analytics.com^$removeheader=set-cookie
+!||googletagmanager.com^$removeheader=set-cookie
+!||googlesyndication.com^$removeheader=set-cookie
+!||googleadservices.com^$removeheader=set-cookie
+!||googletagservices.com^$removeheader=set-cookie
+!||adservice.google.com^$removeheader=set-cookie
+!||facebook.com^$removeheader=set-cookie,domain=~facebook.com
+!||facebook.net^$removeheader=set-cookie
+!||connect.facebook.net^$removeheader=set-cookie
+!||an.facebook.com^$removeheader=set-cookie
+!||criteo.com^$removeheader=set-cookie
+!||criteo.net^$removeheader=set-cookie
+!||adnxs.com^$removeheader=set-cookie
+!||rubiconproject.com^$removeheader=set-cookie
+!||pubmatic.com^$removeheader=set-cookie
+!||openx.net^$removeheader=set-cookie
+!||amazon-adsystem.com^$removeheader=set-cookie
+!||adsrvr.org^$removeheader=set-cookie
+!||casalemedia.com^$removeheader=set-cookie
+!||bidswitch.net^$removeheader=set-cookie
+!||smartadserver.com^$removeheader=set-cookie
+!||contextweb.com^$removeheader=set-cookie
+!||3lift.com^$removeheader=set-cookie
+!||sharethrough.com^$removeheader=set-cookie
+!||gumgum.com^$removeheader=set-cookie
+!||sonobi.com^$removeheader=set-cookie
+!||yieldlab.net^$removeheader=set-cookie
+!||mathtag.com^$removeheader=set-cookie
+!||adform.net^$removeheader=set-cookie
+!||turn.com^$removeheader=set-cookie
+!||mediamath.com^$removeheader=set-cookie
+!||serving-sys.com^$removeheader=set-cookie
+!||agkn.com^$removeheader=set-cookie
+!||advertising.com^$removeheader=set-cookie
+!||indexww.com^$removeheader=set-cookie
+!||yieldmo.com^$removeheader=set-cookie
+!||liadm.com^$removeheader=set-cookie
+!||id5-sync.com^$removeheader=set-cookie
+!||tapad.com^$removeheader=set-cookie
+!||outbrain.com^$removeheader=set-cookie
+!||taboola.com^$removeheader=set-cookie
+!||revcontent.com^$removeheader=set-cookie
+!||mgid.com^$removeheader=set-cookie
+!||scorecardresearch.com^$removeheader=set-cookie
+!||quantserve.com^$removeheader=set-cookie
+!||quantcount.com^$removeheader=set-cookie
+!||moatads.com^$removeheader=set-cookie
+!||adsafeprotected.com^$removeheader=set-cookie
+!||doubleverify.com^$removeheader=set-cookie
+!||chartbeat.com^$removeheader=set-cookie
+!||chartbeat.net^$removeheader=set-cookie
+!||hotjar.com^$removeheader=set-cookie
+!||mixpanel.com^$removeheader=set-cookie
+!||amplitude.com^$removeheader=set-cookie
+!||clarity.ms^$removeheader=set-cookie
+!||fullstory.com^$removeheader=set-cookie
+!||logrocket.com^$removeheader=set-cookie
+!||smartlook.com^$removeheader=set-cookie
+!||mouseflow.com^$removeheader=set-cookie
+!||luckyorange.com^$removeheader=set-cookie
+!||contentsquare.net^$removeheader=set-cookie
+!||quantummetric.com^$removeheader=set-cookie
+!||segment.io^$removeheader=set-cookie
+!||segment.com^$removeheader=set-cookie
+!||heap.io^$removeheader=set-cookie
+!||heapanalytics.com^$removeheader=set-cookie
+!||statcounter.com^$removeheader=set-cookie
+!||histats.com^$removeheader=set-cookie
+!||cloudflareinsights.com^$removeheader=set-cookie
+!||newrelic.com^$removeheader=set-cookie
+!||nr-data.net^$removeheader=set-cookie
+!||datadoghq.com^$removeheader=set-cookie
+!||optimizely.com^$removeheader=set-cookie
+!||vwo.com^$removeheader=set-cookie
+!||dynamicyield.com^$removeheader=set-cookie
+!||monetate.net^$removeheader=set-cookie
+!||kameleoon.com^$removeheader=set-cookie
+!||abtasty.com^$removeheader=set-cookie
+!||hubspot.com^$removeheader=set-cookie
+!||hs-analytics.net^$removeheader=set-cookie
+!||hs-scripts.com^$removeheader=set-cookie
+!||marketo.net^$removeheader=set-cookie
+!||mktoresp.com^$removeheader=set-cookie
+!||pardot.com^$removeheader=set-cookie
+!||eloqua.com^$removeheader=set-cookie
+!||klaviyo.com^$removeheader=set-cookie
+!||intercom.io^$removeheader=set-cookie
+!||drift.com^$removeheader=set-cookie
+!||sailthru.com^$removeheader=set-cookie
+!||iterable.com^$removeheader=set-cookie
+!||ads-twitter.com^$removeheader=set-cookie
+!||analytics.twitter.com^$removeheader=set-cookie
+!||analytics.tiktok.com^$removeheader=set-cookie
+!||tr.snapchat.com^$removeheader=set-cookie
+!||sc-static.net^$removeheader=set-cookie
+!||px.ads.linkedin.com^$removeheader=set-cookie
+!||snap.licdn.com^$removeheader=set-cookie
+!||analytics.pinterest.com^$removeheader=set-cookie
+!||bat.bing.com^$removeheader=set-cookie
+!||tealiumiq.com^$removeheader=set-cookie
+!||tiqcdn.com^$removeheader=set-cookie
+!||krxd.net^$removeheader=set-cookie
+!||bluekai.com^$removeheader=set-cookie
+!||demdex.net^$removeheader=set-cookie
+!||omtrdc.net^$removeheader=set-cookie
+!||2o7.net^$removeheader=set-cookie
+!||everesttech.net^$removeheader=set-cookie
+!||rlcdn.com^$removeheader=set-cookie
+!||eyeota.net^$removeheader=set-cookie
+!||adsymptotic.com^$removeheader=set-cookie
+!||lytics.io^$removeheader=set-cookie
+!||exelator.com^$removeheader=set-cookie
+!||sstats.adobe.com^$removeheader=set-cookie
+!||stats.adobe.com^$removeheader=set-cookie
+!||cc-api-data.adobe.io^$removeheader=set-cookie
+!||cc.naver.com^$removeheader=set-cookie
+!||lcs.naver.com^$removeheader=set-cookie
+!||tiara.kakao.com^$removeheader=set-cookie
+!||tiara.daum.net^$removeheader=set-cookie
+!||analytics.ad.daum.net^$removeheader=set-cookie
+!||stat.ad.kakao.com^$removeheader=set-cookie
+!||click.coupang.com^$removeheader=set-cookie
+!||tg.socdm.com^$removeheader=set-cookie
+!||tg.widerplanet.com^$removeheader=set-cookie
+!||cauly.co.kr^$removeheader=set-cookie
+!||mobon.net^$removeheader=set-cookie
+!||hm.baidu.com^$removeheader=set-cookie
+!||tongji.baidu.com^$removeheader=set-cookie
+!||mc.yandex.ru^$removeheader=set-cookie
+!||metrica.yandex.com^$removeheader=set-cookie
+!||awin1.com^$removeheader=set-cookie
+!||linksynergy.com^$removeheader=set-cookie
+!||shareasale.com^$removeheader=set-cookie
+!||cj.com^$removeheader=set-cookie
+!||anrdoezrs.net^$removeheader=set-cookie
+!||tkqlhce.com^$removeheader=set-cookie
+!||jdoqocy.com^$removeheader=set-cookie
+!||dpbolvw.net^$removeheader=set-cookie
+!||kqzyfj.com^$removeheader=set-cookie
+!||impactradius-event.com^$removeheader=set-cookie
+!||ojrq.net^$removeheader=set-cookie
+!||rdrct.cc^$removeheader=set-cookie
+!
+! ── Referer 헤더 제거 ($removeheader=request:referer) → [uBO 미지원, 주석 보존] ──
+!||doubleclick.net^$removeheader=request:referer
+!||google-analytics.com^$removeheader=request:referer
+!||googlesyndication.com^$removeheader=request:referer
+!||googletagmanager.com^$removeheader=request:referer
+!||googleadservices.com^$removeheader=request:referer
+!||facebook.net^$removeheader=request:referer
+!||connect.facebook.net^$removeheader=request:referer
+!||scorecardresearch.com^$removeheader=request:referer
+!||criteo.com^$removeheader=request:referer
+!||adnxs.com^$removeheader=request:referer
+!||rubiconproject.com^$removeheader=request:referer
+!||pubmatic.com^$removeheader=request:referer
+!||outbrain.com^$removeheader=request:referer
+!||taboola.com^$removeheader=request:referer
+!||quantserve.com^$removeheader=request:referer
+!||amazon-adsystem.com^$removeheader=request:referer
+!||adsrvr.org^$removeheader=request:referer
+!||hotjar.com^$removeheader=request:referer
+!||mixpanel.com^$removeheader=request:referer
+!||segment.io^$removeheader=request:referer
+!||fullstory.com^$removeheader=request:referer
+!||clarity.ms^$removeheader=request:referer
+!||analytics.tiktok.com^$removeheader=request:referer
+!||tr.snapchat.com^$removeheader=request:referer
+!||px.ads.linkedin.com^$removeheader=request:referer
+!||bat.bing.com^$removeheader=request:referer
+!||hm.baidu.com^$removeheader=request:referer
+!||mc.yandex.ru^$removeheader=request:referer
+!||tiara.kakao.com^$removeheader=request:referer
 
 
 ! ═══════════════════════════════════════════
 ! [3] 추적 쿠키 차단 ($cookie)
 ! ═══════════════════════════════════════════
+! [uBO 미지원] $cookie 옵션은 uBlock Origin에 없습니다.
+! - 순수 추적 도메인($cookie 단독)은 그냥 차단 규칙으로 변환했습니다.
+! - 본체를 살리고 특정 쿠키만 지우던 규칙은 cookie-remover 스크립트릿으로 변환했습니다.
+! - 이름 기반 전역 쿠키 차단은 trusted-set-cookie/ cookie-remover로 1:1 대체가 어려워 주석 보존합니다.
 
-! ───── 기존 룰 (유지) ─────
-||doubleclick.net^$cookie
-||google-analytics.com^$cookie
-||facebook.net^$cookie
-||facebook.com^$cookie=fr
-||facebook.com^$cookie=_fbp
-||criteo.com^$cookie
-||criteo.net^$cookie
-||scorecardresearch.com^$cookie
-||outbrain.com^$cookie
-||taboola.com^$cookie
-||adnxs.com^$cookie
-||rubiconproject.com^$cookie
-||pubmatic.com^$cookie
+! ───── 순수 추적 도메인 → 단순 차단으로 변환 ─────
+||doubleclick.net^
+||google-analytics.com^
+||facebook.net^
+||criteo.com^
+||criteo.net^
+||scorecardresearch.com^
+||adnxs.com^
+||rubiconproject.com^
+||pubmatic.com^
+||openx.net^
+||amazon-adsystem.com^
+||adsrvr.org^
+||casalemedia.com^
+||3lift.com^
+||indexww.com^
+||yieldmo.com^
+||liadm.com^
+||id5-sync.com^
+||tapad.com^
+||agkn.com^
+||hotjar.com^
+||mixpanel.com^
+||amplitude.com^
+||fullstory.com^
+||clarity.ms^
+||segment.io^
+||hs-analytics.net^
+||cloudflareinsights.com^
+||newrelic.com^
+||nr-data.net^
+||datadoghq.com^
+||optimizely.com^
+||vwo.com^
+||dynamicyield.com^
+||monetate.net^
+||kameleoon.com^
+||abtasty.com^
+||ads-twitter.com^
+||analytics.tiktok.com^
+||tr.snapchat.com^
+||px.ads.linkedin.com^
+||bat.bing.com^
+||tiara.kakao.com^
+||click.coupang.com^
+||tg.widerplanet.com^
 
-! ───── 광고 네트워크 ─────
-||openx.net^$cookie
-||amazon-adsystem.com^$cookie
-||adsrvr.org^$cookie
-||casalemedia.com^$cookie
-||3lift.com^$cookie
-||indexww.com^$cookie
-||yieldmo.com^$cookie
+! ───── facebook 추적 쿠키만 제거 → 스크립트릿 변환 ─────
+facebook.com##+js(cookie-remover, fr)
+facebook.com##+js(cookie-remover, _fbp)
 
-! ───── CDP / 식별자 그래프 ─────
-||liadm.com^$cookie
-||id5-sync.com^$cookie
-||tapad.com^$cookie
-||agkn.com^$cookie
+! ───── 본체 살리고 추적 쿠키만 차단 → cookie-remover 스크립트릿 변환 ─────
+youtube.com##+js(cookie-remover, VISITOR_INFO1_LIVE)
+youtube.com##+js(cookie-remover, YSC)
+twitter.com##+js(cookie-remover, personalization_id)
+twitter.com##+js(cookie-remover, guest_id_marketing)
+linkedin.com##+js(cookie-remover, li_fat_id)
+linkedin.com##+js(cookie-remover, lidc)
+bing.com##+js(cookie-remover, MUID)
+pinterest.com##+js(cookie-remover, _pin_unauth)
+reddit.com##+js(cookie-remover, _rdt_uuid)
+tiktok.com##+js(cookie-remover, _ttp)
 
-! ───── 분석/세션 리플레이/RUM ─────
-||hotjar.com^$cookie
-||mixpanel.com^$cookie
-||amplitude.com^$cookie
-||fullstory.com^$cookie
-||clarity.ms^$cookie
-||segment.io^$cookie
-||hs-analytics.net^$cookie
-||cloudflareinsights.com^$cookie
-||newrelic.com^$cookie
-||nr-data.net^$cookie
-||datadoghq.com^$cookie
-
-! ───── A/B 테스트 / 개인화 ─────
-||optimizely.com^$cookie
-||vwo.com^$cookie
-||dynamicyield.com^$cookie
-||monetate.net^$cookie
-||kameleoon.com^$cookie
-||abtasty.com^$cookie
-
-! ───── 소셜 트래커 ─────
-||ads-twitter.com^$cookie
-||analytics.tiktok.com^$cookie
-||tr.snapchat.com^$cookie
-||px.ads.linkedin.com^$cookie
-||bat.bing.com^$cookie
-
-! ───── 한국 ─────
-||tiara.kakao.com^$cookie
-||click.coupang.com^$cookie
-||tg.widerplanet.com^$cookie
-
-! ───── 본체 살리고 추적 쿠키만 차단 ─────
-!||google.com^$cookie=NID
-||youtube.com^$cookie=VISITOR_INFO1_LIVE
-||youtube.com^$cookie=YSC
-||twitter.com^$cookie=personalization_id
-||twitter.com^$cookie=guest_id_marketing
-||linkedin.com^$cookie=li_fat_id
-||linkedin.com^$cookie=lidc
-||bing.com^$cookie=MUID
-||pinterest.com^$cookie=_pin_unauth
-||reddit.com^$cookie=_rdt_uuid
-||tiktok.com^$cookie=_ttp
-
-! ───── 이름 기반 쿠키 차단 (모든 사이트) ─────
+! ───── 이름 기반 전역 쿠키 차단 → [uBO 1:1 대체 불가, 주석 보존] ─────
 !$cookie=/^_ga/
-$cookie=/^_gid$/
-$cookie=/^_fbp$/
-$cookie=/^_fbc$/
-$cookie=/^_gcl_/
-$cookie=/^__utm/
-$cookie=/^_hjid$/
-$cookie=/^_hjSession/
-$cookie=/^_ttp$/
-$cookie=/^_uetsid$/
-$cookie=/^_uetvid$/
-$cookie=/^_rdt_uuid$/
-$cookie=/^IDE$/
-$cookie=/^cto_bundle$/
-$cookie=/^__hstc$/
-
-
-!///////////////////////////////////////////////
+!$cookie=/^_gid$/
+!$cookie=/^_fbp$/
+!$cookie=/^_fbc$/
+!$cookie=/^_gcl_/
+!$cookie=/^__utm/
+!$cookie=/^_hjid$/
+!$cookie=/^_hjSession/
+!$cookie=/^_ttp$/
+!$cookie=/^_uetsid$/
+!$cookie=/^_uetvid$/
+!$cookie=/^_rdt_uuid$/
+!$cookie=/^IDE$/
+!$cookie=/^cto_bundle$/
+!$cookie=/^__hstc$/
 
 
 ! ═══════════════════════════════════════════
@@ -873,14 +789,9 @@ $cookie=/^__hstc$/
 ||player.vimeo.com/video/*$subdocument,redirect=click2load.html
 
 
-!///////////////////////////////////////////////
-
-
 ! ═══════════════════════════════════════════
 ! [5] 리소스 타입별 차단
 ! ═══════════════════════════════════════════
-! 트래픽 절감 핵심 - 영상/이미지/스크립트 차단
-! (DNS로 차단 불가한 리소스 타입 단위 룰)
 
 ! ───── 광고 영상 (대용량) ─────
 ||*$media,third-party,domain=adserver-test.com
@@ -903,12 +814,10 @@ $cookie=/^__hstc$/
 ||*$image,third-party,domain=adsrvr.org|3lift.com|smartadserver.com|casalemedia.com
 ||*$image,third-party,domain=cauly.co.kr|widerplanet.com|mobon.net
 
-! ───── Ping/Beacon 추적 (보수적 처리 - 주석으로 보존) ─────
-! ⚠️ 일부 사이트의 클릭 동작에 영향 가능 - 클릭 이상 발생 시 첫 의심
+! ───── Ping/Beacon (주석 보존) ─────
 !*$ping
 
-! ───── WebSocket 실시간 추적 (알려진 서비스) ─────
-! 라이브챗 / 세션 리플레이
+! ───── WebSocket 실시간 추적 ─────
 ||intercom.io^$websocket
 ||drift.com^$websocket
 ||driftt.com^$websocket
@@ -922,22 +831,16 @@ $cookie=/^__hstc$/
 ||mouseflow.com^$websocket
 ||smartlook.com^$websocket
 ||clarity.ms^$websocket
-
-! 광고 네트워크
 ||doubleclick.net^$websocket
 ||adnxs.com^$websocket
 ||rubiconproject.com^$websocket
 ||pubmatic.com^$websocket
-
-! 제품 분석 / CDP
 ||segment.com^$websocket
 ||segment.io^$websocket
 ||heap.io^$websocket
 ||heapanalytics.com^$websocket
 ||amplitude.com^$websocket
 ||mixpanel.com^$websocket
-
-! 사용자 온보딩 / 가이드 도구
 ||pendo.io^$websocket
 ||walkme.com^$websocket
 ||appcues.com^$websocket
@@ -964,8 +867,8 @@ $cookie=/^__hstc$/
 ||use.typekit.net^$font,third-party
 
 ! ───── 스타일시트 추적 ─────
-||*/tracking.css$stylesheet,third-party,empty
-||*/analytics.css$stylesheet,third-party,empty
+||*/tracking.css$stylesheet,third-party
+||*/analytics.css$stylesheet,third-party
 
 ! ───── iframe 광고 ─────
 ||doubleclick.net^$subdocument,third-party
@@ -1016,122 +919,62 @@ $cookie=/^__hstc$/
 ||s.ytimg.com/yts/jsbin/www-pagead*$script,third-party
 
 ! ───── 한국 추적 (리소스 타입별) ─────
-||lcs.naver.com^$xmlhttprequest,third-party,empty
-||cc.naver.com^$xmlhttprequest,third-party,empty
-||tiara.kakao.com^$xmlhttprequest,third-party,empty
+||lcs.naver.com^$xmlhttprequest,third-party
+||cc.naver.com^$xmlhttprequest,third-party
+||tiara.kakao.com^$xmlhttprequest,third-party
 ||tiara.kakao.com^$image,third-party
-||analytics-log.kakao.com^$xmlhttprequest,third-party,empty
-||click.coupang.com^$xmlhttprequest,third-party,empty
+||analytics-log.kakao.com^$xmlhttprequest,third-party
+||click.coupang.com^$xmlhttprequest,third-party
 ||tg.widerplanet.com^$image,third-party
 ||cauly.co.kr^$image,third-party
 ||mobon.net^$image,third-party
 
 ! ───── 중국/러시아 추적 ─────
 ||hm.baidu.com^$image,third-party
-||hm.baidu.com^$xmlhttprequest,third-party,empty
-||tongji.baidu.com^$xmlhttprequest,third-party,empty
+||hm.baidu.com^$xmlhttprequest,third-party
+||tongji.baidu.com^$xmlhttprequest,third-party
 ||mc.yandex.ru^$image,third-party
-||mc.yandex.ru^$xmlhttprequest,third-party,empty
+||mc.yandex.ru^$xmlhttprequest,third-party
 
 ! ───── HEAD 요청 추적 ─────
-||*/ping$xmlhttprequest,third-party,empty
-||*/heartbeat$xmlhttprequest,third-party,empty
+||*/ping$xmlhttprequest,third-party
+||*/heartbeat$xmlhttprequest,third-party
 
 ! ───── GraphQL 추적 엔드포인트 ─────
-||*/graphql/track$xmlhttprequest,third-party,empty
-||*/graphql/event$xmlhttprequest,third-party,empty
-||*/graphql/analytics$xmlhttprequest,third-party,empty
+||*/graphql/track$xmlhttprequest,third-party
+||*/graphql/event$xmlhttprequest,third-party
+||*/graphql/analytics$xmlhttprequest,third-party
 
-! ───── 동영상 사전 분석 (preconnect/prefetch) ─────
-||*/prefetch?*$xmlhttprequest,third-party,empty,domain=doubleclick.net|googlesyndication.com
-||*/preload?*$xmlhttprequest,third-party,empty,domain=doubleclick.net|googlesyndication.com
+! ───── 동영상 사전 분석 ─────
+||*/prefetch?*$xmlhttprequest,third-party,domain=doubleclick.net|googlesyndication.com
+||*/preload?*$xmlhttprequest,third-party,domain=doubleclick.net|googlesyndication.com
 
 ! ───── 픽팍 (PikPak) 추적 ─────
-||o4504926511693824.ingest.sentry.io^$empty
-
-
-!///////////////////////////////////////////////
-
+||o4504926511693824.ingest.sentry.io^
 
 ! ═══════════════════════════════════════════
 ! [6] 보조 옵션 사용 예시 (참고용 주석)
 ! ═══════════════════════════════════════════
+! uBO도 아래 옵션 대부분 지원: $denyallow, $badfilter, $important, @@, $domain,
+! $third-party/$first-party, $genericblock/$generichide/$elemhide, $csp, $redirect 등
+! ※ $replace, $jsonprune, $hls, $stealth 는 uBO 미지원 (AdGuard 전용)
 
-! ───────────────────────────────────────────
-! $denyallow - 차단하되 특정 도메인은 예외
-! ───────────────────────────────────────────
 ! ||criteo.com^$denyallow=trusted-site.com
-! ||doubleclick.net^$denyallow=youtube.com|google.com
-
-! ───────────────────────────────────────────
-! $badfilter - 구독 리스트의 특정 룰 무력화
-! ───────────────────────────────────────────
 ! ||example.com^$badfilter
-
-! ───────────────────────────────────────────
-! $important - 다른 화이트리스트보다 우선 적용
-! ───────────────────────────────────────────
 ! ||tracker.com^$important
-
-! ───────────────────────────────────────────
-! @@ - 화이트리스트 (예외 처리)
-! ───────────────────────────────────────────
 ! @@||cnt.dcinside.com^
-! @@||google-analytics.com^$domain=mywork-site.com
-
-! ───────────────────────────────────────────
-! $domain - 특정 사이트에서만 적용
-! ───────────────────────────────────────────
 ! ||tracker.com^$domain=example.com
-! ||tracker.com^$domain=~trusted.com
-
-! ───────────────────────────────────────────
-! $third-party / $first-party / $popup
-! ───────────────────────────────────────────
 ! ||doubleclick.net^$third-party
-! ||ads.example.com^$popup
-
-! ───────────────────────────────────────────
-! $genericblock / $generichide / $elemhide
-! ───────────────────────────────────────────
 ! @@||example.com^$genericblock
-! @@||example.com^$elemhide
-
-! ───────────────────────────────────────────
-! $csp - Content Security Policy 강제
-! ───────────────────────────────────────────
 ! ||example.com^$csp=script-src 'self'
-
-! ───────────────────────────────────────────
-! $replace - 응답 본문 내용 치환 (고급)
-! ───────────────────────────────────────────
-! ||example.com^$replace=/window\.adsbygoogle/window\.adsbygoogle_disabled/g
-
-! ───────────────────────────────────────────
-! $jsonprune - JSON 응답 필드 제거 (AdGuard 전용)
-! ───────────────────────────────────────────
-! ||example.com/api/feed^$jsonprune=\$.ads
-
-! ───────────────────────────────────────────
-! $hls - HLS 스트림 매니페스트에서 광고 제거
-! ───────────────────────────────────────────
-! ||example.com/stream.m3u8^$hls=/ad
-
-! ───────────────────────────────────────────
-! $stealth - 프라이버시 보호 옵션 (AdGuard 전용)
-! ───────────────────────────────────────────
-! @@||trusted-site.com^$stealth
-
-! ───────────────────────────────────────────
-! 요소 숨김 / 스크립트릿
-! ───────────────────────────────────────────
+! [uBO 미지원] ||example.com^$replace=/.../.../g
+! [uBO 미지원] ||example.com/api/feed^$jsonprune=\$.ads
+! [uBO 미지원] ||example.com/stream.m3u8^$hls=/ad
+! [uBO 미지원] @@||trusted-site.com^$stealth
 ! example.com##.ad-banner
-! example.com#?#div:has-text(광고)
+! example.com##div:has-text(광고)
 ! example.com#%#//scriptlet('set-constant', 'adblockDetected', 'false')
 
-! ═══════════════════════════════════════════
-! 실용 예시 모음
-! ═══════════════════════════════════════════
 ! @@||cnt.dcinside.com^
 ! @@||stat.dcinside.com^
 ! @@||stat.dcinside.co.kr^
@@ -1142,27 +985,22 @@ $cookie=/^__hstc$/
 ! @@||facebook.com^$domain=facebook.com|messenger.com
 
 
-!///////////////////////////////////////////////
-
-
 ! ═══════════════════════════════════════════
 ! [7] 라이브 스트리밍 - 정밀 차단
 ! ═══════════════════════════════════════════
-! ⚠️ 라이브 스트리밍은 본 영상과 광고가 같은 도메인 사용
-! ⚠️ DNS 차단 불가 → 경로/파라미터/리소스 타입 단위로 정밀 차단
 
 ! ───────────────────────────────────────────
 ! Twitch (트위치)
 ! ───────────────────────────────────────────
-||twitch.tv/track^$empty
-||twitch.tv/api/channels/*/ad^$empty
-||twitch.tv/api/channels/*/commercial^$empty
-||twitch.tv/v1/stats^$xmlhttprequest,empty
-||twitch.tv/api/v1/clips/*/tracking^$empty
-||gql.twitch.tv/integrity^$empty
-||video-edge-*.abs.hls.ttvnw.net/*/stats^$empty
+||twitch.tv/track^
+||twitch.tv/api/channels/*/ad^
+||twitch.tv/api/channels/*/commercial^
+||twitch.tv/v1/stats^$xmlhttprequest
+||twitch.tv/api/v1/clips/*/tracking^
+||gql.twitch.tv/integrity^
+||video-edge-*.abs.hls.ttvnw.net/*/stats^
 ||twitchcdn.net^$xmlhttprequest,redirect=noopvast-2.0
-||*twitch.tv*/ads^$xmlhttprequest,empty
+||*twitch.tv*/ads^$xmlhttprequest
 ||imasdk.googleapis.com/js/sdkloader/ima3.js^$script,redirect=noopjs
 ||twitch.tv^$removeparam=tt_content
 ||twitch.tv^$removeparam=tt_medium
@@ -1170,31 +1008,34 @@ $cookie=/^__hstc$/
 ||twitch.tv^$removeparam=referrer
 ||twitch.tv^$removeparam=session_id
 ||twitch.tv^$removeparam=tag
-||twitch.tv^$cookie=unique_id
-||twitch.tv^$cookie=unique_id_durable
-||twitch.tv^$cookie=server_session_id
-||twitch.tv^$cookie=experiment_overrides
-||twitch.tv^$cookie=ttsess
-||twitch.tv^$cookie=last_login
-||twitch.tv^$removeheader=client-session-id
-||twitch.tv^$removeheader=x-device-id
-||twitch.tv^$removeheader=client-version
-||usher.ttvnw.net/api/channel/hls/*$hls=/stitched-ad/
-||video-weaver.*.hls.ttvnw.net^$hls=/Amazon/
-||video-edge-*.*.hls.ttvnw.net^$hls=/Amazon/
+! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+twitch.tv##+js(cookie-remover, unique_id)
+twitch.tv##+js(cookie-remover, unique_id_durable)
+twitch.tv##+js(cookie-remover, server_session_id)
+twitch.tv##+js(cookie-remover, experiment_overrides)
+twitch.tv##+js(cookie-remover, ttsess)
+twitch.tv##+js(cookie-remover, last_login)
+! [uBO 미지원] $removeheader (client-session-id / x-device-id / client-version) → 주석 보존
+!||twitch.tv^$removeheader=client-session-id
+!||twitch.tv^$removeheader=x-device-id
+!||twitch.tv^$removeheader=client-version
+! [uBO 미지원] $hls (인스트림 광고 제거) → 주석 보존 (uBO 변환 불가)
+!||usher.ttvnw.net/api/channel/hls/*$hls=/stitched-ad/
+!||video-weaver.*.hls.ttvnw.net^$hls=/Amazon/
+!||video-edge-*.*.hls.ttvnw.net^$hls=/Amazon/
 
 ! ───────────────────────────────────────────
 ! 치지직 (CHZZK / Naver)
 ! ───────────────────────────────────────────
-||apis.naver.com/commercial^$empty
-||apis.naver.com/nng_main/nng/log^$empty
-||ssl.pstatic.net/static.commercial^$empty
-||chzzk.naver.com/service/v1/stats^$xmlhttprequest,empty
-||chzzk.naver.com/polling/v2/channels/*/live-status^$empty
-||apis.naver.com/commercial/*/vast^$xmlhttprequest,redirect=noopvast-4.0
+||apis.naver.com/commercial^
+||apis.naver.com/nng_main/nng/log^
+||ssl.pstatic.net/static.commercial^
+||chzzk.naver.com/service/v1/stats^$xmlhttprequest
+||chzzk.naver.com/polling/v2/channels/*/live-status^
+||apis.naver.com/commercial/*/vast^$xmlhttprequest,redirect=noopvast-2.0
 ||apis.naver.com/commercial/*/vmap^$xmlhttprequest,redirect=noopvmap-1.0
-||apis.naver.com/commercial/*/ad^$xmlhttprequest,empty
-||apis.naver.com/nng/commercial^$xmlhttprequest,redirect=noopvast-4.0
+||apis.naver.com/commercial/*/ad^$xmlhttprequest
+||apis.naver.com/nng/commercial^$xmlhttprequest,redirect=noopvast-2.0
 ||livecloud.pstatic.net/*/ad/*^$media,redirect=noopmp4-1s
 ||ssl.pstatic.net/cmcdn/ad^$media,redirect=noopmp4-1s
 ||ssl.pstatic.net/cmcdn/ad^$image,redirect=1x1-transparent.gif
@@ -1204,18 +1045,21 @@ $cookie=/^__hstc$/
 ||chzzk.naver.com^$removeparam=trackingCode
 ||chzzk.naver.com^$removeparam=clickArea
 ||chzzk.naver.com^$removeparam=NaPm
-||chzzk.naver.com^$cookie=NID_AUT_TARGETING
-||chzzk.naver.com^$cookie=ba.uid
-||naver.com^$cookie=nid_inf
-||naver.com^$cookie=ba.uid
-||naver.com^$cookie=NV_WETR_LOCATION_RGN_M
-||naver.com^$cookie=_naver_usersession_
-||chzzk.naver.com^$removeheader=x-naver-client-id
-||chzzk.naver.com^$removeheader=x-trace-id
+! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+chzzk.naver.com##+js(cookie-remover, NID_AUT_TARGETING)
+chzzk.naver.com##+js(cookie-remover, ba.uid)
+naver.com##+js(cookie-remover, nid_inf)
+naver.com##+js(cookie-remover, ba.uid)
+naver.com##+js(cookie-remover, NV_WETR_LOCATION_RGN_M)
+naver.com##+js(cookie-remover, _naver_usersession_)
+! [uBO 미지원] $removeheader → 주석 보존
+!||chzzk.naver.com^$removeheader=x-naver-client-id
+!||chzzk.naver.com^$removeheader=x-trace-id
 
-! ═══════════════════════════════════════════
-! 치지직(chzzk) 광고 차단 - 핵심 1줄
-! ═══════════════════════════════════════════
+! ── 치지직 광고 차단 핵심 (단순 차단, uBO 동작) ──
+||api.chzzk.naver.com/ad-polling/*/lives/*/ad
+||api.chzzk.naver.com/service/*/ad/display-status
+
 ! 보류용 (필요 시 활성화):
 !@@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
 !@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
@@ -1223,72 +1067,62 @@ $cookie=/^__hstc$/
 !@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
 !@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
 !chzzk.naver.com#%#"use strict"; window.Function.prototype.apply = new Proxy(window.Function.prototype.apply, { apply(Target, ThisArg, Args) { let FunctionContext = ThisArg.toString(); if (FunctionContext.includes('veta') && FunctionContext.includes('http') && FunctionContext.includes('/gfp/') && FunctionContext.includes('().mark((')) { return Reflect.apply(Target, async () => false, []); } return Reflect.apply(Target, ThisArg, Args); } });
-!chzzk.naver.com#%#//scriptlet('json-prune-fetch-response', 'ads advertiserDomains adDuplicationKeys', '', 'veta.naver.com/gfp')
-
-! ✅ 재생 중 광고 폴링 차단 (핵심)
-||api.chzzk.naver.com/ad-polling/*/lives/*/ad
-! ✅ 광고 표시 상태 동기화 차단 (보조)
-||api.chzzk.naver.com/service/*/ad/display-status
+!chzzk.naver.com##+js(json-prune-fetch-response, ads advertiserDomains adDuplicationKeys, , veta.naver.com/gfp)
 
 ! ───────────────────────────────────────────
 ! 숲 (SOOP / 구 아프리카TV)
 ! ───────────────────────────────────────────
-! ── 로그/통계 경로 ──
-||stbbs.sooplive.com/api/log^$empty
-||static.file.sooplive.com/log^$empty
-||log.sooplive.com/api^$empty
-||sooplive.com/api/stat^$empty
-||st.sooplive.com/api/da_*^$xmlhttprequest,empty
-
-! ── 광고 ──
+||stbbs.sooplive.com/api/log^
+||static.file.sooplive.com/log^
+||log.sooplive.com/api^
+||sooplive.com/api/stat^
+||st.sooplive.com/api/da_*^$xmlhttprequest
 ||*sooplive*/vast^$xmlhttprequest,redirect=noopvast-2.0
 ||static.sooplive.com/asset/service/da/AdParameter.js^$script,redirect=noopjs
-||sooplive.com/api/v1/ad^$xmlhttprequest,empty
-||ads.sooplive.com^$removeheader=set-cookie
-
-! ── 추적 파라미터 ──
+||sooplive.com/api/v1/ad^$xmlhttprequest
+! [uBO 미지원] $removeheader → 주석 보존
+!||ads.sooplive.com^$removeheader=set-cookie
 ||sooplive.com^$removeparam=hash
 ||sooplive.com^$removeparam=stationNo
 ||sooplive.com^$removeparam=trackingNo
 ||sooplive.com^$removeparam=tracking
 ||sooplive.com^$removeparam=ref
 ||sooplive.com^$removeparam=src
-
-! ── 추적 쿠키 ──
-||sooplive.com^$cookie=_au
-||sooplive.com^$cookie=_ausa
-||sooplive.com^$cookie=_au3rd
-||sooplive.com^$cookie=_aupath
-||sooplive.com^$cookie=_aupcid
-
-! ⚠️ 보류 - 차단 시 부작용 가능 (주석 유지)
-!||sooplive.com^$cookie=AbroadChk
-!||sooplive.com^$cookie=AbroadVod
+! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+sooplive.com##+js(cookie-remover, _au)
+sooplive.com##+js(cookie-remover, _ausa)
+sooplive.com##+js(cookie-remover, _au3rd)
+sooplive.com##+js(cookie-remover, _aupath)
+sooplive.com##+js(cookie-remover, _aupcid)
+! 보류 (주석 유지)
+!sooplive.com##+js(cookie-remover, AbroadChk)
+!sooplive.com##+js(cookie-remover, AbroadVod)
 !||live.sooplive.com/api/myplus/personalBlockController.php^$xmlhttprequest
 !||res.sooplive.com/script/player/service-maintenance.js^$script,redirect=noopjs
 
 ! ───────────────────────────────────────────
 ! Kick (킥)
 ! ───────────────────────────────────────────
-||kick.com/api/v2/track^$empty
-||kick.com/api/v1/analytics^$empty
-||kick.com/api/v1/log^$empty
-||kick.com^$cookie=_kk_session
-||kick.com^$cookie=_kk_tracking
+||kick.com/api/v2/track^
+||kick.com/api/v1/analytics^
+||kick.com/api/v1/log^
+! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+kick.com##+js(cookie-remover, _kk_session)
+kick.com##+js(cookie-remover, _kk_tracking)
 
 ! ───────────────────────────────────────────
 ! YouTube 라이브 / YouTube 일반
 ! ───────────────────────────────────────────
-||youtube.com/api/stats/ads^$empty
-||youtube.com/api/stats/atr^$empty
-||youtube.com/api/stats/qoe^$empty
-||youtube.com/get_midroll_info^$empty
-||youtube.com/get_video_info?*adformat^$empty
-||youtube.com/pagead^$xmlhttprequest,empty
-||youtube.com/ptracking^$xmlhttprequest,empty
-||youtube.com/api/stats/playback^$empty
-||youtube.com/youtubei/v1/log_event^$empty
-||googleads.g.doubleclick.net^$xmlhttprequest,empty
+||youtube.com/api/stats/ads^
+||youtube.com/api/stats/atr^
+||youtube.com/api/stats/qoe^
+||youtube.com/get_midroll_info^
+||youtube.com/get_video_info?*adformat^
+||youtube.com/pagead^$xmlhttprequest
+||youtube.com/ptracking^$xmlhttprequest
+||youtube.com/api/stats/playback^
+||youtube.com/youtubei/v1/log_event^
+||googleads.g.doubleclick.net^$xmlhttprequest
 ||pubads.g.doubleclick.net^$xmlhttprequest,redirect=noopvast-2.0
 ||pubads.g.doubleclick.net/gampad/ads^$xmlhttprequest,redirect=noopvast-2.0
 ||pubads.g.doubleclick.net/gampad/live/ads^$xmlhttprequest,redirect=noopvast-2.0
@@ -1305,63 +1139,64 @@ $cookie=/^__hstc$/
 ||youtu.be^$removeparam=si
 !||youtu.be^$removeparam=feature
 !||youtu.be^$removeparam=t
-||youtube.com^$cookie=VISITOR_PRIVACY_METADATA
-||youtube.com^$cookie=__Secure-YEC
-||youtube.com^$cookie=PREF
+! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+youtube.com##+js(cookie-remover, VISITOR_PRIVACY_METADATA)
+youtube.com##+js(cookie-remover, __Secure-YEC)
+youtube.com##+js(cookie-remover, PREF)
 
 ! ───────────────────────────────────────────
 ! Niconico / Bilibili / Vimeo / Dailymotion
 ! ───────────────────────────────────────────
-||nicovideo.jp/api/log^$empty
-||nicovideo.jp/api/v1/track^$empty
-||public.api.nicovideo.jp/v1/track^$empty
-||api.bilibili.com/x/click-interface^$empty
-||api.bilibili.com/x/log^$empty
-||player.vimeo.com/api/v2/*/log^$empty
-||vimeo.com/log^$empty
-||dailymotion.com/track^$empty
-||dailymotion.com/log^$empty
-||dailymotion.com/embed/playback/log^$empty
+||nicovideo.jp/api/log^
+||nicovideo.jp/api/v1/track^
+||public.api.nicovideo.jp/v1/track^
+||api.bilibili.com/x/click-interface^
+||api.bilibili.com/x/log^
+||player.vimeo.com/api/v2/*/log^
+||vimeo.com/log^
+||dailymotion.com/track^
+||dailymotion.com/log^
+||dailymotion.com/embed/playback/log^
 
 ! ───────────────────────────────────────────
 ! GitHub 텔레메트리
 ! ───────────────────────────────────────────
-||api.github.com/_private/browser/stats^$empty
-||api.github.com/_private/browser/errors^$empty
-||collector.githubapp.com^$empty
-||github.com/_private/browser/stats^$empty
-||github.com/_private/browser/errors^$empty
-||github.com/notifications/beta/shelf^$empty
-||github.com/_graphql/GetTelemetryConfig^$empty
+||api.github.com/_private/browser/stats^
+||api.github.com/_private/browser/errors^
+||collector.githubapp.com^
+||github.com/_private/browser/stats^
+||github.com/_private/browser/errors^
+||github.com/notifications/beta/shelf^
+||github.com/_graphql/GetTelemetryConfig^
 
 ! ───────────────────────────────────────────
 ! 세이프티넷 (절대 차단 금지)
+! uBO는 @@ 예외 규칙에 $important 미적용 → 옵션 제거 (예외는 기본적으로 차단보다 우선)
 ! ───────────────────────────────────────────
-@@||usher.ttvnw.net^$important
-@@||video-edge-*.ttvnw.net^$important
-@@||video-weaver.*.ttvnw.net^$important
-@@||*.ttvnw.net^$important
-@@||livecloud.pstatic.net^$important
-@@||ssl.pstatic.net/cmcdn/^$important
-@@||chzzk.naver.com/polling/v2/channels/*/live-detail^$important
-@@||chzzk.naver.com/service/v1/channels^$important
-@@||play.sooplive.com^$important
-@@||livestream-manager.sooplive.com^$important
-@@||*.afreecatv.com/streaming^$important
-@@||stream.sooplive.com^$important
-@@||stream.kick.com^$important
-@@||cdn.kick.com^$important
-@@||*.googlevideo.com^$important
-@@||youtube.com/videoplayback^$important
+@@||usher.ttvnw.net^
+@@||video-edge-*.ttvnw.net^
+@@||video-weaver.*.ttvnw.net^
+@@||*.ttvnw.net^
+@@||livecloud.pstatic.net^
+@@||ssl.pstatic.net/cmcdn/^
+@@||chzzk.naver.com/polling/v2/channels/*/live-detail^
+@@||chzzk.naver.com/service/v1/channels^
+@@||play.sooplive.com^
+@@||livestream-manager.sooplive.com^
+@@||*.afreecatv.com/streaming^
+@@||stream.sooplive.com^
+@@||stream.kick.com^
+@@||cdn.kick.com^
+@@||*.googlevideo.com^
+@@||youtube.com/videoplayback^
 
 
 ! ═══════════════════════════════════════════
-! [8] 경로 단위 정밀 차단 ($empty)
+! [8] 경로 단위 정밀 차단 ($empty → 단순차단/redirect)
 ! ═══════════════════════════════════════════
 
-! ───── Google 로그/분석 경로 빈 응답 처리 ─────
+! ───── Google 로그/분석 경로 ─────
 ||google.com/log?$redirect-rule=nooptext
-! ⚠️ gen_204는 일부 Google 서비스 클릭 피드백에 영향 가능 - 보수적 주석
 !||google.com/gen_204$redirect-rule=nooptext
 ||google.com/pagead/gen_204$redirect-rule=nooptext
 ||google.com/async/newtab_promos$redirect-rule=nooptext
@@ -1370,196 +1205,179 @@ $cookie=/^__hstc$/
 ||youtube.com/youtubei/v1/log_event$redirect-rule=nooptext
 ||youtube.com/ptracking$redirect-rule=nooptext
 
-! ───── 스트리밍 빈 응답 처리 ─────
+! ───── 스트리밍 ─────
 ||ljc.coupang.com^$redirect-rule=nooptext
+||youtubei.googleapis.com/youtubei/v1/log_event^
+||youtube.com/api/stats/watchtime^
+||spclient.wg.spotify.com/ads-enabled-check^
+||spclient.wg.spotify.com/ad-logic^
+||spclient.wg.spotify.com/gabo-receiver-service^
+||tubitv.com/oz/analytics^
 
-! ───── 스트리밍 (경로 단위) ─────
-||youtubei.googleapis.com/youtubei/v1/log_event^$empty
-||youtube.com/api/stats/watchtime^$empty
-||spclient.wg.spotify.com/ads-enabled-check^$empty
-||spclient.wg.spotify.com/ad-logic^$empty
-||spclient.wg.spotify.com/gabo-receiver-service^$empty
-||tubitv.com/oz/analytics^$empty
+! ───── OS / 브라우저 ─────
+||v10.vortex-win.data.microsoft.com^
+||cdn.samsungcloudsolution.com^
+||log-config.samsungdm.com^
+||lcprd1.samsungcloudsolution.net^
+||xiaomi.com/log^
+||edge.microsoft.com/edgeupdate/api^
+||update.vivaldi.com/update_check^
 
-! ───── OS / 브라우저 (경로 단위) ─────
-||v10.vortex-win.data.microsoft.com^$empty
-||cdn.samsungcloudsolution.com^$empty
-||log-config.samsungdm.com^$empty
-||lcprd1.samsungcloudsolution.net^$empty
-||xiaomi.com/log^$empty
-||edge.microsoft.com/edgeupdate/api^$empty
-||update.vivaldi.com/update_check^$empty
+! ───── 소프트웨어 ─────
+||cc-api-data-stage.adobe.io^
+||adobe.demdex.net^
+||dpm.demdex.net^
+||account.jetbrains.com/fus^
+||resources.jetbrains.com/storage/fus^
+||registry.yarnpkg.com/-/metrics^
+||hooks.docker.com^
 
-! ───── 소프트웨어 (경로 단위) ─────
-||cc-api-data-stage.adobe.io^$empty
-||adobe.demdex.net^$empty
-||dpm.demdex.net^$empty
-||account.jetbrains.com/fus^$empty
-||resources.jetbrains.com/storage/fus^$empty
-||registry.yarnpkg.com/-/metrics^$empty
-||hooks.docker.com^$empty
+! ───── 광고/웹 분석 ─────
+||google-analytics.com/collect^
+||google-analytics.com/g/collect^
+||www.googletagmanager.com/gtag^
+||region1.analytics.google.com^
+||stats.g.doubleclick.net^
+||static.chartbeat.com^
+||ping.chartbeat.net^
+||sb.scorecardresearch.com^
+||metrics.api.drift.com^
 
-! ───── 광고/웹 분석 (경로 단위) ─────
-||google-analytics.com/collect^$empty
-||google-analytics.com/g/collect^$empty
-||www.googletagmanager.com/gtag^$empty
-||region1.analytics.google.com^$empty
-||stats.g.doubleclick.net^$empty
-||static.chartbeat.com^$empty
-||ping.chartbeat.net^$empty
-||sb.scorecardresearch.com^$empty
-||metrics.api.drift.com^$empty
+! ───── 소셜 트래킹 ─────
+||www.facebook.com/tr^
+||connect.facebook.net/signals^
+||graph.facebook.com/logging_client_events^
+||business-api.tiktok.com/track^
+||t.co/i/adsct^
+||snap.licdn.com/li.lms-analytics^
+||sc-static.net/scevent^
 
-! ───── 소셜 트래킹 (경로 단위) ─────
-||www.facebook.com/tr^$empty
-||connect.facebook.net/signals^$empty
-||graph.facebook.com/logging_client_events^$empty
-||business-api.tiktok.com/track^$empty
-||t.co/i/adsct^$empty
-||snap.licdn.com/li.lms-analytics^$empty
-||sc-static.net/scevent^$empty
+! ───── 게임 ─────
+||client-telemetry.battle.net^
+||metrics.api.ea.com^
+||telemetry-in.ksinfra.com^
+||metrics.plarium.com^
+||logs.unrealengine.com^
+||public-api.wgleague.net^
+||wgu-prom-relay.wgnet.eu^
+||steambeat.steamstatic.com^
 
-! ───── 게임 (경로 단위) ─────
-||client-telemetry.battle.net^$empty
-||metrics.api.ea.com^$empty
-||telemetry-in.ksinfra.com^$empty
-||metrics.plarium.com^$empty
-||logs.unrealengine.com^$empty
-||public-api.wgleague.net^$empty
-||wgu-prom-relay.wgnet.eu^$empty
-||steambeat.steamstatic.com^$empty
+! ───── 모바일 광고 ─────
+||config.unityads.unity3d.com^
+||a.applovin.com^
 
-! ───── 모바일 광고 (경로 단위) ─────
-||config.unityads.unity3d.com^$empty
-||a.applovin.com^$empty
+! ───── CRM / 라이브챗 ─────
+||links.iterable.com^
+||track.customer.io^
+||*.zendesk.com/embeddable_blip^
+||static.zdassets.com^
+||ekr.zdassets.com^
+||data.pendo.io^
+||logx.optimizely.com^
+||dev.visualwebsiteoptimizer.com^
+||script.crazyegg.com^
 
-! ───── CRM / 라이브챗 (경로 단위) ─────
-||links.iterable.com^$empty
-||track.customer.io^$empty
-||*.zendesk.com/embeddable_blip^$empty
-||static.zdassets.com^$empty
-||ekr.zdassets.com^$empty
-||data.pendo.io^$empty
-||logx.optimizely.com^$empty
-||dev.visualwebsiteoptimizer.com^$empty
-||script.crazyegg.com^$empty
-
-! ───── CDP / 태그 매니저 (경로 단위) ─────
-||tags.tiqcdn.com^$empty
-||collect.tealiumiq.com^$empty
-||tags.bluekai.com^$empty
-||loadus.exelator.com^$empty
-||idsync.rlcdn.com^$empty
-||ps.eyeota.net^$empty
-||match.adsrvr.org^$empty
-||eb2.3lift.com^$empty
-||sync.search.spotxchange.com^$empty
-||tags.rd.linksynergy.com^$empty
+! ───── CDP / 태그 매니저 ─────
+||tags.tiqcdn.com^
+||collect.tealiumiq.com^
+||tags.bluekai.com^
+||loadus.exelator.com^
+||idsync.rlcdn.com^
+||ps.eyeota.net^
+||match.adsrvr.org^
+||eb2.3lift.com^
+||sync.search.spotxchange.com^
+||tags.rd.linksynergy.com^
 
 ! ───── IoT / 스마트TV / 자동차 / 보안 ─────
-||*.sr.roku.com^$empty
-||stat.toyota.com^$empty
-||car-metrics.audi.com^$empty
-||telematics.gm.com^$empty
-||*.avast.com/log^$empty
-||*.norton.com/telemetry^$empty
-||*.eset.com/telemetry^$empty
+||*.sr.roku.com^
+||stat.toyota.com^
+||car-metrics.audi.com^
+||telematics.gm.com^
+||*.avast.com/log^
+||*.norton.com/telemetry^
+||*.eset.com/telemetry^
 
 ! ───── 개발자 도구 ─────
-||r.rdocumentation.org^$empty
-||*.gradle-profiler.gradle.org^$empty
-||vortex.scus.b.applicationinsights.azure.com^$empty
+||r.rdocumentation.org^
+||*.gradle-profiler.gradle.org^
+||vortex.scus.b.applicationinsights.azure.com^
 
 ! ───── 메신저/화상회의 ─────
-||*.discord.com/api/science^$empty
-||*.discord.com/api/v*/track^$empty
-||*.zoom.us/zlog^$empty
-||logws*.zoom.us^$empty
-||*.webex.com/metrics^$empty
-||metrics-a.webex.com^$empty
-||stats-g.line.me^$empty
+||*.discord.com/api/science^
+||*.discord.com/api/v*/track^
+||*.zoom.us/zlog^
+||logws*.zoom.us^
+||*.webex.com/metrics^
+||metrics-a.webex.com^
+||stats-g.line.me^
 
 ! ───── 클라우드 스토리지 / 생산성 ─────
-||msgstore.notion.so/api/v3/track^$empty
-||www.figma.com/track^$empty
-||www.figma.com/api/tracking^$empty
+||msgstore.notion.so/api/v3/track^
+||www.figma.com/track^
+||www.figma.com/api/tracking^
 
 ! ───── VPN ─────
-||api.nordvpn.com/v1/analytics^$empty
+||api.nordvpn.com/v1/analytics^
 
 ! ───── 한국 서비스 ─────
-||log.smartstore.naver.com^$empty
-||stats.gmarket.co.kr^$empty
-||action.11st.co.kr^$empty
-||analytics.afreecatv.com^$empty
+||log.smartstore.naver.com^
+||stats.gmarket.co.kr^
+||action.11st.co.kr^
+||analytics.afreecatv.com^
 
 ! ───── 디시 광고 정적 리소스 ─────
-||nstatic.dcinside.com/dc/dcad^$empty
-!||nstatic.dcinside.com/dgn/gallery/images/popup^$empty
-||nstatic.dcinside.com/dc/m/img/banner^$empty
+||nstatic.dcinside.com/dc/dcad^
+!||nstatic.dcinside.com/dgn/gallery/images/popup^
+||nstatic.dcinside.com/dc/m/img/banner^
 
 ! ───── 중국 SDK ─────
-||plbslog.umeng.com^$empty
-||sdk.open.talk.igexin.com^$empty
-||log.tbs.qq.com^$empty
-||h.trace.qq.com^$empty
+||plbslog.umeng.com^
+||sdk.open.talk.igexin.com^
+||log.tbs.qq.com^
+||h.trace.qq.com^
 
 ! ───── 정규표현식 ─────
-/analytics\.[a-z]+\.(js|gif)$/$third-party,empty
-/\/(beacon|pixel|telemetry)\.(gif|png|js|php)/$third-party,empty
-/\/__(utm|ga|fbq|gtag)\.gif/$third-party,empty
+/analytics\.[a-z]+\.(js|gif)$/$third-party
+/\/(beacon|pixel|telemetry)\.(gif|png|js|php)/$third-party
+/\/__(utm|ga|fbq|gtag)\.gif/$third-party
 
 
 ! ═══════════════════════════════════════════
 ! [9] 추가 경로 단위 텔레메트리
 ! ═══════════════════════════════════════════
-
-! Google 개인화
-||locationhistoryplacedetails-pa.googleapis.com^$empty
-||locationhistory-pa.googleapis.com^$empty
-||spot-pa.googleapis.com^$empty
-||geller-pa.googleapis.com^$empty
-
-! Windows 위젯/뉴스
-||tile-service.weather.microsoft.com^$empty
-
-! AI 서비스 텔레메트리
-||api.openai.com/v1/rgstr^$empty
+||locationhistoryplacedetails-pa.googleapis.com^
+||locationhistory-pa.googleapis.com^
+||spot-pa.googleapis.com^
+||geller-pa.googleapis.com^
+||tile-service.weather.microsoft.com^
+||api.openai.com/v1/rgstr^
 
 
 ! ═══════════════════════════════════════════
 ! [10] 한국 서비스 추가 추적
 ! ═══════════════════════════════════════════
-
-! ───── 이커머스 ─────
-||analytics.gmarket.co.kr^$empty
-||stat.auction.co.kr^$empty
-||track.11st.co.kr^$empty
-||log.coupang.com^$empty
-||action.coupang.com^$empty
-||logger.coupang.com^$empty
-||stat.musinsa.com^$empty
-||tracking.yes24.com^$empty
-||stats.aladin.co.kr^$empty
-
-! ───── OTT / 콘텐츠 ─────
-||stat.melon.com^$empty
-||log.tving.com^$empty
-||analytics.wavve.com^$empty
-||log.watcha.com^$empty
-
-! ───── 중고거래 / 결제 ─────
-||log.daangn.com^$empty
-||analytics.bunjang.co.kr^$empty
-||log.kakaopay.com^$empty
+||analytics.gmarket.co.kr^
+||stat.auction.co.kr^
+||track.11st.co.kr^
+||log.coupang.com^
+||action.coupang.com^
+||logger.coupang.com^
+||stat.musinsa.com^
+||tracking.yes24.com^
+||stats.aladin.co.kr^
+||stat.melon.com^
+||log.tving.com^
+||analytics.wavve.com^
+||log.watcha.com^
+||log.daangn.com^
+||analytics.bunjang.co.kr^
+||log.kakaopay.com^
 
 
 ! ═══════════════════════════════════════════
 ! [11] 안티 애드블록 우회
 ! ═══════════════════════════════════════════
-! ⚠️ "광고 차단을 꺼주세요" 모달·감지 스크립트 차단
-
-! ───── 알려진 안티-애드블록 스크립트 (문법 수정) ─────
 /fuckadblock.js$script,redirect=noopjs
 /blockadblock.js$script,redirect=noopjs
 ||adblock-detector.com^$script,redirect=noopjs
@@ -1568,16 +1386,12 @@ $cookie=/^__hstc$/
 ||pagefair.com^$script,redirect=noopjs
 ||pagefair.net^$script,redirect=noopjs
 ||admiral.com^$script,redirect=noopjs
-
-! ───── 일반적인 안티-애드블록 경로 ─────
 ||*/abp.js$script,redirect=noopjs
 ||*/abd.js$script,redirect=noopjs
 ||*/adblock.js$script,redirect=noopjs
 ||*/anti-adblock.js$script,redirect=noopjs
 ||*/antiblock.js$script,redirect=noopjs
 ||*/ads-blocker-check.js$script,redirect=noopjs
-
-! ───── 스크립트릿으로 감지 변수 강제 false (사이트별 적용) ─────
 ! example.com#%#//scriptlet('set-constant', 'adblockDetected', 'false')
 ! example.com#%#//scriptlet('set-constant', 'canRunAds', 'true')
 ! example.com#%#//scriptlet('set-constant', 'AdBlockDetected', 'false')
@@ -1589,11 +1403,9 @@ $cookie=/^__hstc$/
 ! ═══════════════════════════════════════════
 ! [12] 푸시 알림 / 뉴스레터 팝업
 ! ═══════════════════════════════════════════
-
-! ───── 푸시 알림 권한 요청 SDK ─────
 ||cdn.onesignal.com^$script,redirect=noopjs
 ||cdn.signal.is^$script,redirect=noopjs
-||onesignal.com/api/v1/notifications^$xmlhttprequest,empty
+||onesignal.com/api/v1/notifications^$xmlhttprequest
 ||cdn.pushcrew.com^$script,redirect=noopjs
 ||cdn.pushwoosh.com^$script,redirect=noopjs
 ||clients.pushengage.com^$script,redirect=noopjs
@@ -1604,7 +1416,6 @@ $cookie=/^__hstc$/
 ||sdk.pushalert.co^$script,redirect=noopjs
 ||cdn.vwo.com/push^$script,redirect=noopjs
 
-! ───── 푸시 알림 모달 요소 숨김 ─────
 ##.push-notification-modal
 ##.notification-prompt
 ##.push-permission-overlay
@@ -1612,7 +1423,6 @@ $cookie=/^__hstc$/
 ##div[class*="notification-prompt"]
 ##div[id*="push-notification"]
 
-! ───── 뉴스레터 / 이메일 구독 팝업 SDK ─────
 ||cdn.sumo.com^$script,redirect=noopjs
 ||load.sumome.com^$script,redirect=noopjs
 ||a.mailmunch.co^$script,redirect=noopjs
@@ -1625,7 +1435,6 @@ $cookie=/^__hstc$/
 ||cdn.justuno.com^$script,redirect=noopjs
 ||sleeknotecustomerscripts.sleeknotecdn.com^$script,redirect=noopjs
 
-! ───── 뉴스레터 팝업 요소 숨김 ─────
 ##.newsletter-popup
 ##.email-subscribe-modal
 ##div[class*="newsletter-modal"]
@@ -1637,94 +1446,66 @@ $cookie=/^__hstc$/
 ! ═══════════════════════════════════════════
 ! [13] AI / LLM 텔레메트리
 ! ═══════════════════════════════════════════
-
-! ───── AI 서비스 텔레메트리 (경로 단위) ─────
-||openai.com/sdk/telemetry^$empty
-||sdk.openai.com^$xmlhttprequest,empty
-||statsig.com^$xmlhttprequest,empty
-||*.statsig.com^$xmlhttprequest,empty
-||featureassets.org^$xmlhttprequest,empty
-||telemetry.dev.gitpod.io^$empty
-
-! ───── Feature Flag / A/B 테스트 SDK ─────
-||clientstream.launchdarkly.com^$xmlhttprequest,empty
-||events.launchdarkly.com^$xmlhttprequest,empty
-||sdk.split.io^$xmlhttprequest,empty
-||telemetry.split.io^$xmlhttprequest,empty
-||events.split.io^$xmlhttprequest,empty
+||openai.com/sdk/telemetry^
+||sdk.openai.com^$xmlhttprequest
+||statsig.com^$xmlhttprequest
+||*.statsig.com^$xmlhttprequest
+||featureassets.org^$xmlhttprequest
+||telemetry.dev.gitpod.io^
+||clientstream.launchdarkly.com^$xmlhttprequest
+||events.launchdarkly.com^$xmlhttprequest
+||sdk.split.io^$xmlhttprequest
+||telemetry.split.io^$xmlhttprequest
+||events.split.io^$xmlhttprequest
 ||cdn.unleash.run^$script,third-party
-
-! ───── AI 크롤러 감지 회피 (역방향, 선택) ─────
-!||gptbot.openai.com^$empty
-!||user-agents.anthropic.com^$empty
+!||gptbot.openai.com^
+!||user-agents.anthropic.com^
 
 
 ! ═══════════════════════════════════════════
 ! [14] 모바일 광고 SDK 보강
 ! ═══════════════════════════════════════════
-
-! ───── Adjust ─────
 ||cdn.adjust.com^$script,third-party
-||app.adjust.com^$xmlhttprequest,third-party,empty
-
-! ───── Unity Ads ─────
-||sdk.iad-*.unityads.unity3d.com^$xmlhttprequest,empty
-||config.uca.cloud.unity3d.com^$empty
-! ⚠️ Unity 게임 일부 기능 영향 가능 - 보수적 주석
-!||thirdparty.unity3d.com^$empty
-
-! ───── Branch ─────
-||api.branch.io/v1/install^$empty
-||api2.branch.io^$xmlhttprequest,empty
+||app.adjust.com^$xmlhttprequest,third-party
+||sdk.iad-*.unityads.unity3d.com^$xmlhttprequest
+||config.uca.cloud.unity3d.com^
+!||thirdparty.unity3d.com^
+||api.branch.io/v1/install^
+||api2.branch.io^$xmlhttprequest
 ||cdn.branch.io^$script,third-party
-
-! ───── AppsFlyer ─────
-||sdk-api.appsflyer.com^$xmlhttprequest,empty
-||t.appsflyer.com^$xmlhttprequest,empty
-||sdk-services.appsflyer.com^$xmlhttprequest,empty
-||register.appsflyer.com^$xmlhttprequest,empty
-
-! ───── Airbridge (한국) ─────
-||api.airbridge.io^$xmlhttprequest,empty
-||sdk.airbridge.io^$xmlhttprequest,empty
+||sdk-api.appsflyer.com^$xmlhttprequest
+||t.appsflyer.com^$xmlhttprequest
+||sdk-services.appsflyer.com^$xmlhttprequest
+||register.appsflyer.com^$xmlhttprequest
+||api.airbridge.io^$xmlhttprequest
+||sdk.airbridge.io^$xmlhttprequest
 
 
 ! ═══════════════════════════════════════════
 ! [15] 브라우저 텔레메트리 강화
 ! ═══════════════════════════════════════════
-
-! ───── Chrome / Google ─────
-||clients2.google.com/cr/^$empty
-||update.googleapis.com/service/update2^$empty
-||play.google.com/log^$empty
-! 동기화 사용 시 주석 유지
-!||clients4.google.com/chrome-sync^$empty
-
-! ───── Microsoft Edge / Bing ─────
-||edge.microsoft.com/edgeupdate/api^$empty
-||edge.microsoft.com/abuse^$empty
+||clients2.google.com/cr/^
+||update.googleapis.com/service/update2^
+||play.google.com/log^
+!||clients4.google.com/chrome-sync^
+||edge.microsoft.com/edgeupdate/api^
+||edge.microsoft.com/abuse^
 ||c.bing.com^$image,redirect=1x1-transparent.gif
-! ⚠️ Bing 검색 결과 클릭 리다이렉트 - Bing 사용자는 주석
-!||www.bing.com/aclk^$empty
-!||www.bing.com/aclick^$empty
-||r.bing.com^$empty
-||arc.msn.com/v4/api/selection^$empty
+!||www.bing.com/aclk^
+!||www.bing.com/aclick^
+||r.bing.com^
+||arc.msn.com/v4/api/selection^
+||telemetry.mozilla.org^
+||incoming.telemetry.mozilla.org^
+||normandy.cdn.mozilla.net^
+||shavar.services.mozilla.com^
+!||location.services.mozilla.com^
+||vivaldi.net/api/log^
+||update.vivaldi.com/log^
+||updates.opera.com/log^
+||sitecheck2.opera.com^
 
-! ───── Firefox / Mozilla ─────
-||telemetry.mozilla.org^$empty
-||incoming.telemetry.mozilla.org^$empty
-||normandy.cdn.mozilla.net^$empty
-||shavar.services.mozilla.com^$empty
-! ⚠️ Firefox 위치 기반 서비스 영향 - 보수적 주석
-!||location.services.mozilla.com^$empty
-
-! ───── Vivaldi / Opera ─────
-||vivaldi.net/api/log^$empty
-||update.vivaldi.com/log^$empty
-||updates.opera.com/log^$empty
-||sitecheck2.opera.com^$empty
-
-! ───── JW Player 광고만 차단 (플레이어 자체는 유지) ─────
+! ───── JW Player 광고만 차단 ─────
 ||jwplayer.com/*/advertising^
 ||jwpcdn.com/*/vast^$xmlhttprequest,redirect=noopvast-2.0
 ||jwplayer.com/*/ads^
@@ -1751,16 +1532,16 @@ $cookie=/^__hstc$/
 ||x.com/i/csp_report$xmlhttprequest
 x.com/*/videoads/
 
-! ───── 이메일 추적 파라미터 (Drip/Klaviyo) - 문법 단순화 ─────
+! ───── 이메일 추적 파라미터 ─────
 *$removeparam=/^__s$/
 
-! ───── Azure Application Insights 텔레메트리 (수정) ─────
+! ───── Azure Application Insights 텔레메트리 ─────
 ||applicationinsights.azure.com^$third-party,domain=~azure.net|~portal.azure.com
 
 ! ───── LogRocket/Sentry 클라이언트 등록 ─────
 /v1/rgstr?k=client-
 
-! ───── ChatGPT 텔레메트리 ($xhr → $xmlhttprequest) ─────
+! ───── ChatGPT 텔레메트리 ─────
 ||chatgpt.com/ces/v1/t$xmlhttprequest,redirect-rule=noopjson
 ||chatgpt.com/ces/v1/p|$xmlhttprequest,redirect-rule=noopjson
 
@@ -1771,26 +1552,21 @@ x.com/*/videoads/
 ||a-cdn.anthropic.com/analytics.js/*/analytics.min.js
 ||claude.ai/api/event_logging/
 
-! ───── PerimeterX (⚠️ 일부 사이트 접속 차단 가능) ─────
+! ───── PerimeterX ─────
 ||px-cloud.net/api/v2/collector
 ||px-cloud.net/b/s
 
-! ⚠️ Netflix 로그 - 시청 위치 동기화 영향 가능, 보수적 주석
 !||netflix.com/log/
-
-! ───── GitHub 비공개 텔레메트리 (중복 제거 - [8]에 이미 있음) ─────
-! ||api.github.com/_private/browser/stats  ← [8]에서 $empty로 처리됨
 
 ! ───── OneTrust 쿠키 동의 위치 확인 ─────
 ||geolocation.onetrust.com/cookieconsentpub/*/geo/location$xmlhttprequest,redirect-rule=noopjson
 
-! ───── WebSocket 연결은 removeparam 예외 (토큰·세션 보호) ─────
+! ───── WebSocket 연결은 removeparam 예외 ─────
 @@|wss://$removeparam
 
 ! ═══════════════════════════════════════════
 ! [추가] 의심스러운 단축 URL 리다이렉트 차단
 ! ═══════════════════════════════════════════
-! 광고/스팸에서 TikTok·AliExpress·기타로 강제 유입되는 패턴 차단
 ||19hot.news^$doc
 ||19hot.news^$third-party
 ||ho.fi^$doc
@@ -1807,61 +1583,51 @@ x.com/*/videoads/
 ! ═══════════════════════════════════════════
 ! [16] 선택 적용 (주의: 결제·로그인·기능 영향 가능)
 ! ═══════════════════════════════════════════
-! 필요 시 주석(!) 제거하여 활성화
+!||*.threatmetrix.com^
+!||h.online-metrix.net^
+!||*.iovation.com^
+!||mpsnare.iesnare.com^
+!||*.perimeterx.net^
+!||*.fingerprint.com^
+!||*.fingerprintjs.com^
+!||*.fpjs.io^
+!||*.fpcdn.io^
+!||api.fpjs.io^
 
-! ───── 핑거프린팅 / 봇 탐지 (결제·로그인 영향 가능) ─────
-!||*.threatmetrix.com^$empty
-!||h.online-metrix.net^$empty
-!||*.iovation.com^$empty
-!||mpsnare.iesnare.com^$empty
-!||*.perimeterx.net^$empty
-!||*.fingerprint.com^$empty
-!||*.fingerprintjs.com^$empty
-!||*.fpjs.io^$empty
-!||*.fpcdn.io^$empty
-!||api.fpjs.io^$empty
-
-! ───── WebRTC IP 누출 방지 (VPN 사용자) ─────
-! ⚠️ 화상회의·음성통화 영향. VPN 환경에서만 권장
+! [uBO 미지원] $webrtc → 주석 보존 (uBO는 WebRTC를 옵션이 아닌 설정으로 제어)
 !*$webrtc,third-party
 !||stun.l.google.com^$webrtc
 !||stun.services.mozilla.com^$webrtc
 
-! ───── CAPTCHA 추적 (로그인/회원가입 영향 가능) ─────
+! [uBO 미지원] $cookie → 주석 보존
 !||hcaptcha.com^$cookie
 !||recaptcha.net^$cookie
-!||google.com/recaptcha^$removeparam=k
+||google.com/recaptcha^$removeparam=k
 
-! ───── 결제 SDK 텔레메트리 (본 기능 살리고 추적만) ─────
-! ⚠️ Stripe / PayPal 결제 영향 가능 — 결제 실패 시 즉시 비활성화
+! 결제 SDK 텔레메트리 (주석 유지)
 !||js.stripe.com/v3/m-outer-*$script,redirect=noopjs
-!||m.stripe.com/4^$xmlhttprequest,empty
-!||r.stripe.com^$xmlhttprequest,empty
-!||q.stripe.com^$xmlhttprequest,empty
-!||merchant-ui-api.stripe.com/elements/log^$empty
+!||m.stripe.com/4^$xmlhttprequest
+!||r.stripe.com^$xmlhttprequest
+!||q.stripe.com^$xmlhttprequest
+!||merchant-ui-api.stripe.com/elements/log^
 !||www.paypal.com/tagmanager/pptm.js^$script,redirect=noopjs
 !||t.paypal.com^$image,redirect=1x1-transparent.gif
 
-! ───── AI 서비스 추가 텔레메트리 ─────
-!||statsig.anthropic.com^$empty
-!||analytics.perplexity.ai^$empty
-!||*.cohere.ai/v1/track^$empty
+!||statsig.anthropic.com^
+!||analytics.perplexity.ai^
+!||*.cohere.ai/v1/track^
 
-! ───── 다크 패턴 / 강제 회원가입 모달 ─────
 !##.signup-wall
 !##.login-wall
 !##.paywall-overlay
 !##.subscription-prompt
 
-! ───── 검색엔진 AI 요약 (선택) ─────
 !google.com##div[data-attrid*="ai_overview"]
 !google.com##.ai-overview
 !bing.com##.b_chat
 
-! ───── 비디오 호버 자동재생 (선택) ─────
 !##video[autoplay]:not([controls])
 
-! ───── 위험 가능한 일반 단어형 파라미터 ─────
 !$removeparam=cid
 !$removeparam=session_id
 !$removeparam=visitor_id
@@ -1872,7 +1638,6 @@ x.com/*/videoads/
 !$removeparam=campaign_id
 
 ! ───── uBlock 사칭/비공식 사이트 ─────
-! 진짜 공식: https://github.com/gorhill/uBlock
 ||ublockdns.com^$doc
 ||ublockorigin.com^$doc
 ublockdns.com###root
