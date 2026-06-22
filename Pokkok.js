@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.3.1
+// @version      1.3.2
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수·:has), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing
 // @author       moamoa7
 // @license      MPL-2.0
@@ -92,6 +92,7 @@
     const ICON_SIMILAR = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm10 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z"/></svg>';
     const ICON_LINK    = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3.9 12a3.1 3.1 0 013.1-3.1h4V7h-4a5 5 0 000 10h4v-1.9h-4A3.1 3.1 0 013.9 12zM8 13h8v-2H8v2zm9-6h-4v1.9h4a3.1 3.1 0 010 6.2h-4V17h4a5 5 0 000-10z"/></svg>';
     const ICON_TREE    = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M9 4h6v3H9V4zM3 11h6v3H3v-3zm12 0h6v3h-6v-3zM10.5 7h3v4h-3V7zM4.5 9h3v2h-3V9zm12 0h3v2h-3V9z"/></svg>';
+    const ICON_ATTR    = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H4V8h16v10zM6 10h5v2H6v-2zm0 4h8v2H6v-2zm9-4h3v2h-3v-2z"/></svg>';
 
 
     // ── 규칙 저장/적용 (현재 사이트 단위) ───────────────────────────────
@@ -936,7 +937,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="pokkok-hdr" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.3.1</small></span>
+                <span class="pokkok-title">Pokkok <small>v1.3.2</small></span>
                 <div class="pokkok-hdr-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -975,6 +976,9 @@
                     </button>
                     <button class="pokkok-btn pokkok-nav-btn" data-act="extractUrl" title="이 요소(또는 상위)의 링크·이미지 URL 추출">
                         ${ICON_LINK}<span>URL 추출</span>
+                    </button>
+                    <button class="pokkok-btn pokkok-nav-btn" data-act="extractAttr" title="이 요소의 모든 속성 보기 (탭하면 값 복사)">
+                        ${ICON_ATTR}<span>속성</span>
                     </button>
                 </div>
 
@@ -1060,7 +1064,7 @@
         _setActionsEnabled(on) {
             const t = this.dom.tool;
             if (!t) return;
-            ['block','toggleHide','navUp','navDown','childPick','findSimilar','extractUrl'].forEach(a => {
+            ['block','toggleHide','navUp','navDown','childPick','findSimilar','extractUrl','extractAttr'].forEach(a => {
                 const b = t.querySelector(`[data-act="${a}"]`);
                 if (b) b.disabled = !on;
             });
@@ -1224,6 +1228,46 @@
             body.querySelector('[data-ref="cp"]').addEventListener('click', () => { this.copyText(ta.value); this.flashToast('URL 복사됨'); });
             ta.focus(); ta.select();
         }
+
+        // ── 속성 추출 (선택 요소의 모든 속성 나열, 탭하면 값 복사) ──
+        extractAttr() {
+            const el = this.state.target;
+            if (!el) { this.flashToast('먼저 요소를 선택하세요'); return; }
+            const attrs = Array.from(el.attributes || [])
+                .filter(a => a.name !== 'class' || !/(^|\s)(pokkok-|${HL_CLASS})/.test(a.value))
+                .map(a => ({ name: a.name, value: a.value }));
+            // class 속성에서 pokkok 내부 클래스는 표시상 제거
+            for (const a of attrs) {
+                if (a.name === 'class') {
+                    a.value = a.value.split(/\s+/).filter(c => c && !c.startsWith('pokkok-') && c !== HL_CLASS).join(' ');
+                }
+            }
+            const tag = el.tagName.toLowerCase();
+            const body = this.modal.display('요소 속성', '', true);
+            const rows = attrs.length ? attrs.map((a, i) => `
+                <label class="pokkok-attr-item" data-i="${i}" title="탭하면 값 복사">
+                    <span class="pokkok-attr-name">${esc(a.name)}</span>
+                    <span class="pokkok-attr-val">${esc(a.value) || '<span style="opacity:.4">(빈 값)</span>'}</span>
+                    <span class="pokkok-attr-copy">${ICON_COPY}</span>
+                </label>`).join('') : '<div class="pokkok-rec-empty">표시할 속성이 없습니다</div>';
+            body.innerHTML = `
+                <div style="opacity:.75;font-size:12px;margin-bottom:8px;line-height:1.5">
+                    <code>${esc(tag)}</code>의 속성 ${attrs.length}개입니다. 항목을 탭하면 값이 복사됩니다.
+                </div>
+                <div class="pokkok-attr-list">${rows}</div>`;
+            const list = body.querySelector('.pokkok-attr-list');
+            list.querySelectorAll('.pokkok-attr-item').forEach(item => {
+                const i = parseInt(item.dataset.i, 10);
+                item.addEventListener('click', () => {
+                    const a = attrs[i];
+                    if (!a) return;
+                    this.copyText(a.value);
+                    this.flashToast(`'${a.name}' 값 복사됨`);
+                    vibrate(10);
+                });
+            });
+        }
+
         clearSimHighlight() {
             for (const n of this.state.simNodes) n.classList.remove('pokkok-hl-sim');
             this.state.simNodes = [];
@@ -1641,6 +1685,7 @@
                 case 'childPick': this.showChildPicker(); break;
                 case 'findSimilar': this.findSimilar(); break;
                 case 'extractUrl': this.extractUrl(); break;
+                case 'extractAttr': this.extractAttr(); break;
                 case 'block': this.doBlock(); break;
                 case 'toggleHide': {
                     const sel = this.state.selector;
@@ -1733,7 +1778,7 @@
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="resetPos">버튼 위치 초기화</button><button class="pokkok-btn" data-ref="clearPreview">미리보기 정리</button></div>
                     <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><span style="flex:1;font-weight:600;">규칙 백업</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="exportRules">내보내기</button><button class="pokkok-btn" data-ref="importRules">가져오기</button></div>
-                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게 또는 슬라이더로 범위 조절, "자식 선택"으로 하위 요소를 목록에서 고르기 → 차단. "URL 추출"은 선택 요소(또는 상위 5단계)의 링크·이미지 주소를 뽑아냅니다. "강화 모드"는 차단 활성 옆 체크로 켜고 끕니다(끈질긴 광고를 공간·잔여 스타일까지 강제 제거). "유사 요소 찾기"로 class·src·alt·title·:has(직계 자식)·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다.</small></div>
+                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게 또는 슬라이더로 범위 조절, "자식 선택"으로 하위 요소를 목록에서 고르기 → 차단. "URL 추출"은 선택 요소(또는 상위 5단계)의 링크·이미지 주소를, "속성"은 선택 요소의 모든 속성을 뽑아냅니다(탭하면 값 복사). "강화 모드"는 차단 활성 옆 체크로 켜고 끕니다(끈질긴 광고를 공간·잔여 스타일까지 강제 제거). "유사 요소 찾기"로 class·src·alt·title·:has(직계 자식)·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다.</small></div>
                 </div>`;
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => { this.state.iconPos = null; this.state.panelPos = null; this.applyPosition(); this.flashToast('위치 초기화됨'); });
             body.querySelector('[data-ref="clearPreview"]').addEventListener('click', () => { this.clearPinned(); this.clearHide(); this.clearSimHighlight(); this.flashToast('미리보기 정리됨'); this._syncHideLabel(); });
@@ -1885,6 +1930,13 @@
     .pokkok-child-item:hover { background: rgba(139,92,246,0.2); }
     .pokkok-child-item code { font-size: 11px; color: #9ecbff; white-space: nowrap; }
     .pokkok-child-txt { margin-left: auto; opacity: 0.5; font-size: 11px; word-break: break-all; text-align: right; }
+
+    .pokkok-attr-list { display: flex; flex-direction: column; gap: 4px; max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+    .pokkok-attr-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; min-height: 42px; background: rgba(255,255,255,0.04); border-radius: 6px; cursor: pointer; }
+    .pokkok-attr-item:hover { background: rgba(59,130,246,0.18); }
+    .pokkok-attr-name { font-family: ui-monospace, monospace; font-size: 12px; color: #6ee7b7; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+    .pokkok-attr-val { font-family: ui-monospace, monospace; font-size: 12px; color: #9ecbff; word-break: break-all; flex: 1; }
+    .pokkok-attr-copy { opacity: 0.5; flex-shrink: 0; display: flex; align-items: center; }
 
     .pokkok-sim-opts { display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-right: 2px; }
     .pokkok-sim-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 10px 12px; min-height: 44px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; color: #e8eaed; cursor: pointer; font-size: 13px; text-align: left; flex-shrink: 0; }
