@@ -1,7 +1,7 @@
 ! Title: Personal Privacy & Traffic Filter (uBO)
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260621-rev1-uBO
+! Version: 20260621-rev2-uBO
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -1602,7 +1602,8 @@ x.com/*/videoads/
 ! [uBO 미지원] $cookie → 주석 보존
 !||hcaptcha.com^$cookie
 !||recaptcha.net^$cookie
-||google.com/recaptcha^$removeparam=k
+! - 아래 규칙 활성화하면 reCAPTCHA 작동안함
+!||google.com/recaptcha^$removeparam=k
 
 ! 결제 SDK 텔레메트리 (주석 유지)
 !||js.stripe.com/v3/m-outer-*$script,redirect=noopjs
