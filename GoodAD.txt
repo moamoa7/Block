@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260622
+! Version: 20260623
 !
 !
 !
@@ -351,6 +351,7 @@ m.naver.com##script#MM_search_disaster ~*
 !@@||ssl.pstatic.net^$from=naver.com
 ! - 기타
 ||ntm.pstatic.net/scripts/ntm_$from=naver.com
+/gtag.js
 !
 !
 ! 네이버 블로그 (blog.naver.com)
@@ -972,6 +973,8 @@ inven.co.kr##.inven-games.menuGroup
 !##[class="ad-header"]
 !##[class*="ad-header" i]
 !##.ad-header
+! - 핫딜 게시판
+inven.co.kr##.hotdeal-list
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
 !inven.co.kr##.inven-float-alarm
 ! - 게시글 하단 안내창 (모바일)
@@ -981,6 +984,10 @@ inven.co.kr###invenAppSuggestion
 m.inven.co.kr##.goto_top_arrow
 ! - 오류 방지
 @@||07c225f3.online^
+! - 지금뜨는 핫벤 /팟벳 사라지는거 방지
+inven.co.kr#@#div[class^="swiper-"] > ul > li > a[target="_blank"]
+! -기타
+/js/float*.js
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
@@ -2040,20 +2047,26 @@ joatoon-oa.com##.bg-opacity-50
 [$domain=/^newtoki\d*\./]##div:has(> .theme-popup-stack)
 !
 !
-! 뉴토끼 (https://sbxh9.com/)
+! 뉴토끼 (https://toki25.com/)
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
 !@@||sbxh*.com^$image,xhr,script - 이 규칙에서 아래 규칙으로 변경 (image는 상관없는듯)
-@@||sbxh*.com^$xhr,script
+@@||toki*.com^$xhr,script
+@@||apihost.store/wasm/ad-guard/ad_guard.js
+@@||apihost.store/wasm/ad-guard/ad_guard_bg.wasm
+@@||apihost.store/init/disable-devtool.min.js
 ! =====  List KR 규칙 해제  =====
+! - - - List-KR에서 새로 바뀐 주소로 규칙을 만들지 않아서 보류
 [$domain=/^sbxh\d*\./]#@#[data-brs][data-br]
 ! - - - 굳이 추가하지 않아도 기능엔 문제가 없음
 ! - - - 외부 anti-adblock 추적 서버 차단 (DNS에 등록 필요)
 ||whoas.xyz^
 ! - 팝업 및 이용 안내 팝업
-[$domain=/^sbxh\d*\./]##[data-pm-ov="1"]
-[$domain=/^sbxh\d*\./]##.vw-swipe-hint
+[$domain=/^toki\d*\./]##[data-pm-ov="1"]
+[$domain=/^toki\d*\./]##.vw-swipe-hint
+! - p2p 차단 (애니 등 영상 시청시)
+wss://tracker.
 ! - 상단 배너
 !##section:has(> script) img
 ! - 배너 공간내 작게 적힌 텍스트 (광고를 화면밖으로 보내서 필요없음)
@@ -2074,7 +2087,7 @@ joatoon-oa.com##.bg-opacity-50
 ! =====  배너 공간 감추기  =====
 ! 광고 컨테이너 화면 밖으로 이동
 ! - - - left: -9999px - 500px / top: -9999px - 600px 변경 (26.05.30)
-[$domain=/^sbxh\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
+[$domain=/^toki\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
 !
 !
 ! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/newtoki_ch)  (https://토끼평생.com) (https://newto14.com/) (https://mato14.com/) (https://bookto14.com/)
@@ -2089,7 +2102,7 @@ joatoon-oa.com##.bg-opacity-50
 ||bookto*.com/data/apms/*
 !
 !
-! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon413.com/)
+! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon414.com/)
 ! - 최신주소 안내페이지 배너 공간 ((https://www.blacktoonurl2.com/) )
 [$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 ! - 상단 텍스트 배너
@@ -3120,11 +3133,11 @@ tktube.com##.top
 ! 탑걸 (https://kr42.topgirl.co/)
 ! 자브걸 (https://kr28.javgirl.co/)
 ! - 배너
-! - - - 딸플릭스 (https://kr13.ddal.xyz/) 
+! - - - 딸플릭스 (https://kr14.ddal.xyz/) 
 !##.ad_banner
 ! - 영상내 광고
 ! - - - 아브티비 (https://kr2.avtv.co/) - 없어진듯
-! - - - 딸플릭스 (https://kr13.ddal.xyz/) - 같은 비디오라 막으면 안됨
+! - - - 딸플릭스 (https://kr14.ddal.xyz/) - 같은 비디오라 막으면 안됨
 ||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
 ! - - - 자브걸 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
 !||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
@@ -3134,7 +3147,7 @@ tktube.com##.top
 topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !
 !
-! 딸플릭스 (https://kr13.ddal.xyz/)
+! 딸플릭스 (https://kr.xn--301bo8fzqjqzt.net/) (https://kr14.ddal.xyz/)
 ! - 쓸데없는 사이트 이동 차단
 */?code=*$document
 */mall/index.php$document
@@ -6098,6 +6111,35 @@ katfile.space###container > div:nth-of-type(2)
 ! https://rapidgator.net/
 ! - 기타
 ||shield.sitelock.com^
+!
+!
+! https://crassiang.com/
+! - 기타
+||cre.ma^
+||datarize.io^
+##iframe[width="0"][height="0"]
+!
+!
+! https://www.pixiv.net/
+! -  빈 공간 (user공간)
+pixiv.net##[class*="sc-"][class*="-ca"]
+! - 기타
+||errortrace.dev^
+||ads-pixiv.net^
+!
+!
+! https://monochrome.tf/
+! - 기타
+||plausible.canine.tools^
+!
+!
+! 야스닷컴 (https://yasyadong01.tv/)
+! - 팝업
+##body > script:not([src]) ~ #layui-layer-shade1
+##body > script:not([src]) ~ #layui-layer1
+
+
+
 
 
 
@@ -6297,7 +6339,6 @@ ad.co.kr#@#[href*="/ad/" i]
 !||*.advert.*
 !
 !
-*/csp/report*
 !
 !
 !##[src$="iframe" i]
@@ -6340,12 +6381,42 @@ ad.co.kr#@#[href*="/ad/" i]
 !##iframe[title*="배너"]
 !
 !##iframe[title*="banner"]
-!
-!
-_track/
+
 
 /adsblocker.
 ###adblock-dialog
+
+
+!/csp/report^
+!/csp-report^
+
+
+*p2p*
+*hlsjs*
+
+##script[src*="/ad/"] + ins
+##script[src*="/ads/"] + ins
+##script[src*="/ad-"] + ins
+##script[src*="/ad_"] + ins
+##script[src*="/ads-"] + ins
+##script[src*="/ads_"] + ins
+
+
+/popup.
+@@/popup.$css
+/popups.
+/banner.
+!*extension*
+!@@*extension*$image
+/extension.
+@@/extension$image
+!*log*.js
+/log.
+!*analysis*.js
+/analysis.
+!*static*.js
+!/static.
+!@@/static.$image
 
 
 
@@ -6437,8 +6508,8 @@ _track/
 
 
 
-
-##[src*="/banner/" i]:not([class*="logo"]):not([alt*="로고"])
+! - 킥 - files.kick.com/images/subcategories/
+##[src*="/banner/" i]:not([class*="logo"]):not([alt*="로고"]):not([src*="files.kick.com/images/subcategories/"])
 
 ##[src*="/banners/" i]:not([class*="logo"]):not([alt*="로고"])
 
@@ -6559,7 +6630,7 @@ aniya24.com#@#[class*="banner" i]
 ! - https://www.paxnet.co.kr/ - /login (휴대폰 간편 로그인 이미지)
 ! - https://www.fnnews.com/ - img.youtube.com  /resources/img/logo/
 ! - https://jav.guru/ - cdn.javmiku.com/wp-content/uploads/
-! - 이토랜드 - btcdn.etoland.co.kr/static/media/etc/
+! - 이토랜드 - btcdn.etoland.co.kr/
 ! - 메이저링크 (https://majorlink2.com/) - popi.io/uploads/
 ! - 매읜 눈 - data-original-height="110"
 ! - - - 11번가 - cdn.011st.com/
@@ -6567,7 +6638,7 @@ aniya24.com#@#[class*="banner" i]
 ! - - - 옥션 - image.auction.co.kr
 ! - - -  ##[target] > img 순서대로되야 차단 가능
 ! - - - ##[target] img 깊이에 상관없이 자식, 손자, 그 아래 모든 후손 img가 대상
-##[target] img:not([src*="trand"]):not([class*="favicon"]):not([class*="img-tag"]):not([src*="sooplive"]):not([src*="viewimage.php?"]):not([class*="og-img"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="ytimg.com"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd.it"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/data/file/AI/"]):not([src*="/data/file/bj/"]):not([src*="/rank"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"]):not([class*="inlist"]):not([src*="i.namu.wiki/i/"]):not([src*="img.seoul.co.kr/img/upload/"]):not([src*="img.seoul.co.kr//img/newsletter/"]):not([src*="avppomppu.com/data/file/gallery/"]):not([src*="imgstream3.com/s/"]):not([src*="mmfree2.com/A_PH/"]):not([src*="18av.mm-cg.com/images/"]):not([src*="/widgets/coin_currency/tpl/gears.png"]):not([src*="image.fomos.kr/contents/images/"]):not([src*="adult-live.com/wp-content/uploads/"]):not([src*="/alive-video"]):not([class*="size-full"]):not([class*="size-large"]):not([class*="size-checathlon"]):not([id*="Image1"]):not([src*="imgs.minkch.com/imgs/"]):not([src*="/m_webp/"]):not([src*="/amateur/s"]):not([src*="/censored/s/"]):not([src*="/uncensored/s/"]):not([src*="/live_show/s/"]):not([src*="teamblind.com/img/channel/logo/"]):not([src*="/player_button"]):not([src*="cdn.011st.com"]):not([src*="gdimg.gmarket.co.kr"]):not([src*="image.auction.co.kr"]):not([src*="scdn.st/"]):not([data-src*="of996.com/wp-content/uploads/"]):not([src*="aashop.co.kr/data/item/"]):not([src*="/_next/image?url=https%3A%2F%2Fassets.mtn.co.kr"]):not([src*="pic.popkontv.com"]):not([src*="dramaday.me/wp-content/uploads/"]):not([src*="imgs.search.brave.com"]):not([src*="/login"]):not([src*="img.youtube.com"]):not([src*="/resources/img/logo/"]):not([src*="cdn.javmiku.com/wp-content/uploads/"]):not([src*="btcdn.etoland.co.kr/static/media/etc/"]):not([src*="popi.io/uploads/"]):not([data-original-height="110"])
+##[target] img:not([src*="trand"]):not([class*="favicon"]):not([class*="img-tag"]):not([src*="sooplive"]):not([src*="viewimage.php?"]):not([class*="og-img"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="ytimg.com"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd.it"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/data/file/AI/"]):not([src*="/data/file/bj/"]):not([src*="/rank"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"]):not([class*="inlist"]):not([src*="i.namu.wiki/i/"]):not([src*="img.seoul.co.kr/img/upload/"]):not([src*="img.seoul.co.kr//img/newsletter/"]):not([src*="avppomppu.com/data/file/gallery/"]):not([src*="imgstream3.com/s/"]):not([src*="mmfree2.com/A_PH/"]):not([src*="18av.mm-cg.com/images/"]):not([src*="/widgets/coin_currency/tpl/gears.png"]):not([src*="image.fomos.kr/contents/images/"]):not([src*="adult-live.com/wp-content/uploads/"]):not([src*="/alive-video"]):not([class*="size-full"]):not([class*="size-large"]):not([class*="size-checathlon"]):not([id*="Image1"]):not([src*="imgs.minkch.com/imgs/"]):not([src*="/m_webp/"]):not([src*="/amateur/s"]):not([src*="/censored/s/"]):not([src*="/uncensored/s/"]):not([src*="/live_show/s/"]):not([src*="teamblind.com/img/channel/logo/"]):not([src*="/player_button"]):not([src*="cdn.011st.com"]):not([src*="gdimg.gmarket.co.kr"]):not([src*="image.auction.co.kr"]):not([src*="scdn.st/"]):not([data-src*="of996.com/wp-content/uploads/"]):not([src*="aashop.co.kr/data/item/"]):not([src*="/_next/image?url=https%3A%2F%2Fassets.mtn.co.kr"]):not([src*="pic.popkontv.com"]):not([src*="dramaday.me/wp-content/uploads/"]):not([src*="imgs.search.brave.com"]):not([src*="/login"]):not([src*="img.youtube.com"]):not([src*="/resources/img/logo/"]):not([src*="cdn.javmiku.com/wp-content/uploads/"]):not([src*="btcdn.etoland.co.kr/"]):not([src*="popi.io/uploads/"]):not([data-original-height="110"])
 
 !##[target] picture
 ! - 예외 - https://shopping.naver.com/ - 일부 이미지 사라짐
@@ -6618,7 +6689,9 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - https://modsfire.com/ - class="hero-sec2 download-sec"  download-button
 ! - https://magicly.lat/ - class="section download-section  class="premium-download-card"  download-section-box  download-type
 ! - https://zdrive.to/ - class="py-12 px-4 relative download-section"  class="download-file-timer"  download-file-link
-##[class*="ad-" i]:not([class="container py-5 download-page"]):not([class="d-flex align-items-center file-info mb-3 upload-list"]):not([class*="download-btn"]):not([class*="download-prepare"]):not([class="commu-content ad-layout"]):not([class*="ahead-popup_yes"]):not([class="hero-sec2 download-sec"]):not([class="download-button"]):not([class="section download-section"]):not([class="premium-download-card"]):not([class*="download-section-box"]):not([class*="download-type"]):not([class="py-12 px-4 relative download-section"]):not([class*="download-file-timer"]):not([class*="download-file-link"])
+! - 야스닷컴 공지 등 게시판 - class="mail-read-content"
+! - 주소킥 (https://kr1.jusokick.com/) - class="head-inner-root" -- 제외
+##[class*="ad-" i]:not([class="container py-5 download-page"]):not([class="d-flex align-items-center file-info mb-3 upload-list"]):not([class*="download-btn"]):not([class*="download-prepare"]):not([class="commu-content ad-layout"]):not([class*="ahead-popup_yes"]):not([class="hero-sec2 download-sec"]):not([class="download-button"]):not([class="section download-section"]):not([class="premium-download-card"]):not([class*="download-section-box"]):not([class*="download-type"]):not([class="py-12 px-4 relative download-section"]):not([class*="download-file-timer"]):not([class*="download-file-link"]):not([class="mail-read-content"])
 
 
 
