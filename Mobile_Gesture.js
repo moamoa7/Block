@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      69.0.8
+// @version      69.0.9
 // @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인 (슬림화 버전)
 // @author       Gemini & Claude
 // @license      MIT
@@ -20,6 +20,15 @@
     const isMobile = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent)
         || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
     if (!isMobile) return;
+
+    // ★ [추가 1] Trusted Types 우회: YouTube 등 TT 강제 사이트에서 innerHTML 차단 방지
+    const TT = (() => {
+        let p;
+        if (window.trustedTypes && window.trustedTypes.createPolicy) {
+            try { p = window.trustedTypes.createPolicy('gt-ui-policy', { createHTML: s => s }); } catch (e) {}
+        }
+        return (html) => p ? p.createHTML(html) : html;
+    })();
 
     const CFG = {
     minDist: 10, longPress: 500, rateBase: 2.0, senseX: 0.25,
@@ -175,7 +184,8 @@
 
     const VIP_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], [data-testid="video-container"], .player-wrapper, .one-video-player_display-w, .one-video-player, vk-video-player, [aria-label="Видео плеер"], [aria-label="Video Player"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, iframe';
 
-    const IGNORE_TOUCH_SELECTORS = '.gt-btn-base, .dplayer-controller, .dplayer-bar-wrap, .vjs-control-bar, .art-bottom, .art-controls, .bpx-player-control-wrap, .plyr__controls, .xgplayer-controls, .tcplayer-controls, .prism-controlbar, .mui-player-controls, .wrapper-bottom, [data-testid="player_controls"], [data-testid="progress_bar"], [data-testid="volume-slider"], input[type="range"], .buttons-bar, .progress-bar-container';
+    // ★ [추가 3] YouTube 네이티브 컨트롤(.ytp-chrome-bottom/top/button) 차단 추가
+    const IGNORE_TOUCH_SELECTORS = '.gt-btn-base, .ytp-chrome-bottom, .ytp-chrome-top, .ytp-button, .dplayer-controller, .dplayer-bar-wrap, .vjs-control-bar, .art-bottom, .art-controls, .bpx-player-control-wrap, .plyr__controls, .xgplayer-controls, .tcplayer-controls, .prism-controlbar, .mui-player-controls, .wrapper-bottom, [data-testid="player_controls"], [data-testid="progress_bar"], [data-testid="volume-slider"], input[type="range"], .buttons-bar, .progress-bar-container';
 
     const FS_BTN_SELECTORS = '.art-icon-fullscreenOn, .art-control-fullscreen, .dplayer-full-icon, .plyr__control[data-plyr="fullscreen"], .vjs-fullscreen-control, .xgplayer-fullscreen, .tcplayer-fullscreen-btn, .prism-fullscreen-btn, [aria-label*="全屏"], [title*="全屏"], [aria-label*="전체 화면"], [title*="전체화면"], .fullscreen-btn, .bilibili-player-video-btn-fullscreen, [data-testid="btn-fullscreen"], [aria-label="На весь экран"]';
 
@@ -471,6 +481,11 @@
         let targetVideo = null;
         let rootContainer = null;
 
+        // ★ [추가 2] 터치/마우스 좌표 추출 (geometry 폴백용)
+        let cx = e.clientX, cy = e.clientY;
+        if (e.touches && e.touches.length > 0) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+        else if (e.changedTouches && e.changedTouches.length > 0) { cx = e.changedTouches[0].clientX; cy = e.changedTouches[0].clientY; }
+
         const path = (e.composedPath && typeof e.composedPath === 'function') ? e.composedPath() : [];
         for (let el of path) {
             if (el.tagName === 'VIDEO') { targetVideo = el; break; }
@@ -483,6 +498,30 @@
                 if (fsEl.tagName === 'VIDEO') targetVideo = fsEl;
                 else targetVideo = findDeepVid(fsEl);
             }
+        }
+
+        // ★ [추가 2] geometry 폴백: 좌표 안에 있는 video를 Shadow DOM까지 재귀 스캔
+        if (!targetVideo && cx !== undefined && cy !== undefined) {
+            const scanStrictGeometry = (root) => {
+                let vids = root.querySelectorAll ? root.querySelectorAll('video') : [];
+                for (let v of vids) {
+                    if (v.getBoundingClientRect) {
+                        const r = v.getBoundingClientRect();
+                        if (r.width > 50 && r.height > 50 && cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) {
+                            return v;
+                        }
+                    }
+                }
+                let els = root.querySelectorAll ? root.querySelectorAll('*') : [];
+                for (let el of els) {
+                    if (el.shadowRoot) {
+                        let res = scanStrictGeometry(el.shadowRoot);
+                        if (res) return res;
+                    }
+                }
+                return null;
+            };
+            targetVideo = scanStrictGeometry(document);
         }
 
         if (!targetVideo) return null;
@@ -594,11 +633,12 @@
         styleEl.textContent = getUICss(S, uid);
         uiLayer.appendChild(styleEl);
 
-        const bar = document.createElement('div'); bar.className = 'gt-mini-progress'; bar.innerHTML = '<div class="gt-fill"></div>'; uiLayer.appendChild(bar);
+        // ★ [추가 1] TT 적용
+        const bar = document.createElement('div'); bar.className = 'gt-mini-progress'; bar.innerHTML = TT('<div class="gt-fill"></div>'); uiLayer.appendChild(bar);
 
         // 좌측 상단: PIP
         if (document.pictureInPictureEnabled) {
-            const pipBtn = document.createElement('div'); pipBtn.className = 'gt-btn-base gt-pip-btn'; pipBtn.innerHTML = SVG_PIP;
+            const pipBtn = document.createElement('div'); pipBtn.className = 'gt-btn-base gt-pip-btn'; pipBtn.innerHTML = TT(SVG_PIP);
             bindTap(pipBtn, () => {
                 if (document.pictureInPictureElement) document.exitPictureInPicture();
                 else video.requestPictureInPicture().catch(() => showMsg('PIP 모드 실행 실패', video));
@@ -608,12 +648,12 @@
         }
 
         // 좌측 하단: 회전
-        const rBtn = document.createElement('div'); rBtn.className = 'gt-btn-base gt-rotate-btn'; rBtn.innerHTML = SVG_ROTATE;
+        const rBtn = document.createElement('div'); rBtn.className = 'gt-btn-base gt-rotate-btn'; rBtn.innerHTML = TT(SVG_ROTATE);
         bindTap(rBtn, () => { toggleOrientation(); wakeUpUI(root, video); });
         uiLayer.appendChild(rBtn);
 
         // 우측 상단: Fit
-        const fitBtn = document.createElement('div'); fitBtn.className = 'gt-btn-base gt-fit-btn'; fitBtn.innerHTML = SVG_FIT;
+        const fitBtn = document.createElement('div'); fitBtn.className = 'gt-btn-base gt-fit-btn'; fitBtn.innerHTML = TT(SVG_FIT);
         bindTap(fitBtn, () => {
             const fits = ['contain', 'cover', 'fill'];
             const current = video.style.objectFit || 'contain';
@@ -625,7 +665,7 @@
         uiLayer.appendChild(fitBtn);
 
         // 우측 하단: 줌 리셋
-        const zoomRstBtn = document.createElement('div'); zoomRstBtn.className = 'gt-btn-base gt-reset-zoom-btn'; zoomRstBtn.innerHTML = SVG_RESET_ZOOM;
+        const zoomRstBtn = document.createElement('div'); zoomRstBtn.className = 'gt-btn-base gt-reset-zoom-btn'; zoomRstBtn.innerHTML = TT(SVG_RESET_ZOOM);
         bindTap(zoomRstBtn, () => {
             if(!video.gtState)return;
             video.gtState.scale = 1.0; video.gtState.panX = 0; video.gtState.panY = 0;
@@ -834,7 +874,8 @@
                 ? `<div class="gt-arrows"><span>‹</span><span class="gt-arrow-slide-l">‹</span></div>`
                 : `<div class="gt-arrows"><span class="gt-arrow-slide-r">›</span><span>›</span></div>`;
             const textHtml = `<span class="gt-seek-text gt-pop-anim">${sign}${displayText}</span>`;
-            t.innerHTML = dir === 'left' ? arrowsHtml + textHtml : textHtml + arrowsHtml;
+            // ★ [추가 1] TT 적용
+            t.innerHTML = TT(dir === 'left' ? arrowsHtml + textHtml : textHtml + arrowsHtml);
         } else {
             textNode.classList.remove('gt-pop-anim'); void textNode.offsetWidth; textNode.classList.add('gt-pop-anim');
             textNode.textContent = `${sign}${displayText}`;
@@ -843,7 +884,8 @@
         t.classList.add('show'); clearTimeout(seekSessionTimer);
         seekSessionTimer = setTimeout(() => {
             t.classList.remove('show'); activeSeekSide = null; seekAccumulator = 0;
-            setTimeout(() => { if (t && t.parentNode && !t.classList.contains('show')) t.innerHTML = ''; }, 200);
+            // ★ [추가 1] TT 적용 (빈 문자열도 안전하게)
+            setTimeout(() => { if (t && t.parentNode && !t.classList.contains('show')) t.innerHTML = TT(''); }, 200);
         }, 800);
     };
 
