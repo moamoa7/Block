@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.3.0
+// @version      1.3.1
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수·:has), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing
 // @author       moamoa7
 // @license      MPL-2.0
@@ -274,7 +274,7 @@
             wrap.className = 'pokkok-modal';
             wrap.innerHTML = `
                 <div class="pokkok-modal-card">
-                    <div class="pokkok-modal-head" data-modal-drag="1">
+                    <div class="pokkok-modal-hdr" data-modal-drag="1">
                         <span class="pokkok-modal-grip" title="드래그하여 이동">⠿</span>
                         <span class="pokkok-modal-title">${esc(title)}</span>
                         <button class="pokkok-modal-x" aria-label="닫기">${ICON_CLOSE}</button>
@@ -935,9 +935,9 @@
             const enabled = Blocker.isEnabled();
             const stats = Blocker.getStats();
             return `
-            <div class="pokkok-head" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.3.0</small></span>
-                <div class="pokkok-head-btns">
+            <div class="pokkok-hdr" data-drag="1">
+                <span class="pokkok-title">Pokkok <small>v1.3.1</small></span>
+                <div class="pokkok-hdr-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="cycleSize" title="아이콘으로 접기">${ICON_MIN}</button>
@@ -1042,7 +1042,7 @@
             const n = SelectorStrategies.countMatches(sel);
             const tag = this.state.target ? this.state.target.tagName.toLowerCase() : '';
             rec.innerHTML = `
-                <div class="pokkok-rec-head">
+                <div class="pokkok-rec-hdr">
                     <span class="pokkok-rec-tag">${esc(tag)}</span>
                     <span class="pokkok-rec-count">${n}개 일치</span>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="copy" title="필터 복사(도메인##셀렉터)">${ICON_COPY}</button>
@@ -1834,11 +1834,11 @@
     .pokkok-icon-btn:hover { transform: scale(1.06); }
 
     .pokkok-panel { width: 320px; max-width: calc(100vw - 16px); background: rgba(28,30,38,0.97); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.45); backdrop-filter: blur(8px); overflow: hidden; }
-    .pokkok-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,0.25); cursor: grab; user-select: none; touch-action: none; }
-    .pokkok-head:active { cursor: grabbing; }
+    .pokkok-hdr { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(0,0,0,0.25); cursor: grab; user-select: none; touch-action: none; }
+    .pokkok-hdr:active { cursor: grabbing; }
     .pokkok-title { font-weight: 600; font-size: 14px; }
     .pokkok-title small { opacity: 0.5; font-weight: 400; margin-left: 4px; }
-    .pokkok-head-btns { display: flex; gap: 4px; }
+    .pokkok-hdr-btns { display: flex; gap: 4px; }
     .pokkok-body { padding: 12px; }
 
     .pokkok-btn { display: inline-flex; align-items: center; gap: 5px; padding: 8px 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #e8eaed; border-radius: 7px; cursor: pointer; font-size: 13px; transition: background 0.15s, border-color 0.15s; touch-action: manipulation; }
@@ -1855,7 +1855,7 @@
 
     .pokkok-rec { background: rgba(0,0,0,0.25); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; min-height: 56px; }
     .pokkok-rec-empty { opacity: 0.4; font-size: 12px; text-align: center; padding: 12px 0; }
-    .pokkok-rec-head { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+    .pokkok-rec-hdr { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
     .pokkok-rec-tag { font-weight: 700; color: #6ee7b7; font-family: ui-monospace, monospace; font-size: 12px; }
     .pokkok-rec-count { font-size: 11px; opacity: 0.6; flex: 1; }
     .pokkok-rec-sel { font-family: ui-monospace, monospace; font-size: 12px; color: #9ecbff; word-break: break-all; line-height: 1.4; user-select: text; -webkit-user-select: text; }
@@ -1908,8 +1908,8 @@
     .pokkok-modal.visible { opacity: 1; }
     .pokkok-modal.pokkok-modal-shell-hidden { opacity: 0 !important; pointer-events: none !important; }
     .pokkok-modal-card { background: #1c1e26; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; max-width: 480px; width: 92%; max-height: 80vh; max-height: 80dvh; overflow: hidden; display: flex; flex-direction: column; }
-    .pokkok-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); cursor: grab; user-select: none; touch-action: none; }
-    .pokkok-modal-head:active { cursor: grabbing; }
+    .pokkok-modal-hdr { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); cursor: grab; user-select: none; touch-action: none; }
+    .pokkok-modal-hdr:active { cursor: grabbing; }
     .pokkok-modal-grip { opacity: 0.5; font-size: 14px; line-height: 1; cursor: grab; }
     .pokkok-modal-title { font-weight: 600; flex: 1; }
     .pokkok-modal-x { background: transparent; border: none; color: #e8eaed; cursor: pointer; padding: 8px; min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
