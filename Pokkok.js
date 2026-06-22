@@ -1886,7 +1886,7 @@
     .pokkok-hdr-btns { display: flex; gap: 4px; }
     .pokkok-body { padding: 12px; }
 
-    .pokkok-btn { display: inline-flex; align-items: center; gap: 5px; padding: 8px 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #e8eaed; border-radius: 7px; cursor: pointer; font-size: 13px; transition: background 0.15s, border-color 0.15s; touch-action: manipulation; }
+    .pokkok-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: #e8eaed; border-radius: 7px; cursor: pointer; font-size: 12px; white-space: nowrap; transition: background 0.15s, border-color 0.15s; touch-action: manipulation; }
     .pokkok-btn > * { pointer-events: none; }
     .pokkok-btn:hover { background: rgba(255,255,255,0.15); }
     .pokkok-btn:active { background: rgba(255,255,255,0.22); }
