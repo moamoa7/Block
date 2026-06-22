@@ -1,9 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.0.7)
-// @namespace    https://github.com/moamoa7/Block
-// @version      33.0.7
-// @description  v33.0.7: 파이어폭스 계열 스크립트 실행 차단
-// @author       moamoa7
+// @name         Video_Control (v33.0.8)
+// @namespace    https://github.com/moamoa7
+// @version      33.0.8
+// @description  v33.0.8: 샤프(sharp)를 숲(soop) 기준으로 변경 / 노이즈 디더 제거
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -51,7 +50,7 @@
   })();
 
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.0.7';
+  const VSC_VERSION = '33.0.8';
   const DEBUG = true;
 
   const log = {
@@ -63,16 +62,14 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
   function getSharpProfile(nW) {
-    if (IS_MOBILE) {
-      if (nW > 2560) return { cap: 0.70, diagRatio: 0.55, autoBase: 0.20 };
-      if (nW > 1920) return { cap: 0.62, diagRatio: 0.60, autoBase: 0.18 };
-      const autoBase = nW <= 640 ? 0.18 : 0.16;
-      return { cap: 0.55, diagRatio: 0.65, autoBase };
-    }
-    if (nW > 2560) return { cap: 0.42, diagRatio: 0.58, autoBase: 0.15 };
-    if (nW > 1920) return { cap: 0.36, diagRatio: 0.63, autoBase: 0.13 };
-    const autoBase = nW <= 640 ? 0.14 : 0.12;
-    return { cap: 0.32, diagRatio: 0.68, autoBase };
+  if (IS_MOBILE) {
+    if (nW > 2560) return { cap: 0.40, diagRatio: 0, autoBase: 0.12 };
+    if (nW > 1920) return { cap: 0.40, diagRatio: 0, autoBase: 0.11 };
+    return { cap: 0.40, diagRatio: 0, autoBase: 0.10 };
+  }
+  if (nW > 2560) return { cap: 0.40, diagRatio: 0, autoBase: 0.11 };
+  if (nW > 1920) return { cap: 0.40, diagRatio: 0, autoBase: 0.10 };
+  return { cap: 0.40, diagRatio: 0, autoBase: 0.10 };
   }
   const SHARP_CAP_DEFAULT = IS_MOBILE ? 0.48 : 0.28;
 
@@ -1425,16 +1422,12 @@
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
 
-      const feTurb = h('feTurbulence', { ns: 'svg', type: 'fractalNoise', baseFrequency: '0.75', numOctaves: '1', seed: String(Math.trunc(Math.random() * 1000)), result: 'rawNoise' });
-      const feGrayNoise = h('feColorMatrix', { ns: 'svg', type: 'saturate', values: '0', in: 'rawNoise', result: 'monoNoise' });
-      const feAddNoise = h('feComposite', { ns: 'svg', operator: 'arithmetic', k1: '0', k2: '1', k3: '0.008', k4: '-0.004', in: 'SourceGraphic', in2: 'monoNoise', result: 'dithered' });
-
-      const toneResult = mkXfer({ in: 'dithered', result: 'tone' }, { type: 'table', tableValues: '0 1' });
+      const toneResult = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' });
       const tempResult = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
       const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'tmp', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
       const fSat = h('feColorMatrix', { ns: 'svg', in: 'conv', type: 'saturate', values: '1.0', result: 'final' });
 
-      filter.append(feTurb, feGrayNoise, feAddNoise, toneResult.el, tempResult.el, fConv, fSat);
+      filter.append(toneResult.el, tempResult.el, fConv, fSat);
       defs.append(filter);
 
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
@@ -1558,11 +1551,12 @@
         out._diagRatio = sharpProfile.diagRatio;
 
         if (presetS === 'off') {
-          out.sharp = autoBase * 0.50 * platformScale;
+          out.sharp = sharpProfile.autoBase;   // mul 보정 없이 프로필 값 그대로 = 정확히 0.20
         } else if (presetS !== 'none') {
-          const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.25);
-          out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor;
+          const PRESET_SHARP = { S: 0.12, M: 0.20, L: 0.28, XL: 0.36 };
+          out.sharp = PRESET_SHARP[presetS] || 0;
         }
+
         out.sharp = CLAMP(out.sharp, 0, sharpProfile.cap);
 
         const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD) ?? 0), 0, 100);
