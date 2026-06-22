@@ -45,7 +45,6 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/DNS_Rewrite.txt
 
 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter (2026년 2월 21일 폐쇄)
 <br/>
-
 계승 홈페이지 : https://github.com/hooray804/adguard-gallery-filter
 <br/><br/>
 
