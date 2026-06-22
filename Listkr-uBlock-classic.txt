@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20623.3
+! Version: 2026.20626.1
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Sun Jun 21 19:40:37 UTC 2026
+! Updated: Mon Jun 22 04:13:21 UTC 2026
 
 ||api.adapi.co.kr^
 ||adv.imadrep.co.kr^
@@ -593,6 +593,7 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 !
 ! DOMAIN-REFRESHER: START
 !
+/blacktoon[0-9]+\.com/##.toon-viewer .col-12[style^="padding:"]
 /majorlink[0-9]+\.com/##.major_site_latest
 /newto[0-9]+\.com/##div[class^="basic-banner-"]
 /bookto[0-9]+\.com/##div[class^="basic-banner-"]
@@ -1758,6 +1759,7 @@ eegosa.com##section[id*="_ads_"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+xn--v69ak0xskm.com##div[class$="-ad-anchor"]
 a-ha.io##.fixed.h-dvh:has(> div > img[alt="coffee"])
 a-ha.io##hr:has(+ div[aria-label="advertisement"])
 a-ha.io##div[aria-label="advertisement"]
@@ -3558,10 +3560,11 @@ m.cafe.naver.com#?#.location_bar:has(.active:has-text(전체공지)) ~ .location
 img.imimggggg87878.com#?#a[target="_blank"][href^="http://"].menu-a:has-text(보증토토)
 frtoon220.com,frtoon221.com,frtoon222.com,frtoon223.com,frtoon224.com,frtoon225.com,frtoon226.com,frtoon227.com,frtoon228.com,frtoon229.com,frtoon230.com,frtoon231.com,frtoon232.com,frtoon233.com#?#.alert-danger.container:has-text([AD])
 hdhd344.net,hdhd345.net,hdhd346.net,hdhd347.net,hdhd348.net,hdhd349.net,hdhd350.net,hdhd351.net,hdhd352.net,hdhd353.net,hdhd354.net,hdhd355.net,hdhd356.net,hdhd357.net,hdhd358.net#?#.menu-ul > .menu-li:has(> a:has-text(보증토토))
-blacktoon302.com,blacktoon303.com,blacktoon304.com,blacktoon305.com,blacktoon306.com,blacktoon307.com,blacktoon308.com,blacktoon309.com,blacktoon310.com,blacktoon311.com,blacktoon312.com,blacktoon313.com#?#.alert.alert-danger:has(> a:has-text([AD]))
+/blacktoon[0-9]+\.com/#?#.alert.alert-danger:has(> a:contains([AD]))
 !
 ! DOMAIN-REFRESHER: END
 
+m-emart.ssg.com#$?##content div[style*="contents"]:has(.chakra-stack + div[class] span:has-text(AD)) { remove: true; }
 ! This file includes a filter using action operators of uBlock Origin that can be converted to AdGuard scriptlet.
 !
 ! Check after 2024 April 1st.
