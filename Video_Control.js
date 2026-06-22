@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.0.8)
+// @name         Video_Control (v33.0.9)
 // @namespace    https://github.com/moamoa7
-// @version      33.0.8
-// @description  v33.0.8: 샤프(sharp)를 숲(soop) 기준으로 변경 / 노이즈 디더 제거
+// @version      33.0.9
+// @description  v33.0.9: 저장된 샤프값이 로딩시 반영 안되는 문제 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -50,7 +50,7 @@
   })();
 
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.0.8';
+  const VSC_VERSION = '33.0.9';
   const DEBUG = true;
 
   const log = {
@@ -1479,14 +1479,17 @@
       const h10 = s.tint | 0;
       const h11 = Math.round((s._cssSat || 1) * 1000);
       const h12 = Math.round(preGainSlope * 1000);
+      const h13 = (s._nW | 0);
 
-      if (st._h1 === h1 && st._h2 === h2 && st._h3 === h3 && st._h4 === h4 &&
+            if (st._h1 === h1 && st._h2 === h2 && st._h3 === h3 && st._h4 === h4 &&
           st._h5 === h5 && st._h6 === h6 && st._h7 === h7 && st._h8 === h8 &&
-          st._h9 === h9 && st._h10 === h10 && st._h11 === h11 && st._h12 === h12) {
+          st._h9 === h9 && st._h10 === h10 && st._h11 === h11 && st._h12 === h12 &&
+          st._h13 === h13) {
         return `url(#${ctx2.fid})`;
       }
       st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
       st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11; st._h12 = h12;
+      st._h13 = h13;
 
       if (video) appliedFilter.delete(video);
 
@@ -1540,7 +1543,7 @@
         const dW = video ? (video.clientWidth || 0) : 0;
         const dH = video ? (video.clientHeight || 0) : 0;
         const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
-        if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH && cached.dpr === dpr) return cached.out; }
+        if (video && nW >= 16) { const cached = cache.get(video);  if (cached && cached.nW >= 16 && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH && cached.dpr === dpr) { return cached.out; } }
         const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1, _needsSvg: false, _sharpCap: SHARP_CAP_DEFAULT, _diagRatio: 0.707, _preGain: 1 };
         const presetS = Store.get(P.V_PRE_S);
         const mix = 1.0;
@@ -1580,6 +1583,7 @@
 
         out.temp = mTemp;
         out.tint = mTint;
+        out._nW = nW;
 
         out._needsSvg = checkNeedsSvg(out);
         if (out._needsSvg) { out._cssBr = 1.0; out._cssCt = 1.0; }
