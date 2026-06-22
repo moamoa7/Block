@@ -601,8 +601,8 @@ www.twitch.tv###twilight-sticky-footer-root
 ! - 영상 플레이어내
 !www.twitch.tv##.stream-display-ad__wrapper
 !ww.twitch.tv##[data-test-selector="sda-wrapper"]
-! - 영상내 이상한 아이콘(확장 프로그램) 떠잇는거 없애기
-www.twitch.tv##.video-player__default-player.Layout-sc-1xcs6mc-0
+! - 영상내 이상한 아이콘(확장 프로그램) 떠잇는거 없애기 - 이걸 키면 하단 설정이 안보임
+!www.twitch.tv##.video-player__default-player.Layout-sc-1xcs6mc-0
 ! - 영상 상단 지저분한거
 !www.twitch.tv##.top-bar:style(background:unset!important)
 ! - 영상 하단 지저분한거
@@ -791,7 +791,8 @@ gall.dcinside.com#@#.r_dcmedia
 !##div[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i])
 ! - https://www.avdbs.com/ - adt_mode_toggle
 ! - 디시인사이드 - adr_copy
-##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult-" i]):not([class^="adt_mode_toggle" i]):not([class="adr_copy" i])
+! - 숲 확장 프로그램 (숲 키트) - advanced-controls-panel
+##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult-" i]):not([class^="adt_mode_toggle" i]):not([class="adr_copy" i]):not([class="advanced-controls-panel" i])
 !##[class*="ad_"] [style]
 ! - - - 예외
 ! - - - https://theqoo.net/- 프레임 깨짐
@@ -6528,10 +6529,11 @@ ad.co.kr#@#[href*="/ad/" i]
 ! - 클리앙 댓글 - class="comment ad_banner"
 ! - 18모아 - class="banner2"
 ! - 주소월드 -  class='megu-post-banner
-##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"])
+! - 클리앙(모바일) - class="comment inline_link ad_banner "
+##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner "])
 
 ! - https://dailyuploads.net/ - class="banner 사용으로 별도 처리해야함
-dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"])
+dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner "])
 
 
 
@@ -6657,10 +6659,13 @@ aniya24.com#@#[class*="banner" i]
 ! https://javgiga.com/ - none-popup
 ! 현대몰 - sc-co-popup
 ! https://www.a-ha.io/ - popup-open
-! 클리앙 - 쪽지 팝업이 class=popup이라 #@#로 대체
 ! - yandex - ahead-popup_yes"
-##[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"])
-clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"])
+! 클리앙 - 쪽지 팝업이 class=popup이라 #@#로 대체
+! - play.sooplive.com - 확장프로그램(숲 키트) - soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode
+
+##[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
+
+clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
 
 
 
