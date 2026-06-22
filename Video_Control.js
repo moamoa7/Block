@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.0.9)
+// @name         Video_Control (v33.1.0)
 // @namespace    https://github.com/moamoa7
-// @version      33.0.9
-// @description  v33.0.9: 저장된 샤프값이 로딩시 반영 안되는 문제 수정
+// @version      33.1.0
+// @description  v33.1.0: 모바일 샤프 단계 조정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -50,7 +50,7 @@
   })();
 
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.0.9';
+  const VSC_VERSION = '33.1.0';
   const DEBUG = true;
 
   const log = {
@@ -1556,7 +1556,9 @@
         if (presetS === 'off') {
           out.sharp = sharpProfile.autoBase;   // mul 보정 없이 프로필 값 그대로 = 정확히 0.20
         } else if (presetS !== 'none') {
-          const PRESET_SHARP = { S: 0.12, M: 0.20, L: 0.28, XL: 0.36 };
+          const PRESET_SHARP = IS_MOBILE
+          ? { S: 0.18, M: 0.24, L: 0.30, XL: 0.36 }
+          : { S: 0.12, M: 0.20, L: 0.28, XL: 0.36 };
           out.sharp = PRESET_SHARP[presetS] || 0;
         }
 
