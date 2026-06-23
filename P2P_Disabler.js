@@ -1,11 +1,14 @@
 // ==UserScript==
 // @name         P2P Disabler (WebRTC kill, global)
 // @namespace    local.p2p.disabler
-// @version      4.0
+// @version      1.0
 // @description  모든 사이트 WebRTC(P2P) 차단 + 예외 도메인만 허용
+// @license      MIT
 // @match        *://*/*
 // @run-at       document-start
 // @grant        unsafeWindow
+// @downloadURL https://update.greasyfork.org/scripts/584108/P2P%20Disabler%20%28WebRTC%20kill%2C%20global%29.user.js
+// @updateURL https://update.greasyfork.org/scripts/584108/P2P%20Disabler%20%28WebRTC%20kill%2C%20global%29.meta.js
 // ==/UserScript==
 
 (() => {
