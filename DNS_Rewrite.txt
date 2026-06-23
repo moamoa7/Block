@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260620-rev1
+! Version: 20260623-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -1311,7 +1311,7 @@
 !||afevent2.sooplive.com^
 ||laglog.sooplive.com^
 ! 숲 버퍼링 이슈? - 내 환경에서는 그런일이 일어난적이 없어서 일단 보류
-||exlogcollector.sooplive.com^
+!||exlogcollector.sooplive.com^
 ||eventapi.sooplive.com^
 ||deapi.sooplive.com^
 ! 차단시 별풍선 선물 못함
@@ -1566,7 +1566,7 @@
 ! ⚠️ 보류 — SOOP 방송 로딩 지연 보고 (디시 애드가드 갤러리)
 ! 일부 환경에서 exlogcollector.sooplive.com 차단 시 입장/버퍼링 지연 발생
 ! 본인은 현재 문제 없음. 동일 증상 추가 보고 시 주석 해제하여 적용
-!@@||exlogcollector.sooplive.com^
+!||exlogcollector.sooplive.com^
 !
 !
 ! ⚠️ 차단 금지 - 안드로이드/Google 핵심 기능 (참고용 주석)
