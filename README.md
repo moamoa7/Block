@@ -117,3 +117,9 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/bookmark.js
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Pokkok.js
 ```
+
+※ P2P_Disabler.js
+- WebRTC(P2P) 차단 - 예외 도메인만 허용
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/P2P_Disabler.js
+```
