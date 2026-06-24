@@ -1,7 +1,7 @@
 ! Title: Personal Privacy & Traffic Filter (uBO)
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260621-rev2-uBO
+! Version: 20260624-rev1-uBO
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -126,7 +126,8 @@
 ! ───── Pinterest / Reddit / Telegram ─────
 *$removeparam=epik
 *$removeparam=rdt_cid
-*$removeparam=share_id
+! - 픽팍에서 영상 재생 안됨
+*$removeparam=share_id,domain=~mypikpak.com
 *$removeparam=correlation_id
 *$removeparam=tgWebAppStartParam
 *$removeparam=tgWebAppPlatform
