@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-06-24 05:54:21 UTC
+! Generated: 2026-06-24 08:47:24 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,510
+! Exception Rules: 6,509
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -31,7 +31,6 @@
 @@||2ip.ua^
 @@||2performant.com^
 @@||3-aclk.net^
-@@||341676991.group0.sites.hscoscdn-na3.net^
 @@||3cinteractive.com^
 @@||3ds.bankofbaku.com^
 @@||3ds.mdmbank.ru^
@@ -1560,7 +1559,6 @@
 @@||elster.de^
 @@||email-link.adtidy.info^
 @@||email-link.adtidy.org^
-@@||email.microsoft.com^
 @@||email.microsoftonline.com^
 @@||email.namebase.io^
 @@||email.office.com^
@@ -3014,7 +3012,6 @@
 @@||mkto-ab130188.com^
 @@||mkto-ab140048.com^
 @@||mkto-ab150013.com^
-@@||mkto-ab150224.com^
 @@||mkto-ab170094.com^
 @@||mkto-ab170123.com^
 @@||mkto-ab170161.com^
@@ -3098,6 +3095,7 @@
 @@||mkto-ab650097.com^
 @@||mkto-ab650172.com^
 @@||mkto-ab660121.com^
+@@||mkto-ab660168.com^
 @@||mkto-ab690011.com^
 @@||mkto-ab690019.com^
 @@||mkto-ab690062.com^
@@ -3182,6 +3180,7 @@
 @@||mkto-sj050237.com^
 @@||mkto-sj060054.com^
 @@||mkto-sj070141.com^
+@@||mkto-sj070193.com^
 @@||mkto-sj070214.com^
 @@||mkto-sj070218.com^
 @@||mkto-sj080048.com^
@@ -4733,6 +4732,7 @@
 @@||sites.hscoscdn-ap1.net^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
+@@||sites.hscoscdn-na3.net^
 @@||sites.hscoscdn00.net^
 @@||sites.hscoscdn10.net^
 @@||sites.hscoscdn20.net^
@@ -5198,7 +5198,6 @@
 @@||subesizbankacilik.vakifbank.com.tr^
 @@||subscriptions.costco.com^
 @@||succeedscene.com^
-@@||suite0.emarsys.net^
 @@||suite1.emarsys.net^
 @@||suite10-cf.emarsys.net^
 @@||suite10.emarsys.net^
