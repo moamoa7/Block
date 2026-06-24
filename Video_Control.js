@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.1.0)
+// @name         Video_Control (v33.1.1)
 // @namespace    https://github.com/moamoa7
-// @version      33.1.0
-// @description  v33.1.0: 모바일 샤프 단계 조정
+// @version      33.1.1
+// @description  v33.1.1: DRM 보호 영상은 SVG/CSS 필터 적용 시 검은 화면이 되므로 필터 제외
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -50,7 +50,7 @@
   })();
 
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.1.0';
+  const VSC_VERSION = '33.1.1';
   const DEBUG = true;
 
   const log = {
@@ -587,7 +587,9 @@
       const onResize = req;
       const onLoadstart = () => {
         cancelRVFC();
-        delete el.dataset.vscDrm; delete el.dataset.vscPbFail; delete el.dataset.vscPbRetry; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail;
+        delete el.dataset.vscDrm; delete el.dataset.vscDrmNotified;  // ← vscDrmNotified 추가
+        delete el.dataset.vscPbFail; delete el.dataset.vscPbRetry; delete el.dataset.vscCorsFail;
+        delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail;
         if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
         req();
       };
@@ -2710,9 +2712,24 @@
 
       for (const v of Registry.videos) {
         if (!v.isConnected) continue;
+
+        // ★ target이 아니어도 DRM 영상이면 알림 (한 번만)
+        if ((v.dataset.vscDrm === "1" || !!v.mediaKeys) && v.dataset.vscDrmNotified !== "1") {
+          if (v.dataset.vscDrm !== "1") v.dataset.vscDrm = "1";
+          v.dataset.vscDrmNotified = "1";
+          OSD.show('🔒 DRM 보호 영상 — 화질/오디오 보정 모두 미적용', 3000);
+        }
+
         if (v !== target) { Filters.clear(v); continue; }
 
         if (radioOn) {
+          Filters.clear(v);
+          continue;
+        }
+
+        // ★ DRM 보호 영상은 필터 제외
+        if (v.dataset.vscDrm === "1" || !!v.mediaKeys) {
+          if (v.dataset.vscDrm !== "1") v.dataset.vscDrm = "1";
           Filters.clear(v);
           continue;
         }
