@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260624
+! Version: 20260625
 !
 !
 !
@@ -52,9 +52,9 @@
 !
 !
 !@@*.or.kr^$generichide,image,css,font,script,xhr,frame,other
-@@*.or.kr^$generichide
+@@*.or.kr^$generichide,css,image.script,xhr
 !@@*.go.kr^$generichide,image,css,font,script,xhr,frame,other
-@@*.go.kr^$generichide
+@@*.go.kr^$generichide,css,image.script,xhr
 !
 !
 !
@@ -268,7 +268,7 @@ search.brave.com##.download-cta
 ! 스타트페이지 (https://www.startpage.com/)
 ! - 하단 안내
 !startpage.com##.privacy-extension-and-app-widget
-!
+
 !
 ! 바이두 (https://www.baidu.com/)
 ! - 하단
@@ -285,8 +285,9 @@ baidu.com###s-hotsearch-wrapper
 ! 픽팍 (https://mypikpak.com/)
 ! - 쿠키 동의 (AdGuard Annoyances filter)
 ##.cookie-wrapper
-! - 연간 할인 혜택 팝업
-mypikpak.com##.coupon-tips-overlay.el-overlay
+! - 연간 할인 혜택등 팝업
+!mypikpak.com##.coupon-tips-overlay.el-overlay
+!mypikpak.com##[class="el-overlay el-modal-dialog"]
 ! - 연간 할인 탑 배너
 !mypikpak.com##.coupon-top-banner
 ! - 왼쪽 메뉴 하단 로테이션 팝업
@@ -302,6 +303,8 @@ mypikpak.com##.operation-container
 !mypikpak.com##+js(set-cookie, allow_analysis, false)
 ! - 기타
 /^https?:\/\/.*\/(\%?[235][a-fA-F3-6]|[a-f-_]{3,})?[Ss](ervice)?[-_]?[Ww](orker)?\.js(\?.*)?$/$script,match-case,from=~dagrasso.pl|~idx.google.com|~tiktok.com|~twitter.com|~youtube.com
+! - 재생 안되는거 해결
+@@||cdn.adjust.com^$script,3p,domain=mypikpak.com
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -350,7 +353,7 @@ m.naver.com##script#MM_search_disaster ~*
 !@@||ssl.pstatic.net^$from=naver.com
 ! - 기타
 ||ntm.pstatic.net/scripts/ntm_$from=naver.com
-/gtag.js
+!/gtag.js
 !
 !
 ! 네이버 블로그 (blog.naver.com)
@@ -457,9 +460,8 @@ sooplive.com##.tuneout
 ! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
 !##[class="extensions_item"]
 !sooplive.com##.extensions_item
-##[class*="extension" i]
-! - 예외 - 덕덕고 - 본문 안보임
-duckduckgo.com#@#[class*="extension" i]
+! - 픽팍 - 본문 (https://mypikpak.com/ko/browser-extension) 안보임 browser-extension
+##[class*="extension" i]:not([class="browser-extension"])
 ! - 영상 왼쪽 하단 애드벌룬 배너
 sooplive.com##.adballoon_icon
 ! - 개인채널 (https://ch.sooplive.com/) 팝업
@@ -565,7 +567,7 @@ chzzk.naver.com##+js(json-prune, *.dab)
 !chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
 ! 놓치면 후회할 무료 치즈 툴팁
-chzzk.naver.com##[class^="toolbar_tooltip" i]
+chzzk.naver.com##[class*="_tooltip_" i]
 ! 치트키 구매하기 툴팁
 !chzzk.naver.com##.tooltip - ##[class$="tooltip" i] 로 대체
 ##[class$="tooltip" i]
@@ -580,7 +582,7 @@ chzzk.naver.com##[class^="live_chatting_guide" i]
 !chzzk.naver.com##.pzp-pc__loading-indicator
 chzzk.naver.com##[class*="loading" i]
 ! - 채팅 하단 무료 치즈 뽑기 이벤트 팝업
-!chzzk.naver.com##[class*="live_chatting_list_floating"]
+!chzzk.naver.com##[class*="_floating_"]
 ! - 로그인 팝업 안뜨는거 해결
 !chzzk.naver.com#@#[class*="popup" i]
 ! -특수기간 상단 배너
@@ -1526,6 +1528,9 @@ zum.com##[class*="coupang-shopping" i]
 ##[class*="powershopping" i]
 ! - - - 중간 관련 인기 상품
 zum.com##[class*="coupang" i]
+! - 기타
+||beusable.net^
+/prebid.$from=~prebid.org
 !
 !
 ! 벅스 (https://music.bugs.co.kr/)
@@ -1621,7 +1626,7 @@ poooo.ml##.h30
 poooo.ml#@#.ad
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwiki29.net/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwiki32.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/)
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
@@ -1685,7 +1690,7 @@ poooo.ml#@#.ad
 !/p2p
 !
 !
-! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak205.com/) 
+! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak207.com/) 
 ! - 팝업
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 ![$domain=/^tvchak\d*\./]##[class*="popup_mdd" i]
@@ -2047,7 +2052,7 @@ joatoon-oa.com##.bg-opacity-50
 [$domain=/^newtoki\d*\./]##div:has(> .theme-popup-stack)
 !
 !
-! 뉴토끼 (https://toki25.com/)
+! 뉴토끼 (https://toki25.com/) (https://sbxh9.com)
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
@@ -2063,8 +2068,8 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - 외부 anti-adblock 추적 서버 차단 (DNS에 등록 필요)
 ||whoas.xyz^
 ! - 팝업 및 이용 안내 팝업
-[$domain=/^toki\d*\./]##[data-pm-ov="1"]
-[$domain=/^toki\d*\./]##.vw-swipe-hint
+[$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##[data-pm-ov="1"]
+[$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##.vw-swipe-hint
 ! - p2p 차단 (애니 등 영상 시청시)
 !wss://tracker.
 ! - 상단 배너
@@ -2087,7 +2092,9 @@ joatoon-oa.com##.bg-opacity-50
 ! =====  배너 공간 감추기  =====
 ! 광고 컨테이너 화면 밖으로 이동
 ! - - - left: -9999px - 500px / top: -9999px - 600px 변경 (26.05.30)
-[$domain=/^toki\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
+[$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
+! - 광고차단 걸리는거 해결
+@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/
 !
 !
 ! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/newtoki_ch)  (https://토끼평생.com) (https://newto14.com/) (https://mato14.com/) (https://bookto14.com/)
@@ -3227,8 +3234,6 @@ minkch.com#@#.execphpwidget
 !
 !
 ! BestJavporn (https://www.bestjavporn.com/)
-! - 기타
-/wp-content/themes/*/assets/js/fun.js$from=bestjavporn.com|javdock.com|javhdporn.com|javhdporn.net
 ! - 차단 사이트
 !||cdn1cloudflare.xyz^
 !||jads.co^
@@ -3516,6 +3521,7 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! MISSAV  (https://missav.fans/)
 ! MISSAV  (https://missav123.com/)
 ! MISSAV  (https://missav01.com/)
+! MISSAV (https://missav123.jp/) - 샘플 영상만 잇음
 !
 ! nJAVTV (https://njavtv.com/)
 ! - 하단 떠다니는 배너 Easylist) (List-KR)
@@ -4290,7 +4296,7 @@ jusogall.com###banner-container
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 야동투어 (https://xn--2q1bl84a3e140c.com/) (https://ydtour41.sbs/) - /p2p* 해제해야 영상재생 가능
+! 야동투어 (https://xn--2q1bl84a3e140c.com/) (https://ydtour42.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
 ##[id*="-ads" i]
@@ -5059,14 +5065,16 @@ noonnu.cc##.is-visible.is-active.justify-center.items-center.flex.splide__slide
 ! 오르비 (https://orbi.kr/)
 ! - 배너 및 상단 빈 공간
 !##div[id*="ads"]
-orbi.kr##div[id*="ads" i]
+!orbi.kr##div[id*="ads" i]
 !##div[id^="ads-"]
 !##[id^="ads-" i]
 !##div[x-data="advertisement"]
-##div[x-data="advertisement" i]
+!##div[x-data="advertisement" i]
+##div[x-data*="advert" i]
 ! - https://gemini.google.com/ - 안나옴
 !##[style*="banner"]
-##div[style*="/new-banners/" i]
+!##div[style*="/new-banners/" i]
+##div[style*="banner" i]
 ! - 오른쪽 빈 배너?
 !##[class*="label-banner" i]
 !##.label-banner
@@ -5441,8 +5449,8 @@ heye.kr##td.menu-item:nth-of-type(3)
 !||pandalive.co.kr^$document,domain=heye.kr
 ||pandalive.co.kr/evt/heye01&5&iframe$document
 heye.kr##+js(nowoif)
-!*banner.js
-*banner*.js
+*banner.js
+!*banner*.js
 !
 !
 ! https://www.a-ha.io/
@@ -5651,14 +5659,13 @@ gemini.google.com##.input-area-container:style(max-width:1600px!important)
 ! - 상단 앱설치 팝업 (모바일)
 !muko.kr##.lp-install-chip
 ! - 숲 (https://play.sooplive.com/) - 먼지 모름 (후에 문제 생기면 확인해볼것)
-##[class*="install" i]
-! - 예외 - https://liteapks.com/
-! - 예외 - https://greasyfork.org/
-! - 예외 - https://linkareer.com/
-! - 예외 - https://addons.mozilla.org/
-! - 예외 - https://adblockultimate.net/
-! - 예외 - 덕덕고 - 본문 안보임
-duckduckgo.com,adblockultimate.net,liteapks.com,addons.mozilla.org,linkareer.com,greasyfork.org#@#[class*="install" i]
+!
+! - https://mypikpak.com/ko/check-in - 버젼 낮다고 경고하는거라 예외 (설치하라는 뜻) class="el-dialog install-extension-guid-dialog"  install-channels
+! - adblockultimate.net - 윈도우 다운로드 버튼 - class="install-btn-wrap"
+! - https://liteapks.com/ - 다운로드 버튼 - rounded-full.btn-install
+! - https://linkareer.com - 앱 설치 안내 배너 - InstallAppBanner
+! - https://greasyfork.org/ - 일일설치수 / 총설치 수 script-list-daily-installs  script-list-total-installs
+##[class*="install" i]:not([class="el-dialog install-extension-guid-dialog"]):not([class="install-channels"]):not([class="install-btn-wrap"]):not([class="rounded-full.btn-install"]):not([class*="InstallAppBanner"]):not([class="script-list-daily-installs"]):not([class="script-list-total-installs"])
 !
 !
 ! Up-4ever (https://www.up-4ever.net/)
@@ -5932,6 +5939,8 @@ yozm.wishket.com##[data-testid^="advert"]
 !
 !
 ! 링커리어 (https://linkareer.com/)
+! - 돌아가는 배너
+linkareer.com##[class*="banner" i]:has([class="hotline-item-image"])
 ! - 팝업 차단으로 스크롤 잠금 해제
 linkareer.com##html,body:style(overflow: auto !important;)
 ! - 인기 공고
@@ -6171,6 +6180,62 @@ kidd.co.kr##.product--register
 ! - 기타
 ||ads.daara.co.kr^
 ||counter.daara.kr^
+!
+!
+! https://uploadgig.com/
+! - 기타
+||ywxi.net^
+!
+!
+! https://www51.eyny.com/
+! - 기타
+||eyny.com/data/cache/js_show_ads.js
+!
+!
+! https://ljh.sisurl.com/
+! - 기타
+/bbs/paypic/*.gif|
+!
+!
+! https://www.javdock.com/
+! - 영상 오른쪽 배너 공간
+javdock.com##.ntv
+!
+!
+! https://maxjav.com/
+! - 기타
+||cbox.ws^
+!
+!
+! https://javfilms.com/
+! - 목록중 광고
+javfilms.com##div[class*="xs"]:has([class*="tracksub"])
+! - 기타
+||simpleanalyticscdn.com^
+!
+!
+! https://www.njav.com/
+! - 기타
+/js*piao.js
+/^https:\/\/[a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-]+\.com\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\/invoke\.js/$script,3p
+!
+!
+! https://adblockultimate.net/
+! 기타
+||widget.trustpilot.com^
+!
+!
+! https://greasyfork.org/
+! - 기타
+||cdn.perfops.net^
+||ethicalads.io^
+
+
+
+
+
+
+
 
 
 
@@ -6475,7 +6540,7 @@ ad.co.kr#@#[href*="/ad/" i]
 ! - - - 콕콕티비 (https://cokcok10.com/) / 티비위키 (https://tvwiki301.com/) - cokcok.stream  //  p2p막으면 플레이 안되게 되어잇음
 ! - -- 고구마티비 (https://gogumatv80.com/) /티비조타 (https://tvzota170.com/) - ply.catopolice.com/dplayer
 ! - - - 뷰티비 (https://vitv81.com/) / 냥티비 (https://nortv82.com/) - xiaoca.top/one/onet.php?url=
-! - - - 티비착 (https://tvchak205.com/) - /chak/chaktt.php?url=
+! - - - 티비착 (https://tvchak207.com/) - /chak/chaktt.php?url=
 ! - - - Linkkf 애니 TV (https://linkkf.drewpx.xyz/) - /static/player/artplayer/    .php?&id=
 ! - - - 서울신문 - yna.co.kr/program/
 ! - - - 한국경제신문 - stockwin.thinkpool.com/html/hktv/index.html
@@ -6504,7 +6569,12 @@ ad.co.kr#@#[href*="/ad/" i]
 ! - - - https://www.bestjavporn.com/ - .bestjavporn.com/p/
 ! - - - 이토랜드 - wasp.pandalive.co.kr/auth/?token=
 ! - --  http://www.bokuennews.com/ - /iframe/tab
-##div iframe:not([src*="/embed/"]):not([src*="/player.php?"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="view.php?ch="]):not([src*="xvqz.org/content/"]):not([src*="index.php?data="]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="media.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="]):not([src*="/static/player/artplayer/"]):not([src*=".php?&id="]):not([src*="yna.co.kr/program/"]):not([src*="stockwin.thinkpool.com/html/hktv/index.html"]):not([src*="upload18.com/play/"]):not([src*="18av.mm-cg.com/js/player/play.php?"]):not([src*="creatorofvideo.com/play/"]):not([src*="/javbraze_cdn/"]):not([src*="goodtv.co.kr/watch_banner.asp"]):not([src*="embed.streamxx.net"]):not([src*="guccihide.store/embed/"]):not([src*="play3737.com/?v="]):not([src*="streambeast.upn.one/"]):not([src*="ok.ru/videoembed/"]):not([src*="player.kick.com/"]):not([src*="kcdn.tving.com/"]):not([src*="jtbclive-cdn.jtbc.co.kr"]):not([src*="/attendance/"]):not([src*="x.videist.com/hls/"]):not([src*="llis-goodsdetail.lotteon.com"]):not([src*="itemdesc.ssg.com"]):not([src*="/comment.php?no="]):not([src*="gstatic.com/atari/embeds/"]):not([class*="nmContent"]):not([src*="nnmo0oi1.com/video/"]):not([src*="theofferwall.pincrux.com/chzzk/"]):not([src*="game.naver.com/notify?"]):not([src*="/?track=cam69_embed"]):not([src*="https://short.icu/"]):not([src*="emb.missav.to/?id="]):not([src*="1player.store/"]):not([src*="/jav.guru/searcho/?"]):not([src*="luluvid.com/"]):not([src*=".bestjavporn.com"]):not([src*="wasp.pandalive.co.kr/auth/?token="]):not([src*="/iframe/tab"])
+! - - - https://www.javdock.com/ - /video1.javdock.com/p/
+! - - - https://www.njav.com/ - /vv/  https://jav.sb/
+! - - - https://jav.sb/ - /static/player/videojs.html
+! - - - 픽팍- mypikpak.com/favorite-links-hub?
+! - https://www.ad.co.kr/ - /include/
+##div iframe:not([src*="/embed/"]):not([src*="/player.php?"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="view.php?ch="]):not([src*="xvqz.org/content/"]):not([src*="index.php?data="]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="media.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="about:blank"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="]):not([src*="/static/player/artplayer/"]):not([src*=".php?&id="]):not([src*="yna.co.kr/program/"]):not([src*="stockwin.thinkpool.com/html/hktv/index.html"]):not([src*="upload18.com/play/"]):not([src*="18av.mm-cg.com/js/player/play.php?"]):not([src*="creatorofvideo.com/play/"]):not([src*="/javbraze_cdn/"]):not([src*="goodtv.co.kr/watch_banner.asp"]):not([src*="embed.streamxx.net"]):not([src*="guccihide.store/embed/"]):not([src*="play3737.com/?v="]):not([src*="streambeast.upn.one/"]):not([src*="ok.ru/videoembed/"]):not([src*="player.kick.com/"]):not([src*="kcdn.tving.com/"]):not([src*="jtbclive-cdn.jtbc.co.kr"]):not([src*="/attendance/"]):not([src*="x.videist.com/hls/"]):not([src*="llis-goodsdetail.lotteon.com"]):not([src*="itemdesc.ssg.com"]):not([src*="/comment.php?no="]):not([src*="gstatic.com/atari/embeds/"]):not([class*="nmContent"]):not([src*="nnmo0oi1.com/video/"]):not([src*="theofferwall.pincrux.com/chzzk/"]):not([src*="game.naver.com/notify?"]):not([src*="/?track=cam69_embed"]):not([src*="https://short.icu/"]):not([src*="emb.missav.to/?id="]):not([src*="1player.store/"]):not([src*="/jav.guru/searcho/?"]):not([src*="luluvid.com/"]):not([src*=".bestjavporn.com"]):not([src*="wasp.pandalive.co.kr/auth/?token="]):not([src*="/iframe/tab"]):not([src*="/video1.javdock.com/p/"]):not([src*="/vv/"]):not([src*="/static/player/videojs.html"]):not([src*="mypikpak.com/favorite-links-hub?"]):not([src*="/include/"])
 
 ##[target] video
 
@@ -6549,8 +6619,12 @@ ad.co.kr#@#[href*="/ad/" i]
 !*/banner-ad/*
 
 /*banner*/*
+! - 예외  - 이미지 안보임
+@@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/
 
-/*banner*
+!/*banner*
+
+
 
 
 ! - 킥 - files.kick.com/images/subcategories/
@@ -6574,7 +6648,9 @@ ad.co.kr#@#[href*="/ad/" i]
 ! - 18모아 - class="banner2"
 ! - 주소월드 -  class='megu-post-banner
 ! - 클리앙(모바일) - class="comment inline_link ad_banner "
-##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner "])
+! - https://addons.mozilla.org/ - GetFirefoxBanner
+! - https://www.ad.co.kr/ - contents_area_right_banner
+##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"])
 
 ! - https://dailyuploads.net/ - class="banner 사용으로 별도 처리해야함
 dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner "])
@@ -6682,12 +6758,16 @@ aniya24.com#@#[class*="banner" i]
 ! - 웃대 - src*="/humor_logo.png"  down-webp.humoruniv.com/  timg.humoruniv.com/thumb.php?
 ! - 알바천국 - image-logo.alba.kr
 ! - http://www.bokuennews.com/ - /pdf
+! - https://zum.com/ - thumb.zumst.com/  static.egloos.com/content/images/  search.zum.com/_next/image
+! - https://www51.eyny.com/ - static-file.com/s/
+! - https://javfilms.com/ - pics.dmm.co.jp/digital/video/
+! - https://www.ad.co.kr/ - /quick_menu/  thumb.ad.co.kr/
 ! - - - 11번가 - cdn.011st.com/
 ! - - - G마켓 - gdimg.gmarket.co.kr
 ! - - - 옥션 - image.auction.co.kr
 ! - - -  ##[target] > img 순서대로되야 차단 가능
 ! - - - ##[target] img 깊이에 상관없이 자식, 손자, 그 아래 모든 후손 img가 대상
-##[target] img:not([src*="/logo/"]):not([class*="logo"]):not([alt*="로고"]):not([src*="trand"]):not([class*="favicon"]):not([class*="img-tag"]):not([src*="sooplive"]):not([src*="viewimage.php?"]):not([class*="og-img"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="ytimg.com"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd.it"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/data/file/AI/"]):not([src*="/data/file/bj/"]):not([src*="/rank"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"]):not([class*="inlist"]):not([src*="i.namu.wiki/i/"]):not([src*="img.seoul.co.kr/img/upload/"]):not([src*="img.seoul.co.kr//img/newsletter/"]):not([src*="avppomppu.com/data/file/gallery/"]):not([src*="imgstream3.com/s/"]):not([src*="mmfree2.com/A_PH/"]):not([src*="18av.mm-cg.com/images/"]):not([src*="/widgets/coin_currency/tpl/gears.png"]):not([src*="image.fomos.kr/contents/images/"]):not([src*="adult-live.com/wp-content/uploads/"]):not([src*="/alive-video"]):not([class*="size-full"]):not([class*="size-large"]):not([class*="size-checathlon"]):not([id*="Image1"]):not([src*="imgs.minkch.com/imgs/"]):not([src*="/m_webp/"]):not([src*="/amateur/s"]):not([src*="/censored/s/"]):not([src*="/uncensored/s/"]):not([src*="/live_show/s/"]):not([src*="teamblind.com/img/channel/logo/"]):not([src*="/player_button"]):not([src*="cdn.011st.com"]):not([src*="gdimg.gmarket.co.kr"]):not([src*="image.auction.co.kr"]):not([src*="scdn.st/"]):not([data-src*="of996.com/wp-content/uploads/"]):not([src*="aashop.co.kr/data/item/"]):not([src*="/_next/image?url=https%3A%2F%2Fassets.mtn.co.kr"]):not([src*="pic.popkontv.com"]):not([src*="dramaday.me/wp-content/uploads/"]):not([src*="imgs.search.brave.com"]):not([src*="/login"]):not([src*="img.youtube.com"]):not([src*="/resources/img/logo/"]):not([src*="cdn.javmiku.com/wp-content/uploads/"]):not([src*="btcdn.etoland.co.kr/"]):not([src*="popi.io/uploads/"]):not([data-original-height="110"]):not([src*="/humor_logo.png"]):not([src*="down-webp.humoruniv.com/"]):not([src*="timg.humoruniv.com/thumb.php?"]):not([src*="image-logo.alba.kr"]):not([src*="/pdf"])
+##[target] img:not([src*="/logo/"]):not([class*="logo"]):not([alt*="로고"]):not([src*="trand"]):not([class*="favicon"]):not([class*="img-tag"]):not([src*="sooplive"]):not([src*="viewimage.php?"]):not([class*="og-img"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="ytimg.com"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd.it"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/data/file/AI/"]):not([src*="/data/file/bj/"]):not([src*="/rank"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"]):not([class*="inlist"]):not([src*="i.namu.wiki/i/"]):not([src*="img.seoul.co.kr/img/upload/"]):not([src*="img.seoul.co.kr//img/newsletter/"]):not([src*="avppomppu.com/data/file/gallery/"]):not([src*="imgstream3.com/s/"]):not([src*="mmfree2.com/A_PH/"]):not([src*="18av.mm-cg.com/images/"]):not([src*="/widgets/coin_currency/tpl/gears.png"]):not([src*="image.fomos.kr/contents/images/"]):not([src*="adult-live.com/wp-content/uploads/"]):not([src*="/alive-video"]):not([class*="size-full"]):not([class*="size-large"]):not([class*="size-checathlon"]):not([id*="Image1"]):not([src*="imgs.minkch.com/imgs/"]):not([src*="/m_webp/"]):not([src*="/amateur/s"]):not([src*="/censored/s/"]):not([src*="/uncensored/s/"]):not([src*="/live_show/s/"]):not([src*="teamblind.com/img/channel/logo/"]):not([src*="/player_button"]):not([src*="cdn.011st.com"]):not([src*="gdimg.gmarket.co.kr"]):not([src*="image.auction.co.kr"]):not([src*="scdn.st/"]):not([data-src*="of996.com/wp-content/uploads/"]):not([src*="aashop.co.kr/data/item/"]):not([src*="/_next/image?url=https%3A%2F%2Fassets.mtn.co.kr"]):not([src*="pic.popkontv.com"]):not([src*="dramaday.me/wp-content/uploads/"]):not([src*="imgs.search.brave.com"]):not([src*="/login"]):not([src*="img.youtube.com"]):not([src*="/resources/img/logo/"]):not([src*="cdn.javmiku.com/wp-content/uploads/"]):not([src*="btcdn.etoland.co.kr/"]):not([src*="popi.io/uploads/"]):not([data-original-height="110"]):not([src*="/humor_logo.png"]):not([src*="down-webp.humoruniv.com/"]):not([src*="timg.humoruniv.com/thumb.php?"]):not([src*="image-logo.alba.kr"]):not([src*="/pdf"]):not([src*="thumb.zumst.com/"]):not([src*="static.egloos.com/content/images/"]):not([src*="search.zum.com/_next/image"]):not([src*="static-file.com/s/"]):not([src*="pics.dmm.co.jp/digital/video/"]):not([src*="/quick_menu/"]):not([src*="thumb.ad.co.kr/"])
 
 
 !##[target] picture
@@ -6709,7 +6789,8 @@ aniya24.com#@#[class*="banner" i]
 ! https://www.a-ha.io/ - popup-open
 ! - yandex - ahead-popup_yes"
 ! 클리앙 - 쪽지 팝업이 class=popup이라 #@#로 대체
-! - play.sooplive.com - 확장프로그램(숲 키트) - soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode
+! play.sooplive.com - 확장프로그램(숲 키트) - soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode
+! https://mypikpak.com/ 목록 및 재생 - class="el-overlay is-drawer guide-app-popup el-modal-drawer"  class="el-overlay is-drawer guide-popup el-modal-drawer" -- 안해도 됨
 
 ##[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
 
@@ -6745,6 +6826,7 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - https://zdrive.to/ - class="py-12 px-4 relative download-section"  class="download-file-timer"  download-file-link
 ! - 야스닷컴 공지 등 게시판 - class="mail-read-content"
 ! - 주소킥 (https://kr1.jusokick.com/) - class="head-inner-root" -- 제외
+! https://mypikpak.com/ 목록 및 재생 - class="download-guide-box" -- 안해도 됨
 ##[class*="ad-" i]:not([class="container py-5 download-page"]):not([class="d-flex align-items-center file-info mb-3 upload-list"]):not([class*="download-btn"]):not([class*="download-prepare"]):not([class="commu-content ad-layout"]):not([class*="ahead-popup_yes"]):not([class="hero-sec2 download-sec"]):not([class="download-button"]):not([class="section download-section"]):not([class="premium-download-card"]):not([class*="download-section-box"]):not([class*="download-type"]):not([class="py-12 px-4 relative download-section"]):not([class*="download-file-timer"]):not([class*="download-file-link"]):not([class="mail-read-content"])
 
 
@@ -6752,7 +6834,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - missav.to - with-sidebar-ads
 ! - https://www.kaspersky.ru/ - MastheadSideBuyBlock
 ! - 산업일보 - class="adStart"  class="adStart header-is-sticky"
-##[class*="ads" i]:not([class*="with-sidebar-ads"]):not([class*="MastheadSideBuyBlock"]):not([class="adStart"]):not([class="adStart header-is-sticky"])
+! - https://www.javdock.com/ -  class="home blog wp-theme-dock has-mobile-ads" class="wp-singular post-template-default single single-post postid-730986 single-format-standard wp-theme-dock has-mobile-ads"
+##[class*="ads" i]:not([class*="with-sidebar-ads"]):not([class*="MastheadSideBuyBlock"]):not([class="adStart"]):not([class="adStart header-is-sticky"]):not([class="home blog wp-theme-dock has-mobile-ads"]):not([class="wp-singular post-template-default single single-post postid-730986 single-format-standard wp-theme-dock has-mobile-ads"])
 
 
 
