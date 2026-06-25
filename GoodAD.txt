@@ -179,7 +179,7 @@ youtube.com##.sticker-layer.ytd-reel-video-renderer
 ! - 아래 규칙으로 하면 스티커 이미지들이 안보임
 !##[class*="sticker" i]
 ! - 예외 - https://poooo.ml/ - 채팅 이모니콘 안보임
-poooo.ml#@#[class*="sticker" i]
+!poooo.ml#@#[class*="sticker" i]
 !
 ! 특수
 ! - 영상 끝 자동재생 자체를 끄는 것도 병행 - 이건 필터로는 한계가 있어서, 유튜브 플레이어 우상단의 자동재생 토글을 꺼둘것
@@ -1624,10 +1624,12 @@ wavve.com##.banner_2
 poooo.ml##.h30
 ! - ##.ad 복원 - 채팅창 아이콘 사라짐
 poooo.ml#@#.ad
+! 기타
+||tns-counter.ru^
 !
 !
 ! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwiki32.net/)
-! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/)
+! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
 !##[id*="modal-overlay" i]
@@ -1690,7 +1692,7 @@ poooo.ml#@#.ad
 !/p2p
 !
 !
-! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak207.com/) 
+! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak208.com/) 
 ! - 팝업
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 ![$domain=/^tvchak\d*\./]##[class*="popup_mdd" i]
@@ -1725,7 +1727,7 @@ poooo.ml#@#.ad
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://bt.hoohootv417.xyz/)
+! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://at.hoohootv419.xyz)
 ! - 배너 빈 공간
 [$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 !
@@ -6229,6 +6231,12 @@ javfilms.com##div[class*="xs"]:has([class*="tracksub"])
 ! - 기타
 ||cdn.perfops.net^
 ||ethicalads.io^
+!
+!
+! https://kr.indeed.com/?r=us
+! - 기타
+||sgtm.indeed.com^
+||ispot.tv^
 
 
 
@@ -6540,7 +6548,7 @@ ad.co.kr#@#[href*="/ad/" i]
 ! - - - 콕콕티비 (https://cokcok10.com/) / 티비위키 (https://tvwiki301.com/) - cokcok.stream  //  p2p막으면 플레이 안되게 되어잇음
 ! - -- 고구마티비 (https://gogumatv80.com/) /티비조타 (https://tvzota170.com/) - ply.catopolice.com/dplayer
 ! - - - 뷰티비 (https://vitv81.com/) / 냥티비 (https://nortv82.com/) - xiaoca.top/one/onet.php?url=
-! - - - 티비착 (https://tvchak207.com/) - /chak/chaktt.php?url=
+! - - - 티비착 (https://tvchak208.com/) - /chak/chaktt.php?url=
 ! - - - Linkkf 애니 TV (https://linkkf.drewpx.xyz/) - /static/player/artplayer/    .php?&id=
 ! - - - 서울신문 - yna.co.kr/program/
 ! - - - 한국경제신문 - stockwin.thinkpool.com/html/hktv/index.html
@@ -6650,12 +6658,11 @@ ad.co.kr#@#[href*="/ad/" i]
 ! - 클리앙(모바일) - class="comment inline_link ad_banner "
 ! - https://addons.mozilla.org/ - GetFirefoxBanner
 ! - https://www.ad.co.kr/ - contents_area_right_banner
-##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"])
+! - 숲 개인 프로필 상단 배너 - TopBanner_TopBanner
+##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"])
 
 ! - https://dailyuploads.net/ - class="banner 사용으로 별도 처리해야함
-dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner "])
-
-
+dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"])
 
 
 ! - 예외
