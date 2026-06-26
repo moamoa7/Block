@@ -486,8 +486,6 @@ sooplive.com##.tuneout
 ! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
 !##[class="extensions_item"]
 !sooplive.com##.extensions_item
-! - 픽팍 - 본문 (https://mypikpak.com/ko/browser-extension) 안보임 browser-extension
-##[class*="extension" i]:not([class="browser-extension"])
 ! - 영상 왼쪽 하단 애드벌룬 배너
 sooplive.com##.adballoon_icon
 ! - 개인채널 (https://ch.sooplive.com/) 팝업
@@ -1889,8 +1887,6 @@ nuevosiglonews.com###menu-item-88,  #menu-item-87
 ! VIP TV (https://viptv24.com/)
 ! - 팝업
 ![$domain=/^viptv\d+.com/]###popup_1
-! - 치지직 후원 - popup_contents._contents
-##[id^="popup" i]:not([id*="_contents"])
 ! - 채팅 공간
 ! - - - https://www.cool111.com/
 !###left_chat
@@ -1909,7 +1905,7 @@ nuevosiglonews.com###menu-item-88,  #menu-item-87
 [$domain=/^gltv\d+.com/]##li.dropdown:nth-of-type(3)
 !
 !
-! 헐크티비 (https://www.hulk24.com/) (https://xn--2p7bp2h.tv/)
+! 헐크티비 (https://xn--2p7bp2h.tv/)  (https://www.hulk24.com/)
 ! - 필요없는 이미지
 ||www.hulk24.com/images/*.jpg
 ! - 오른쪽 상단 배너
@@ -2616,7 +2612,6 @@ m.11st.co.kr##.fadeIn.animated.dim
 !11st.co.kr##.c_product_item_list
 !11st.co.kr##.l_product_seller_wrap
 ! -기타
-##[id^="ad_" i]
 ||skplanet.com^
 11st.co.kr##+js(set-cookie, web2AppPopupDisable, Y)
 11st.co.kr##+js(remove-class, header-fixed--banner, #wrap)
@@ -2652,7 +2647,6 @@ web.joongna.com##.max-md\:gap-3
 ! 바나나몰 (https://www.bananamall.co.kr/)
 ! - 팝업 잔챙이
 !###vue-pc-popup-app
-##[id*="-popup-" i]
 ! - 팝업 왼쪽
 !bananamall.co.kr##.ui-draggable
 ! - 팝업 오른쪽
@@ -5849,7 +5843,6 @@ rou.video##div.md\:col-span-1
 !  https://fikfap.com/
 ! - 쿠키 배너
 !fikfap.com###dialog-popup
-##[id$="popup" i]
 ! - 기타
 ||view-api.fikfap.com^
 !
