@@ -146,6 +146,21 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[href*="/ads/" i]
 !
 !
+##[src*="/ads/" i]
+!
+!
+##[src*=".ads/" i]
+!
+!
+##[class$="_ads" i]
+!
+!
+##[id*="-ads" i]
+!
+!
+##[class*=-ads-]
+!
+!
 ###videoad
 !##.videoad
 ###video-ad
