@@ -267,6 +267,73 @@ ad.co.kr#@#[href*="/ad/" i]
 !@@/static.$image
 
 
+!##[href*="/pop/" i]
+!##[href*="popup" i]
+! - 예외 - 쿠팡플레이 (https://www.coupangplay.com/) - 라이브 시청하기 버튼 사라짐
+! - 예외 -  에펨코리아 (https://www.fmkorea.com/) - 아바타 이미지 사라짐
+! - 예외 - https://trand.co.kr/ - 즐겨찿기내 popup 들어간 링크 사라짐
+! - 예외 - https://mail.naver.com/ - 메일 텍스트 사라짐
+!mail.naver.com,trand.co.kr,fmkorea.com,coupangplay.com#@#[href*="popup" i]
+
+
+
+
+!##[href*="pop-up" i]
+!##[href*="pop_up" i]
+
+!##[src*="/pop/" i]
+! - 예외 - 도도티비 (https://dodotv11.com/) - 영상 안나옴
+! - 예외 - 땡땡티비 (http://www.ootv41.com/) - 영상 안나옴
+! - 예외 - 뷰티비 (https://vitv79.com/) - 영상 안나옴
+!/^(www\.)?vitv/,/^(www\.)?ootv/,/^(www\.)?dodotv/#@#[src*="/pop/" i]
+!##[src*="popup" i]
+! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
+!accounts.kakao.com#@#[src*="popup" i]
+!##[src*="pop-up" i]
+!##[src*="pop_up" i]
+
+
+!*/*pop*/*
+!@@/*pop*/*$font
+
+!*pop*
+!@@*pop*$css
+!@@*pop*$font
+! - 예외 - https://today-sports9.com/ - 틀 깨짐
+! - 예외 - https://trand.co.kr/ - 일부 이미지 사라짐
+! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
+! - 예외 - https://chzzk.naver.com/ - 라이브 목록 안나옴
+! - 예외 - m.naver.com - 치지직 동영상 재생 안됨
+!@@*pop*$domain=today-sports9.com|trand.co.kr|accounts.kakao.com|chzzk.naver.com|m.naver.com
+
+
+*/popup/*
+/popups/*
+!*popup*
+! - 예외 - https://gall.dcinside.com/ - 링크 클릭시 팝업이 안떠서 팝업때문인줄 알았는대 이것때문임
+! - 예외 - https://accounts.kakao.com/ - 로그인을 위한 문제 안보임
+! - 예외 - https://map.naver.com/ - 팝업스토어 이미지 삭제
+! - 예외 - https://today-sports9.com/ - 틀 깨짐
+! - 예외 - https://www.redgifs.com/ - 본문 안보임
+! - 예외 - https://www.cnine.kr/ - 페이지 이동이 안됨
+!@@||*popup*$css
+!@@||*popup*$frame,domain=accounts.kakao.com
+!@@||*popup*$image,domain=map.naver.com
+!@@||*popup*$script,domain=/^today-sports\d*/
+!@@||*popup*$script,domain=redgifs.com
+!@@||*popup*$script,domain=cnine.kr
+
+!*popup.js
+!*popup*.js
+*popup*.php
+*popup*.script
+
+
+!*pop-up*
+!*pop_up*
+!!*pop*up*
+
+
 ##[class*="adspop" i]
 
 
