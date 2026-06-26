@@ -889,10 +889,8 @@ etoland.co.kr##article.w-full:has(> ul.mx-\[5px\])
 etoland.co.kr##div[class*="min-h-"]:has(> script)
 ! - 개별 게시물 댓글 하단과 히트글 사이 빈 공간 (모바일)
 etoland.co.kr##div.my-4.flex:has(> script)
-! - 게시물 하단 배너 공백
-! - - - SLR (https://www.slrclub.com/) 하단 배너 공백
-!##[class*="adsbyadop" i]
-!##.adsbyadop
+! - 게시물 하단 배너 (PC)
+##[data-inouts-event-name*="banner"]
 ! - 게시물내 하단 배너 공백 (모바일)
 etoland.co.kr##div.mt-2\.5.flex
 ! - 댓글 아래 배너 공백 (PC)
