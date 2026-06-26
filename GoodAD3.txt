@@ -590,6 +590,10 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult-" i]):not([class^="adt_mode_toggle" i]):not([class="adr_copy" i]):not([class="advanced-controls-panel" i])
 
 
+! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
+##[class*="-ad-" i]:not([class*="is-ad-visible"])
+
+
 
 ! - missav.to - with-sidebar-ads
 ! - https://www.kaspersky.ru/ - MastheadSideBuyBlock
