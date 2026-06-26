@@ -599,7 +599,8 @@ chzzk.naver.com##+js(json-prune, *.dab)
 !chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
 ! 놓치면 후회할 무료 치즈 툴팁
-chzzk.naver.com##[class*="_tooltip_" i]
+! - - - 치지직 아이디 / 팔로우 사라짐 방지
+chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
 ! 치트키 구매하기 툴팁
 !chzzk.naver.com##.tooltip - ##[class$="tooltip" i] 로 대체
 ##[class$="tooltip" i]
@@ -3182,6 +3183,8 @@ xnxx.com##+js(set-local-storage-item, xvutils.nb_tabs_opened, 1)
 !
 ! SexLBJ (https://sexkbj.com/)
 @@||sexkbj.com^$generichide,badfilter
+sexkbj.com#@#+js(prevent-window-open)
+||sexkbj.com^$popup
 !
 !
 ! TK Tubo (https://tktube.com/)
@@ -3661,8 +3664,9 @@ popjav.in##div.pop--excl
 kissjav.*##.asside-link
 ! - 영상 재생 안되는 문제 해결
 !@@||tsyndicate.com^$domain=kissjav.*
-! - 메뉴 안눌러지는거 해결
-@@*$script,3p,domain=kissjav.*
+! - 메뉴 안눌러지는거 해결 - 보류 (양날의 검 - 이걸 풀면 메뉴는 나오지만 팝업이 나옴)
+!@@*$script,third-party,domain==kissjav.*
+!*$script,third-party,domain=kissjav.*
 ! - 이미지 안보이는거 등 문제 해결
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
 kissjav.*##+js(nowoif)
@@ -6951,7 +6955,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 카지노다이소 -  class="float-start"  class="float-end"  class="width-50 float-start"  class="width-50 float-end text-end" - 보류
 ! - https://hook.tistory.com - class="floatWrapper"
 ! - 탑춘챗 - [variant=floating]
-##[class*="float" i]:not([class*="float_box"]):not([class*="jw-floating"]):not([class*="nav-float"]):not([class*="float-e-margins border-bottom"]):not([class*="ibox float-e-margins"][class*="ibox"]):not([class*="float-left"]):not([class*="float-right"]):not([class*="FloatingTab"]):not([class="cntwrapfloat"]):not([class*="float-back"]):not([class*="FloatingWrapper"]):not([class*="FloatingMenu"]):not([class*="FloatingUserInfo"]):not([class*="float-5"]):not([class="w-100 float-start header"]):not([class="w-100 float-start body-section"]):not([class*="animate-floating"]):not([class="floatWrapper"]):not([class*="[variant=floating]"])
+! - https://s5.watchfreekav.com - af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid 
+##[class*="float" i]:not([class*="float_box"]):not([class*="jw-floating"]):not([class*="nav-float"]):not([class*="float-e-margins border-bottom"]):not([class*="ibox float-e-margins"][class*="ibox"]):not([class*="float-left"]):not([class*="float-right"]):not([class*="FloatingTab"]):not([class="cntwrapfloat"]):not([class*="float-back"]):not([class*="FloatingWrapper"]):not([class*="FloatingMenu"]):not([class*="FloatingUserInfo"]):not([class*="float-5"]):not([class="w-100 float-start header"]):not([class="w-100 float-start body-section"]):not([class*="animate-floating"]):not([class="floatWrapper"]):not([class*="[variant=floating]"]):not([class*="af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid"]) 
 
 
 
