@@ -698,6 +698,8 @@ aagag.com##.la.top.naver:style(width:0 !important; height:0 !important; min-widt
 aagag.com##.mirror_mid_ad
 ! - 맨 하단 빈 공간
 aagag.com##div.cwarp2
+! - 양 옆 필요없는 배너공간 없애기 ( kr: List-KR Classic)
+aagag.com##.la:style(height: 75px !important; width: 75px !important; visibility: hidden !important;)
 !
 !
 ! 이슈링크 (https://www.issuelink.co.kr/)
@@ -2842,7 +2844,7 @@ pedia.watcha.com##.adFixed
 /torrentpi[0-9]+\.com/##.sero1
 !
 !
-! AVseeTV (https://06.avsee.ru/)
+! AVseeTV (https://08.avsee.ru/)
 ! - 배너 이미지
 ||avsee.ru/imgs/$image
 ! - 메인 배너
@@ -2886,7 +2888,11 @@ avsee.ru#@#.tabs
 j91.asia##+js(window.open-defuser)
 ! - 영상 재생시 팝업 차단 (uBlock filters – Ads)
 /^https:\/\/[0-9a-z]{6,12}\.(?:com|in)(?:\/[a-z]{2,10}){1,3}(?:\?id=\d+)?$/$script,3p,match-case,responseheader=etag:/^W\/"[0-9a-z]+-[0-9a-zA-Z]+(?:\/[0-9a-zA-Z]+)?"$/,from=~edu|~gov,to=com|in
-
+!
+!
+! https://k01.aving.tv/ - avsee를 가져오는 사이트로 보임
+! - 팝업(새창) 방지 (AdGuard – Ad)
+/^https:\/\/[0-9a-z]{6,12}\.in(?:\/[a-z]{2,10}){1,3}$/$script,3p,match-case
 !
 !
 ! supjav (https://supjav.com/)
