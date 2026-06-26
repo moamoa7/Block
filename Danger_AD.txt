@@ -25,6 +25,8 @@ ad.co.kr#@#.ad
 !
 !
 *_ad.*
+! - 예외 - https://github.com/ - 이름이 같을 경우 저장시 에러발생
+@@*_ad.*$domain=github.com
 !
 !
 */ad?*
