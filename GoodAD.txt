@@ -823,12 +823,6 @@ gall.dcinside.com#@#.r_dcmedia
 !##[id*="google_ads"]
 ! - - - 파워 링크
 ##div[class*="naver_power_link"]
-! - 천사티비 - adult-
-!##div[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i])
-! - https://www.avdbs.com/ - adt_mode_toggle
-! - 디시인사이드 - adr_copy
-! - 숲 확장 프로그램 (숲 키트) - advanced-controls-panel
-##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult-" i]):not([class^="adt_mode_toggle" i]):not([class="adr_copy" i]):not([class="advanced-controls-panel" i])
 !##[class*="ad_"] [style]
 ! - - - 예외
 ! - - - https://theqoo.net/- 프레임 깨짐
@@ -6396,4 +6390,5 @@ video.dmm.co.jp##[class*="h-"]:has([class*="cds-deliver-tags"] iframe)
 
 ! 홍보글 링크 주의
 ||event.filesun.com^
+
 
