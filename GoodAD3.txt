@@ -602,4 +602,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ##[class*="ads" i]:not([class*="with-sidebar-ads"]):not([class*="MastheadSideBuyBlock"]):not([class="adStart"]):not([class="adStart header-is-sticky"]):not([class="home blog wp-theme-dock has-mobile-ads"]):not([class="wp-singular post-template-default single single-post postid-730986 single-format-standard wp-theme-dock has-mobile-ads"])
 
 
+! - 픽팍 - 본문 (https://mypikpak.com/ko/browser-extension) 안보임 browser-extension
+##[class*="extension" i]:not([class="browser-extension"])
+
+
 !=========================================================================
