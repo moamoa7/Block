@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      70.1.0
-// @description  모바일 동영상 터치 제스처 (UI 최상위 마운트 + JS 전체화면 클래스 토글)
+// @version      70.2.0
+// @description  유튜브 PIP 수정
 // @author       Gemini & Claude
 // @license      MIT
 // @match        *://*/*
@@ -516,15 +516,25 @@
         const bar = document.createElement('div'); bar.className = 'gt-mini-progress'; bar.innerHTML = TT('<div class="gt-fill"></div>'); uiLayer.appendChild(bar);
 
         if (document.pictureInPictureEnabled) {
-            const pipBtn = document.createElement('div'); pipBtn.className = 'gt-btn-base gt-pip-btn'; pipBtn.innerHTML = TT(SVG_PIP);
-            bindTap(pipBtn, () => {
-                if (document.pictureInPictureElement) document.exitPictureInPicture();
-                else video.requestPictureInPicture().catch(() => showMsg('PIP 모드 실행 실패', video));
-                wakeUpUI(root, video);
-            });
-            uiLayer.appendChild(pipBtn);
+          const pipBtn = document.createElement('div');
+          pipBtn.className = 'gt-btn-base gt-pip-btn';
+          pipBtn.innerHTML = TT(SVG_PIP);
+          bindTap(pipBtn, () => {
+            if (document.pictureInPictureElement) {
+                document.exitPictureInPicture();
+            } else {
+                // ★ 유튜브 등이 걸어둔 PIP 차단 해제
+                try {
+                  video.removeAttribute('disablepictureinpicture');
+                  video.disablePictureInPicture = false;
+                } catch (e) {}
+                video.requestPictureInPicture()
+                  .catch((err) => showMsg('PIP 실패: ' + (err && err.name || ''), video));
+            }
+            wakeUpUI(root, video);
+          });
+          uiLayer.appendChild(pipBtn);
         }
-
         const rBtn = document.createElement('div'); rBtn.className = 'gt-btn-base gt-rotate-btn'; rBtn.innerHTML = TT(SVG_ROTATE);
         bindTap(rBtn, () => { toggleOrientation(); wakeUpUI(root, video); });
         uiLayer.appendChild(rBtn);
