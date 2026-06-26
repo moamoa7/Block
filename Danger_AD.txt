@@ -1,10 +1,10 @@
-! Title: GoodAD3
-! Description: Personal AdBlock List
+! Title: Danger_AD
+! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
 ! Version: 20260626
 
 
-!!!! 광역 규칙
+!!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
 
 
 
