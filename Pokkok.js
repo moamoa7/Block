@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.3.2
-// @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수·:has), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing
+// @version      1.3.3
+// @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수·:has), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing, Trusted Types 대응
 // @author       moamoa7
 // @license      MPL-2.0
 // @homepage     https://github.com/moamoa7/Block
@@ -37,6 +37,32 @@
         '.pokkok-rec', '.pokkok-rec *',
         '.pokkok-modal-body', '.pokkok-modal-body *', '.pokkok-btn'
     ].join(',');
+
+    // ── Trusted Types 대응 (CSP require-trusted-types-for 'script') ──
+    // 이름 있는 정책 + setHTML() 헬퍼로 사이트의 기존 default 정책과 충돌하지 않음
+    const TT_POLICY = (() => {
+        try {
+            if (window.trustedTypes && typeof window.trustedTypes.createPolicy === 'function') {
+                return window.trustedTypes.createPolicy('pokkok-policy', {
+                    createHTML: (s) => s,
+                    createScript: (s) => s,
+                    createScriptURL: (s) => s
+                });
+            }
+        } catch (_) {}
+        return null;
+    })();
+
+    // innerHTML 안전 할당 헬퍼 — TT 정책이 있으면 통과시키고, 없으면 일반 할당
+    function setHTML(el, html) {
+        if (!el) return;
+        try {
+            el.innerHTML = TT_POLICY ? TT_POLICY.createHTML(html) : html;
+        } catch (_) {
+            // 최후의 보루: TT 정책 생성 실패 환경에서도 직접 할당 시도
+            try { el.innerHTML = html; } catch (__) {}
+        }
+    }
 
     const SUPPORTS_ADOPTED = (() => {
         try {
@@ -275,7 +301,7 @@
             this.dismiss();
             const wrap = document.createElement('div');
             wrap.className = 'pokkok-modal';
-            wrap.innerHTML = `
+            setHTML(wrap, `
                 <div class="pokkok-modal-card">
                     <div class="pokkok-modal-hdr" data-modal-drag="1">
                         <span class="pokkok-modal-grip" title="드래그하여 이동">⠿</span>
@@ -283,9 +309,9 @@
                         <button class="pokkok-modal-x" aria-label="닫기">${ICON_CLOSE}</button>
                     </div>
                     <div class="pokkok-modal-body"></div>
-                </div>`;
+                </div>`);
             const bodyEl = wrap.querySelector('.pokkok-modal-body');
-            if (isHtml) bodyEl.innerHTML = body; else bodyEl.textContent = body;
+            if (isHtml) setHTML(bodyEl, body); else bodyEl.textContent = body;
             wrap.querySelector('.pokkok-modal-x').addEventListener('click', () => this.dismiss());
             wrap.addEventListener('click', (e) => { if (e.target === wrap) this.dismiss(); });
             (this.container || document.body).appendChild(wrap);
@@ -363,12 +389,12 @@
         confirm(title, message, { okText = '확인', cancelText = '취소', danger = false } = {}) {
             return new Promise((resolve) => {
                 const body = this.display(title, '', true);
-                body.innerHTML = `
+                setHTML(body, `
                     <div style="line-height:1.5;margin-bottom:14px;white-space:pre-line;">${esc(message)}</div>
                     <div class="pokkok-modal-foot" style="justify-content:flex-end;">
                         <button class="pokkok-btn" data-ref="cancel">${esc(cancelText)}</button>
                         <button class="pokkok-btn ${danger ? 'pokkok-btn-danger' : 'pokkok-btn-primary'}" data-ref="ok">${esc(okText)}</button>
-                    </div>`;
+                    </div>`);
                 let answered = false;
                 const finish = (v) => { if (answered) return; answered = true; this._onDismiss = null; this.dismiss(); resolve(v); };
                 body.querySelector('[data-ref="ok"]').addEventListener('click', () => finish(true));
@@ -924,12 +950,12 @@
             if (!tool) return;
             if (this.state.scale === 'icon') {
                 tool.className = 'pokkok-tool pokkok-icon';
-                tool.innerHTML = `<button class="pokkok-icon-btn" data-act="cycleSize" title="Pokkok 열기" aria-label="Pokkok 열기">${ICON_TARGET}</button>`;
+                setHTML(tool, `<button class="pokkok-icon-btn" data-act="cycleSize" title="Pokkok 열기" aria-label="Pokkok 열기">${ICON_TARGET}</button>`);
                 this.attachRefs();
                 return;
             }
             tool.className = 'pokkok-tool pokkok-panel';
-            tool.innerHTML = this.getLayout();
+            setHTML(tool, this.getLayout());
             this.attachRefs();
             this.refreshRec();
         }
@@ -939,7 +965,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="pokkok-hdr" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.3.2</small></span>
+                <span class="pokkok-title">Pokkok <small>v1.3.3</small></span>
                 <div class="pokkok-hdr-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -1040,21 +1066,21 @@
             if (!rec) return;
             const sel = this.state.selector;
             if (!sel) {
-                rec.innerHTML = '<div class="pokkok-rec-empty">요소를 선택하면 여기에 표시됩니다</div>';
+                setHTML(rec, '<div class="pokkok-rec-empty">요소를 선택하면 여기에 표시됩니다</div>');
                 this._setActionsEnabled(false);
                 this._syncSlider();
                 return;
             }
             const n = SelectorStrategies.countMatches(sel);
             const tag = this.state.target ? this.state.target.tagName.toLowerCase() : '';
-            rec.innerHTML = `
+            setHTML(rec, `
                 <div class="pokkok-rec-hdr">
                     <span class="pokkok-rec-tag">${esc(tag)}</span>
                     <span class="pokkok-rec-count">${n}개 일치</span>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="copy" title="필터 복사(도메인##셀렉터)">${ICON_COPY}</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="edit" title="직접 편집">✎</button>
                 </div>
-                <div class="pokkok-rec-sel" title="${esc(sel)}">${esc(sel)}</div>`;
+                <div class="pokkok-rec-sel" title="${esc(sel)}">${esc(sel)}</div>`);
             rec.querySelectorAll('[data-act]').forEach(el => {
                 el.addEventListener('click', (e) => { e.stopPropagation(); this.trigger(el.getAttribute('data-act'), el, e); });
             });
@@ -1180,11 +1206,11 @@
                     <span class="pokkok-child-txt">${esc(txt)}</span>
                 </label>`;
             }).join('');
-            body.innerHTML = `
+            setHTML(body, `
                 <div style="opacity:.75;font-size:12px;margin-bottom:8px;line-height:1.5">
                     <code>${esc(ref.tagName.toLowerCase())}</code>의 직계 자식 ${children.length}개입니다. 탭하면 그 요소로 들어갑니다.
                 </div>
-                <div class="pokkok-child-list">${rows}</div>`;
+                <div class="pokkok-child-list">${rows}</div>`);
             const list = body.querySelector('.pokkok-child-list');
             list.querySelectorAll('.pokkok-child-item').forEach(li => {
                 const i = parseInt(li.dataset.i, 10);
@@ -1222,10 +1248,10 @@
             let abs = found;
             try { abs = new URL(found, location.href).href; } catch (_) {}
             const body = this.modal.display('추출된 URL', '', true);
-            body.innerHTML = `
+            setHTML(body, `
                 <div style="opacity:.75;font-size:12px;margin-bottom:8px">선택 요소(또는 상위 5단계 이내)에서 찾은 첫 URL입니다.</div>
                 <textarea class="pokkok-modal-input" rows="4" readonly>${esc(abs)}</textarea>
-                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-primary" data-ref="cp">복사</button></div>`;
+                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-primary" data-ref="cp">복사</button></div>`);
             const ta = body.querySelector('textarea');
             body.querySelector('[data-ref="cp"]').addEventListener('click', () => { this.copyText(ta.value); this.flashToast('URL 복사됨'); });
             ta.focus(); ta.select();
@@ -1236,7 +1262,6 @@
             const el = this.state.target;
             if (!el) { this.flashToast('먼저 요소를 선택하세요'); return; }
             const attrs = Array.from(el.attributes || [])
-                .filter(a => a.name !== 'class' || !/(^|\s)(pokkok-|${HL_CLASS})/.test(a.value))
                 .map(a => ({ name: a.name, value: a.value }));
             // class 속성에서 pokkok 내부 클래스는 표시상 제거
             for (const a of attrs) {
@@ -1252,11 +1277,11 @@
                     <span class="pokkok-attr-val">${esc(a.value) || '<span style="opacity:.4">(빈 값)</span>'}</span>
                     <span class="pokkok-attr-copy">${ICON_COPY}</span>
                 </label>`).join('') : '<div class="pokkok-rec-empty">표시할 속성이 없습니다</div>';
-            body.innerHTML = `
+            setHTML(body, `
                 <div style="opacity:.75;font-size:12px;margin-bottom:8px;line-height:1.5">
                     <code>${esc(tag)}</code>의 속성 ${attrs.length}개입니다. 항목을 탭하면 값이 복사됩니다.
                 </div>
-                <div class="pokkok-attr-list">${rows}</div>`;
+                <div class="pokkok-attr-list">${rows}</div>`);
             const list = body.querySelector('.pokkok-attr-list');
             list.querySelectorAll('.pokkok-attr-item').forEach(item => {
                 const i = parseInt(item.dataset.i, 10);
@@ -1299,12 +1324,12 @@
                     <span class="pokkok-sim-lbl">${esc(o.label)}</span>
                     <span class="pokkok-sim-cnt">${o.count}개</span>
                 </button>`).join('') : '<div class="pokkok-rec-empty">사용할 수 있는 공통 속성이 없습니다</div>';
-            body.innerHTML = `
+            setHTML(body, `
                 <div style="opacity:.75;font-size:12px;margin-bottom:8px;line-height:1.5">
                     선택한 요소(<code>${esc(ref.tagName.toLowerCase())}</code>)와 공통점이 있는 요소들을 찾습니다.
                     기준을 누르면 후보가 열립니다. 목록이 길면 스크롤하세요. 치수 기준은 화면에 보이는 크기로 매칭합니다.
                 </div>
-                <div class="pokkok-sim-opts">${rows}</div>`;
+                <div class="pokkok-sim-opts">${rows}</div>`);
             body.querySelectorAll('.pokkok-sim-opt').forEach(b => {
                 b.addEventListener('click', () => {
                     const opt = opts[parseInt(b.dataset.i, 10)];
@@ -1339,7 +1364,7 @@
                 </label>`;
             }).join('') : '<div class="pokkok-rec-empty">일치하는 요소가 없습니다</div>';
 
-            body.innerHTML = `
+            setHTML(body, `
                 <div style="opacity:.75;font-size:12px;margin-bottom:6px;line-height:1.5">
                     기준: <code>${esc(opt.label)}</code><br>${esc(saveHint)}
                 </div>
@@ -1350,7 +1375,7 @@
                     <button class="pokkok-btn" data-ref="back">← 기준</button>
                     <button class="pokkok-btn pokkok-btn-primary" data-ref="preview">👁 숨겨서 미리보기</button>
                     <button class="pokkok-btn pokkok-btn-danger" data-ref="blockAll">선택 차단</button>
-                </div>`;
+                </div>`);
 
             const list = body.querySelector('.pokkok-sim-list');
             const updateSel = () => {
@@ -1406,12 +1431,12 @@
 
             const bar = document.createElement('div');
             bar.className = 'pokkok-sim-prevbar';
-            bar.innerHTML = `
+            setHTML(bar, `
                 <div class="pokkok-sim-prevbar-msg">${applied.length}개를 숨긴 미리보기 — 실제 차단과 동일한 화면입니다</div>
                 <div class="pokkok-sim-prevbar-btns">
                     <button class="pokkok-btn" data-ref="restore">${ICON_EYE}<span>복원</span></button>
                     <button class="pokkok-btn pokkok-btn-danger" data-ref="commit">${ICON_BLOCK}<span>이대로 차단</span></button>
-                </div>`;
+                </div>`);
             this.dom.shadow.appendChild(bar);
             this.state.simPreviewBar = bar;
 
@@ -1518,7 +1543,7 @@
             const aim = document.createElement('div');
             aim.className = 'pokkok-aim';
             aim.style.cssText = `position:absolute!important;width:0!important;height:0!important;pointer-events:none!important;z-index:2147483646!important;left:-100px!important;top:-100px!important;display:${IS_TOUCH ? 'block' : 'none'}!important;`;
-            aim.innerHTML = `<div style="position:absolute;left:-16px;top:-16px;width:32px;height:32px;border:2px solid #ef4444;border-radius:50%;box-shadow:0 0 0 2px rgba(255,255,255,0.6),inset 0 0 0 1px rgba(255,255,255,0.4);"><div style="position:absolute;left:50%;top:-8px;width:2px;height:8px;background:#ef4444;transform:translateX(-50%);"></div><div style="position:absolute;left:-8px;top:50%;width:8px;height:2px;background:#ef4444;transform:translateY(-50%);"></div></div>`;
+            setHTML(aim, `<div style="position:absolute;left:-16px;top:-16px;width:32px;height:32px;border:2px solid #ef4444;border-radius:50%;box-shadow:0 0 0 2px rgba(255,255,255,0.6),inset 0 0 0 1px rgba(255,255,255,0.4);"><div style="position:absolute;left:50%;top:-8px;width:2px;height:8px;background:#ef4444;transform:translateX(-50%);"></div><div style="position:absolute;left:-8px;top:50%;width:8px;height:2px;background:#ef4444;transform:translateY(-50%);"></div></div>`);
             shield.appendChild(aim);
             this.dom.shieldAim = aim;
 
@@ -1526,12 +1551,12 @@
                 const confirm = document.createElement('div');
                 confirm.className = 'pokkok-shield-confirm';
                 confirm.style.cssText = 'position:fixed!important;bottom:16px!important;left:50%!important;transform:translateX(-50%)!important;background:rgba(17,24,39,0.98)!important;border:1px solid rgba(255,255,255,0.15)!important;border-radius:12px!important;padding:12px 14px!important;z-index:2147483647!important;max-width:calc(100vw - 24px)!important;width:360px!important;box-shadow:0 8px 24px rgba(0,0,0,0.6)!important;touch-action:manipulation!important;font-family:-apple-system,BlinkMacSystemFont,sans-serif!important;color:#e8eaed!important;box-sizing:border-box!important;';
-                confirm.innerHTML = `
+                setHTML(confirm, `
                     <div class="pokkok-shield-msg" style="font-size:12px;color:#e8eaed;margin-bottom:8px;word-break:break-all;line-height:1.4;text-align:center;">손가락으로 요소를 가리키세요 (조준점이 위쪽에 표시됩니다)</div>
                     <div style="display:flex;gap:8px;">
                         <button data-shield="confirm" disabled style="flex:1;min-height:44px;padding:8px 12px;font-size:13px;background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;border-radius:8px;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:4px;opacity:0.4;">${ICON_CHECK} 이 요소 선택</button>
                         <button data-shield="cancel" style="flex:1;min-height:44px;padding:8px 12px;font-size:13px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#e8eaed;display:inline-flex;align-items:center;justify-content:center;gap:4px;">${ICON_CLOSE} 취소</button>
-                    </div>`;
+                    </div>`);
                 shield.appendChild(confirm);
                 this.dom.shieldConfirm = confirm;
                 const bC = confirm.querySelector('[data-shield="confirm"]');
@@ -1578,7 +1603,7 @@
                     if (msg) {
                         const id = el.id ? `#${el.id}` : '';
                         const cls = SelectorStrategies.meaningfulClasses(el).slice(0, 2).map(c => '.' + c).join('');
-                        msg.innerHTML = `<code style="background:rgba(0,0,0,0.4);color:#9ecbff;padding:3px 6px;border-radius:4px;font-size:11px;">${esc(el.tagName.toLowerCase() + id + cls)}</code>`;
+                        setHTML(msg, `<code style="background:rgba(0,0,0,0.4);color:#9ecbff;padding:3px 6px;border-radius:4px;font-size:11px;">${esc(el.tagName.toLowerCase() + id + cls)}</code>`);
                     }
                 }
             };
@@ -1714,14 +1739,14 @@
         editSelector() {
             const cur = this.state.selector || '';
             const body = this.modal.display('셀렉터 직접 편집', '', true);
-            body.innerHTML = `
+            setHTML(body, `
                 <div style="opacity:.75;font-size:12px;margin-bottom:6px">추천이 빗나갔을 때만 사용하세요. 수정하면 초록 외곽선으로 미리보기됩니다.</div>
                 <textarea class="pokkok-modal-input" rows="3" autocapitalize="off" autocorrect="off" spellcheck="false">${esc(cur)}</textarea>
                 <div class="pokkok-modal-meta" data-ref="prev">일치 0개</div>
                 <div class="pokkok-modal-foot">
                     <button class="pokkok-btn" data-ref="apply">적용</button>
                     <button class="pokkok-btn pokkok-btn-danger" data-ref="blk">차단 추가</button>
-                </div>`;
+                </div>`);
             const ta = body.querySelector('textarea');
             const prev = body.querySelector('[data-ref="prev"]');
             const update = () => { const sel = ta.value.trim(); prev.textContent = `일치 ${SelectorStrategies.countMatches(sel)}개`; this.applyPinned(sel); };
@@ -1748,7 +1773,7 @@
         showRules() {
             const rules = Blocker.fetch();
             const body = this.modal.display(`이 사이트 규칙 (${rules.length})`, '', true);
-            body.innerHTML = `
+            setHTML(body, `
                 <div class="pokkok-rules-list">
                     ${rules.length ? rules.map((r, i) => `
                         <div class="pokkok-rule-item">
@@ -1758,7 +1783,7 @@
                 </div>
                 <div class="pokkok-modal-foot">
                     ${rules.length ? '<button class="pokkok-btn pokkok-btn-danger" data-ref="clear">이 사이트 전체 삭제</button>' : ''}
-                </div>`;
+                </div>`);
             body.querySelectorAll('[data-ridx]').forEach(b => b.addEventListener('click', () => { Blocker.drop(rules[parseInt(b.dataset.ridx)]); this.showRules(); this.render(); }));
             body.querySelectorAll('[data-pin]').forEach(c => c.addEventListener('click', () => { this.applyPinned(c.dataset.pin); this.flashToast('미리보기 표시 (초록 외곽선)'); }));
             const clr = body.querySelector('[data-ref="clear"]');
@@ -1772,16 +1797,18 @@
             const body = this.modal.display('설정', '', true);
             const stats = Blocker.getStats();
             const engine = SUPPORTS_ADOPTED ? 'adoptedStyleSheets (:where)' : '&lt;style&gt; 폴백 (:where)';
-            body.innerHTML = `
+            const ttState = TT_POLICY ? '예 (정책 활성)' : (window.trustedTypes ? '미사용 가능' : '미지원');
+            setHTML(body, `
                 <div class="pokkok-settings">
                     <div class="pokkok-settings-row"><span>전체 규칙</span><span>${stats.totalRules}개 (이 사이트 ${stats.ruleCount}개)</span></div>
                     <div class="pokkok-settings-row"><span>차단 엔진</span><span style="font-size:11px;opacity:0.7">${engine}</span></div>
                     <div class="pokkok-settings-row"><span>:has() 지원</span><span style="font-size:11px;opacity:0.7">${SUPPORTS_HAS ? '예 (직계 자식 셀렉터 사용)' : '아니오 (미사용)'}</span></div>
+                    <div class="pokkok-settings-row"><span>Trusted Types</span><span style="font-size:11px;opacity:0.7">${ttState}</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="resetPos">버튼 위치 초기화</button><button class="pokkok-btn" data-ref="clearPreview">미리보기 정리</button></div>
                     <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><span style="flex:1;font-weight:600;">규칙 백업</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="exportRules">내보내기</button><button class="pokkok-btn" data-ref="importRules">가져오기</button></div>
-                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게 또는 슬라이더로 범위 조절, "자식 선택"으로 하위 요소를 목록에서 고르기 → 차단. "URL 추출"은 선택 요소(또는 상위 5단계)의 링크·이미지 주소를, "속성"은 선택 요소의 모든 속성을 뽑아냅니다(탭하면 값 복사). "강화 모드"는 차단 활성 옆 체크로 켜고 끕니다(끈질긴 광고를 공간·잔여 스타일까지 강제 제거). "유사 요소 찾기"로 class·src·alt·title·:has(직계 자식)·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다.</small></div>
-                </div>`;
+                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게 또는 슬라이더로 범위 조절, "자식 선택"으로 하위 요소를 목록에서 고르기 → 차단. "URL 추출"은 선택 요소(또는 상위 5단계)의 링크·이미지 주소를, "속성"은 선택 요소의 모든 속성을 뽑아냅니다(탭하면 값 복사). "강화 모드"는 차단 활성 옆 체크로 켜고 끕니다(끈질긴 광고를 공간·잔여 스타일까지 강제 제거). "유사 요소 찾기"로 class·src·alt·title·:has(직계 자식)·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다. Trusted Types를 요구하는 사이트에서도 동작합니다.</small></div>
+                </div>`);
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => { this.state.iconPos = null; this.state.panelPos = null; this.applyPosition(); this.flashToast('위치 초기화됨'); });
             body.querySelector('[data-ref="clearPreview"]').addEventListener('click', () => { this.clearPinned(); this.clearHide(); this.clearSimHighlight(); this.flashToast('미리보기 정리됨'); this._syncHideLabel(); });
             body.querySelector('[data-ref="exportRules"]').addEventListener('click', () => this.exportRules());
@@ -1791,10 +1818,10 @@
         exportRules() {
             const json = JSON.stringify(Blocker.fetchAll(), null, 2);
             const body = this.modal.display('규칙 내보내기', '', true);
-            body.innerHTML = `
+            setHTML(body, `
                 <div style="opacity:.75;font-size:12px;margin-bottom:6px">아래 텍스트를 복사해 백업하세요. 다른 기기에서 "가져오기"로 복원할 수 있습니다.</div>
                 <textarea class="pokkok-modal-input" rows="8" readonly>${esc(json)}</textarea>
-                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-primary" data-ref="cp">전체 복사</button></div>`;
+                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-primary" data-ref="cp">전체 복사</button></div>`);
             const ta = body.querySelector('textarea');
             body.querySelector('[data-ref="cp"]').addEventListener('click', () => { this.copyText(ta.value); this.flashToast('복사됨'); });
             ta.focus(); ta.select();
@@ -1802,10 +1829,10 @@
 
         importRules() {
             const body = this.modal.display('규칙 가져오기', '', true);
-            body.innerHTML = `
+            setHTML(body, `
                 <div style="opacity:.75;font-size:12px;margin-bottom:6px">백업한 JSON을 붙여넣으세요. 기존 규칙을 모두 덮어씁니다.</div>
                 <textarea class="pokkok-modal-input" rows="8" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder='{"example.com":["a.ad"]}'></textarea>
-                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-danger" data-ref="imp">덮어쓰기 가져오기</button></div>`;
+                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-danger" data-ref="imp">덮어쓰기 가져오기</button></div>`);
             const ta = body.querySelector('textarea');
             body.querySelector('[data-ref="imp"]').addEventListener('click', async () => {
                 let obj;
