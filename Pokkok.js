@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.3.3
-// @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 유사 요소 찾기(속성·치수·:has), 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing, Trusted Types 대응
+// @version      1.4.0
+// @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 슬라이더 계층 탐색, 유사 요소 찾기, 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing, Trusted Types 대응
 // @author       moamoa7
 // @license      MPL-2.0
 // @homepage     https://github.com/moamoa7/Block
@@ -39,7 +39,6 @@
     ].join(',');
 
     // ── Trusted Types 대응 (CSP require-trusted-types-for 'script') ──
-    // 이름 있는 정책 + setHTML() 헬퍼로 사이트의 기존 default 정책과 충돌하지 않음
     const TT_POLICY = (() => {
         try {
             if (window.trustedTypes && typeof window.trustedTypes.createPolicy === 'function') {
@@ -53,13 +52,11 @@
         return null;
     })();
 
-    // innerHTML 안전 할당 헬퍼 — TT 정책이 있으면 통과시키고, 없으면 일반 할당
     function setHTML(el, html) {
         if (!el) return;
         try {
             el.innerHTML = TT_POLICY ? TT_POLICY.createHTML(html) : html;
         } catch (_) {
-            // 최후의 보루: TT 정책 생성 실패 환경에서도 직접 할당 시도
             try { el.innerHTML = html; } catch (__) {}
         }
     }
@@ -111,16 +108,11 @@
     const ICON_SET     = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19.14 12.94a7.96 7.96 0 000-1.88l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.61-.22l-2.39.96a8.13 8.13 0 00-1.62-.94l-.36-2.54A.5.5 0 0014 2h-4a.5.5 0 00-.5.42l-.36 2.54c-.58.24-1.12.56-1.62.94l-2.39-.96a.5.5 0 00-.61.22L2.6 8.48a.5.5 0 00.12.64l2.03 1.58a7.96 7.96 0 000 1.88L2.72 14.16a.5.5 0 00-.12.64l1.92 3.32a.5.5 0 00.61.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54A.5.5 0 0010 22h4a.5.5 0 00.5-.42l.36-2.54a8.13 8.13 0 001.62-.94l2.39.96a.5.5 0 00.61-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1112 8.5a3.5 3.5 0 010 7z"/></svg>';
     const ICON_MIN     = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19 13H5v-2h14v2z"/></svg>';
     const ICON_BLOCK   = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18a7.95 7.95 0 01-4.9-1.69L18.31 7.1A7.95 7.95 0 0120 12c0 4.41-3.59 8-8 8z"/></svg>';
-    const ICON_UP      = '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>';
-    const ICON_DOWN    = '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>';
     const ICON_TARGET  = '<svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="3" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2" d="M12 4v3M12 17v3M4 12h3M17 12h3"/></svg>';
     const ICON_EYE     = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zM12 17a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>';
     const ICON_CHECK   = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
     const ICON_COPY    = '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16 1H4a2 2 0 00-2 2v14h2V3h12V1zm3 4H8a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2zm0 16H8V7h11v14z"/></svg>';
     const ICON_SIMILAR = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm10 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z"/></svg>';
-    const ICON_LINK    = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M3.9 12a3.1 3.1 0 013.1-3.1h4V7h-4a5 5 0 000 10h4v-1.9h-4A3.1 3.1 0 013.9 12zM8 13h8v-2H8v2zm9-6h-4v1.9h4a3.1 3.1 0 010 6.2h-4V17h4a5 5 0 000-10z"/></svg>';
-    const ICON_TREE    = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M9 4h6v3H9V4zM3 11h6v3H3v-3zm12 0h6v3h-6v-3zM10.5 7h3v4h-3V7zM4.5 9h3v2h-3V9zm12 0h3v2h-3V9z"/></svg>';
-    const ICON_ATTR    = '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 14H4V8h16v10zM6 10h5v2H6v-2zm0 4h8v2H6v-2zm9-4h3v2h-3v-2z"/></svg>';
 
 
     // ── 규칙 저장/적용 (현재 사이트 단위) ───────────────────────────────
@@ -183,20 +175,6 @@
             else all[this.host()] = rules;
             GM_setValue(this.KEY_RULES, JSON.stringify(all));
             this.enforce();
-        },
-
-        replaceAll(obj) {
-            if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
-            const clean = {};
-            for (const k of Object.keys(obj)) {
-                if (Array.isArray(obj[k])) {
-                    const arr = obj[k].filter(v => typeof v === 'string' && v && !/[{}]/.test(v));
-                    if (arr.length) clean[k] = arr;
-                }
-            }
-            GM_setValue(this.KEY_RULES, JSON.stringify(clean));
-            this.enforce();
-            return true;
         },
 
         append(sel) {
@@ -530,7 +508,6 @@
                     seen.add(part);
                     out.push({ part, label: `> .${c}` });
                 }
-                // 클래스가 없으면 태그 자체라도 직계 자식 조건으로
                 if (!ccls.length && ctag) {
                     const part = `> ${ctag}`;
                     if (!seen.has(part)) { seen.add(part); out.push({ part, label: `> ${ctag}` }); }
@@ -604,7 +581,6 @@
                 if (onlyHits(tagNth)) return tagNth;
             }
 
-            // ── :has(> child) 직계 자식 기반 (클래스/속성으로 고유 식별 실패 시) ──
             if (SUPPORTS_HAS) {
                 const base = classes.length
                     ? `${tag}.${classes.map(c => CSS.escape(c)).join('.')}`
@@ -686,7 +662,6 @@
             return parts.slice(0, 5);
         }
 
-        // 자유 텍스트 속성값 → 의미 있는 단어 토막 (불용어 최소 필터)
         static textTokens(v) {
             return String(v || '')
                 .split(/[\s,_\-/|·:;.()[\]{}'"]+/)
@@ -718,7 +693,6 @@
                 const sel = `#${CSS.escape(el.id)}`;
                 push({ label: `id · #${el.id}`, sel, count: this.countMatches(sel) });
             }
-            // :has(> child) 직계 자식 기반 — 같은 형태의 컨테이너 묶음 잡기
             if (SUPPORTS_HAS) {
                 const base = this.meaningfulClasses(el).length
                     ? `${tag}.${this.meaningfulClasses(el).map(c => CSS.escape(c)).join('.')}`
@@ -730,7 +704,6 @@
                     push({ label: `has ${ch.label}`, sel, count });
                 }
             }
-            // URL성 속성: 토막 부분매칭
             for (const attr of ['src', 'href', 'data-src', 'data-original', 'poster']) {
                 const v = el.getAttribute?.(attr);
                 if (!v) continue;
@@ -739,7 +712,6 @@
                     push({ label: `${attr} ⊃ "${part}"`, sel, count: this.countMatches(sel) });
                 }
             }
-            // 값이 한정적인 탐지 속성: 값 전체 부분매칭
             for (const attr of ['target', 'role', 'type', 'rel']) {
                 const v = el.getAttribute?.(attr);
                 if (!v) continue;
@@ -748,7 +720,6 @@
                 const sel = `${tag}[${attr}*="${CSS.escape(val)}"]`;
                 push({ label: `${attr} ⊃ "${val}"`, sel, count: this.countMatches(sel) });
             }
-            // 자유 텍스트 탐지 속성: 단어 토막마다 부분매칭
             for (const attr of ['alt', 'aria-label', 'title', 'placeholder', 'name']) {
                 const v = el.getAttribute?.(attr);
                 if (!v) continue;
@@ -824,7 +795,7 @@
     // ── 인스펙터 (UI / 선택 / 차단) ─────────────────────────────────────
     class Inspector {
         constructor() {
-            this.dom = { host: null, shadow: null, tool: null, shield: null, shieldAim: null, shieldConfirm: null, rec: null, match: null, slider: null, sliderWrap: null };
+            this.dom = { host: null, shadow: null, tool: null, shield: null, shieldAim: null, shieldConfirm: null, rec: null, slider: null, sliderWrap: null };
             this.state = {
                 target: null, originTarget: null, hierarchy: [],
                 selector: '',
@@ -842,19 +813,6 @@
         }
 
         resolveParent(el) { return el?.parentElement || null; }
-        resolveFirstChild(el) {
-            if (!el) return null;
-            return Array.from(el.children || []).find(c =>
-                c.id !== ROOT_ID && !(c.closest && c.closest(`#${ROOT_ID}`)) && c.id !== SHIELD_ID
-            ) || null;
-        }
-        resolveChildren(el) {
-            if (!el) return [];
-            return Array.from(el.children || []).filter(c =>
-                c.id !== ROOT_ID && c.id !== SHIELD_ID &&
-                !(c.closest && (c.closest(`#${ROOT_ID}`) || c.closest(`#${SHIELD_ID}`)))
-            );
-        }
 
         // 선택 요소 기준 조상 체인 구성 (최상위 조상 → 선택 요소 순)
         _buildHierarchy(el) {
@@ -965,7 +923,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="pokkok-hdr" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.3.3</small></span>
+                <span class="pokkok-title">Pokkok <small>v1.4.0</small></span>
                 <div class="pokkok-hdr-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -986,31 +944,10 @@
                     <input type="range" class="pokkok-slider" data-ref="slider" min="0" max="0" value="0">
                 </div>
 
-                <div class="pokkok-nav">
-                    <button class="pokkok-btn pokkok-nav-btn" data-act="navUp" title="더 크게 (부모)">
-                        ${ICON_UP}<span>더 크게</span>
-                    </button>
-                    <button class="pokkok-btn pokkok-nav-btn" data-act="navDown" title="더 작게 (자식)">
-                        ${ICON_DOWN}<span>더 작게</span>
-                    </button>
-                    <button class="pokkok-btn pokkok-nav-btn" data-act="childPick" title="자식 목록에서 선택">
-                        ${ICON_TREE}<span>자식 선택</span>
-                    </button>
-                </div>
-
-                <div class="pokkok-nav">
-                    <button class="pokkok-btn pokkok-similar" data-act="findSimilar" data-ref="simBtn" title="비슷한 속성·치수를 가진 요소 찾기">
-                        ${ICON_SIMILAR}<span>유사 요소 찾기</span>
-                    </button>
-                    <button class="pokkok-btn pokkok-nav-btn" data-act="extractUrl" title="이 요소(또는 상위)의 링크·이미지 URL 추출">
-                        ${ICON_LINK}<span>URL 추출</span>
-                    </button>
-                    <button class="pokkok-btn pokkok-nav-btn" data-act="extractAttr" title="이 요소의 모든 속성 보기 (탭하면 값 복사)">
-                        ${ICON_ATTR}<span>속성</span>
-                    </button>
-                </div>
-
                 <div class="pokkok-act">
+                    <button class="pokkok-btn pokkok-similar" data-act="findSimilar" data-ref="simBtn" title="비슷한 속성·치수를 가진 요소 찾기">
+                        ${ICON_SIMILAR}<span>유사 요소</span>
+                    </button>
                     <button class="pokkok-btn" data-act="toggleHide" data-ref="hideBtn" title="페이지에서 임시로 숨겨 미리보기">
                         ${ICON_EYE}<span data-ref="hideLbl">숨김 미리보기</span>
                     </button>
@@ -1092,7 +1029,7 @@
         _setActionsEnabled(on) {
             const t = this.dom.tool;
             if (!t) return;
-            ['block','toggleHide','navUp','navDown','childPick','findSimilar','extractUrl','extractAttr'].forEach(a => {
+            ['block','toggleHide','findSimilar'].forEach(a => {
                 const b = t.querySelector(`[data-act="${a}"]`);
                 if (b) b.disabled = !on;
             });
@@ -1153,23 +1090,6 @@
             this.refreshRec();
         }
 
-        // 슬라이더 체인을 보존하면서 선택만 옮김 (navUp/navDown/자식선택용)
-        selectNodeKeepChain(el) {
-            if (!el || !el.tagName) return;
-            this.clearHide();
-            this.clearPinned();
-            this.clearSimHighlight();
-            this.state.target = el;
-            if (!this.state.hierarchy.includes(el)) {
-                // 체인 밖으로 나가면 새 체인 구성
-                this._buildHierarchy(el);
-            }
-            this.state.selector = SelectorStrategies.best(el) || '';
-            this.setFocus(el);
-            el.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-            this.refreshRec();
-        }
-
         setFocus(el) {
             this.dropFocus();
             if (!el) return;
@@ -1186,113 +1106,6 @@
         dropFocus() {
             for (const n of this.state.previewNodes) { n.classList.remove(HL_CLASS); n.classList.remove('pokkok-hl-parent'); }
             this.state.previewNodes = [];
-        }
-
-        // ── 자식 목록에서 선택 ──
-        showChildPicker() {
-            const ref = this.state.target;
-            if (!ref) { this.flashToast('먼저 요소를 선택하세요'); return; }
-            const children = this.resolveChildren(ref);
-            if (!children.length) { this.flashToast('하위 요소가 없습니다'); return; }
-            const body = this.modal.display('자식 요소 선택', '', true);
-            const rows = children.map((c, i) => {
-                const tag = c.tagName.toLowerCase();
-                const id = c.id ? `#${c.id}` : '';
-                const cls = SelectorStrategies.meaningfulClasses(c).slice(0, 2).map(x => '.' + x).join('');
-                const txt = (c.textContent || '').trim().slice(0, 24);
-                return `
-                <label class="pokkok-child-item" data-i="${i}">
-                    <code>${esc(tag + id + cls)}</code>
-                    <span class="pokkok-child-txt">${esc(txt)}</span>
-                </label>`;
-            }).join('');
-            setHTML(body, `
-                <div style="opacity:.75;font-size:12px;margin-bottom:8px;line-height:1.5">
-                    <code>${esc(ref.tagName.toLowerCase())}</code>의 직계 자식 ${children.length}개입니다. 탭하면 그 요소로 들어갑니다.
-                </div>
-                <div class="pokkok-child-list">${rows}</div>`);
-            const list = body.querySelector('.pokkok-child-list');
-            list.querySelectorAll('.pokkok-child-item').forEach(li => {
-                const i = parseInt(li.dataset.i, 10);
-                const node = children[i];
-                li.addEventListener('mouseenter', () => { if (node) node.classList.add('pokkok-hl-pinned'); });
-                li.addEventListener('mouseleave', () => { if (node) node.classList.remove('pokkok-hl-pinned'); });
-                li.addEventListener('click', () => {
-                    if (!node) return;
-                    node.classList.remove('pokkok-hl-pinned');
-                    if (!this.state.hierarchy.includes(node)) this.state.hierarchy.push(node);
-                    this.selectNodeKeepChain(node);
-                    this.modal.dismiss();
-                });
-            });
-        }
-
-        // ── URL 추출 (선택 요소부터 위로 5단계 탐색) ──
-        extractUrl() {
-            let el = this.state.target;
-            if (!el) { this.flashToast('먼저 요소를 선택하세요'); return; }
-            let found = null;
-            for (let i = 0; i < 5 && el; i++) {
-                const cand = el.getAttribute?.('href') || el.getAttribute?.('src') ||
-                             el.getAttribute?.('data-src') || el.getAttribute?.('data-original') ||
-                             el.getAttribute?.('poster');
-                if (cand && !DUMMY_HREF_VALUES.has(cand.trim())) { found = cand; break; }
-                try {
-                    const bg = window.getComputedStyle(el).backgroundImage;
-                    const m = bg && bg.match(/url\((['"]?)(.*?)\1\)/);
-                    if (m && m[2] && m[2] !== 'none') { found = m[2]; break; }
-                } catch (_) {}
-                el = this.resolveParent(el);
-            }
-            if (!found) { this.flashToast('URL을 찾지 못했습니다'); return; }
-            let abs = found;
-            try { abs = new URL(found, location.href).href; } catch (_) {}
-            const body = this.modal.display('추출된 URL', '', true);
-            setHTML(body, `
-                <div style="opacity:.75;font-size:12px;margin-bottom:8px">선택 요소(또는 상위 5단계 이내)에서 찾은 첫 URL입니다.</div>
-                <textarea class="pokkok-modal-input" rows="4" readonly>${esc(abs)}</textarea>
-                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-primary" data-ref="cp">복사</button></div>`);
-            const ta = body.querySelector('textarea');
-            body.querySelector('[data-ref="cp"]').addEventListener('click', () => { this.copyText(ta.value); this.flashToast('URL 복사됨'); });
-            ta.focus(); ta.select();
-        }
-
-        // ── 속성 추출 (선택 요소의 모든 속성 나열, 탭하면 값 복사) ──
-        extractAttr() {
-            const el = this.state.target;
-            if (!el) { this.flashToast('먼저 요소를 선택하세요'); return; }
-            const attrs = Array.from(el.attributes || [])
-                .map(a => ({ name: a.name, value: a.value }));
-            // class 속성에서 pokkok 내부 클래스는 표시상 제거
-            for (const a of attrs) {
-                if (a.name === 'class') {
-                    a.value = a.value.split(/\s+/).filter(c => c && !c.startsWith('pokkok-') && c !== HL_CLASS).join(' ');
-                }
-            }
-            const tag = el.tagName.toLowerCase();
-            const body = this.modal.display('요소 속성', '', true);
-            const rows = attrs.length ? attrs.map((a, i) => `
-                <label class="pokkok-attr-item" data-i="${i}" title="탭하면 값 복사">
-                    <span class="pokkok-attr-name">${esc(a.name)}</span>
-                    <span class="pokkok-attr-val">${esc(a.value) || '<span style="opacity:.4">(빈 값)</span>'}</span>
-                    <span class="pokkok-attr-copy">${ICON_COPY}</span>
-                </label>`).join('') : '<div class="pokkok-rec-empty">표시할 속성이 없습니다</div>';
-            setHTML(body, `
-                <div style="opacity:.75;font-size:12px;margin-bottom:8px;line-height:1.5">
-                    <code>${esc(tag)}</code>의 속성 ${attrs.length}개입니다. 항목을 탭하면 값이 복사됩니다.
-                </div>
-                <div class="pokkok-attr-list">${rows}</div>`);
-            const list = body.querySelector('.pokkok-attr-list');
-            list.querySelectorAll('.pokkok-attr-item').forEach(item => {
-                const i = parseInt(item.dataset.i, 10);
-                item.addEventListener('click', () => {
-                    const a = attrs[i];
-                    if (!a) return;
-                    this.copyText(a.value);
-                    this.flashToast(`'${a.name}' 값 복사됨`);
-                    vibrate(10);
-                });
-            });
         }
 
         clearSimHighlight() {
@@ -1707,12 +1520,7 @@
                 case 'settings': this.showSettings(); break;
                 case 'rules': this.showRules(); break;
                 case 'startPick': this.startPicking(); break;
-                case 'navUp': { const p = this.resolveParent(this.state.target); if (p && p !== document.body) { if (!this.state.hierarchy.includes(p)) this.state.hierarchy.unshift(p); this.selectNodeKeepChain(p); } else this.flashToast('더 상위 요소가 없습니다'); break; }
-                case 'navDown': { const c = this.resolveFirstChild(this.state.target); if (c) { if (!this.state.hierarchy.includes(c)) this.state.hierarchy.push(c); this.selectNodeKeepChain(c); } else this.flashToast('더 하위 요소가 없습니다'); break; }
-                case 'childPick': this.showChildPicker(); break;
                 case 'findSimilar': this.findSimilar(); break;
-                case 'extractUrl': this.extractUrl(); break;
-                case 'extractAttr': this.extractAttr(); break;
                 case 'block': this.doBlock(); break;
                 case 'toggleHide': {
                     const sel = this.state.selector;
@@ -1802,47 +1610,13 @@
                 <div class="pokkok-settings">
                     <div class="pokkok-settings-row"><span>전체 규칙</span><span>${stats.totalRules}개 (이 사이트 ${stats.ruleCount}개)</span></div>
                     <div class="pokkok-settings-row"><span>차단 엔진</span><span style="font-size:11px;opacity:0.7">${engine}</span></div>
-                    <div class="pokkok-settings-row"><span>:has() 지원</span><span style="font-size:11px;opacity:0.7">${SUPPORTS_HAS ? '예 (직계 자식 셀렉터 사용)' : '아니오 (미사용)'}</span></div>
+                    <div class="pokkok-settings-row"><span>:has() 지원</span><span style="font-size:11px;opacity:0.7">${SUPPORTS_HAS ? '예' : '아니오'}</span></div>
                     <div class="pokkok-settings-row"><span>Trusted Types</span><span style="font-size:11px;opacity:0.7">${ttState}</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="resetPos">버튼 위치 초기화</button><button class="pokkok-btn" data-ref="clearPreview">미리보기 정리</button></div>
-                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><span style="flex:1;font-weight:600;">규칙 백업</span></div>
-                    <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="exportRules">내보내기</button><button class="pokkok-btn" data-ref="importRules">가져오기</button></div>
-                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 더 크게/작게 또는 슬라이더로 범위 조절, "자식 선택"으로 하위 요소를 목록에서 고르기 → 차단. "URL 추출"은 선택 요소(또는 상위 5단계)의 링크·이미지 주소를, "속성"은 선택 요소의 모든 속성을 뽑아냅니다(탭하면 값 복사). "강화 모드"는 차단 활성 옆 체크로 켜고 끕니다(끈질긴 광고를 공간·잔여 스타일까지 강제 제거). "유사 요소 찾기"로 class·src·alt·title·:has(직계 자식)·치수 등 다양한 기준의 후보를 찾고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다. Trusted Types를 요구하는 사이트에서도 동작합니다.</small></div>
+                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 슬라이더로 범위 조절(← 상위 / 선택 요소 →) → 차단. 레코드 영역의 복사 버튼으로 "도메인##셀렉터" 필터를 떠서 데스크톱 uBlock에 붙여넣을 수 있습니다. "유사 요소 찾기"로 같은 종류 요소를 한꺼번에 잡고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). "강화 모드"는 끈질긴 광고를 공간·잔여 스타일까지 강제 제거합니다. 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다. Trusted Types를 요구하는 사이트에서도 동작합니다.</small></div>
                 </div>`);
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => { this.state.iconPos = null; this.state.panelPos = null; this.applyPosition(); this.flashToast('위치 초기화됨'); });
             body.querySelector('[data-ref="clearPreview"]').addEventListener('click', () => { this.clearPinned(); this.clearHide(); this.clearSimHighlight(); this.flashToast('미리보기 정리됨'); this._syncHideLabel(); });
-            body.querySelector('[data-ref="exportRules"]').addEventListener('click', () => this.exportRules());
-            body.querySelector('[data-ref="importRules"]').addEventListener('click', () => this.importRules());
-        }
-
-        exportRules() {
-            const json = JSON.stringify(Blocker.fetchAll(), null, 2);
-            const body = this.modal.display('규칙 내보내기', '', true);
-            setHTML(body, `
-                <div style="opacity:.75;font-size:12px;margin-bottom:6px">아래 텍스트를 복사해 백업하세요. 다른 기기에서 "가져오기"로 복원할 수 있습니다.</div>
-                <textarea class="pokkok-modal-input" rows="8" readonly>${esc(json)}</textarea>
-                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-primary" data-ref="cp">전체 복사</button></div>`);
-            const ta = body.querySelector('textarea');
-            body.querySelector('[data-ref="cp"]').addEventListener('click', () => { this.copyText(ta.value); this.flashToast('복사됨'); });
-            ta.focus(); ta.select();
-        }
-
-        importRules() {
-            const body = this.modal.display('규칙 가져오기', '', true);
-            setHTML(body, `
-                <div style="opacity:.75;font-size:12px;margin-bottom:6px">백업한 JSON을 붙여넣으세요. 기존 규칙을 모두 덮어씁니다.</div>
-                <textarea class="pokkok-modal-input" rows="8" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder='{"example.com":["a.ad"]}'></textarea>
-                <div class="pokkok-modal-foot"><button class="pokkok-btn pokkok-btn-danger" data-ref="imp">덮어쓰기 가져오기</button></div>`);
-            const ta = body.querySelector('textarea');
-            body.querySelector('[data-ref="imp"]').addEventListener('click', async () => {
-                let obj;
-                try { obj = JSON.parse(ta.value.trim()); }
-                catch (_) { this.flashToast('유효하지 않은 JSON입니다'); return; }
-                const ok = await this.modal.confirm('가져오기 확인', '기존 규칙을 모두 덮어씁니다. 계속할까요?', { okText: '덮어쓰기', danger: true });
-                if (!ok) return;
-                if (Blocker.replaceAll(obj)) { this.flashToast('가져오기 완료'); this.render(); this.modal.dismiss(); }
-                else this.flashToast('가져올 수 있는 규칙이 없습니다');
-            });
         }
 
         async copyText(text) {
@@ -1938,34 +1712,18 @@
     .pokkok-slider-label { font-size: 11px; opacity: 0.6; }
     .pokkok-slider { width: 100%; accent-color: #8b5cf6; height: 28px; cursor: pointer; touch-action: none; }
 
-    .pokkok-nav { display: flex; gap: 6px; margin-bottom: 10px; }
-    .pokkok-nav-btn { flex: 1; min-height: 42px; justify-content: center; }
-
-    .pokkok-similar { flex: 1; min-height: 42px; justify-content: center; background: rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.4); }
+    .pokkok-act { display: flex; gap: 6px; margin-bottom: 10px; align-items: stretch; }
+    .pokkok-act .pokkok-btn { flex: 1; min-height: 46px; }
+    .pokkok-similar { background: rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.4); }
     .pokkok-similar:hover { background: rgba(139,92,246,0.3); }
-
-    .pokkok-act { display: flex; gap: 6px; margin-bottom: 10px; }
-    .pokkok-act .pokkok-btn { flex: 1; min-height: 44px; }
-    .pokkok-block { flex: 1.2 !important; }
+    .pokkok-block { flex: 1.5 !important; min-height: 52px !important; font-size: 14px; font-weight: 700; }
+    .pokkok-block svg { width: 20px; height: 20px; }
 
     .pokkok-toggles { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
     .pokkok-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; min-height: 36px; }
     .pokkok-toggle input { cursor: pointer; width: 18px; height: 18px; }
     .pokkok-toggle-agg { opacity: 0.92; }
     .pokkok-stat { margin-left: auto; opacity: 0.55; font-size: 11px; }
-
-    .pokkok-child-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-    .pokkok-child-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; min-height: 42px; background: rgba(255,255,255,0.04); border-radius: 6px; cursor: pointer; }
-    .pokkok-child-item:hover { background: rgba(139,92,246,0.2); }
-    .pokkok-child-item code { font-size: 11px; color: #9ecbff; white-space: nowrap; }
-    .pokkok-child-txt { margin-left: auto; opacity: 0.5; font-size: 11px; word-break: break-all; text-align: right; }
-
-    .pokkok-attr-list { display: flex; flex-direction: column; gap: 4px; max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-    .pokkok-attr-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; min-height: 42px; background: rgba(255,255,255,0.04); border-radius: 6px; cursor: pointer; }
-    .pokkok-attr-item:hover { background: rgba(59,130,246,0.18); }
-    .pokkok-attr-name { font-family: ui-monospace, monospace; font-size: 12px; color: #6ee7b7; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-    .pokkok-attr-val { font-family: ui-monospace, monospace; font-size: 12px; color: #9ecbff; word-break: break-all; flex: 1; }
-    .pokkok-attr-copy { opacity: 0.5; flex-shrink: 0; display: flex; align-items: center; }
 
     .pokkok-sim-opts { display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-right: 2px; }
     .pokkok-sim-opt { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 10px 12px; min-height: 44px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; color: #e8eaed; cursor: pointer; font-size: 13px; text-align: left; flex-shrink: 0; }
@@ -2019,7 +1777,6 @@
     }`;
 
     // ── 페이지(라이트 DOM) 하이라이트/숨김 스타일 ──────────────────────
-    // HIDE_CLASS를 display:none으로 통일 → 미리보기 = 실제 차단 화면
     const PAGE_CSS = `
         .${HL_CLASS} { outline: 2px solid #ef4444 !important; outline-offset: -2px !important; background: rgba(239,68,68,0.08) !important; }
         .pokkok-hl-parent { outline: 2px dashed #f59e0b !important; outline-offset: -2px !important; }
