@@ -393,7 +393,7 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"]):not([class="main-banner topBillwrap"]):not([class*="main-banner__"]):not([class*="promo-free__banner"]):not([class*="install-app__banner"])
 
 ! - https://dailyuploads.net/ - class="banner 사용으로 별도 처리해야함
-dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"])
+dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"]):not([class="main-banner topBillwrap"]):not([class*="main-banner__"]):not([class*="promo-free__banner"]):not([class*="install-app__banner"])
 
 
 ! - 예외
@@ -582,6 +582,14 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ##[id^="ad"]:not([id="address"])
 
 
+! - 천사티비 - adult-
+!##div[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i])
+! - https://www.avdbs.com/ - adt_mode_toggle
+! - 디시인사이드 - adr_copy
+! - 숲 확장 프로그램 (숲 키트) - advanced-controls-panel
+##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult-" i]):not([class^="adt_mode_toggle" i]):not([class="adr_copy" i]):not([class="advanced-controls-panel" i])
+
+
 
 ! - missav.to - with-sidebar-ads
 ! - https://www.kaspersky.ru/ - MastheadSideBuyBlock
@@ -591,44 +599,3 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 
 !=========================================================================
-!=========================================================================
-!=========================================================================
-
-
-*$script,third-party
-! - 치지직
-@@||ssl.pstatic.net/static/$script
-@@||ssl.pstatic.net/spi/$script
-! - trand.co.kr
-@@||cdnjs.cloudflare.com/ajax/libs/$script
-! - supjav.com
-@@||turboviplay.com$script
-! - 기상청 - 2개 다 해야 날씨정보 나옴
-@@||developers.kakao.com/sdk/$script
-@@||t1.kakaocdn.net/kakao_js_sdk/$script
-! - https://etoland.co.kr/fulltv
-@@||code.jquery.com/$script
-@@||wasp.pandalive.co.kr/resource/$script
-@@||player.live-video.net/$script
-! - 티비위키
-@@||w.apisvc9.com/$script
-@@||cdn.jsdelivr.net/npm/hls.js*$script
-! - 티비몬
-@@||m.apisvc9.com/$script
-! - 네이버
-@@||pm.naver.net/resources/$script
-@@||mail.pstatic.net/$script
-@@||ca-fe.pstatic.net/web-section/$script
-@@||ssl.pstatic.net/t.static.blog/section/versioning/$script
-@@||shopv.pstatic.net/$script
-@@||ssl.pstatic.net/static.news/mnews/resources/$script
-@@||ssl.pstatic.net/imgstock/$script
-@@||property.pstatic.net/$script
-@@||maps-service.pstatic.net/$script
-@@||ssl.pstatic.net/sstatic.map/$script
-@@||wtm.pstatic.net/$script
-@@||map.pstatic.net/nrb/styles/$script
-@@||map.pstatic.net/nrs/api/$script
-! - 넷플릭스
-@@||*.nflxext.com$script
-
