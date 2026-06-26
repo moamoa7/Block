@@ -545,6 +545,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 ##[id$="popup" i]
 
+##[id*="-popup-" i]
+
 
 
 
