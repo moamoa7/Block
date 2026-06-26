@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-06-26 04:46:38 UTC
+! Generated: 2026-06-26 08:23:53 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,516
+! Exception Rules: 6,521
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -1560,6 +1560,7 @@
 @@||elster.de^
 @@||email-link.adtidy.info^
 @@||email-link.adtidy.org^
+@@||email.microsoft.com^
 @@||email.microsoftonline.com^
 @@||email.namebase.io^
 @@||email.office.com^
@@ -2824,8 +2825,10 @@
 @@||m-5fwyg.custobar.com^
 @@||m-6pyms.custobar.com^
 @@||m-7uz3v.custobar.com^
+@@||m-b2o72.custobar.com^
 @@||m-eqxt2.custobar.com^
 @@||m-fi32s.custobar.com^
+@@||m-fucdf.custobar.com^
 @@||m-gzmk5.custobar.com^
 @@||m-hju7x.custobar.com^
 @@||m-htgjb.custobar.com^
@@ -2996,6 +2999,7 @@
 @@||mkbnetbankar.hu^
 @@||mkto-a0279.com^
 @@||mkto-ab010150.com^
+@@||mkto-ab030019.com^
 @@||mkto-ab040115.com^
 @@||mkto-ab040117.com^
 @@||mkto-ab060101.com^
@@ -3080,10 +3084,10 @@
 @@||mkto-ab540186.com^
 @@||mkto-ab550041.com^
 @@||mkto-ab550140.com^
-@@||mkto-ab550144.com^
 @@||mkto-ab550184.com^
 @@||mkto-ab560068.com^
 @@||mkto-ab560119.com^
+@@||mkto-ab560171.com^
 @@||mkto-ab570110.com^
 @@||mkto-ab570128.com^
 @@||mkto-ab580004.com^
@@ -5228,6 +5232,7 @@
 @@||suite30-cdnnet.emarsys.net^
 @@||suite30-cf.emarsys.net^
 @@||suite30.emarsys.net^
+@@||suite32.emarsys.net^
 @@||suite33-cf.emarsys.net^
 @@||suite33.emarsys.net^
 @@||suite34.emarsys.net^
