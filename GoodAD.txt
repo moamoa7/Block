@@ -5725,8 +5725,6 @@ gemini.google.com##.input-area-container:style(max-width:1600px!important)
 !muko.kr##[id="popupadoverlay" i]
 ! - 상단 배너 공간
 !##.muko-ad-impression
-! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
-##[class*="-ad-" i]:not([class*="is-ad-visible"])
 ! - 오른쪽에 나타나는 회원가입 작은 팝업
 !###xt_join_site_addons
 ##[id*="addons" i]
