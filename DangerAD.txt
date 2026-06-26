@@ -506,6 +506,10 @@ aniya24.com#@#[class*="banner" i]
 
 !##[src="background" i]
 
+
+##[id*="banner_" i]
+
+
 */background/*
 
 
