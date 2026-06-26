@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      70.2.0
+// @version      70.2.1
 // @description  유튜브 PIP 수정
 // @author       Gemini & Claude
 // @license      MIT
@@ -604,10 +604,16 @@
 
     const scanAndInitCore = () => document.querySelectorAll('video').forEach(initVideoCore);
 
+    // ★★★ [변경됨] MutationObserver 400ms 디바운스 적용 ★★★
+    // 고빈도 DOM 변경(광고/무한 스크롤 등) 시 즉시 스캔으로 인한 CPU 폭주를 방지
+    let moTimer = null;
     const domObserver = new MutationObserver((mutations) => {
         let hasNew = false;
         for (let m of mutations) { if (m.addedNodes.length) { hasNew = true; break; } }
-        if (hasNew) scanAndInitCore();
+        if (hasNew) {
+            if (moTimer) clearTimeout(moTimer);
+            moTimer = setTimeout(scanAndInitCore, 400);
+        }
     });
     domObserver.observe(document, { childList: true, subtree: true });
 
