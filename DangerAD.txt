@@ -540,6 +540,12 @@ aniya24.com#@#[class*="banner" i]
 clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
 
 
+! - 치지직 후원 - popup_contents._contents
+##[id^="popup" i]:not([id*="_contents"])
+
+##[id$="popup" i]
+
+
 
 
 ! - 떠다니는?
@@ -594,6 +600,9 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 ! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
 ##[class*="-ad-" i]:not([class*="is-ad-visible"])
+
+
+##[id^="ad_" i]
 
 
 
