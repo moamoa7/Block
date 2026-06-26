@@ -280,6 +280,7 @@ ad.co.kr#@#[href*="/ad/" i]
 !*static*.js
 !/static.
 !@@/static.$image
+*banner.js
 
 
 !##[href*="/pop/" i]
