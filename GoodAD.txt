@@ -1256,7 +1256,7 @@ humorpick.com##.ie-center.ie-zone > p
 !namu.wiki#$#div[class][id]:is(:empty, :has(> iframe[id^='google_ads_iframe'])) { display: none !important; }
 !namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
 ! - 상단 빈 공간 (내가 새로 만든 규칙)
-!namu.wiki##div:has(> div > div[id]:empty:only-child)
+namu.wiki##div:has(> div > div[id]:empty:only-child)
 ! - 오른쪽 나무뉴스 포함 삭제
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 namu.wiki##div[class]:matches-css(position: sticky)
