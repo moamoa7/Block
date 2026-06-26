@@ -1,4 +1,4 @@
-! Title: Danger_AD
+! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
 ! Version: 20260626
