@@ -223,6 +223,9 @@ ad.co.kr#@#[href*="/ad/" i]
 !##[class$="_ad" i]
 !
 !
+##[class$="-ad" i]
+!
+!
 !##iframe[title*="배너"]
 !
 !##iframe[title*="banner"]
