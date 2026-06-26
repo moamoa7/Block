@@ -1710,7 +1710,11 @@
 
     .pokkok-slider-wrap { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; padding: 8px 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
     .pokkok-slider-label { font-size: 11px; opacity: 0.6; }
-    .pokkok-slider { width: 100%; accent-color: #8b5cf6; height: 28px; cursor: pointer; touch-action: none; }
+    .pokkok-slider { width: 100%; height: 28px; cursor: pointer; touch-action: none; -webkit-appearance: none; appearance: none; background: transparent; }
+    .pokkok-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.18); }
+    .pokkok-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; background: #8b5cf6; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+    .pokkok-slider::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.18); }
+    .pokkok-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #8b5cf6; border: 2px solid #fff; }
 
     .pokkok-act { display: flex; gap: 6px; margin-bottom: 10px; align-items: stretch; }
     .pokkok-act .pokkok-btn { flex: 1; min-height: 46px; }
