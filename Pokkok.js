@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.4.0
+// @version      1.4.1
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 슬라이더 계층 탐색, 유사 요소 찾기, 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing, Trusted Types 대응
 // @author       moamoa7
 // @license      MPL-2.0
@@ -25,10 +25,10 @@
     const HL_CLASS   = 'pokkok-hl';
     const SHIELD_ID  = 'pokkok-shield';
     const HIDE_CLASS = 'pokkok-hidden-preview';
-    const DRAG_THRESHOLD = 6;
 
     const IS_TOUCH = (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
     const IS_MOBILE = IS_TOUCH && Math.min(window.innerWidth, window.innerHeight) < 768;
+    const DRAG_THRESHOLD = IS_TOUCH ? 11 : 6;
     const SHIELD_AIM_OFFSET_Y = IS_TOUCH ? -40 : 0;
 
     const NO_DRAG_SELECTOR = [
@@ -85,16 +85,20 @@
     };
 
     const UNSAFE_SELECTOR_RE = /^(?:\*|html|body|:root|head|\*\s*[>~+]?\s*\*)$/i;
+    // 단독으로 쓰이면 너무 광범위한 범용 태그 (조합/하위선택자 없이 단일 태그일 때만)
+    const BARE_GENERIC_TAG_RE = /^(?:div|span|p|a|li|ul|ol|section|article|img|i|b|em|strong|table|tr|td|th|nav|header|footer|main|aside|button|svg|path|figure)$/i;
+
     function isUnsafeSelector(sel) {
         if (!sel || typeof sel !== 'string') return true;
         const trimmed = sel.trim();
         if (!trimmed) return true;
         if (UNSAFE_SELECTOR_RE.test(trimmed)) return true;
+        // 클래스/속성/조합자 없는 맨 태그는 현재 개수와 무관하게 위험
+        // (SPA에서 나중에 대량 로드될 수 있음)
+        if (BARE_GENERIC_TAG_RE.test(trimmed)) return true;
         try {
-            const n = document.querySelectorAll(trimmed).length;
-            if (n > 0 && /^(div|span|p|a|li|ul|section|article|img)$/i.test(trimmed) && n > 200) {
-                return true;
-            }
+            // 그 외에도 현재 매칭이 과도하게 많으면 위험으로 간주
+            if (document.querySelectorAll(trimmed).length > 500) return true;
         } catch (_) { return true; }
         return false;
     }
@@ -124,6 +128,7 @@
         KEY_AGG:   'pokkok_aggressive',
         _sheet: null,
         _sheetText: '',
+        _cacheAll: null,   // 파싱된 전체 규칙 캐시 (쓰기 시에만 무효화)
 
         init() {
             const apply = () => this.enforce();
@@ -160,8 +165,12 @@
         host() { return location.hostname || 'global'; },
 
         fetchAll() {
-            try { return JSON.parse(GM_getValue(this.KEY_RULES, '{}')) || {}; }
-            catch (_) { return {}; }
+            if (this._cacheAll) return this._cacheAll;
+            let parsed;
+            try { parsed = JSON.parse(GM_getValue(this.KEY_RULES, '{}')) || {}; }
+            catch (_) { parsed = {}; }
+            this._cacheAll = parsed;
+            return parsed;
         },
 
         fetch() {
@@ -173,7 +182,14 @@
             const all = this.fetchAll();
             if (!rules || !rules.length) delete all[this.host()];
             else all[this.host()] = rules;
-            GM_setValue(this.KEY_RULES, JSON.stringify(all));
+            try {
+                GM_setValue(this.KEY_RULES, JSON.stringify(all));
+                this._cacheAll = all; // 저장 성공 시에만 캐시 확정
+            } catch (e) {
+                this._cacheAll = null; // 실패 시 캐시 무효화 후 재읽기 유도
+                try { this.enforce(); } catch (_) {}
+                throw e; // 호출부에서 토스트로 알릴 수 있도록 전파
+            }
             this.enforce();
         },
 
@@ -182,7 +198,8 @@
             const rules = this.fetch();
             if (rules.includes(sel)) return false;
             rules.push(sel);
-            this.save(rules);
+            try { this.save(rules); }
+            catch (_) { return false; } // 저장 실패
             return true;
         },
 
@@ -193,7 +210,10 @@
             for (const s of sels) {
                 if (typeof s === 'string' && s && !rules.includes(s)) { rules.push(s); added++; }
             }
-            if (added) this.save(rules);
+            if (added) {
+                try { this.save(rules); }
+                catch (_) { return 0; } // 저장 실패
+            }
             return added;
         },
 
@@ -301,7 +321,22 @@
 
             if (window.visualViewport) {
                 const card = this._card;
-                this._vv = () => { if (card && !this._pos) { const vh = window.visualViewport.height; card.style.maxHeight = Math.min(vh - 16, vh * 0.95) + 'px'; } };
+                this._vv = () => {
+                    if (!card) return;
+                    const vh = window.visualViewport.height;
+                    // 위치를 드래그로 고정했든 안 했든 높이 제한은 항상 갱신
+                    card.style.maxHeight = Math.min(vh - 16, vh * 0.95) + 'px';
+                    // 드래그로 옮긴 카드가 새 뷰포트 밖으로 나가지 않도록 클램프
+                    if (this._pos) {
+                        const vw = window.visualViewport.width;
+                        const w = card.offsetWidth, h = card.offsetHeight;
+                        const x = Math.max(0, Math.min(vw - Math.min(w, vw), this._pos.x));
+                        const y = Math.max(0, Math.min(Math.max(0, vh - 40), this._pos.y));
+                        card.style.left = x + 'px';
+                        card.style.top = y + 'px';
+                        this._pos = { x, y };
+                    }
+                };
                 this._vv();
                 window.visualViewport.addEventListener('resize', this._vv);
                 window.visualViewport.addEventListener('scroll', this._vv);
@@ -923,7 +958,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="pokkok-hdr" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.4.0</small></span>
+                <span class="pokkok-title">Pokkok <small>v1.4.1</small></span>
                 <div class="pokkok-hdr-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -1294,10 +1329,14 @@
 
             const added = Blocker.appendMany(sels);
             this.clearSimHighlight();
-            vibrate(25);
-            this.flashToast(common
-                ? `공통 규칙 1개 추가 (${picked.length}개 매칭)`
-                : `${added}개 규칙 추가 (요소 ${picked.length}개)`);
+            if (added > 0) {
+                vibrate(25);
+                this.flashToast(common
+                    ? `공통 규칙 1개 추가 (${picked.length}개 매칭)`
+                    : `${added}개 규칙 추가 (요소 ${picked.length}개)`);
+            } else {
+                this.flashToast('저장 실패 — 저장 공간이 가득 찼을 수 있습니다');
+            }
             this.render();
             this.modal.dismiss();
         }
@@ -1510,8 +1549,15 @@
                 if (!ok) return;
             }
             this.clearHide();
-            if (Blocker.append(sel)) { vibrate(20); this.flashToast(`차단됨: ${sel.slice(0, 40)}`); this.render(); }
-            else this.flashToast('이미 등록된 규칙입니다');
+            const already = Blocker.fetch().includes(sel);
+            if (already) { this.flashToast('이미 등록된 규칙입니다'); return; }
+            if (Blocker.append(sel)) {
+                vibrate(20);
+                this.flashToast(`차단됨: ${sel.slice(0, 40)}`);
+                this.render();
+            } else {
+                this.flashToast('저장 실패 — 저장 공간이 가득 찼을 수 있습니다');
+            }
         }
 
         trigger(act, el, evt) {
@@ -1574,6 +1620,7 @@
                 this.clearHide();
                 this.clearPinned();
                 if (Blocker.append(v)) { vibrate(20); this.flashToast('차단 규칙 추가됨'); this.render(); }
+                else { this.flashToast('저장 실패 또는 이미 등록된 규칙입니다'); }
                 this.modal.dismiss();
             });
         }
