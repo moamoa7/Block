@@ -648,7 +648,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - https://hook.tistory.com - class="floatWrapper"
 ! - 탑춘챗 - [variant=floating]
 ! - https://s5.watchfreekav.com - af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid 
-##[class*="float" i]:not([class*="float_box"]):not([class*="jw-floating"]):not([class*="nav-float"]):not([class*="float-e-margins border-bottom"]):not([class*="ibox float-e-margins"][class*="ibox"]):not([class*="float-left"]):not([class*="float-right"]):not([class*="FloatingTab"]):not([class="cntwrapfloat"]):not([class*="float-back"]):not([class*="FloatingWrapper"]):not([class*="FloatingMenu"]):not([class*="FloatingUserInfo"]):not([class*="float-5"]):not([class="w-100 float-start header"]):not([class="w-100 float-start body-section"]):not([class*="animate-floating"]):not([class="floatWrapper"]):not([class*="[variant=floating]"]):not([class*="af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid"]) 
+! - 네이버서치 - class="api_floating_header spi-lnb"
+##[class*="float" i]:not([class*="float_box"]):not([class*="jw-floating"]):not([class*="nav-float"]):not([class*="float-e-margins border-bottom"]):not([class*="ibox float-e-margins"][class*="ibox"]):not([class*="float-left"]):not([class*="float-right"]):not([class*="FloatingTab"]):not([class="cntwrapfloat"]):not([class*="float-back"]):not([class*="FloatingWrapper"]):not([class*="FloatingMenu"]):not([class*="FloatingUserInfo"]):not([class*="float-5"]):not([class="w-100 float-start header"]):not([class="w-100 float-start body-section"]):not([class*="animate-floating"]):not([class="floatWrapper"]):not([class*="[variant=floating]"]):not([class*="af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid"]):not([class="api_floating_header spi-lnb"])
 
 
 
