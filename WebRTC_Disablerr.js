@@ -1,27 +1,27 @@
 // ==UserScript==
 // @name         WebRTC Disabler (global, with allowlist)
 // @namespace    local.webrtc.disabler
-// @version      1.3
-// @description  예외 도메인을 제외한 모든 사이트에서 WebRTC(RTCPeerConnection 등) 차단. iframe 우회 방지 포함.
+// @version      1.5
+// @description  허용 목록을 제외한 모든 사이트에서 WebRTC(RTCPeerConnection) 차단 — IP 노출(STUN) 방지
 // @license      MIT
 // @match        *://*/*
+// @run-at       document-start
+// @grant        unsafeWindow
+// @all-frames   true
 // @exclude      *://challenges.cloudflare.com/*
 // @exclude      *://*.hcaptcha.com/*
 // @exclude      *://hcaptcha.com/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://www.recaptcha.net/*
 // @exclude      *://recaptcha.net/*
-// @run-at       document-start
-// @grant        unsafeWindow
-// @all-frames   true
 // ==/UserScript==
 
 (() => {
     "use strict";
     const win = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
 
-    // ── 설정 ───────────────────────────────────────────────
-    // 범용 기본 허용: 널리 쓰이는 정식 화상통화/협업 서비스
+    // ── 설정 ─────────────────────────────────────────────
+    // 범용 기본 허용: 널리 쓰이는 검증된 화상통화/원격/협업/중계 서비스
     const ALLOW = [
         "discord.com",
         "discordapp.com",
@@ -30,32 +30,27 @@
         "zoom.us",
         "whereby.com",
         "teams.microsoft.com",
-        // 원격 데스크톱 / 화면 공유 (브라우저로 쓸 때만)
-        "remotedesktop.google.com",   // Chrome 원격 데스크톱
-        "parsec.app",                 // Parsec (게임 스트리밍/원격)
-        "moonlight-stream.org",       // Moonlight (웹 클라이언트 쓸 경우)
-        // 화상통화 / 회의
-        "meet.jit.si",                // Jitsi Meet
-        "8x8.vc",                     // Jitsi(8x8) 호스팅
-        "webex.com",                  // Cisco Webex
-        "gather.town",                // Gather (가상 사무실, WebRTC)
-        "around.co",                  // Around
-        // 협업 / 기타
-        "miro.com",                   // 일부 실시간 기능
-        "figma.com",                  // 음성/화면공유 기능 사용 시
-        // 중계
-        "speed10-1.com",
+        "remotedesktop.google.com", // Chrome 원격 데스크톱
+        "parsec.app",               // Parsec
+        "moonlight-stream.org",      // Moonlight
+        "meet.jit.si",              // Jitsi
+        "8x8.vc",                   // Jitsi(8x8)
+        "webex.com",                // Cisco Webex
+        "gather.town",              // Gather
+        "around.co",                // Around
+        "miro.com",                 // Miro
+        "figma.com",                // Figma
+        "speed10-1.com",            // 검증된 SFU 중계 인프라
     ];
 
-    // 개인용 추가 허용 (각자 필요에 의해 해제할 도메인)
+    // 개인용 추가 허용 (필요 시 직접 추가)
     const ALLOW_PERSONAL = [
-
+        // "example.com",
     ];
 
-    // true  = 예외 던지기(엄격, 콘솔 에러 발생 가능)
-    // false = 조용히 차단(예외 없이 무력화)
+    // true = 차단 시 예외 발생(디버깅용), false = 조용히 더미 반환(기본)
     const THROW_ON_BLOCK = false;
-    // ───────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────
 
     const host = location.hostname;
     const allowList = ALLOW.concat(ALLOW_PERSONAL);
@@ -66,76 +61,119 @@
         return;
     }
 
-    // 차단 시 호출되는 함수
-    function blocked() {
-        if (THROW_ON_BLOCK) throw new Error("WebRTC disabled by WebRTC Disabler");
-        return undefined;
+    // 차단 시 동작: 예외를 던지거나, 무해한 더미 생성자를 반환
+    function makeDummyPC() {
+        // 메서드까지 더미로 채워, 사이트 코드가 메서드를 호출해도
+        // 콘솔이 깨지지 않게 함. 핵심인 ICE 후보 생성은 일어나지 않음.
+        return function DummyRTCPeerConnection() {
+            return {
+                createOffer() { return Promise.reject(new Error("WebRTC disabled")); },
+                createAnswer() { return Promise.reject(new Error("WebRTC disabled")); },
+                setLocalDescription() { return Promise.resolve(); },
+                setRemoteDescription() { return Promise.resolve(); },
+                addIceCandidate() { return Promise.resolve(); },
+                createDataChannel() {
+                    return {
+                        send() {}, close() {},
+                        addEventListener() {}, removeEventListener() {},
+                    };
+                },
+                addTrack() { return {}; },
+                removeTrack() {},
+                getSenders() { return []; },
+                getReceivers() { return []; },
+                getTransceivers() { return []; },
+                getStats() { return Promise.resolve(new Map()); },
+                addEventListener() {},
+                removeEventListener() {},
+                setConfiguration() {},
+                restartIce() {},
+                close() {},
+                connectionState: "closed",
+                iceConnectionState: "closed",
+                signalingState: "closed",
+            };
+        };
     }
 
-    // ── RTCPeerConnection 계열 + 관련 생성자 차단 ─────────────
-    const PC_KEYS = ["RTCPeerConnection", "webkitRTCPeerConnection", "mozRTCPeerConnection"];
-    const EXTRA_KEYS = ["RTCDataChannel", "RTCIceCandidate", "RTCSessionDescription"];
+    function blockedValue() {
+        if (THROW_ON_BLOCK) {
+            return function () { throw new Error("WebRTC disabled by WebRTC Disabler"); };
+        }
+        return makeDummyPC();
+    }
 
+    // 주어진 window(또는 iframe contentWindow)에 차단 적용
     function disableOn(target) {
         if (!target) return;
-        PC_KEYS.concat(EXTRA_KEYS).forEach(k => {
+        const pcDummy = blockedValue();
+
+        // 핵심 누수 통로인 RTCPeerConnection 계열만 차단.
+        // RTCDataChannel / RTCIceCandidate / RTCSessionDescription 은
+        // PC가 막히면 무력화되며, 단순 데이터 컨테이너라 원본을 두는 편이
+        // 호환성 면에서 더 안전하므로 건드리지 않는다.
+        ["RTCPeerConnection", "webkitRTCPeerConnection", "mozRTCPeerConnection"].forEach(k => {
             try {
                 Object.defineProperty(target, k, {
                     configurable: true,
-                    get() { return blocked; },
-                    set() {}
+                    get() { return pcDummy; },
+                    set() {},
                 });
             } catch (e) {}
         });
     }
 
-    // 현재 창에 적용
+    // 메인 윈도우 차단
     disableOn(win);
 
-    // ── iframe 우회 방지 ─────────────────────────────────────
-    // 사이트가 새 iframe의 contentWindow에서 깨끗한 RTCPeerConnection을
-    // 꺼내 쓰는 것을 막는다. iframe이 생성될 때마다 그 안에도 차단을 주입.
+    // ── iframe 우회 방지 ─────────────────────────────────
     function guardIframe(frame) {
         try {
             const cw = frame.contentWindow;
             if (cw) disableOn(cw);
-        } catch (e) {}
+        } catch (e) {
+            // cross-origin iframe 은 접근 불가 → @all-frames 로 직접 실행에 의존
+        }
+    }
+
+    function scanExistingIframes() {
         try {
-            frame.addEventListener("load", () => {
-                try { if (frame.contentWindow) disableOn(frame.contentWindow); } catch (e) {}
-            });
+            document.querySelectorAll("iframe").forEach(guardIframe);
         } catch (e) {}
     }
 
-    // 이미 존재하는 iframe 처리
-    try {
-        document.querySelectorAll("iframe").forEach(guardIframe);
-    } catch (e) {}
+    // document-start 시점에 이미 존재할 수 있는 iframe 처리
+    scanExistingIframes();
 
-    // 이후 동적으로 추가되는 iframe 감시
-    try {
-        const mo = new MutationObserver((mutations) => {
-            for (const m of mutations) {
-                for (const node of m.addedNodes) {
-                    if (node && node.tagName === "IFRAME") {
-                        guardIframe(node);
-                    } else if (node && node.querySelectorAll) {
-                        node.querySelectorAll("iframe").forEach(guardIframe);
+    // DOM 이 완성된 뒤, 정적으로 작성된 iframe 재검사
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", scanExistingIframes, { once: true });
+    }
+
+    // 동적으로 추가되는 iframe 감시
+    function startObserver() {
+        try {
+            const obs = new MutationObserver(muts => {
+                for (const m of muts) {
+                    for (const node of m.addedNodes) {
+                        if (node && node.tagName === "IFRAME") {
+                            guardIframe(node);
+                            // load 시점에 contentWindow 가 새로 잡히는 경우 대비
+                            node.addEventListener("load", () => guardIframe(node), { once: true });
+                        }
                     }
                 }
-            }
-        });
-        const startObserver = () => {
-            if (document.documentElement) {
-                mo.observe(document.documentElement, { childList: true, subtree: true });
-            }
-        };
-        startObserver();
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", startObserver);
-        }
-    } catch (e) {}
+            });
+            obs.observe(document.documentElement, { childList: true, subtree: true });
+        } catch (e) {}
+    }
 
-    console.log("[WebRTC] disabled on", host,
-        THROW_ON_BLOCK ? "(throw mode)" : "(silent mode)", "(iframe guard)");
+    if (document.documentElement) {
+        startObserver();
+    } else {
+        document.addEventListener("DOMContentLoaded", startObserver, { once: true });
+    }
+
+    console.log("[WebRTC] RTCPeerConnection disabled on", host,
+        THROW_ON_BLOCK ? "(throw mode)" : "(silent mode)");
 })();
