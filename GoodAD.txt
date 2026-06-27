@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260626
+! Version: 20260627
 !
 !
 !
@@ -708,9 +708,6 @@ issuelink.co.kr##.text-center
 !
 ! 디시인사이드 (https://gall.dcinside.com)
 ! - 게시물내 배너 이미지
-*/ad/*
-! - 예외
-@@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
 !##[src*="/ad/" i]
 ! - 예외
 !ad.co.kr,auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
@@ -803,6 +800,8 @@ m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 dcinside.com##.refresher-toast
 ! - 디시미디어 / 디시이슈  복원 (일부 필터규칙 해제)
 gall.dcinside.com#@#.r_dcmedia
+! - 디시이슈 댓글 이후 안보이게 하기
+||ad-script.viewus.co.kr^
 ! - 기타
 /third*cookie/*
 !
@@ -958,7 +957,7 @@ inven.co.kr##[class="modal-fixed" i]
 ! - ##.ad 예외
 inven.co.kr#@#.ad
 ! - 게시물 전체 배너
-##[src*=".ads/" i]
+!##[src*=".ads/" i]
 ! -오른쪽 배너
 !##.ad-right2
 !##[class*="ad-right" i]
@@ -1409,8 +1408,6 @@ clien.net##.active.button_sidemenu
 !clien.net#@#div[class^="ad" i]
 ! - 게시물 광고 글
 clien.net###hongboInfoList
-! - 댓글 사라지는거 방지
-clien.net#@#[class*="banner" i]
 !
 !
 ! 헝그리앱 (https://www.hungryapp.co.kr/)
@@ -1937,7 +1934,6 @@ nuevosiglonews.com###menu-item-88,  #menu-item-87
 ! - 개별 만화 각 회수별 배너
 !||tkor*.com/bann/*$image
 !||funbe*.com/bann/*$image
-##[id*="banner_" i]
 ! - 이걸로 하면 전체 프레임이 다 차단되서 해제
 !#[class*="mobile-banner"]
 !##img[id*="banner"]
@@ -2513,7 +2509,7 @@ coupang.com###todayDiscoveryUnit
 ! - ㅡ이상품 놓치지 마세요
 !##.personalized_ads
 !coupang.com##[class*="personalized_ads" i]
-##[class$="_ads" i]
+!##[class$="_ads" i]
 ! - 카테고리별 추천 광고상품
 coupang.com###categoryBestUnit
 ! - 지금 이 상품이 필요하신가요
@@ -3651,14 +3647,16 @@ kissjav.*##.asside-link
 ! - 영상 재생 안되는 문제 해결
 !@@||tsyndicate.com^$domain=kissjav.*
 ! - 메뉴 안눌러지는거 해결 및 팝업방지
+! - - - 아래 규칙 안해도 잘 열림
 !*$script,third-party,domain=kissjav.*
-@@||assets6.cdnhop.com/static/js/index.js
-@@||assets6.cdnhop.com/static/js/main.min.js
+!@@||assets6.cdnhop.com/static/js/index.js
+!@@||assets6.cdnhop.com/static/js/main.min.js
 ! - 이미지 안보이는거 등 문제 해결
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
+!kissjav.*##+js(set-attr, img.lazy-load, src, [data-original])
+!kissjav.*##+js(set-attr, img.lazy-load, src, [data-webp])
+! - 팝업 차단
 kissjav.*##+js(nowoif)
-kissjav.*##+js(set-attr, img.lazy-load, src, [data-original])
-kissjav.*##+js(set-attr, img.lazy-load, src, [data-webp])
 !
 !
 ! JAVCEP.COM (https://javcep.com/)
@@ -4370,11 +4368,11 @@ jusogall.com###banner-container
 ! 야동투어 (https://xn--2q1bl84a3e140c.com/) (https://ydtour42.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
-##[id*="-ads" i]
+!##[id*="-ads" i]
 ! - 배너 이미지
 !##[src*="/ads/" i]
 ! - 영상 하단 텍스트 배너
-##[class*=-ads-]
+!##[class*=-ads-]
 ! - 상단 배너 공간 (메인)
 [$domain=/^ydtour\d*\./]##.m-4
 ! - 상단 배너 공간 (개별)
@@ -4694,7 +4692,6 @@ xn--9l4b15e2td.com##.widget-box
 ! - - - https://adult.contents.fc2.com/ 오른쪽 PR 배너
 ! - - - 엑스툰 (https://t3.xtoon365.com/) - 개별 만화 관람시 ##.chapter-ad
 ! - - - https://javsubs91.uk/ - 영상 하단 배너
-##[class$="-ad" i]
 !
 !
 !링크 123 (https://linkloveko.com/) (https://www.nuutvtv.com/)
@@ -5039,7 +5036,9 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 !
 ! https://forum.mobilism.org/
 ! - 메인 상단 안내
-##.welcome-bar
+!##.welcome-bar
+! - 기타
+||matomo.mobilism.org^
 !
 !
 ! https://www.daejeonsarangcard.kr/
@@ -5357,7 +5356,7 @@ m.wikitree.co.kr###wikitree_image1_bottom
 !
 !
 ! https://cloudfam.io/
-! - 하단 배너
+! - 하단 배너 - 이거 차단한면 버튼이 사라짐
 *##.adbox
 ! - 기타
 ||gtcpicnics.com^
@@ -5425,10 +5424,8 @@ yoboyobo.kr##div.m-b-30:nth-of-type(8)
 ! - 광고 빈공간
 yoboyobo.kr,gaykorea.net##.main-slider
 ! - 게시판내 광고
-##[href^="https://link.coupang.com/"]
+##[href*="link.coupang.com"]
 yoboyobo.kr##[class*="headline"]:has([class*="powered"])
-! - 기타
-/image/affiliate/*
 !
 !
 !  플레이랜드 (https://playidol.org/)
@@ -5518,7 +5515,7 @@ heye.kr##td.menu-item:nth-of-type(3)
 !||pandalive.co.kr^$document,domain=heye.kr
 ||pandalive.co.kr/evt/heye01&5&iframe$document
 heye.kr##+js(nowoif)
-*banner.js
+!*banner.js
 !*banner*.js
 !
 !
@@ -5676,8 +5673,6 @@ yandex.*##.Distribution
 yandex.*##.b-page:style(padding-top: 0 !important)
 ||csp.yandex.net^
 ||yandex.$removeparam=lr
-! - 기타
-##img[width="0"][height="0"]
 !
 !
 ! Claude (https://claude.ai/)
@@ -5774,6 +5769,7 @@ windowsforum.kr##+js(aopr, alert)
 ! 고릴라TV (https://t.me/s/gorillatv24notice) (https://gorillatv24.com/) (https://visitorstv.com/)
 ! - 필요없는 부분 안보이게
 /^(www\.)?visitorstv/##[class*="list-item"]>[class*="na-title"]
+/^(www\.)?visitorstv/###me_2 > .px-4
 ! - 오른쪽 이벤트
 !/^(www\.)?visitorstv/##.eventSide
 ##[class*="eventside" i]
@@ -6071,6 +6067,7 @@ postshare.co.kr##+js(abort-on-property-read, getSelection)
 ! https://bunkr.cr/
 ! - 기타
 ||bob.tinyns.me^
+||s.bunkr.ru^
 !
 !
 ! https://minkch.com/
@@ -6344,7 +6341,16 @@ video.dmm.co.jp##[class*="h-"]:has([class*="cds-deliver-tags"] iframe)
 ! https://toptoon.com/
 ! - 기타
 ||spush.toptoon.com/log/
-
+!
+!
+! 털보티비 (https://tulbo.tv)
+! - 필요없는거
+##[href*="partner_"]
+!
+!
+! https://battlepage.com
+! - 메인 하단 배너
+battlepage.com###banner_c_3
 
 
 
@@ -6376,10 +6382,21 @@ video.dmm.co.jp##[class*="h-"]:has([class*="cds-deliver-tags"] iframe)
 
 ! - 기타
 
+
 ||warning.or.kr^
 
 
 ! 홍보글 링크 주의
 ||event.filesun.com^
 
+! 
+##[href*="link.coupang.com"]
 
+! - 타규칙 오탐방지
+#@#img[width="0"][height="0"]
+
+
+
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
