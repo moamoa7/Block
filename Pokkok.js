@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.4.1
+// @version      1.4.2
 // @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 슬라이더 계층 탐색, 유사 요소 찾기, 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing, Trusted Types 대응
 // @author       moamoa7
 // @license      MPL-2.0
@@ -234,6 +234,8 @@
             if (!rules.length) return '';
             const safe = rules.filter(r => {
                 if (!r || /[{}]/.test(r)) return false;
+                // 문법적으로 유효한 셀렉터인지만 확인 (요소 존재 여부는 무관 —
+                // querySelector는 구문 오류 시에만 throw하고, 매칭 0건이면 null만 반환)
                 try { document.querySelector(r); return true; }
                 catch (_) { return false; }
             });
@@ -293,7 +295,7 @@
 
     // ── 모달 (커스텀 confirm + 드래그 이동) ─────────────────────────────
     class Modal {
-        constructor(container) { this.container = container; this.node = null; this._onDismiss = null; this._vv = null; this._card = null; this._pos = null; }
+        constructor(container) { this.container = container; this.node = null; this._onDismiss = null; this._vv = null; this._card = null; this._pos = null; this._suppressClick = false; }
 
         display(title, body, isHtml = false) {
             this.dismiss();
@@ -317,6 +319,7 @@
             this.node = wrap;
             this._card = wrap.querySelector('.pokkok-modal-card');
             this._pos = null;
+            this._suppressClick = false;
             this._attachDrag();
 
             if (window.visualViewport) {
@@ -387,6 +390,8 @@
             };
             const onUp = () => {
                 if (!active) return; active = false;
+                // 드래그로 인식된 경우, 직후 발생하는 click을 무시하도록 플래그 설정
+                if (moved) { this._suppressClick = true; setTimeout(() => { this._suppressClick = false; }, 60); }
                 try { head.releasePointerCapture?.(pid); } catch (_) {}
                 pid = null; setTimeout(() => { moved = false; }, 50);
             };
@@ -394,6 +399,11 @@
             head.addEventListener('pointermove', onMove, { passive: false });
             head.addEventListener('pointerup', onUp, { passive: false });
             head.addEventListener('pointercancel', onUp, { passive: false });
+
+            // 드래그 직후의 클릭(닫기/확인 등)을 캡처 단계에서 차단
+            this.node.addEventListener('click', (e) => {
+                if (this._suppressClick) { e.stopPropagation(); e.preventDefault(); }
+            }, true);
         }
 
         hideShell() { if (this.node) this.node.classList.add('pokkok-modal-shell-hidden'); }
@@ -421,7 +431,7 @@
             const n = this.node;
             n.classList.remove('visible');
             setTimeout(() => n.remove(), 200);
-            this.node = null; this._card = null; this._pos = null;
+            this.node = null; this._card = null; this._pos = null; this._suppressClick = false;
             if (this._vv && window.visualViewport) {
                 window.visualViewport.removeEventListener('resize', this._vv);
                 window.visualViewport.removeEventListener('scroll', this._vv);
@@ -705,6 +715,50 @@
                 .slice(0, 6);
         }
 
+        // 한 번의 DOM 순회로 h / w / wh 세 모드의 매칭 결과를 모두 수집
+        static findAllDimensions(ref, tol = 0.12) {
+            const empty = { h: [], w: [], wh: [] };
+            if (!ref) return empty;
+            const r = ref.getBoundingClientRect();
+            if (r.width < 8 || r.height < 8) return empty;
+            const res = { h: [], w: [], wh: [] };
+            let scanned = 0;
+            const all = document.body ? document.body.querySelectorAll('*') : [];
+            for (const el of all) {
+                if (++scanned > 6000) break;
+                if (el.id === ROOT_ID || el.id === SHIELD_ID) continue;
+                if (el.closest && (el.closest(`#${ROOT_ID}`) || el.closest(`#${SHIELD_ID}`))) continue;
+                const b = el.getBoundingClientRect();
+                if (b.width < 8 || b.height < 8) continue;
+                const dw = Math.abs(b.width - r.width) / r.width;
+                const dh = Math.abs(b.height - r.height) / r.height;
+                const okW = dw <= tol;
+                const okH = dh <= tol;
+                if (okH) res.h.push(el);
+                if (okW) res.w.push(el);
+                if (okW && okH) res.wh.push(el);
+            }
+            return res;
+        }
+
+        // 단일 모드 조회 — findAllDimensions의 캐시를 재사용 (없으면 1회 계산)
+        static findByDimension(ref, mode, tol = 0.12) {
+            const dims = this._dimCacheFor(ref, tol);
+            return dims[mode] || [];
+        }
+
+        // 같은 ref/tol에 대한 findAllDimensions 결과를 짧게 캐싱
+        static _dimCacheFor(ref, tol = 0.12) {
+            if (this._dimCacheRef === ref && this._dimCacheTol === tol && this._dimCache) {
+                return this._dimCache;
+            }
+            const dims = this.findAllDimensions(ref, tol);
+            this._dimCacheRef = ref;
+            this._dimCacheTol = tol;
+            this._dimCache = dims;
+            return dims;
+        }
+
         static similarOptions(el) {
             if (!el || !el.tagName) return [];
             const tag = el.tagName.toLowerCase();
@@ -786,36 +840,15 @@
                     }
                 }
             }
+            // 치수 기반 후보 — DOM을 1회만 순회하여 h/w/wh 개수를 한꺼번에 산출
             const r = el.getBoundingClientRect();
             const w = Math.round(r.width), h = Math.round(r.height);
-            if (h >= 8) push({ label: `높이 ≈ ${h}px`, dim: 'h', count: this.findByDimension(el, 'h').length });
-            if (w >= 8) push({ label: `너비 ≈ ${w}px`, dim: 'w', count: this.findByDimension(el, 'w').length });
-            if (w >= 8 && h >= 8) push({ label: `크기 ≈ ${w}×${h}`, dim: 'wh', count: this.findByDimension(el, 'wh').length });
+            const dims = this._dimCacheFor(el);
+            if (h >= 8) push({ label: `높이 ≈ ${h}px`, dim: 'h', count: dims.h.length });
+            if (w >= 8) push({ label: `너비 ≈ ${w}px`, dim: 'w', count: dims.w.length });
+            if (w >= 8 && h >= 8) push({ label: `크기 ≈ ${w}×${h}`, dim: 'wh', count: dims.wh.length });
 
             return opts;
-        }
-
-        static findByDimension(ref, mode, tol = 0.12) {
-            if (!ref) return [];
-            const r = ref.getBoundingClientRect();
-            if (r.width < 8 || r.height < 8) return [];
-            const hits = [];
-            let scanned = 0;
-            const all = document.body ? document.body.querySelectorAll('*') : [];
-            for (const el of all) {
-                if (++scanned > 6000) break;
-                if (el.id === ROOT_ID || el.id === SHIELD_ID) continue;
-                if (el.closest && (el.closest(`#${ROOT_ID}`) || el.closest(`#${SHIELD_ID}`))) continue;
-                const b = el.getBoundingClientRect();
-                if (b.width < 8 || b.height < 8) continue;
-                const dw = Math.abs(b.width - r.width) / r.width;
-                const dh = Math.abs(b.height - r.height) / r.height;
-                const ok = mode === 'h' ? dh <= tol
-                         : mode === 'w' ? dw <= tol
-                         : (dw <= tol && dh <= tol);
-                if (ok) hits.push(el);
-            }
-            return hits;
         }
 
         static resolveSimilar(opt, ref) {
@@ -958,7 +991,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="pokkok-hdr" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.4.1</small></span>
+                <span class="pokkok-title">Pokkok <small>v1.4.2</small></span>
                 <div class="pokkok-hdr-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
