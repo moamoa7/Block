@@ -1,7 +1,7 @@
 ! Title: Personal Privacy & Traffic Filter (uBO)
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260624-rev1-uBO
+! Version: 20260627-rev1-uBO
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
@@ -134,7 +134,8 @@
 
 ! ───── 한국 서비스 ─────
 *$removeparam=nv_mid
-*$removeparam=ssc
+! - 네이버 검색에서 ai클릭이 안먹힘
+*$removeparam=ssc,domain=~naver.com|~search.naver.com
 *$removeparam=qvt
 *$removeparam=mkt_cmpgn
 *$removeparam=kakao_track_id
