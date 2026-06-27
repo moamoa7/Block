@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260623-rev1
+! Version: 20260627-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -1514,6 +1514,8 @@
 ! - 성인 채팅사이트 구동시 필요
 @@||strpst.com^
 @@||doppiocdn.org^
+! - https://upfilesgo.com/ 다운시 필요
+@@||netpub.media^
 !
 !
 ! ───── Quetta 브라우저 (임시) ─────
