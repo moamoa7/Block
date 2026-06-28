@@ -260,6 +260,8 @@ ad.co.kr#@#[href*="/ad/" i]
 !*p2p*
 !*hlsjs*
 
+##[data-ad_slot_name]
+
 ##script[src*="/ad/"] + ins
 ##script[src*="/ads/"] + ins
 ##script[src*="/ad-"] + ins
