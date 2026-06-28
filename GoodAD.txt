@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260627
+! Version: 20260628
 !
 !
 !
@@ -840,7 +840,7 @@ gall.dcinside.com#@#.r_dcmedia
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe650.com/) - 이미지 목록 사라짐
+! 펀비 (https://funbe652.com/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -1058,7 +1058,7 @@ mlbpark.donga.com##.btn_top01
 !ruliweb.com##.adrr
 !ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe650.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe652.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 !ruliweb.com##[class*="ad_"][style] - ##[class*="ad_slot" i]로 변경
 ! - 루리웹 전체 배너 (게시판 내 AD글 포함)
@@ -1652,7 +1652,7 @@ poooo.ml#@#.ad
 ||tns-counter.ru^
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwiki32.net/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwiki34.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
@@ -1751,7 +1751,7 @@ poooo.ml#@#.ad
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://at.hoohootv419.xyz)
+! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://fr.hoohootv420.xyz)
 ! - 배너 빈 공간
 [$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 !
@@ -1925,8 +1925,8 @@ nuevosiglonews.com###menu-item-88,  #menu-item-87
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://t.me/s/toonkor_com) (https://tkor128.com/)
-! 펀비 (https://t.me/s/funbe_next) (https://funbe650.com/)
+! 툰코 (https://t.me/s/toonkor_com) (https://tkor130.com/)
+! 펀비 (https://t.me/s/funbe_next) (https://funbe652.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -1949,10 +1949,10 @@ nuevosiglonews.com###menu-item-88,  #menu-item-87
 !
 ! 나이스링크 (https://nicelink6.com/)
 ! 늑대닷컴 ((https://xn--ph1bph0az41x.com/))
-! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf471.com/)
-! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon216.com/)
+! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf476.com/)
+! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon217.com/)
+! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx332.com/)
 ! W툰 (https://t.me/s/wtwt999) (https://wtwt331.com/)
-! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx328.com/)
 ! - 팝업
 ! - - - 별별티비 (https://www.bbtv87.com/)
 !##.modal-wrapper
@@ -1979,7 +1979,7 @@ nuevosiglonews.com###menu-item-88,  #menu-item-87
 !##.thumbnail
 !
 !
-! 야툰 (https://t.me/s/yatoonlink) (https://yatoon235.com/)
+! 야툰 (https://t.me/s/yatoonlink) (https://yatoon238.com/)
 ! 뉴툰 (https://newtoon294.com/)
 ! - 배너
 !##.cate.row
@@ -3643,7 +3643,7 @@ popjav.in##div.pop--excl
 ! https://kissjav.com/
 ! https://kissjav.li/
 ! - 영상 옆 오른쪽 배너
-kissjav.*##.asside-link
+!kissjav.*##.asside-link
 ! - 영상 재생 안되는 문제 해결
 !@@||tsyndicate.com^$domain=kissjav.*
 ! - 메뉴 안눌러지는거 해결 및 팝업방지
@@ -5238,6 +5238,8 @@ theporndude.com##.shop-link
 i-boss.co.kr##.cellAd
 ! - 커뮤니티/정보공유/뉴스 상단 AD
 i-boss.co.kr##[class*="notice" i]
+! - 기타
+/bl.js?v=$1p
 !
 !
 ! 투디갤 (https://tdgall.com/)
@@ -5373,11 +5375,6 @@ torrentbob.com##picture
 torrentbob.com##.board-gallery
 ! - 공식 보증업체
 torrentbob.com##div.m-b-10:nth-of-type(3)
-!
-!
-! 쿡마나 (https://cookmana53.com/)
-! - 배너
-!##[class*="advert" i]
 !
 !
 ! 호두코믹스 (https://hdhd510.net/)
@@ -5598,6 +5595,11 @@ m.anewsa.com##div[style*="width:300px"]
 /^(www\.)?(spotv|11toon)\d+\.com/##li:has([style*="imageup"])
 ! 떠잇는 주소 알리미
 /^(www\.)?(spotv|11toon)\d+\.com/##[class="new_quit"]
+!
+!
+! 쿡마나 (https://cookmana56.com/)
+! - 배너
+!##[class*="advert" i]
 !
 !
 ! 일일툰 K만화 (https://kmana10.net/)
@@ -5964,11 +5966,12 @@ mmzone.co.kr#@#.ads-wrap
 !
 ! 요즘IT (https://yozm.wishket.com/)
 ! - 배너 빈 공간
-##[data-testid$="banner"]
+!##[data-testid*="banner"]
 ! - 일부 사라지는거 해결 (배너를 지우나 다른것도 같이 지워서 해제)
 yozm.wishket.com#@#div[class*="border"]:has(> [target] img)
 ! - 배너
-yozm.wishket.com##[data-testid^="advert"]
+!yozm.wishket.com##[data-testid*="advert"]
+!##[data-testid*="advert"]
 !
 !
 ! https://linktr.ee/
@@ -6045,10 +6048,21 @@ linkareer.com##[class*="PopularActivity" i]
 /bet\d+-kr\.com/$popup
 !
 !
-! 레드걸 야동 (https://redgirl-now.cc/) (https://adultredgirl.top/) (https://redgg76.top/)
+! 레드걸 야동 (https://redgirl-now.cc/) (https://adultredgirl.top/) (https://redgg76.top/) - 사이트 죽었나?
 ! - 필요없는거
 [$domain=/redgg/]##li:has([id*="strike"])
 [$domain=/redgg/]##li.menu_blank.menu_item_.gnb_1dli_ > .gnb_1da > .btn-12.custom-btn
+!
+!
+! 자딸파티 (https://jaddal37.top)
+! - 필요없는거 (자딸 평생주소 / 텔레그램)
+##div[style^="position"][onclick^="window.open"]
+! - 필요없는거 (비아그라)
+[$domain=/jadda/]##.strike1
+! - 기타 - dns에서 막아도 보이므로 차단필요
+||niscprts.com^
+! - 쓸데없는 곳으로 이동시키는 링크
+##[href="https://19avmoa.com"]
 !
 !
 ! https://18av.mm-cg.com/
@@ -6351,8 +6365,41 @@ video.dmm.co.jp##[class*="h-"]:has([class*="cds-deliver-tags"] iframe)
 ! https://battlepage.com
 ! - 메인 하단 배너
 battlepage.com###banner_c_3
-
-
+!
+!
+! https://lineup11.net
+! - 하단 쿠키배너
+lineup11.net##.cookie-consent
+! - 스크롤 잠금 해제
+lineup11.net##html.has-adblock-modal, html.has-adblock-modal body { overflow: auto !important; }
+!
+!
+! https://stadiumbuilds.io
+! - 상단 스폰서
+##[aria-label*="sponsor" i]:not([id*="post-title"])
+! - 화면 비정상 복원
+! - -- 타규칙에 /adslot-도 있어 차단함으로 아래처럼 복원
+@@||stadiumbuilds.io/assets/AdSlot-*.js
+! - 기타
+||setuptrust.com^
+||getadmiral.com^
+||ampscamp.net^
+!
+!
+! https://ez2pattern.kr
+! - 광고 차단 팝업
+!ez2pattern.kr###pop_info_1
+##[id*="pop_"]
+! - 왼쪽 배너
+ez2pattern.kr###left-display
+! - 스크롤 잠감 해제
+! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
+!
+!
+! https://code.visualstudio.com
+! - 배경 복원
+@@*background$domain=code.visualstudio.com
 
 
 
