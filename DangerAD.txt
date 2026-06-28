@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260628
+! Version: 20260629
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -681,7 +681,7 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - - - load-로 통일
 ! - 쿠팡 - -header- ==>head로 통일  class="pad-cnt-wrap"  class*=keypad ===> pad로 통일
 ! - https://hmstory.net - size-bunyad-   load-button
-##[class*="ad-" i]:not([class="commu-content ad-layout"]):not([class*="read"]):not([class*="pad"]):not([class*="head"]):not([class*="download"]):not([class*="size-bunyad-"]):not([class*="load-button"])
+!##[class*="ad-" i]:not([class="commu-content ad-layout"]):not([class*="read"]):not([class*="pad"]):not([class*="head"]):not([class*="download"]):not([class*="size-bunyad-"]):not([class*="load-button"])
 
 
 ! - https://뉴토끼우회.com - id="address"
