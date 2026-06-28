@@ -672,7 +672,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - https://blog.rhchoi.com/ - head-
 ! - - - load-로 통일
 ! - 쿠팡 - -header- ==>head로 통일  class="pad-cnt-wrap"  class*=keypad ===> pad로 통일
-##[class*="ad-" i]:not([class="commu-content ad-layout"]):not([class*="read"]):not([class*="pad"]):not([class*="head"]):not([class*="download"])
+! - https://hmstory.net - size-bunyad-medium
+##[class*="ad-" i]:not([class="commu-content ad-layout"]):not([class*="read"]):not([class*="pad"]):not([class*="head"]):not([class*="download"]):not([class*="size-bunyad-medium"])
 
 
 ! - https://뉴토끼우회.com - id="address"
