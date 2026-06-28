@@ -261,6 +261,7 @@ ad.co.kr#@#[href*="/ad/" i]
 !*hlsjs*
 
 ##[data-ad_slot_name]
+##[data-event*="ad_click"]
 
 ##script[src*="/ad/"] + ins
 ##script[src*="/ads/"] + ins
@@ -355,7 +356,7 @@ ad.co.kr#@#[href*="/ad/" i]
 !!*pop*up*
 
 
-##[class*="adspop" i]
+!##[class*="adspop" i]
 
 
 !##[src*="/ads." i]
