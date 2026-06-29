@@ -152,7 +152,7 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[src*=".ads/" i]
 !
 !
-##[class$="_ads" i]
+!##[class$="_ads" i]
 !
 !
 ##[id*="-ads" i]
