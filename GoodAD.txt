@@ -3593,7 +3593,7 @@ javlemon.com##style\=\"text-align\:center\;\"
 ![$domain=/^missav\d+.com/]##[class^="mx-auto" i]
 !homejav.com,missav.*,njavtv.com##[class*="space"] [class*="mx-auto"]
 ![$domain=/^missav\d+.com/]##[class*="space"] [class*="mx-auto"]
-##[class*="space"] [class*="mx-auto"]
+##[class*="space"] [class="mx-auto"]
 !##[src*="frame"]
 !##[src*="/ad?" i]
 !##[src*="/widgets/" i]
@@ -6003,8 +6003,13 @@ yozm.wishket.com#@#div[class*="border"]:has(> [target] img)
 !
 !
 ! AV플릭스 (https://av플릭스평생도메인.com) (https://kr2.avflix.co/)
-!  배너 및 공간
-[$domain=/avflix/]##div.grid.grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3.xl\:grid-cols-4.gap-3.md\:gap-4.px-4.md\:px-20.py-1.md\:py-6:has(> div)
+! - 배너 이미지
+||*.avflix.co/download/*$image
+! 링크없는 배너 (아래 2규칙은 없어도 배너 이미지가 사라져서 상관없음)
+!##[alt*="가상계좌"]
+!##[alt*="솔루션"]
+!  배너 공간 남는거 해결
+[$domain=/avflix/]##[class*="py-6"]
 !
 !
 ! 링커리어 (https://linkareer.com/)
@@ -6404,6 +6409,11 @@ ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
 ! https://code.visualstudio.com
 ! - 배경 복원
 @@*background$domain=code.visualstudio.com
+!
+!
+! https://javclick.com/
+! - 기타
+/popunder-
 
 
 
