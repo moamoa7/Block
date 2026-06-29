@@ -450,12 +450,13 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ##[id^="ad" i]:not([id="address"])
 
 
-! - 천사티비 - adult-
+! - 천사티비 - adult-  (class^="adult"로 통일)
 !##div[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i])
 ! - https://www.avdbs.com/ - adt_mode_toggle
 ! - 디시인사이드 - adr_copy
 ! - 숲 확장 프로그램 (숲 키트) - advanced-controls-panel
-##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult-" i]):not([class^="adt_mode_toggle" i]):not([class="adr_copy" i]):not([class="advanced-controls-panel" i])
+! - 망가조아 - class*="adult_id__main" (class^="adult"로 통일)
+##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adt_mode_toggle"]):not([class="adr_copy"]):not([class="advanced-controls-panel"])
 
 
 ! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
