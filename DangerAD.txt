@@ -444,7 +444,7 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 
 ! - https://뉴토끼우회.com - id="address"
-##[id^="ad"]:not([id="address"])
+##[id^="ad" i]:not([id="address"])
 
 
 ! - 천사티비 - adult-
