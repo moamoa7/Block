@@ -752,4 +752,7 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 탑툰 - :not([class*="install-app__banner"])
 !##[class*="install" i]:not([class="el-dialog install-extension-guid-dialog"]):not([class="install-channels"]):not([class="install-btn-wrap"]):not([class="rounded-full.btn-install"]):not([class*="InstallAppBanner"]):not([class="script-list-daily-installs"]):not([class="script-list-total-installs"]):not([class*="install-app"])
 
+!##[class*="-ads-"]
+
+
 !=========================================================================
