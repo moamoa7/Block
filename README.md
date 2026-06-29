@@ -32,10 +32,19 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD2.txt
 ```
 <br/>
+※ DangerAD.txt
+<br/>
+
+개인 Filter List (범용 규칙으로 적용시 페이지가 안보이거나 깨질 수 있음)
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/DangerAD.txt
+```
+<br/>
+
 ※ DNS_Rewrite.txt
 <br/>
 
-개인적 추가 차단 리스트
+개인적 DNS 추가 차단 리스트
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/DNS_Rewrite.txt
 ```
