@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260628
+! Version: 20260629
 !
 !
 !
@@ -934,7 +934,8 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 !
 ! 인벤 (https://www.inven.co.kr/)
 ! - 상단 검색어 내 텍스트
-inven.co.kr##.text
+! - - - 상단 검색어 외 다른 부분도 지워져서 주석처리
+!inven.co.kr##.text
 ! - 상단 검색어 하단 텍스트
 inven.co.kr##.search-word
 ! - 오른쪽 배너 공간
@@ -943,7 +944,7 @@ inven.co.kr##.commu-right > div
 ! - 게시물 본문 상단 오른쪽 배너
 !##[class*="googlesubjectad" i]
 !##.googleSubjectAd
-##[class*="googlesubjectad" i]
+inven.co.kr##[class*="googlesubjectad" i]
 ! - 오른쪽 혜택.이이마트
 inven.co.kr###right-imart-benefits
 ! - 게시물 하단 작성자 프로필
@@ -2827,7 +2828,7 @@ pedia.watcha.com##.adFixed
 /torrentpi[0-9]+\.com/##.sero1
 !
 !
-! AVseeTV (https://08.avsee.ru/)
+! AVseeTV (https://08.avsee.ru/) - 배너가 없어졋음
 ! - 배너 이미지
 ||avsee.ru/imgs/$image
 ! - 메인 배너
@@ -2859,8 +2860,8 @@ pedia.watcha.com##.adFixed
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 남는 배너 이미지 공간
-avsee.ru##div.title:nth-of-type(1)
-avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
+!avsee.ru##div.title:nth-of-type(1)
+!avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
 ! - - - 스크립트의 ui 탭 을 막아서 해제
 avsee.ru#@#.tabs
 ! - - - https://j91.asia/
@@ -5508,9 +5509,11 @@ heye.kr##td.menu-item:nth-of-type(3)
 ! - 팝업 방지
 ! - - - ||pandalive.co.kr^$document 하면 판타티비 열릴때 차단되긴 하나 판타티비 시청 불가
 ! - - - ||pandalive.co.kr^$document,domain=heye.kr 하면 차단되지 않음
+! - --  ||pandalive.co.kr/evt/heye01&5&iframe$document 작동 잘 되는대 더 짧게 줄여서 규칙 만듬
 !||pandalive.co.kr^$document
 !||pandalive.co.kr^$document,domain=heye.kr
-||pandalive.co.kr/evt/heye01&5&iframe$document
+!||pandalive.co.kr/evt/heye01&5&iframe$document
+||pandalive.co.kr/evt/$document
 heye.kr##+js(nowoif)
 !*banner.js
 !*banner*.js
@@ -5845,15 +5848,16 @@ rou.video##div.md\:col-span-1
 ||view-api.fikfap.com^
 !
 !
-! https://www.tuptbsxdv.cc/  https://active.qpnwzxrj.cc/  https://advise.qpnwzxrj.cc/  https://again.qpnwzxrj.cc/   https://www.mrds66.com/
-! - 맨위 상단 배너 1개
-/qpnwzxrj/,/^(www\.)?mrds/###post-card-179882 > .post-card-mask
-! - 가운대 안지워지는 배너
-/qpnwzxrj/,/^(www\.)?mrds/##[class*="post"]:has([style*="gif;base64"])
-! - 필요없는부분
+! https://www.tuptbsxdv.cc/  https://active.qpnwzxrj.cc/  https://advise.qpnwzxrj.cc/  https://again.qpnwzxrj.cc/   https://www.mrds66.com/   https://advise.kaugdkmgj.cc
+! - - - 주소가 바뀌어서 이건 아예 주소없이 가야함
+! - 맨위 상단 배너 1개 - 해당 사항 없음으로 바뀐듯
+!/qpnwzxrj/,/^(www\.)?mrds/###post-card-179882 > .post-card-mask
+! - 필요없는부분 (배너들)
 ##.tjtagmanager[data-ad_id]
-! - 광고 이미지
-/qpnwzxrj/,/^(www\.)?mrds/##.dplayer-pre-img
+! - 가운대 안지워지는 배너
+##[class*="post-card"]:has([style*="data:image/gif"])
+! - ! - 가운대 안지워지는 배너 그 아래부분 배너
+##[class*="post-card"]:has([style*="/9j/4QBORXhpZgAATU0AKgAAAAgAAwEaAAUAAAABAAAAMgEbAAUAAAABAAAAOgEoAAMAAAABAAIAAAAAAAAACvyAAAAnEAAK/IAAACcQAAAAAP"])
 ! -기타
 ||addtoany.com^
 !
