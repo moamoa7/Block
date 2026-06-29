@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260629
+! Version: 20260630
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -302,7 +302,8 @@ ad.co.kr#@#[href*="/ad/" i]
 ! 일일툰 - topBanner--on
 ! 툰코 / 펀비 - mobile-banner top_hr
 ! https://www.mrds66.com/ - open use-navbar no-banner
-! adblockultimate.net - __className_62a70d has-promo-banner  ##[class*="promo-banner"]
+! adblockultimate.net - class="__className_62a70d has-promo-banner" 이것만 하면 전체본문은 보임
+! adblockultimate.net - class="promo-banner promo-banner--image-strip promo-banner--football-fever"  class="promo-banner__image-strip-bg"  class="promo-banner__content" :not([class="promo-banner__icon"]):not([class="promo-banner__link"]):not([class="promo-banner__discount-badge"]):not([class="promo-banner__text"]):not([class="promo-banner__subtitle"]):not([class="promo-banner__headline"]):not([class="lucide lucide-trophy promo-banner__icon-svg"])
 ! 딸즈니 - class="vdo-top-part vieo-banner-div"
 ! startpage.com - class="banner-container css-beuhud" class*="adban banner-ad bannerad blockAd"  class="ai-chat-banner-visible"
 ! 얀덱스맵 - raise-masstransit-banner-experiment
@@ -321,10 +322,11 @@ ad.co.kr#@#[href*="/ad/" i]
 ! - https://battlepage.com - div_banner_content_containter  banner_right_container
 ! - 클리앙 댓글 - ##[class="comment inline_link ad_banner "]
 ! - https://platinmods.com/ - userBanner
-##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"]):not([class="main-banner topBillwrap"]):not([class*="main-banner__"]):not([class*="promo-free__banner"]):not([class*="install-app__banner"]):not([class="div_banner_content_containter"]):not([class="banner_right_container"]):not([class="comment inline_link ad_banner "]):not([class*="userBanner"])
+##[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"]):not([class="main-banner topBillwrap"]):not([class*="main-banner__"]):not([class*="promo-free__banner"]):not([class*="install-app__banner"]):not([class="div_banner_content_containter"]):not([class="banner_right_container"]):not([class="comment inline_link ad_banner "]):not([class*="userBanner"])
 
 ! - https://dailyuploads.net/ - class="banner 사용으로 별도 처리해야함
-dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class*="promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="banner2"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"]):not([class="main-banner topBillwrap"]):not([class*="main-banner__"]):not([class*="promo-free__banner"]):not([class*="install-app__banner"]):not([class="div_banner_content_containter"]):not([class="banner_right_container"]):not([class="comment inline_link ad_banner "]):not([class*="userBanner"])
+! - https://18moa028.com - class="banner2 사용으로 별도 처리해야함
+18moa028.com,dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"]):not([class="main-banner topBillwrap"]):not([class*="main-banner__"]):not([class*="promo-free__banner"]):not([class*="install-app__banner"]):not([class="div_banner_content_containter"]):not([class="banner_right_container"]):not([class="comment inline_link ad_banner "]):not([class*="userBanner"])
 
 
 
