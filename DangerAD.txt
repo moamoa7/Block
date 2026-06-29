@@ -325,6 +325,10 @@ dailyuploads.net#@#[class*="banner" i]:not([class*="fullwidthbanner"]):not([clas
 
 
 
+##[id*="banner" i]
+
+
+
 */background/*
 
 
