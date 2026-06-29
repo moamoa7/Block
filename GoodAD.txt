@@ -6414,6 +6414,9 @@ ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
 ! https://javclick.com/
 ! - 기타
 /popunder-
+!
+!
+! 짭툰 (https://www.jjaptoon003.com/) - 배너 일체 없는 깨끗. 처리할게 없음
 
 
 
