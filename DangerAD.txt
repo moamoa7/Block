@@ -294,6 +294,9 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[src*="/banners/" i]:not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]):not([src*="img.coupangstreaming.com/assets/feed-banners/"])
 
 
+##div[style*="banner" i]:not([style*="img.coupangstreaming.com/assets/feed-banners/"])
+
+
 ! t-browser.com - fullwidthbanner
 ! vexfile.com- hero-banner
 ! 일일툰 - topBanner--on
