@@ -7,11 +7,6 @@
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
 
 
-
-! - 광고 스킵
-##[class*="playerads" i]
-
-
 *##.ad
 ! - 예외 - https://www.ad.co.kr/ - 메뉴 사라짐
 ad.co.kr#@#.ad
@@ -114,9 +109,6 @@ ad.co.kr#@#[href*="/ad/" i]
 
 
 ##[id*="-ads" i]
-
-
-##[class*=-ads-]
 
 
 ###videoad
@@ -752,7 +744,10 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 탑툰 - :not([class*="install-app__banner"])
 !##[class*="install" i]:not([class="el-dialog install-extension-guid-dialog"]):not([class="install-channels"]):not([class="install-btn-wrap"]):not([class="rounded-full.btn-install"]):not([class*="InstallAppBanner"]):not([class="script-list-daily-installs"]):not([class="script-list-total-installs"]):not([class*="install-app"])
 
-!##[class*="-ads-" i]
+! - 광고 스킵
+!##[class*="playerads" i]
 
+!##[class*="-ads-" i]
+!##[class*=-ads- i]
 
 !=========================================================================
