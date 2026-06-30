@@ -475,7 +475,9 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 ! avsee / https://tcafe21.com/ - main-head  gamepad
 ! https://xn--9w3b43d58f04atzyznd.com/ - class="hero-lead"
-##[class$="ad" i]:not([class="main-head"]):not([class="hero-lead"]):not([class*="gamepad"])
+! 연합뉴스 - class="lead"
+! 연합뉴스TV - class="public-head"  class="digital-head"  class="major-head"
+##[class$="ad" i]:not([class="main-head"]):not([class*="gamepad"]):not([class="hero-lead"]):not([class="lead"]):not([class="public-head"]):not([class="digital-head"]):not([class="major-head"])
 
 
 ! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
