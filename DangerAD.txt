@@ -283,7 +283,7 @@ ad.co.kr#@#[href*="/ad/" i]
 
 /*banner*/*
 ! - 예외  - 이미지 안보임
-@@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
+@@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com|ktmmobile.com
 
 
 ##[data-testid*="banner"]
