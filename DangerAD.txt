@@ -198,6 +198,9 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[id$="_notice" i]
 
 
+##[id*="scrollbox" i]
+
+
 
 ! 참고
 ! - ##iframe -- 이렇게 하면 ublck이 작동을 안하므로 반드시 div iframe 로 사용 (참고 : div > iframe 로 하면 직계만 가능)
@@ -480,6 +483,10 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ##[class$="ad" i]:not([class="main-head"]):not([class*="gamepad"]):not([class="hero-lead"]):not([class="lead"]):not([class="public-head"]):not([class="digital-head"]):not([class="major-head"])
 
 
+##[class*="-ad" i]
+
+##[class*="ad-" i]
+
 ! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
 ##[class*="-ad-" i]:not([class*="is-ad-visible"])
 
@@ -495,13 +502,17 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 ##[id$="ad" i]
 
-##[id^="-ad" i]
+##[id*="-ad" i]
 
-##[id^="ad-" i]
+##[id*="ad-" i]
 
-##[id^="-ad-" i]
+##[id*="-ad-" i]
 
-##[id^="_ad_" i]
+##[id*="_ad" i]
+
+##[id*="ad_" i]
+
+##[id*="_ad_" i]
 
 
 
