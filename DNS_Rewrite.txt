@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260701-rev1
+! Version: 20260701-rev2
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -772,7 +772,6 @@
 ||browser.events.data.microsoft.com^
 ||browser.events.data.msn.com^
 ||p.brave.com^
-||variations.brave.com^
 ||star-randsrv.bsg.brave.com^
 ||telemetry.mozilla.org^
 ||incoming.telemetry.mozilla.org^
@@ -780,7 +779,10 @@
 ||desktop.telemetry.opera.com^
 ||mig.vivaldi.com^
 ||update.vivaldi.com^
-||go-updater.brave.com^
+! - 브레이브의 기능 구성(피처 플래그, 점진적 롤아웃)을 받아오는 채널
+!||variations.brave.com^
+! - 브레이브의 컴포넌트/업데이트 게이트웨이
+!||go-updater.brave.com^
 ||content-autofill.googleapis.com^
 ||suggestqueries.google.com^
 ||optimizationguide-pa.googleapis.com^
