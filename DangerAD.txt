@@ -79,9 +79,6 @@ ad.co.kr#@#.ad
 @@*video-ad*$css,script
 
 
-##[id^="top-banner" i]
-
-
 ##[alt*="보증토토"]
 
 
@@ -146,8 +143,6 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[aria-label*=sponsor i]:not([id*="post-title"])
 
 ##[class*="-sponsor" i]
-
-##[class*="_ad_" i]
 
 
 /adsblocker.
@@ -436,6 +431,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 ##[id*="-popup-" i]
 
+##[id*="_popup_" i]
+
 
 ! - 떠다니는?
 ! - 숲 - float_box
@@ -459,10 +456,6 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ##[class*="float" i]:not([class*="float_box"]):not([class*="jw-floating"]):not([class*="nav-float"]):not([class*="float-e-margins border-bottom"]):not([class*="ibox float-e-margins"][class*="ibox"]):not([class*="float-left"]):not([class*="float-right"]):not([class*="FloatingTab"]):not([class="cntwrapfloat"]):not([class*="float-back"]):not([class*="FloatingWrapper"]):not([class*="FloatingMenu"]):not([class*="FloatingUserInfo"]):not([class*="float-5"]):not([class="w-100 float-start header"]):not([class="w-100 float-start body-section"]):not([class*="animate-floating"]):not([class="floatWrapper"]):not([class*="[variant=floating]"]):not([class*="af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid"]):not([class="api_floating_header spi-lnb"]):not([class*="FloatAiDashBoard"]):not([class*="_FloatRight_"])
 
 
-! - https://뉴토끼우회.com - id="address"
-##[id^="ad" i]:not([id="address"])
-
-
 ! - 천사티비 - adult-  (class^="adult"로 통일)
 !##div[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i])
 ! - https://www.avdbs.com/ - adt_mode_toggle
@@ -471,18 +464,23 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 망가조아 - class*="adult_id__main" (class^="adult"로 통일)
 ##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adt_mode_toggle"]):not([class="adr_copy"]):not([class="advanced-controls-panel"])
 
+##[class$="ad" i]
+
 
 ! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
 ##[class*="-ad-" i]:not([class*="is-ad-visible"])
 
-
-##[class$="-ad" i]
-
-
-##[id$="-ad" i]
+##[class*="_ad_" i]
 
 
-##[id^="ad_" i]
+! - https://뉴토끼우회.com - id="address"
+##[id^="ad" i]:not([id="address"])
+
+##[id$="ad" i]
+
+##[id^="-ad-" i]
+
+##[id^="_ad_" i]
 
 
 
@@ -770,12 +768,11 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 광고 스킵
 !##[class*="playerads" i]
 
-!##[class*="-ads-" i]
-!##[class*=-ads- i]
-
 !##[id*="popup_banner" i]
 
 !##[id*="topbanner" i]
+
+!##[id^="top-banner" i]
 
 
 !=========================================================================
