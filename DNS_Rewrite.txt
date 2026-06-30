@@ -2,7 +2,7 @@
 !
 ! Title: DNS Rewrite
 ! Description: Personal DNS Rewrite
-! Version: 20260627-rev1
+! Version: 20260701-rev1
 !
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !!! ═══════════════════════════════════════════════════════════
@@ -872,7 +872,8 @@
 ||shavar.services.mozilla.com^
 ||location.services.mozilla.com^
 ||firebaselogging.googleapis.com^
-||redirector.gvt1.com^
+! - 구글의 다운로드 리디렉터로, 브레이브 컴포넌트(애드블록 필터 목록 포함)와 크롬 계열 브라우저의 업데이트 파일이 실제로 어느 서버에서 받아질지 안내해주는 역할
+!||redirector.gvt1.com^
 ||collector.github.com^
 !
 ! ───── 주변기기 / 게이밍 SW ─────
