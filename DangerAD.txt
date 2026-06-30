@@ -104,6 +104,8 @@ ad.co.kr#@#[href*="/ad/" i]
 
 ##[id*="_ads_" i]
 
+##[id*="adsby" i]
+
 
 ###videoad
 ###video-ad
@@ -111,9 +113,6 @@ ad.co.kr#@#[href*="/ad/" i]
 
 
 *click?*
-
-
-##[class*="premium_ad" i]
 
 
 ##[class*="advert" i]
@@ -127,7 +126,11 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[data-testid*="advert"]
 
 
-##[id*="adsby" i]
+##[class$="tooltip" i]
+
+##[class*="_tooltip_" i]
+
+##[class*="-tooltip_" i]
 
 
 ! - 레댓 홍보글
@@ -541,6 +544,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 !##[class$="right-ad" i] - ##[class$="-ad" i] 와 같음
 
 !##[class$="left-ad" i] - ##[class$="-ad" i] 와 같음
+
+!##[class*="premium_ad" i]
 
 
 ! - https://www.yna.co.kr/
