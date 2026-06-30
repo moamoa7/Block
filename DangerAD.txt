@@ -91,9 +91,6 @@ ad.co.kr#@#.ad
 ##[id*="topbanner" i]
 
 
-##[id$="-ad"]
-
-
 ##[href*="/ad/" i]
 ! - 예외 - https://www.ad.co.kr/ - 사라지면 안되는 링크 사라짐
 ad.co.kr#@#[href*="/ad/" i]
@@ -481,6 +478,9 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 
 ##[class$="-ad" i]
+
+
+##[id$="-ad" i]
 
 
 ##[id^="ad_" i]
