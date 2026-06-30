@@ -480,6 +480,9 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ##[class*="-ad-" i]:not([class*="is-ad-visible"])
 
 
+##[class$="-ad" i]
+
+
 ##[id^="ad_" i]
 
 
@@ -767,8 +770,6 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 ! - 광고 스킵
 !##[class*="playerads" i]
-
-!##[class$="-ad" i]
 
 !##[class*="-ads-" i]
 !##[class*=-ads- i]
