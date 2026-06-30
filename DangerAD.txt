@@ -508,14 +508,14 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 ##[id*="-ad" i]
 
-! https://m.humoruniv.com/ - read-
-##[id*="ad-" i]:not([id$="read"])
+##[id*="ad-" i]
 
 ##[id*="-ad-" i]
 
 ##[id*="_ad" i]
 
-##[id*="ad_" i]
+! https://m.humoruniv.com/ - read_
+##[id*="ad_" i]:not([id*="read_"]
 
 ##[id*="_ad_" i]
 
