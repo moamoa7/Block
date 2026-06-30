@@ -470,9 +470,9 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 망가조아 - class*="adult_id__main" (class^="adult"로 통일)
 ##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adt_mode_toggle"]):not([class="adr_copy"]):not([class="advanced-controls-panel"])
 
-! avsee / https://tcafe21.com/ - main-head
+! avsee / https://tcafe21.com/ - main-head  gamepad
 ! https://xn--9w3b43d58f04atzyznd.com/ - class="hero-lead"
-##[class$="ad" i]:not([class="main-head"]):not([class="hero-lead"])
+##[class$="ad" i]:not([class="main-head"]):not([class="hero-lead"]):not([class*="gamepad"])
 
 
 ! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
