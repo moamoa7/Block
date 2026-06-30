@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260630
+! Version: 20260701
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -83,12 +83,6 @@ ad.co.kr#@#.ad
 
 
 ##[alt*="보증토토"]
-
-
-##[id*="popup_banner" i]
-
-
-##[id*="topbanner" i]
 
 
 ##[href*="/ad/" i]
@@ -778,5 +772,10 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 !##[class*="-ads-" i]
 !##[class*=-ads- i]
+
+!##[id*="popup_banner" i]
+
+!##[id*="topbanner" i]
+
 
 !=========================================================================
