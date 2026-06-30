@@ -98,6 +98,12 @@ ad.co.kr#@#[href*="/ad/" i]
 
 ##[id*="-ads" i]
 
+##[id*="ads-" i]
+
+##[id*="-ads-" i]
+
+##[id*="_ads_" i]
+
 
 ###videoad
 ###video-ad
@@ -472,6 +478,10 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
 ##[class*="-ad-" i]:not([class*="is-ad-visible"])
 
+##[class*="_ad" i]
+
+##[class*="ad_" i]
+
 ##[class*="_ad_" i]
 
 
@@ -479,6 +489,10 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ##[id^="ad" i]:not([id="address"])
 
 ##[id$="ad" i]
+
+##[id^="-ad" i]
+
+##[id^="ad-" i]
 
 ##[id^="-ad-" i]
 
