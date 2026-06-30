@@ -437,7 +437,9 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 
 ! - 치지직 후원 - popup_contents._contents
-##[id^="popup" i]:not([id*="_contents"])
+! https://ktmmobile.com/ - id="popupList
+##[id^="popup" i]:not([id*="_contents"]):not([id="popupList"])
+
 
 ##[id$="popup" i]
 
