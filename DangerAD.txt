@@ -493,7 +493,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 ##[class*="_ad" i]
 
-##[class*="ad_" i]
+! m.humoruniv.com - read_subject  ad_bri
+##[class*="ad_" i]:not([class^="read_subject"]):not([class="ad_bri"])
 
 ##[class*="_ad_" i]
 
@@ -501,11 +502,13 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - https://뉴토끼우회.com - id="address"
 ##[id^="ad" i]:not([id="address"])
 
-##[id$="ad" i]
+! https://m.humoruniv.com/ - download  read
+##[id$="ad" i]:not([id$="download"]):not([id$="read"])
 
 ##[id*="-ad" i]
 
-##[id*="ad-" i]
+! https://m.humoruniv.com/ - read-
+##[id*="ad-" i]:not([id$="read"])
 
 ##[id*="-ad-" i]
 
