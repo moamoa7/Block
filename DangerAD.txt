@@ -159,9 +159,6 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[class*="_ad_" i]
 
 
-##[class$="-ad" i]
-
-
 /adsblocker.
 
 ###adblock-dialog
@@ -770,6 +767,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 
 ! - 광고 스킵
 !##[class*="playerads" i]
+
+!##[class$="-ad" i]
 
 !##[class*="-ads-" i]
 !##[class*=-ads- i]
