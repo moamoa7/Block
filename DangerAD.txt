@@ -491,7 +491,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
 ##[class*="-ad-" i]:not([class*="is-ad-visible"])
 
-##[class*="_ad" i]
+! - 숲 - chatbox_add_notice
+##[class*="_ad" i]:not([class*="chatbox_add_notice"])
 
 ! m.humoruniv.com - read_subject  ad_bri
 ##[class*="ad_" i]:not([class^="read_subject"]):not([class="ad_bri"])
