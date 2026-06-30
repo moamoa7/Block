@@ -483,8 +483,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ##[class$="ad" i]:not([class="main-head"]):not([class*="gamepad"]):not([class="hero-lead"]):not([class="lead"]):not([class="public-head"]):not([class="digital-head"]):not([class="major-head"])
 
 
-! https://adguard-dns.io/ - ace-adguard
-##[class*="-ad" i]:not([class*="ace-adguard"])
+! https://adguard-dns.io/ - ace-adguard  react-select--adaptive-height
+##[class*="-ad" i]:not([class*="ace-adguard"]):not([class*="react-select--adaptive-height"])
 
 ##[class*="ad-" i]
 
