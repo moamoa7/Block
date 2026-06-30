@@ -4,7 +4,7 @@
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Tue Jun 30 09:35:05 UTC 2026
+! Updated: Tue Jun 30 19:57:35 UTC 2026
 
 ||awesomeclick.co.kr^
 ||optbeacon.net^
