@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-01 06:13:15 UTC
+! Generated: 2026-07-01 10:26:31 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,518
+! Exception Rules: 6,517
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -1560,6 +1560,7 @@
 @@||elster.de^
 @@||email-link.adtidy.info^
 @@||email-link.adtidy.org^
+@@||email.microsoft.com^
 @@||email.microsoftonline.com^
 @@||email.namebase.io^
 @@||email.office.com^
@@ -3371,7 +3372,6 @@
 @@||ndirect.ppro.de^
 @@||nedbank.co.za^
 @@||neobux.com^
-@@||neoengage-va-cdn.exponea.com^
 @@||neon.com.br^
 @@||nest.com^
 @@||net.kentbank.hr^
@@ -4024,7 +4024,6 @@
 @@||r5siqu4ab.cc.rs6.net^
 @@||r7avxrcab.cc.rs6.net^
 @@||r9amglzab.cc.rs6.net^
-@@||r9caqarab.cc.rs6.net^
 @@||rabble-res.cloudinary.com^
 @@||rabobank.co.nz^
 @@||rabobank.nl^
@@ -5228,7 +5227,6 @@
 @@||suite30-cdnnet.emarsys.net^
 @@||suite30-cf.emarsys.net^
 @@||suite30.emarsys.net^
-@@||suite32.emarsys.net^
 @@||suite33-cf.emarsys.net^
 @@||suite33.emarsys.net^
 @@||suite34.emarsys.net^
@@ -5318,6 +5316,7 @@
 @@||t.sidekickopen03.com^
 @@||t.sidekickopen04-eu1.com^
 @@||t.sidekickopen04.com^
+@@||t.sidekickopen05-eu1.com^
 @@||t.sidekickopen05.com^
 @@||t.sidekickopen06.com^
 @@||t.sidekickopen07-eu1.com^
