@@ -19,7 +19,7 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/White_DNS.txt
 ※ GoodAD.txt
 <br/>
 
-개인 Filter List (한국사이트 위주) - ublock
+개인 Filter List (한국사이트 위주)
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
@@ -27,7 +27,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ※ GoodAD2.txt
 <br/>
 
-트래킹/텔레메트리 차단 필터 - ublock
+트래킹/텔레메트리 차단 필터
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD2.txt
 ```
