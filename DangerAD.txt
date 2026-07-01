@@ -330,7 +330,8 @@ fd2ppv.cc#@#div iframe:not([src*="/embed/"]):not([src*="/player.php?"]):not([src
 
 ! - https://dailyuploads.net/ - class="banner 사용으로 별도 처리해야함
 ! - https://18moa028.com - class="banner2 사용으로 별도 처리해야함
-18moa028.com,dailyuploads.net#@###[class*="banner" i]:not(body):not(html):not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"]):not([class="main-banner topBillwrap"]):not([class*="main-banner__"]):not([class*="promo-free__banner"]):not([class*="install-app__banner"]):not([class="div_banner_content_containter"]):not([class="banner_right_container"]):not([class="comment inline_link ad_banner "]):not([class*="userBanner"]):not([class="col-xs-2 banner"]):not([class="banner_sns"]):not([class*="home_t_banner"]):not([class*="MapBrokerBanner"]):not([class*="ComparisonBanner"]):not([class="main-wrap not-enable-banner"])
+! - yna.co.kr - 이상하게 스크롤이 잠김
+yna.co.kr,18moa028.com,dailyuploads.net#@#[class*="banner" i]:not(body):not(html):not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"]):not([class="main-banner topBillwrap"]):not([class*="main-banner__"]):not([class*="promo-free__banner"]):not([class*="install-app__banner"]):not([class="div_banner_content_containter"]):not([class="banner_right_container"]):not([class="comment inline_link ad_banner "]):not([class*="userBanner"]):not([class="col-xs-2 banner"]):not([class="banner_sns"]):not([class*="home_t_banner"]):not([class*="MapBrokerBanner"]):not([class*="ComparisonBanner"]):not([class="main-wrap not-enable-banner"])
 
 
 
@@ -430,20 +431,20 @@ fd2ppv.cc#@#div iframe:not([src*="/embed/"]):not([src*="/player.php?"]):not([src
 ! play.sooplive.com - 확장프로그램(숲 키트) - soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode
 ! https://mypikpak.com/ 목록 및 재생 - class="el-overlay is-drawer guide-app-popup el-modal-drawer"  class="el-overlay is-drawer guide-popup el-modal-drawer" -- 안해도 됨
 
-##[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
+##[class*="popup" i]:not(body):not(html):not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
 
-clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
+clien.net#@#[class*="popup" i]:not(body):not(html):not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
 
 
 ! - 치지직 후원 - popup_contents._contents
 ! https://fd2ppv.cc/ - id="popup-dialog"
-##[id^="popup" i]:not([id*="_contents"]):not([id="popup-dialog"])
+##[id^="popup" i]:not(body):not(html):not([id*="_contents"]):not([id="popup-dialog"])
 
-##[id$="popup" i]
+##[id$="popup" i]:not(body):not(html)
 
-##[id*="-popup-" i]
+##[id*="-popup-" i]:not(body):not(html)
 
-##[id*="_popup_" i]
+##[id*="_popup_" i]:not(body):not(html)
 
 
 ! - 떠다니는?
@@ -465,7 +466,7 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - https://s5.watchfreekav.com - af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid 
 ! - 네이버서치 - class="api_floating_header spi-lnb"
 ! - 리치고 (https://m.richgo.ai/) - FloatAiDashBoard  _FloatRight_
-##[class*="float" i]:not([class*="float_box"]):not([class*="jw-floating"]):not([class*="nav-float"]):not([class*="float-e-margins border-bottom"]):not([class*="ibox float-e-margins"][class*="ibox"]):not([class*="float-left"]):not([class*="float-right"]):not([class*="FloatingTab"]):not([class="cntwrapfloat"]):not([class*="float-back"]):not([class*="FloatingWrapper"]):not([class*="FloatingMenu"]):not([class*="FloatingUserInfo"]):not([class*="float-5"]):not([class="w-100 float-start header"]):not([class="w-100 float-start body-section"]):not([class*="animate-floating"]):not([class="floatWrapper"]):not([class*="[variant=floating]"]):not([class*="af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid"]):not([class="api_floating_header spi-lnb"]):not([class*="FloatAiDashBoard"]):not([class*="_FloatRight_"])
+##[class*="float" i]:not(body):not(html):not([class*="float_box"]):not([class*="jw-floating"]):not([class*="nav-float"]):not([class*="float-e-margins border-bottom"]):not([class*="ibox float-e-margins"][class*="ibox"]):not([class*="float-left"]):not([class*="float-right"]):not([class*="FloatingTab"]):not([class="cntwrapfloat"]):not([class*="float-back"]):not([class*="FloatingWrapper"]):not([class*="FloatingMenu"]):not([class*="FloatingUserInfo"]):not([class*="float-5"]):not([class="w-100 float-start header"]):not([class="w-100 float-start body-section"]):not([class*="animate-floating"]):not([class="floatWrapper"]):not([class*="[variant=floating]"]):not([class*="af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid"]):not([class="api_floating_header spi-lnb"]):not([class*="FloatAiDashBoard"]):not([class*="_FloatRight_"])
 
 
 ! - 천사티비 - adult-  (class^="adult"로 통일)
@@ -474,11 +475,11 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 디시인사이드 - adr_copy
 ! - 숲 확장 프로그램 (숲 키트) - advanced-controls-panel
 ! - 망가조아 - class*="adult_id__main" (class^="adult"로 통일)
-##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adt_mode_toggle"]):not([class="adr_copy"]):not([class="advanced-controls-panel"])
+##[class^="ad" i]:not(body):not(html):not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adt_mode_toggle"]):not([class="adr_copy"]):not([class="advanced-controls-panel"])
 
 
 ! - https://뉴토끼우회.com - id="address"
-##[id^="ad" i]:not([id="address"])
+##[id^="ad" i]:not(body):not(html):not([id="address"])
 
 
 ! - missav.to - with-sidebar-ads
@@ -487,7 +488,7 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - https://www.javdock.com/ -  class="home blog wp-theme-dock has-mobile-ads" class="wp-singular post-template-default single single-post postid-730986 single-format-standard wp-theme-dock has-mobile-ads"
 ! - https://platinmods.com/ - 개벌 게시물내 - threadStatusField  threadStarterPost
 ! - https://code.visualstudio.com - class*="alt-downloads"
-##[class*="ads" i]:not([class*="with-sidebar-ads"]):not([class*="MastheadSideBuyBlock"]):not([class="adStart"]):not([class="adStart header-is-sticky"]):not([class="home blog wp-theme-dock has-mobile-ads"]):not([class="wp-singular post-template-default single single-post postid-730986 single-format-standard wp-theme-dock has-mobile-ads"]):not([class*="threadStatusField"]):not([class*="threadStarterPost"]):not([class*="alt-downloads"])
+##[class*="ads" i]:not(body):not(html):not([class*="with-sidebar-ads"]):not([class*="MastheadSideBuyBlock"]):not([class="adStart"]):not([class="adStart header-is-sticky"]):not([class="home blog wp-theme-dock has-mobile-ads"]):not([class="wp-singular post-template-default single single-post postid-730986 single-format-standard wp-theme-dock has-mobile-ads"]):not([class*="threadStatusField"]):not([class*="threadStarterPost"]):not([class*="alt-downloads"])
 
 
 !=========================================================================
