@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260701
+! Version: 20260702
 !
 !
 !
@@ -381,7 +381,7 @@ m.naver.com##script#MM_search_disaster ~*
 ! - - - 네이버 사이트(naver.com)에 접속해 있을 때, 네이버 정적 서버(ssl.pstatic.net)에서 불러오는 이미지나 스크립트가 광고로 오인되어 차단되는 일이 없도록 무조건 허용하라
 !@@||ssl.pstatic.net^$from=naver.com
 ! - 기타
-||ntm.pstatic.net/scripts/ntm_$from=naver.com
+!||ntm.pstatic.net/scripts/ntm_$from=naver.com
 !/gtag.js
 !
 !
@@ -1736,6 +1736,8 @@ fingerprint.
 ! - 팝업
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 ![$domain=/^tvchak\d*\./]##[class*="popup_mdd" i]
+! - 상단 배너 빈공간
+##[class*="card"]:has(> style)
 ! - 보증 안내 문구
 ![$domain=/^tvchak\d*\./]##.hezuo_div1
 [$domain=/tvchak/]##.hezuo_div1
@@ -2097,7 +2099,7 @@ joatoon-oa.com##.bg-opacity-50
 ! 뉴토끼(https://t.me/s/newtoki_url) (https://뉴토끼우회.com) (https://newtoki1.org/) -구버젼
 ! -팝업 차단으로 인한 뿌연 화면 해결
 ![$domain=/^newtoki\d*\./]##div:has(> .theme-popup-stack)
-[$domain=/newtoki/]##div:has(> .theme-popup-stack)
+##div:has(> .theme-popup-stack)
 ! - 보안 검증 통과를 위한 조치
 !!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴
 @@/ad/*$domain=/^newtoki\d+\.[a-z.]+$/
@@ -4543,7 +4545,7 @@ jusogall.com###banner-container
 ! - 리스트 줄간 줄임
 ! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 ![$domain=/^mingky\d*\./]##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
-[$domain=/mingky/]##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
+##div:is(.top-wrap, .mid-wrap, .bot-wrap):has(a.grid-asset[data-item-id])
 !
 !
 ! 밤가드 (https://www.bamgad7.com/) 
@@ -5169,7 +5171,7 @@ fc-info.com##[class*="videoContainer"]
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
 ![$domain=/^yadongtv\d+.com/]##[class*="popup-"]
 ! - 게시물 사이 광고 삭제
-[$domain=/^yadongtv\d+.com/]##div[class*="object-none"]:has([class*="object-top"] a[href][target])
+##div[class*="object-none"]:has([class*="object-top"] a[href][target])
 !
 !
 ! 무료 임시 파일 공유 Kiosk (https://kio.ac/)
@@ -5667,7 +5669,7 @@ m.anewsa.com##div[style*="width:300px"]
 ! - 상단 배너 공간
 /^(www\.)?(spotv|11toon)\d+\.com/##.hero
 ! 최신만화  배너
-/^(www\.)?(spotv|11toon)\d+\.com/##li:has([style*="imageup"])
+##li:has([style*="imageup"])
 ! 떠잇는 주소 알리미
 /^(www\.)?(spotv|11toon)\d+\.com/##[class="new_quit"]
 !
@@ -6121,9 +6123,9 @@ linkareer.com##[class*="PopularActivity" i]
 !
 !
 ! 레드걸 야동 (https://redgirl-now.cc/) (https://adultredgirl.top/) (https://redgg76.top/) - 사이트 죽었나?
-! - 필요없는거
-[$domain=/redgg/]##li:has([id*="strike"])
-[$domain=/redgg/]##li.menu_blank.menu_item_.gnb_1dli_ > .gnb_1da > .btn-12.custom-btn
+! - 필요없는거 (사이트 죽은것으로 판단하고 아래 2개 규칙 주석 처리)
+![$domain=/redgg/]##li:has([id*="strike"])
+![$domain=/redgg/]##li.menu_blank.menu_item_.gnb_1dli_ > .gnb_1da > .btn-12.custom-btn
 !
 !
 ! 자딸파티 (https://jaddal37.top)
@@ -6504,6 +6506,14 @@ xportsnews.com##[id*="_ad_"]
 ! https://clothoff.net/
 ! - 기타
 ||code.jivo.ru/widget/$3p
+!
+!
+! https://outstanding.kr
+! - 하단 몇초뒤 사라지는 메시지
+outstanding.kr##.Toastify
+! - 기타
+||acecounter.com^
+
 
 
 
