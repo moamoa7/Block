@@ -19,8 +19,8 @@
 // @grant        GM_registerMenuCommand
 // @license      MIT
 // @run-at       document-start
-// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
-// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
+// @updateURL    https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Delay-meter.js
+// @downloadURL  https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Delay-meter.js
 // ==/UserScript==
 
 (function () {
