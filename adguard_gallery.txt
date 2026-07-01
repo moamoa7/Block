@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.06.31.3
+! Version: 2026.07.02.0
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -20,7 +20,7 @@
 ##[target='_blank']:has([src*='/banner/'])
 *##[target='_blank']:has([src*='/banner/'])
 *tcid=$all
-/^https:\/\/[0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?[0-9a-z]?[0-9a-z]?[0-9a-z]?\.in\/[a-z.][a-z.][a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?(\/[a-z.][a-z.][a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?)?(\/[a-z.][a-z.][a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?)?\?[^ ]+$/$media,script,third-party,match-case
+/^https:\/\/[0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?[0-9a-z]?[0-9a-z]?[0-9a-z]?\.in\/[a-z.][a-z.][a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?[a-z.]?(\/[a-z][a-z][a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?)?(\/[a-z][a-z][a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?)?(\?[^ ]+)?$/$media,script,third-party,match-case
 !
 ! Common rules
 !
@@ -160,12 +160,13 @@ namu.wiki#$#div[class][id]:is(:empty, :has(> iframe[id^='google_ads_iframe'])) {
 naver.com###sb-kh-shortents-wrap
 naver.com##.sa_mw.sa_empty_ad
 news.jtbc.co.kr##.print-hide:has-text(AD)
-nimi.wiki##+js(aeld, click, popMagic)
 orbi.kr##.label-banner
 orbi.kr##.listAd
 orbi.kr##div[style*="82px;"]:has(ins[data-revive-zoneid])
 orbi.kr##div[style^="margin-bottom: 4px; height: 70px"]:has(ins[data-revive-zoneid])
 orbi.kr##div[x-data="advertisement"]
+outstanding.kr###top_banner_home
+outstanding.kr##.Toastify__toast:has([id^="banner_"])
 paxnet.co.kr##.stock-ad
 paxnet.co.kr##[class^="dv-com-m0"]
 paxnet.co.kr##iframe[src*="/banner/"]
@@ -253,6 +254,7 @@ m.cafe.naver.com##.HomeFeedItem
 m.cafe.naver.com##.join_layer_wrap
 m.cafe.naver.com##.popular_toast_popup
 m.cafe.naver.com##.subscribe_layer_wrap
+m.dcinside.com###light_tipbox
 m.dcinside.com##.outside-search-box
 m.dcinside.com##section.grid > .md-tit-box:has-text(Daum)
 m.naver.com###MM_AI_TAB_TOOLTIP
