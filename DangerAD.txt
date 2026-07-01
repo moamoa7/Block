@@ -431,13 +431,14 @@ yna.co.kr,18moa028.com,dailyuploads.net#@#[class*="banner" i]:not(body):not(html
 ! 현대몰 - sc-co-popup
 ! https://www.a-ha.io/ - popup-open
 ! - yandex - ahead-popup_yes"
-! 클리앙 - 쪽지 팝업이 class=popup이라 #@#로 대체
 ! play.sooplive.com - 확장프로그램(숲 키트) - soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode
 ! https://mypikpak.com/ 목록 및 재생 - class="el-overlay is-drawer guide-app-popup el-modal-drawer"  class="el-overlay is-drawer guide-popup el-modal-drawer" -- 안해도 됨
 
 ##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
 
-clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
+! 클리앙 - 쪽지 팝업이 class=popup이라 #@#로 대체
+! https://clothoff.net/ - 스크롤 및 클릭이 안됨 / popup-overlay로 해야해서 예외처리
+clothoff.net,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
 
 
 ! - 치지직 후원 - popup_contents._contents
