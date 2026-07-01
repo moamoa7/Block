@@ -96,15 +96,15 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[src*=".ads/" i]
 
 
-##[id*="-ads" i]
+##[id*="-ads" i]:not(body):not(html):not(main)
 
-##[id*="ads-" i]
+##[id*="ads-" i]:not(body):not(html):not(main)
 
-##[id*="-ads-" i]
+##[id*="-ads-" i]:not(body):not(html):not(main)
 
-##[id*="_ads_" i]
+##[id*="_ads_" i]:not(body):not(html):not(main)
 
-##[id*="adsby" i]
+##[id*="adsby" i]:not(body):not(html):not(main)
 
 
 ###videoad
@@ -115,7 +115,7 @@ ad.co.kr#@#[href*="/ad/" i]
 *click?*
 
 
-##[class*="advert" i]
+##[class*="advert" i]:not(body):not(html):not(main)
 !
 ! - 위의 것이 문제가 많이 발생하면 아래것으로 세분해하자
 !*adverts*
@@ -123,18 +123,18 @@ ad.co.kr#@#[href*="/ad/" i]
 !||*.advert.*
 
 
-##[data-testid*="advert"]
+##[data-testid*="advert"]:not(body):not(html):not(main)
 
 
-##[class$="tooltip" i]
+##[class$="tooltip" i]:not(body):not(html):not(main)
 
-##[class*="_tooltip_" i]
+##[class*="_tooltip_" i]:not(body):not(html):not(main)
 
-##[class*="-tooltip_" i]
+##[class*="-tooltip_" i]:not(body):not(html):not(main)
 
 
 ! - 레댓 홍보글
-##[aria-label*="advert" i]
+##[aria-label*="advert" i]:not(body):not(html):not(main)
 
 
 ||ad.*
@@ -149,9 +149,9 @@ ad.co.kr#@#[href*="/ad/" i]
 
 
 ! - 레딧 제목 - post-title
-##[aria-label*=sponsor i]:not([id*="post-title"])
+##[aria-label*=sponsor i]:not(body):not(html):not(main):not([id*="post-title"])
 
-##[class*="-sponsor" i]
+##[class*="-sponsor" i]:not(body):not(html):not(main)
 
 
 /adsblocker.
@@ -195,10 +195,10 @@ ad.co.kr#@#[href*="/ad/" i]
 *popup*.script
 
 
-##[id$="_notice" i]
+##[id$="_notice" i]:not(body):not(html):not(main)
 
 
-##[id*="scrollbox" i]
+##[id*="scrollbox" i]:not(body):not(html):not(main)
 
 
 
@@ -283,7 +283,7 @@ fd2ppv.cc#@#div iframe:not([src*="/embed/"]):not([src*="/player.php?"]):not([src
 @@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
 
 
-##[data-testid*="banner"]
+##[data-testid*="banner"]:not(body):not(html):not(main)
 
 
 ! - 킥 - files.kick.com/images/subcategories/
@@ -335,7 +335,7 @@ yna.co.kr,18moa028.com,dailyuploads.net#@#[class*="banner" i]:not(body):not(html
 
 
 
-##[id*="banner" i]
+##[id*="banner" i]:not(body):not(html):not(main)
 
 
 
@@ -487,6 +487,10 @@ clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captch
 
 
 ##[class$="-ad"]:not(body):not(html):not(main)
+
+
+! 네이버 - type_ad
+##[class$="_ad" i]:not(body):not(html):not(main):not([class*="type_ad"])
 
 
 ! - https://뉴토끼우회.com - id="address"
@@ -829,6 +833,3 @@ clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captch
 
 
 !=========================================================================
-
-
-
