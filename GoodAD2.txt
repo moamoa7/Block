@@ -1,13 +1,18 @@
-! Title: Personal Privacy & Traffic Filter (uBO)
+! Title: Personal Privacy & Traffic Filter (uBO + AdGuard 겸용)
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260629-rev1-uBO
+! Version: 20260702-rev1-dual
 !
+! [겸용 메모]
+! - !#if (adguard) ... !#else ... !#endif 로 엔진별 분기 (양쪽 모두 지원하는 지시문)
+! - AdGuard 블록: $removeheader / $cookie / $hls / $jsonprune 등 전용 기능 활성
+! - uBO(!#else) 블록: cookie-remover 스크립트릿 등으로 폴백
+! - 분기 밖의 공통 규칙($removeparam/redirect/차단)은 양쪽 모두 동일 동작
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
 
 ! ═══════════════════════════════════════════
-! [1] URL 추적 파라미터 제거 ($removeparam)
+! [1] URL 추적 파라미터 제거 ($removeparam)  — 양쪽 공통
 ! ═══════════════════════════════════════════
 
 ! ───── 광범위 추적 파라미터 제거 ─────
@@ -325,198 +330,141 @@
 ! - mypikpak.com
 *$document,removeparam=/^(sp|ut|fro?)m(_|\b)/
 
+
 ! ═══════════════════════════════════════════
 ! [2] HTTP 헤더 정리 ($removeheader)
 ! ═══════════════════════════════════════════
-! [uBO 미지원] $removeheader 옵션은 uBlock Origin에 존재하지 않습니다.
-! 아래 set-cookie / referer 제거 규칙은 변환 대상이 없어 전부 비활성(주석) 처리합니다.
-! (원본 보존용)
-!
-!||doubleclick.net^$removeheader=set-cookie
-!||google-analytics.com^$removeheader=set-cookie
-!||googletagmanager.com^$removeheader=set-cookie
-!||googlesyndication.com^$removeheader=set-cookie
-!||googleadservices.com^$removeheader=set-cookie
-!||googletagservices.com^$removeheader=set-cookie
-!||adservice.google.com^$removeheader=set-cookie
-!||facebook.com^$removeheader=set-cookie,domain=~facebook.com
-!||facebook.net^$removeheader=set-cookie
-!||connect.facebook.net^$removeheader=set-cookie
-!||an.facebook.com^$removeheader=set-cookie
-!||criteo.com^$removeheader=set-cookie
-!||criteo.net^$removeheader=set-cookie
-!||adnxs.com^$removeheader=set-cookie
-!||rubiconproject.com^$removeheader=set-cookie
-!||pubmatic.com^$removeheader=set-cookie
-!||openx.net^$removeheader=set-cookie
-!||amazon-adsystem.com^$removeheader=set-cookie
-!||adsrvr.org^$removeheader=set-cookie
-!||casalemedia.com^$removeheader=set-cookie
-!||bidswitch.net^$removeheader=set-cookie
-!||smartadserver.com^$removeheader=set-cookie
-!||contextweb.com^$removeheader=set-cookie
-!||3lift.com^$removeheader=set-cookie
-!||sharethrough.com^$removeheader=set-cookie
-!||gumgum.com^$removeheader=set-cookie
-!||sonobi.com^$removeheader=set-cookie
-!||yieldlab.net^$removeheader=set-cookie
-!||mathtag.com^$removeheader=set-cookie
-!||adform.net^$removeheader=set-cookie
-!||turn.com^$removeheader=set-cookie
-!||mediamath.com^$removeheader=set-cookie
-!||serving-sys.com^$removeheader=set-cookie
-!||agkn.com^$removeheader=set-cookie
-!||advertising.com^$removeheader=set-cookie
-!||indexww.com^$removeheader=set-cookie
-!||yieldmo.com^$removeheader=set-cookie
-!||liadm.com^$removeheader=set-cookie
-!||id5-sync.com^$removeheader=set-cookie
-!||tapad.com^$removeheader=set-cookie
-!||outbrain.com^$removeheader=set-cookie
-!||taboola.com^$removeheader=set-cookie
-!||revcontent.com^$removeheader=set-cookie
-!||mgid.com^$removeheader=set-cookie
-!||scorecardresearch.com^$removeheader=set-cookie
-!||quantserve.com^$removeheader=set-cookie
-!||quantcount.com^$removeheader=set-cookie
-!||moatads.com^$removeheader=set-cookie
-!||adsafeprotected.com^$removeheader=set-cookie
-!||doubleverify.com^$removeheader=set-cookie
-!||chartbeat.com^$removeheader=set-cookie
-!||chartbeat.net^$removeheader=set-cookie
-!||hotjar.com^$removeheader=set-cookie
-!||mixpanel.com^$removeheader=set-cookie
-!||amplitude.com^$removeheader=set-cookie
-!||clarity.ms^$removeheader=set-cookie
-!||fullstory.com^$removeheader=set-cookie
-!||logrocket.com^$removeheader=set-cookie
-!||smartlook.com^$removeheader=set-cookie
-!||mouseflow.com^$removeheader=set-cookie
-!||luckyorange.com^$removeheader=set-cookie
-!||contentsquare.net^$removeheader=set-cookie
-!||quantummetric.com^$removeheader=set-cookie
-!||segment.io^$removeheader=set-cookie
-!||segment.com^$removeheader=set-cookie
-!||heap.io^$removeheader=set-cookie
-!||heapanalytics.com^$removeheader=set-cookie
-!||statcounter.com^$removeheader=set-cookie
-!||histats.com^$removeheader=set-cookie
-!||cloudflareinsights.com^$removeheader=set-cookie
-!||newrelic.com^$removeheader=set-cookie
-!||nr-data.net^$removeheader=set-cookie
-!||datadoghq.com^$removeheader=set-cookie
-!||optimizely.com^$removeheader=set-cookie
-!||vwo.com^$removeheader=set-cookie
-!||dynamicyield.com^$removeheader=set-cookie
-!||monetate.net^$removeheader=set-cookie
-!||kameleoon.com^$removeheader=set-cookie
-!||abtasty.com^$removeheader=set-cookie
-!||hubspot.com^$removeheader=set-cookie
-!||hs-analytics.net^$removeheader=set-cookie
-!||hs-scripts.com^$removeheader=set-cookie
-!||marketo.net^$removeheader=set-cookie
-!||mktoresp.com^$removeheader=set-cookie
-!||pardot.com^$removeheader=set-cookie
-!||eloqua.com^$removeheader=set-cookie
-!||klaviyo.com^$removeheader=set-cookie
-!||intercom.io^$removeheader=set-cookie
-!||drift.com^$removeheader=set-cookie
-!||sailthru.com^$removeheader=set-cookie
-!||iterable.com^$removeheader=set-cookie
-!||ads-twitter.com^$removeheader=set-cookie
-!||analytics.twitter.com^$removeheader=set-cookie
-!||analytics.tiktok.com^$removeheader=set-cookie
-!||tr.snapchat.com^$removeheader=set-cookie
-!||sc-static.net^$removeheader=set-cookie
-!||px.ads.linkedin.com^$removeheader=set-cookie
-!||snap.licdn.com^$removeheader=set-cookie
-!||analytics.pinterest.com^$removeheader=set-cookie
-!||bat.bing.com^$removeheader=set-cookie
-!||tealiumiq.com^$removeheader=set-cookie
-!||tiqcdn.com^$removeheader=set-cookie
-!||krxd.net^$removeheader=set-cookie
-!||bluekai.com^$removeheader=set-cookie
-!||demdex.net^$removeheader=set-cookie
-!||omtrdc.net^$removeheader=set-cookie
-!||2o7.net^$removeheader=set-cookie
-!||everesttech.net^$removeheader=set-cookie
-!||rlcdn.com^$removeheader=set-cookie
-!||eyeota.net^$removeheader=set-cookie
-!||adsymptotic.com^$removeheader=set-cookie
-!||lytics.io^$removeheader=set-cookie
-!||exelator.com^$removeheader=set-cookie
-!||sstats.adobe.com^$removeheader=set-cookie
-!||stats.adobe.com^$removeheader=set-cookie
-!||cc-api-data.adobe.io^$removeheader=set-cookie
-!||cc.naver.com^$removeheader=set-cookie
-!||lcs.naver.com^$removeheader=set-cookie
-!||tiara.kakao.com^$removeheader=set-cookie
-!||tiara.daum.net^$removeheader=set-cookie
-!||analytics.ad.daum.net^$removeheader=set-cookie
-!||stat.ad.kakao.com^$removeheader=set-cookie
-!||click.coupang.com^$removeheader=set-cookie
-!||tg.socdm.com^$removeheader=set-cookie
-!||tg.widerplanet.com^$removeheader=set-cookie
-!||cauly.co.kr^$removeheader=set-cookie
-!||mobon.net^$removeheader=set-cookie
-!||hm.baidu.com^$removeheader=set-cookie
-!||tongji.baidu.com^$removeheader=set-cookie
-!||mc.yandex.ru^$removeheader=set-cookie
-!||metrica.yandex.com^$removeheader=set-cookie
-!||awin1.com^$removeheader=set-cookie
-!||linksynergy.com^$removeheader=set-cookie
-!||shareasale.com^$removeheader=set-cookie
-!||cj.com^$removeheader=set-cookie
-!||anrdoezrs.net^$removeheader=set-cookie
-!||tkqlhce.com^$removeheader=set-cookie
-!||jdoqocy.com^$removeheader=set-cookie
-!||dpbolvw.net^$removeheader=set-cookie
-!||kqzyfj.com^$removeheader=set-cookie
-!||impactradius-event.com^$removeheader=set-cookie
-!||ojrq.net^$removeheader=set-cookie
-!||rdrct.cc^$removeheader=set-cookie
-!
-! ── Referer 헤더 제거 ($removeheader=request:referer) → [uBO 미지원, 주석 보존] ──
-!||doubleclick.net^$removeheader=request:referer
-!||google-analytics.com^$removeheader=request:referer
-!||googlesyndication.com^$removeheader=request:referer
-!||googletagmanager.com^$removeheader=request:referer
-!||googleadservices.com^$removeheader=request:referer
-!||facebook.net^$removeheader=request:referer
-!||connect.facebook.net^$removeheader=request:referer
-!||scorecardresearch.com^$removeheader=request:referer
-!||criteo.com^$removeheader=request:referer
-!||adnxs.com^$removeheader=request:referer
-!||rubiconproject.com^$removeheader=request:referer
-!||pubmatic.com^$removeheader=request:referer
-!||outbrain.com^$removeheader=request:referer
-!||taboola.com^$removeheader=request:referer
-!||quantserve.com^$removeheader=request:referer
-!||amazon-adsystem.com^$removeheader=request:referer
-!||adsrvr.org^$removeheader=request:referer
-!||hotjar.com^$removeheader=request:referer
-!||mixpanel.com^$removeheader=request:referer
-!||segment.io^$removeheader=request:referer
-!||fullstory.com^$removeheader=request:referer
-!||clarity.ms^$removeheader=request:referer
-!||analytics.tiktok.com^$removeheader=request:referer
-!||tr.snapchat.com^$removeheader=request:referer
-!||px.ads.linkedin.com^$removeheader=request:referer
-!||bat.bing.com^$removeheader=request:referer
-!||hm.baidu.com^$removeheader=request:referer
-!||mc.yandex.ru^$removeheader=request:referer
-!||tiara.kakao.com^$removeheader=request:referer
+! AdGuard: $removeheader 지원 → 활성화
+! uBO: 미지원 → !#else 블록에서 도메인 단순 차단으로 폴백
+! ═══════════════════════════════════════════
+!#if (adguard)
+||doubleclick.net^$removeheader=set-cookie
+||google-analytics.com^$removeheader=set-cookie
+||googletagmanager.com^$removeheader=set-cookie
+||googlesyndication.com^$removeheader=set-cookie
+||googleadservices.com^$removeheader=set-cookie
+||googletagservices.com^$removeheader=set-cookie
+||adservice.google.com^$removeheader=set-cookie
+||facebook.net^$removeheader=set-cookie
+||connect.facebook.net^$removeheader=set-cookie
+||an.facebook.com^$removeheader=set-cookie
+||criteo.com^$removeheader=set-cookie
+||criteo.net^$removeheader=set-cookie
+||adnxs.com^$removeheader=set-cookie
+||rubiconproject.com^$removeheader=set-cookie
+||pubmatic.com^$removeheader=set-cookie
+||openx.net^$removeheader=set-cookie
+||amazon-adsystem.com^$removeheader=set-cookie
+||adsrvr.org^$removeheader=set-cookie
+||casalemedia.com^$removeheader=set-cookie
+||bidswitch.net^$removeheader=set-cookie
+||smartadserver.com^$removeheader=set-cookie
+||3lift.com^$removeheader=set-cookie
+||sharethrough.com^$removeheader=set-cookie
+||gumgum.com^$removeheader=set-cookie
+||yieldlab.net^$removeheader=set-cookie
+||mathtag.com^$removeheader=set-cookie
+||adform.net^$removeheader=set-cookie
+||mediamath.com^$removeheader=set-cookie
+||serving-sys.com^$removeheader=set-cookie
+||agkn.com^$removeheader=set-cookie
+||advertising.com^$removeheader=set-cookie
+||indexww.com^$removeheader=set-cookie
+||yieldmo.com^$removeheader=set-cookie
+||liadm.com^$removeheader=set-cookie
+||id5-sync.com^$removeheader=set-cookie
+||tapad.com^$removeheader=set-cookie
+||outbrain.com^$removeheader=set-cookie
+||taboola.com^$removeheader=set-cookie
+||revcontent.com^$removeheader=set-cookie
+||mgid.com^$removeheader=set-cookie
+||scorecardresearch.com^$removeheader=set-cookie
+||quantserve.com^$removeheader=set-cookie
+||moatads.com^$removeheader=set-cookie
+||adsafeprotected.com^$removeheader=set-cookie
+||doubleverify.com^$removeheader=set-cookie
+||chartbeat.com^$removeheader=set-cookie
+||hotjar.com^$removeheader=set-cookie
+||mixpanel.com^$removeheader=set-cookie
+||amplitude.com^$removeheader=set-cookie
+||clarity.ms^$removeheader=set-cookie
+||fullstory.com^$removeheader=set-cookie
+||logrocket.com^$removeheader=set-cookie
+||smartlook.com^$removeheader=set-cookie
+||mouseflow.com^$removeheader=set-cookie
+||contentsquare.net^$removeheader=set-cookie
+||segment.io^$removeheader=set-cookie
+||segment.com^$removeheader=set-cookie
+||heap.io^$removeheader=set-cookie
+||heapanalytics.com^$removeheader=set-cookie
+||statcounter.com^$removeheader=set-cookie
+||cloudflareinsights.com^$removeheader=set-cookie
+||newrelic.com^$removeheader=set-cookie
+||nr-data.net^$removeheader=set-cookie
+||datadoghq.com^$removeheader=set-cookie
+||optimizely.com^$removeheader=set-cookie
+||vwo.com^$removeheader=set-cookie
+||dynamicyield.com^$removeheader=set-cookie
+||hubspot.com^$removeheader=set-cookie
+||hs-analytics.net^$removeheader=set-cookie
+||marketo.net^$removeheader=set-cookie
+||pardot.com^$removeheader=set-cookie
+||eloqua.com^$removeheader=set-cookie
+||klaviyo.com^$removeheader=set-cookie
+||intercom.io^$removeheader=set-cookie
+||drift.com^$removeheader=set-cookie
+||ads-twitter.com^$removeheader=set-cookie
+||analytics.tiktok.com^$removeheader=set-cookie
+||tr.snapchat.com^$removeheader=set-cookie
+||px.ads.linkedin.com^$removeheader=set-cookie
+||bat.bing.com^$removeheader=set-cookie
+||tealiumiq.com^$removeheader=set-cookie
+||krxd.net^$removeheader=set-cookie
+||bluekai.com^$removeheader=set-cookie
+||demdex.net^$removeheader=set-cookie
+||omtrdc.net^$removeheader=set-cookie
+||2o7.net^$removeheader=set-cookie
+||cc.naver.com^$removeheader=set-cookie
+||lcs.naver.com^$removeheader=set-cookie
+||tiara.kakao.com^$removeheader=set-cookie
+||tiara.daum.net^$removeheader=set-cookie
+||click.coupang.com^$removeheader=set-cookie
+||tg.widerplanet.com^$removeheader=set-cookie
+||cauly.co.kr^$removeheader=set-cookie
+||mobon.net^$removeheader=set-cookie
+||hm.baidu.com^$removeheader=set-cookie
+||mc.yandex.ru^$removeheader=set-cookie
+||awin1.com^$removeheader=set-cookie
+||linksynergy.com^$removeheader=set-cookie
+||shareasale.com^$removeheader=set-cookie
+! ── Referer 헤더 제거 (AdGuard 문법: $removeheader=request:referer) ──
+||doubleclick.net^$removeheader=request:referer
+||google-analytics.com^$removeheader=request:referer
+||googlesyndication.com^$removeheader=request:referer
+||facebook.net^$removeheader=request:referer
+||connect.facebook.net^$removeheader=request:referer
+||scorecardresearch.com^$removeheader=request:referer
+||criteo.com^$removeheader=request:referer
+||adnxs.com^$removeheader=request:referer
+||outbrain.com^$removeheader=request:referer
+||taboola.com^$removeheader=request:referer
+||amazon-adsystem.com^$removeheader=request:referer
+||hotjar.com^$removeheader=request:referer
+||clarity.ms^$removeheader=request:referer
+||analytics.tiktok.com^$removeheader=request:referer
+||tr.snapchat.com^$removeheader=request:referer
+||bat.bing.com^$removeheader=request:referer
+||hm.baidu.com^$removeheader=request:referer
+||mc.yandex.ru^$removeheader=request:referer
+||tiara.kakao.com^$removeheader=request:referer
+!#endif
 
 
 ! ═══════════════════════════════════════════
-! [3] 추적 쿠키 차단 ($cookie)
+! [3] 추적 쿠키 차단 ($cookie / cookie-remover)
 ! ═══════════════════════════════════════════
-! [uBO 미지원] $cookie 옵션은 uBlock Origin에 없습니다.
-! - 순수 추적 도메인($cookie 단독)은 그냥 차단 규칙으로 변환했습니다.
-! - 본체를 살리고 특정 쿠키만 지우던 규칙은 cookie-remover 스크립트릿으로 변환했습니다.
-! - 이름 기반 전역 쿠키 차단은 trusted-set-cookie/ cookie-remover로 1:1 대체가 어려워 주석 보존합니다.
 
-! ───── 순수 추적 도메인 → 단순 차단으로 변환 ─────
+! ───── 순수 추적 도메인 → 단순 차단 (양쪽 공통) ─────
 ||doubleclick.net^
 ||google-analytics.com^
 ||facebook.net^
@@ -563,11 +511,41 @@
 ||click.coupang.com^
 ||tg.widerplanet.com^
 
-! ───── facebook 추적 쿠키만 제거 → 스크립트릿 변환 ─────
+! ───── 본체 살리고 추적 쿠키만 제거 ─────
+!#if (adguard)
+! AdGuard: 네이티브 $cookie 옵션 (특정 쿠키명만 차단)
+||facebook.com^$cookie=fr
+||facebook.com^$cookie=_fbp
+||youtube.com^$cookie=VISITOR_INFO1_LIVE
+||youtube.com^$cookie=YSC
+||twitter.com^$cookie=personalization_id
+||twitter.com^$cookie=guest_id_marketing
+||linkedin.com^$cookie=li_fat_id
+||linkedin.com^$cookie=lidc
+||bing.com^$cookie=MUID
+||pinterest.com^$cookie=_pin_unauth
+||reddit.com^$cookie=_rdt_uuid
+||tiktok.com^$cookie=_ttp
+! ───── 이름 기반 전역 쿠키 차단 (AdGuard 지원) ─────
+$cookie=/^_ga/
+$cookie=/^_gid$/
+$cookie=/^_fbp$/
+$cookie=/^_fbc$/
+$cookie=/^_gcl_/
+$cookie=/^__utm/
+$cookie=/^_hjid$/
+$cookie=/^_hjSession/
+$cookie=/^_ttp$/
+$cookie=/^_uetsid$/
+$cookie=/^_uetvid$/
+$cookie=/^_rdt_uuid$/
+$cookie=/^IDE$/
+$cookie=/^cto_bundle$/
+$cookie=/^__hstc$/
+!#else
+! uBO: cookie-remover 스크립트릿으로 폴백
 facebook.com##+js(cookie-remover, fr)
 facebook.com##+js(cookie-remover, _fbp)
-
-! ───── 본체 살리고 추적 쿠키만 차단 → cookie-remover 스크립트릿 변환 ─────
 youtube.com##+js(cookie-remover, VISITOR_INFO1_LIVE)
 youtube.com##+js(cookie-remover, YSC)
 twitter.com##+js(cookie-remover, personalization_id)
@@ -578,27 +556,11 @@ bing.com##+js(cookie-remover, MUID)
 pinterest.com##+js(cookie-remover, _pin_unauth)
 reddit.com##+js(cookie-remover, _rdt_uuid)
 tiktok.com##+js(cookie-remover, _ttp)
-
-! ───── 이름 기반 전역 쿠키 차단 → [uBO 1:1 대체 불가, 주석 보존] ─────
-!$cookie=/^_ga/
-!$cookie=/^_gid$/
-!$cookie=/^_fbp$/
-!$cookie=/^_fbc$/
-!$cookie=/^_gcl_/
-!$cookie=/^__utm/
-!$cookie=/^_hjid$/
-!$cookie=/^_hjSession/
-!$cookie=/^_ttp$/
-!$cookie=/^_uetsid$/
-!$cookie=/^_uetvid$/
-!$cookie=/^_rdt_uuid$/
-!$cookie=/^IDE$/
-!$cookie=/^cto_bundle$/
-!$cookie=/^__hstc$/
+!#endif
 
 
 ! ═══════════════════════════════════════════
-! [4] 광고 리소스 → 빈 리소스 대체 ($redirect)
+! [4] 광고 리소스 → 빈 리소스 대체 ($redirect)  — 양쪽 공통
 ! ═══════════════════════════════════════════
 
 ! ───── 광고 영상 → 1초 빈 MP4 ─────
@@ -789,10 +751,8 @@ tiktok.com##+js(cookie-remover, _ttp)
 ||platform.linkedin.com/in.js^$script,redirect=click2load.html
 !||www.youtube.com/embed/*$subdocument,redirect=click2load.html
 ||player.vimeo.com/video/*$subdocument,redirect=click2load.html
-
-
 ! ═══════════════════════════════════════════
-! [5] 리소스 타입별 차단
+! [5] 리소스 타입별 차단  — 양쪽 공통
 ! ═══════════════════════════════════════════
 
 ! ───── 광고 영상 (대용량) ─────
@@ -954,37 +914,23 @@ tiktok.com##+js(cookie-remover, _ttp)
 ! ───── 픽팍 (PikPak) 추적 ─────
 ||o4504926511693824.ingest.sentry.io^
 
+
 ! ═══════════════════════════════════════════
 ! [6] 보조 옵션 사용 예시 (참고용 주석)
 ! ═══════════════════════════════════════════
-! uBO도 아래 옵션 대부분 지원: $denyallow, $badfilter, $important, @@, $domain,
-! $third-party/$first-party, $genericblock/$generichide/$elemhide, $csp, $redirect 등
-! ※ $replace, $jsonprune, $hls, $stealth 는 uBO 미지원 (AdGuard 전용)
+! 양쪽 공통 지원: $denyallow, $badfilter, $important, @@, $domain,
+!   $third-party/$first-party, $genericblock/$generichide/$elemhide, $csp, $redirect 등
+! AdGuard 전용(!#if adguard 내에서만): $replace, $jsonprune, $hls, $stealth, $webrtc, $removeheader, $cookie
 
 ! ||criteo.com^$denyallow=trusted-site.com
 ! ||example.com^$badfilter
 ! ||tracker.com^$important
 ! @@||cnt.dcinside.com^
-! ||tracker.com^$domain=example.com
-! ||doubleclick.net^$third-party
-! @@||example.com^$genericblock
-! ||example.com^$csp=script-src 'self'
-! [uBO 미지원] ||example.com^$replace=/.../.../g
-! [uBO 미지원] ||example.com/api/feed^$jsonprune=\$.ads
-! [uBO 미지원] ||example.com/stream.m3u8^$hls=/ad
-! [uBO 미지원] @@||trusted-site.com^$stealth
-! example.com##.ad-banner
-! example.com##div:has-text(광고)
-! example.com#%#//scriptlet('set-constant', 'adblockDetected', 'false')
 
 ! @@||cnt.dcinside.com^
 ! @@||stat.dcinside.com^
 ! @@||stat.dcinside.co.kr^
 ! @@||static.toss.im^
-! @@||*.toss.im^$domain=toss.im
-! @@||*.kbstar.com^$domain=kbstar.com
-! @@||google-analytics.com^$domain=mywork-site.com
-! @@||facebook.com^$domain=facebook.com|messenger.com
 
 
 ! ═══════════════════════════════════════════
@@ -1010,21 +956,31 @@ tiktok.com##+js(cookie-remover, _ttp)
 ||twitch.tv^$removeparam=referrer
 ||twitch.tv^$removeparam=session_id
 ||twitch.tv^$removeparam=tag
-! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+
+!#if (adguard)
+! AdGuard: 네이티브 $cookie / $removeheader / $hls 활성화
+||twitch.tv^$cookie=unique_id
+||twitch.tv^$cookie=unique_id_durable
+||twitch.tv^$cookie=server_session_id
+||twitch.tv^$cookie=experiment_overrides
+||twitch.tv^$cookie=ttsess
+||twitch.tv^$cookie=last_login
+||twitch.tv^$removeheader=request:client-session-id
+||twitch.tv^$removeheader=request:x-device-id
+||twitch.tv^$removeheader=request:client-version
+! Twitch 인스트림 광고 제거 ($hls — AdGuard 전용)
+||usher.ttvnw.net/api/channel/hls/*$hls=/stitched-ad/
+||video-weaver.*.hls.ttvnw.net^$hls=/Amazon/
+||video-edge-*.*.hls.ttvnw.net^$hls=/Amazon/
+!#else
+! uBO: cookie-remover 스크립트릿 폴백 ($hls/$removeheader는 uBO 미지원 → 생략)
 twitch.tv##+js(cookie-remover, unique_id)
 twitch.tv##+js(cookie-remover, unique_id_durable)
 twitch.tv##+js(cookie-remover, server_session_id)
 twitch.tv##+js(cookie-remover, experiment_overrides)
 twitch.tv##+js(cookie-remover, ttsess)
 twitch.tv##+js(cookie-remover, last_login)
-! [uBO 미지원] $removeheader (client-session-id / x-device-id / client-version) → 주석 보존
-!||twitch.tv^$removeheader=client-session-id
-!||twitch.tv^$removeheader=x-device-id
-!||twitch.tv^$removeheader=client-version
-! [uBO 미지원] $hls (인스트림 광고 제거) → 주석 보존 (uBO 변환 불가)
-!||usher.ttvnw.net/api/channel/hls/*$hls=/stitched-ad/
-!||video-weaver.*.hls.ttvnw.net^$hls=/Amazon/
-!||video-edge-*.*.hls.ttvnw.net^$hls=/Amazon/
+!#endif
 
 ! ───────────────────────────────────────────
 ! 치지직 (CHZZK / Naver)
@@ -1047,29 +1003,28 @@ twitch.tv##+js(cookie-remover, last_login)
 ||chzzk.naver.com^$removeparam=trackingCode
 ||chzzk.naver.com^$removeparam=clickArea
 ||chzzk.naver.com^$removeparam=NaPm
-! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+
+!#if (adguard)
+||chzzk.naver.com^$cookie=NID_AUT_TARGETING
+||chzzk.naver.com^$cookie=ba.uid
+||naver.com^$cookie=nid_inf
+||naver.com^$cookie=ba.uid
+||naver.com^$cookie=NV_WETR_LOCATION_RGN_M
+||naver.com^$cookie=_naver_usersession_
+||chzzk.naver.com^$removeheader=request:x-naver-client-id
+||chzzk.naver.com^$removeheader=request:x-trace-id
+!#else
 chzzk.naver.com##+js(cookie-remover, NID_AUT_TARGETING)
 chzzk.naver.com##+js(cookie-remover, ba.uid)
 naver.com##+js(cookie-remover, nid_inf)
 naver.com##+js(cookie-remover, ba.uid)
 naver.com##+js(cookie-remover, NV_WETR_LOCATION_RGN_M)
 naver.com##+js(cookie-remover, _naver_usersession_)
-! [uBO 미지원] $removeheader → 주석 보존
-!||chzzk.naver.com^$removeheader=x-naver-client-id
-!||chzzk.naver.com^$removeheader=x-trace-id
+!#endif
 
-! ── 치지직 광고 차단 핵심 (단순 차단, uBO 동작) ──
+! ── 치지직 광고 차단 핵심 (단순 차단, 양쪽 동작) ──
 ||api.chzzk.naver.com/ad-polling/*/lives/*/ad
 ||api.chzzk.naver.com/service/*/ad/display-status
-
-! 보류용 (필요 시 활성화):
-!@@||nam.veta.naver.com/vas$xmlhttprequest,domain=chzzk.naver.com
-!@@||ssl.pstatic.net/tveta/libs/glad/prod/$script,xmlhttprequest,domain=chzzk.naver.com
-!@@||veta.naver.com/call|$xmlhttprequest,domain=chzzk.naver.com
-!@@||veta.naver.com/gfp$xmlhttprequest,domain=chzzk.naver.com
-!@@||veta.naver.com/vas|$xmlhttprequest,domain=chzzk.naver.com
-!chzzk.naver.com#%#"use strict"; window.Function.prototype.apply = new Proxy(window.Function.prototype.apply, { apply(Target, ThisArg, Args) { let FunctionContext = ThisArg.toString(); if (FunctionContext.includes('veta') && FunctionContext.includes('http') && FunctionContext.includes('/gfp/') && FunctionContext.includes('().mark((')) { return Reflect.apply(Target, async () => false, []); } return Reflect.apply(Target, ThisArg, Args); } });
-!chzzk.naver.com##+js(json-prune-fetch-response, ads advertiserDomains adDuplicationKeys, , veta.naver.com/gfp)
 
 ! ───────────────────────────────────────────
 ! 숲 (SOOP / 구 아프리카TV)
@@ -1082,25 +1037,27 @@ naver.com##+js(cookie-remover, _naver_usersession_)
 ||*sooplive*/vast^$xmlhttprequest,redirect=noopvast-2.0
 ||static.sooplive.com/asset/service/da/AdParameter.js^$script,redirect=noopjs
 ||sooplive.com/api/v1/ad^$xmlhttprequest
-! [uBO 미지원] $removeheader → 주석 보존
-!||ads.sooplive.com^$removeheader=set-cookie
 ||sooplive.com^$removeparam=hash
 ||sooplive.com^$removeparam=stationNo
 ||sooplive.com^$removeparam=trackingNo
 ||sooplive.com^$removeparam=tracking
 ||sooplive.com^$removeparam=ref
 ||sooplive.com^$removeparam=src
-! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+
+!#if (adguard)
+||ads.sooplive.com^$removeheader=set-cookie
+||sooplive.com^$cookie=_au
+||sooplive.com^$cookie=_ausa
+||sooplive.com^$cookie=_au3rd
+||sooplive.com^$cookie=_aupath
+||sooplive.com^$cookie=_aupcid
+!#else
 sooplive.com##+js(cookie-remover, _au)
 sooplive.com##+js(cookie-remover, _ausa)
 sooplive.com##+js(cookie-remover, _au3rd)
 sooplive.com##+js(cookie-remover, _aupath)
 sooplive.com##+js(cookie-remover, _aupcid)
-! 보류 (주석 유지)
-!sooplive.com##+js(cookie-remover, AbroadChk)
-!sooplive.com##+js(cookie-remover, AbroadVod)
-!||live.sooplive.com/api/myplus/personalBlockController.php^$xmlhttprequest
-!||res.sooplive.com/script/player/service-maintenance.js^$script,redirect=noopjs
+!#endif
 
 ! ───────────────────────────────────────────
 ! Kick (킥)
@@ -1108,9 +1065,14 @@ sooplive.com##+js(cookie-remover, _aupcid)
 ||kick.com/api/v2/track^
 ||kick.com/api/v1/analytics^
 ||kick.com/api/v1/log^
-! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+
+!#if (adguard)
+||kick.com^$cookie=_kk_session
+||kick.com^$cookie=_kk_tracking
+!#else
 kick.com##+js(cookie-remover, _kk_session)
 kick.com##+js(cookie-remover, _kk_tracking)
+!#endif
 
 ! ───────────────────────────────────────────
 ! YouTube 라이브 / YouTube 일반
@@ -1133,18 +1095,17 @@ kick.com##+js(cookie-remover, _kk_tracking)
 ||youtube.com^$removeparam=si
 ||youtube.com^$removeparam=ab_channel
 ||youtube.com^$removeparam=kw
-!||youtube.com^$removeparam=feature
-!||youtube.com^$removeparam=pp
-!||youtube.com^$removeparam=embeds_referring_euri
-!||youtube.com^$removeparam=embeds_referring_origin
-!||youtube.com^$removeparam=source_ve_path
 ||youtu.be^$removeparam=si
-!||youtu.be^$removeparam=feature
-!||youtu.be^$removeparam=t
-! [uBO 미지원] $cookie → cookie-remover 스크립트릿으로 변환
+
+!#if (adguard)
+||youtube.com^$cookie=VISITOR_PRIVACY_METADATA
+||youtube.com^$cookie=__Secure-YEC
+||youtube.com^$cookie=PREF
+!#else
 youtube.com##+js(cookie-remover, VISITOR_PRIVACY_METADATA)
 youtube.com##+js(cookie-remover, __Secure-YEC)
 youtube.com##+js(cookie-remover, PREF)
+!#endif
 
 ! ───────────────────────────────────────────
 ! Niconico / Bilibili / Vimeo / Dailymotion
@@ -1172,8 +1133,7 @@ youtube.com##+js(cookie-remover, PREF)
 ||github.com/_graphql/GetTelemetryConfig^
 
 ! ───────────────────────────────────────────
-! 세이프티넷 (절대 차단 금지)
-! uBO는 @@ 예외 규칙에 $important 미적용 → 옵션 제거 (예외는 기본적으로 차단보다 우선)
+! 세이프티넷 (절대 차단 금지) — 예외 규칙, 양쪽 공통
 ! ───────────────────────────────────────────
 @@||usher.ttvnw.net^
 @@||video-edge-*.ttvnw.net^
@@ -1194,12 +1154,9 @@ youtube.com##+js(cookie-remover, PREF)
 
 
 ! ═══════════════════════════════════════════
-! [8] 경로 단위 정밀 차단 ($empty → 단순차단/redirect)
+! [8] 경로 단위 정밀 차단  — 양쪽 공통
 ! ═══════════════════════════════════════════
-
-! ───── Google 로그/분석 경로 ─────
 ||google.com/log?$redirect-rule=nooptext
-!||google.com/gen_204$redirect-rule=nooptext
 ||google.com/pagead/gen_204$redirect-rule=nooptext
 ||google.com/async/newtab_promos$redirect-rule=nooptext
 ||google.com/_/og/sharebox$redirect-rule=nooptext
@@ -1207,7 +1164,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||youtube.com/youtubei/v1/log_event$redirect-rule=nooptext
 ||youtube.com/ptracking$redirect-rule=nooptext
 
-! ───── 스트리밍 ─────
 ||ljc.coupang.com^$redirect-rule=nooptext
 ||youtubei.googleapis.com/youtubei/v1/log_event^
 ||youtube.com/api/stats/watchtime^
@@ -1216,7 +1172,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||spclient.wg.spotify.com/gabo-receiver-service^
 ||tubitv.com/oz/analytics^
 
-! ───── OS / 브라우저 ─────
 ||v10.vortex-win.data.microsoft.com^
 ||cdn.samsungcloudsolution.com^
 ||log-config.samsungdm.com^
@@ -1225,7 +1180,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||edge.microsoft.com/edgeupdate/api^
 ||update.vivaldi.com/update_check^
 
-! ───── 소프트웨어 ─────
 ||cc-api-data-stage.adobe.io^
 ||adobe.demdex.net^
 ||dpm.demdex.net^
@@ -1234,7 +1188,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||registry.yarnpkg.com/-/metrics^
 ||hooks.docker.com^
 
-! ───── 광고/웹 분석 ─────
 ||google-analytics.com/collect^
 ||google-analytics.com/g/collect^
 ||www.googletagmanager.com/gtag^
@@ -1245,7 +1198,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||sb.scorecardresearch.com^
 ||metrics.api.drift.com^
 
-! ───── 소셜 트래킹 ─────
 ||www.facebook.com/tr^
 ||connect.facebook.net/signals^
 ||graph.facebook.com/logging_client_events^
@@ -1254,7 +1206,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||snap.licdn.com/li.lms-analytics^
 ||sc-static.net/scevent^
 
-! ───── 게임 ─────
 ||client-telemetry.battle.net^
 ||metrics.api.ea.com^
 ||telemetry-in.ksinfra.com^
@@ -1264,11 +1215,9 @@ youtube.com##+js(cookie-remover, PREF)
 ||wgu-prom-relay.wgnet.eu^
 ||steambeat.steamstatic.com^
 
-! ───── 모바일 광고 ─────
 ||config.unityads.unity3d.com^
 ||a.applovin.com^
 
-! ───── CRM / 라이브챗 ─────
 ||links.iterable.com^
 ||track.customer.io^
 ||*.zendesk.com/embeddable_blip^
@@ -1279,7 +1228,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||dev.visualwebsiteoptimizer.com^
 ||script.crazyegg.com^
 
-! ───── CDP / 태그 매니저 ─────
 ||tags.tiqcdn.com^
 ||collect.tealiumiq.com^
 ||tags.bluekai.com^
@@ -1291,7 +1239,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||sync.search.spotxchange.com^
 ||tags.rd.linksynergy.com^
 
-! ───── IoT / 스마트TV / 자동차 / 보안 ─────
 ||*.sr.roku.com^
 ||stat.toyota.com^
 ||car-metrics.audi.com^
@@ -1300,12 +1247,10 @@ youtube.com##+js(cookie-remover, PREF)
 ||*.norton.com/telemetry^
 ||*.eset.com/telemetry^
 
-! ───── 개발자 도구 ─────
 ||r.rdocumentation.org^
 ||*.gradle-profiler.gradle.org^
 ||vortex.scus.b.applicationinsights.azure.com^
 
-! ───── 메신저/화상회의 ─────
 ||*.discord.com/api/science^
 ||*.discord.com/api/v*/track^
 ||*.zoom.us/zlog^
@@ -1314,26 +1259,20 @@ youtube.com##+js(cookie-remover, PREF)
 ||metrics-a.webex.com^
 ||stats-g.line.me^
 
-! ───── 클라우드 스토리지 / 생산성 ─────
 ||msgstore.notion.so/api/v3/track^
 ||www.figma.com/track^
 ||www.figma.com/api/tracking^
 
-! ───── VPN ─────
 ||api.nordvpn.com/v1/analytics^
 
-! ───── 한국 서비스 ─────
 ||log.smartstore.naver.com^
 ||stats.gmarket.co.kr^
 ||action.11st.co.kr^
 ||analytics.afreecatv.com^
 
-! ───── 디시 광고 정적 리소스 ─────
 ||nstatic.dcinside.com/dc/dcad^
-!||nstatic.dcinside.com/dgn/gallery/images/popup^
 ||nstatic.dcinside.com/dc/m/img/banner^
 
-! ───── 중국 SDK ─────
 ||plbslog.umeng.com^
 ||sdk.open.talk.igexin.com^
 ||log.tbs.qq.com^
@@ -1394,12 +1333,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||*/anti-adblock.js$script,redirect=noopjs
 ||*/antiblock.js$script,redirect=noopjs
 ||*/ads-blocker-check.js$script,redirect=noopjs
-! example.com#%#//scriptlet('set-constant', 'adblockDetected', 'false')
-! example.com#%#//scriptlet('set-constant', 'canRunAds', 'true')
-! example.com#%#//scriptlet('set-constant', 'AdBlockDetected', 'false')
-! example.com#%#//scriptlet('set-constant', 'hasAdBlock', 'false')
-! example.com#%#//scriptlet('prevent-setTimeout', 'adsbygoogle')
-! example.com#%#//scriptlet('abort-on-property-read', 'adblock')
 
 
 ! ═══════════════════════════════════════════
@@ -1460,8 +1393,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||telemetry.split.io^$xmlhttprequest
 ||events.split.io^$xmlhttprequest
 ||cdn.unleash.run^$script,third-party
-!||gptbot.openai.com^
-!||user-agents.anthropic.com^
 
 
 ! ═══════════════════════════════════════════
@@ -1471,7 +1402,6 @@ youtube.com##+js(cookie-remover, PREF)
 ||app.adjust.com^$xmlhttprequest,third-party
 ||sdk.iad-*.unityads.unity3d.com^$xmlhttprequest
 ||config.uca.cloud.unity3d.com^
-!||thirdparty.unity3d.com^
 ||api.branch.io/v1/install^
 ||api2.branch.io^$xmlhttprequest
 ||cdn.branch.io^$script,third-party
@@ -1489,19 +1419,15 @@ youtube.com##+js(cookie-remover, PREF)
 ||clients2.google.com/cr/^
 ||update.googleapis.com/service/update2^
 ||play.google.com/log^
-!||clients4.google.com/chrome-sync^
 ||edge.microsoft.com/edgeupdate/api^
 ||edge.microsoft.com/abuse^
 ||c.bing.com^$image,redirect=1x1-transparent.gif
-!||www.bing.com/aclk^
-!||www.bing.com/aclick^
 ||r.bing.com^
 ||arc.msn.com/v4/api/selection^
 ||telemetry.mozilla.org^
 ||incoming.telemetry.mozilla.org^
 ||normandy.cdn.mozilla.net^
 ||shavar.services.mozilla.com^
-!||location.services.mozilla.com^
 ||vivaldi.net/api/log^
 ||update.vivaldi.com/log^
 ||updates.opera.com/log^
@@ -1558,13 +1484,12 @@ x.com/*/videoads/
 ||px-cloud.net/api/v2/collector
 ||px-cloud.net/b/s
 
-!||netflix.com/log/
-
 ! ───── OneTrust 쿠키 동의 위치 확인 ─────
 ||geolocation.onetrust.com/cookieconsentpub/*/geo/location$xmlhttprequest,redirect-rule=noopjson
 
 ! ───── WebSocket 연결은 removeparam 예외 ─────
 @@|wss://$removeparam
+
 
 ! ═══════════════════════════════════════════
 ! [추가] 의심스러운 단축 URL 리다이렉트 차단
@@ -1584,8 +1509,9 @@ x.com/*/videoads/
 ||moneyapp.co.kr^$doc
 ||moneyapp.co.kr^$third-party
 
+
 ! ═══════════════════════════════════════════
-! [16] 선택 적용 (주의: 결제·로그인·기능 영향 가능)
+! [16] 선택 적용 (주의: 결제·로그인·기능 영향 가능) — 기본 비활성
 ! ═══════════════════════════════════════════
 !||*.threatmetrix.com^
 !||h.online-metrix.net^
@@ -1598,49 +1524,24 @@ x.com/*/videoads/
 !||*.fpcdn.io^
 !||api.fpjs.io^
 
-! [uBO 미지원] $webrtc → 주석 보존 (uBO는 WebRTC를 옵션이 아닌 설정으로 제어)
+! [AdGuard 전용] $webrtc / $stealth — 필요 시 !#if 안에서 활성화
+!#if (adguard)
 !*$webrtc,third-party
 !||stun.l.google.com^$webrtc
 !||stun.services.mozilla.com^$webrtc
+!@@||trusted-site.com^$stealth
+!#endif
 
-! [uBO 미지원] $cookie → 주석 보존
+! [AdGuard 전용] $cookie 예시 (기본 비활성)
+!#if (adguard)
 !||hcaptcha.com^$cookie
 !||recaptcha.net^$cookie
-! - 아래 규칙 활성화하면 reCAPTCHA 작동안함
-!||google.com/recaptcha^$removeparam=k
+!#endif
 
 ! 결제 SDK 텔레메트리 (주석 유지)
 !||js.stripe.com/v3/m-outer-*$script,redirect=noopjs
 !||m.stripe.com/4^$xmlhttprequest
-!||r.stripe.com^$xmlhttprequest
-!||q.stripe.com^$xmlhttprequest
-!||merchant-ui-api.stripe.com/elements/log^
 !||www.paypal.com/tagmanager/pptm.js^$script,redirect=noopjs
-!||t.paypal.com^$image,redirect=1x1-transparent.gif
-
-!||statsig.anthropic.com^
-!||analytics.perplexity.ai^
-!||*.cohere.ai/v1/track^
-
-!##.signup-wall
-!##.login-wall
-!##.paywall-overlay
-!##.subscription-prompt
-
-!google.com##div[data-attrid*="ai_overview"]
-!google.com##.ai-overview
-!bing.com##.b_chat
-
-!##video[autoplay]:not([controls])
-
-!$removeparam=cid
-!$removeparam=session_id
-!$removeparam=visitor_id
-!$removeparam=device_id
-!$removeparam=client_id
-!$removeparam=tracking_id
-!$removeparam=tracking_source
-!$removeparam=campaign_id
 
 ! ───── uBlock 사칭/비공식 사이트 ─────
 ||ublockdns.com^$doc
@@ -1648,7 +1549,7 @@ x.com/*/videoads/
 ublockdns.com###root
 ublockorigin.com###root
 
-! ───── 인증/세션 토큰 보호 (removeparam 예외) ─────
+! ───── 인증/세션 토큰 보호 (removeparam 예외) — 양쪽 공통 ─────
 @@/^https?:\/\/([a-z0-9-]+\.)*?(cloudflare\.com|prismic\.io|tangerine\.ca|gitlab\.com|github\.com|githubusercontent\.com|githubassets\.com)/$removeparam
 @@/^https?:\/\/(docs|accounts|mail|calendar|meet|photos|keep|translate|maps|forms|sites|scholar|news)\.google(\.[a-z]{2,}){1,}/$removeparam
 @@/^https?:\/\/([a-z0-9-]+\.)*?google(\.[a-z]{2,}){1,}(\/upload)?\/drive\//$removeparam
