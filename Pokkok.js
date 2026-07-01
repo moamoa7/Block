@@ -11,8 +11,8 @@
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
 // @run-at       document-start
-// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Pokkok.js
-// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Pokkok.js
+// @updateURL    https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Pokkok.js
+// @downloadURL  https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Pokkok.js
 // ==/UserScript==
 
 (function () {
