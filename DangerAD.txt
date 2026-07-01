@@ -476,50 +476,9 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! - 망가조아 - class*="adult_id__main" (class^="adult"로 통일)
 ##[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adt_mode_toggle"]):not([class="adr_copy"]):not([class="advanced-controls-panel"])
 
-! avsee / https://tcafe21.com/ - main-head  gamepad
-! https://xn--9w3b43d58f04atzyznd.com/ - class="hero-lead"
-! 연합뉴스 - class="lead"
-! 연합뉴스TV - class="public-head"  class="digital-head"  class="major-head"
-! 인벤 - class="head" Head  bttn_bad
-##[class$="ad" i]:not([class*="head"]):not([class*="Head"]):not([class*="gamepad"]):not([class*="lead"]):not([class*="bttn_bad"])
-
-
-! https://adguard-dns.io/ - ace-adguard  react-select--adaptive-height
-##[class*="-ad" i]:not([class*="ace-adguard"]):not([class*="react-select--adaptive-height"])
-
-##[class*="ad-" i]
-
-! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
-##[class*="-ad-" i]:not([class*="is-ad-visible"])
-
-! - 숲 - chatbox_add_notice
-##[class*="_ad" i]:not([class*="chatbox_add_notice"])
-
-! m.humoruniv.com - read_subject  ad_bri
-##[class*="ad_" i]:not([class^="read_subject"]):not([class="ad_bri"])
-
-##[class*="_ad_" i]
-
 
 ! - https://뉴토끼우회.com - id="address"
 ##[id^="ad" i]:not([id="address"])
-
-! https://m.humoruniv.com/ - download  read
-##[id$="ad" i]:not([id$="download"]):not([id$="read"])
-
-##[id*="-ad" i]
-
-##[id*="ad-" i]
-
-##[id*="-ad-" i]
-
-##[id*="_ad" i]
-
-! https://m.humoruniv.com/ - read_
-##[id*="ad_" i]:not([id*="read_"]
-
-##[id*="_ad_" i]
-
 
 
 ! - missav.to - with-sidebar-ads
@@ -813,6 +772,48 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 !##[id*="topbanner" i]
 
 !##[id^="top-banner" i]
+
+
+! avsee / https://tcafe21.com/ - main-head  gamepad
+! https://xn--9w3b43d58f04atzyznd.com/ - class="hero-lead"
+! 연합뉴스 - class="lead"
+! 연합뉴스TV - class="public-head"  class="digital-head"  class="major-head"
+! 인벤 - class="head" Head  bttn_bad
+!##[class$="ad" i]:not([class*="head"]):not([class*="Head"]):not([class*="gamepad"]):not([class*="lead"]):not([class*="bttn_bad"])
+
+
+! https://adguard-dns.io/ - ace-adguard  react-select--adaptive-height
+! 인벤 - article-admin
+!##[class*="-ad" i]:not([class*="ace-adguard"]):not([class*="react-select--adaptive-height"]):not([class*="article-admin"])
+
+!##[class*="ad-" i]
+
+! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
+!##[class*="-ad-" i]:not([class*="is-ad-visible"])
+
+! - 숲 - chatbox_add_notice
+!##[class*="_ad" i]:not([class*="chatbox_add_notice"])
+
+! m.humoruniv.com - read_subject  ad_bri
+!##[class*="ad_" i]:not([class^="read_subject"]):not([class="ad_bri"])
+
+!##[class*="_ad_" i]
+
+! https://m.humoruniv.com/ - download  read
+##[id$="ad" i]:not([id$="download"]):not([id$="read"])
+
+##[id*="-ad" i]
+
+##[id*="ad-" i]
+
+##[id*="-ad-" i]
+
+##[id*="_ad" i]
+
+! https://m.humoruniv.com/ - read_
+##[id*="ad_" i]:not([id*="read_"]
+
+##[id*="_ad_" i]
 
 
 !=========================================================================
