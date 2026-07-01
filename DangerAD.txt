@@ -480,7 +480,8 @@ clien.net#@#[class*="popup" i]:not([class*="captcha"]):not([class*="popup-parent
 ! https://xn--9w3b43d58f04atzyznd.com/ - class="hero-lead"
 ! 연합뉴스 - class="lead"
 ! 연합뉴스TV - class="public-head"  class="digital-head"  class="major-head"
-##[class$="ad" i]:not([class="main-head"]):not([class*="gamepad"]):not([class="hero-lead"]):not([class="lead"]):not([class="public-head"]):not([class="digital-head"]):not([class="major-head"])
+! 인벤 - class="head" Head  bttn_bad
+##[class$="ad" i]:not([class*="head"]):not([class*="Head"]):not([class*="gamepad"]):not([class*="lead"]):not([class*="bttn_bad"])
 
 
 ! https://adguard-dns.io/ - ace-adguard  react-select--adaptive-height
