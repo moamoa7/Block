@@ -129,7 +129,7 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[class$="tooltip" i]:not(body):not(html):not(main)
 
 ! - 치지직 아이디 / 팔로우 사라짐 방지 :not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
-chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
+##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
 
 ##[class*="-tooltip_" i]:not(body):not(html):not(main)
 
