@@ -128,10 +128,6 @@ ad.co.kr#@#[href*="/ad/" i]
 
 ##[class$="tooltip" i]:not(body):not(html):not(main)
 
-! - nid.naver.com - 웰컴 혜택 안보임
-nid.naver.com#@#[class$="tooltip" i]:not(body):not(html):not(main)
-
-
 ##[class*="_tooltip_" i]:not(body):not(html):not(main)
 
 ##[class*="-tooltip_" i]:not(body):not(html):not(main)
