@@ -513,7 +513,8 @@ nid.naver.com#@#[id$="popup" i]:not(body):not(html):not(main)
 
 ! - https://뉴토끼우회.com - id="address"
 ! - https://www.avdbs.com/ - adt_mode_area
-##[id^="ad" i]:not(body):not(html):not(main):not([id="address"]):not([id="adt_mode_area"])
+! - https://everythingmoe.com/ - id="add-review-text"
+##[id^="ad" i]:not(body):not(html):not(main):not([id="address"]):not([id="adt_mode_area"]):not([id="add-review-text"])
 
 
 ! - missav.to - with-sidebar-ads
