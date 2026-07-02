@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260702
+! Version: 20260703
 !
 !
 !
@@ -791,6 +791,8 @@ gall.dcinside.com#%#//scriptlet('set-constant', 'isBlockDetectedOnDiv', 'noopFun
 m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 ! - 본문 하단 이상한 따라다니는거
 dcinside.com##.refresher-toast
+! - 이모티콘 댓글  없애기
+dcinside.com##li:has([class*="comment_dccon"])
 ! - 디시미디어 / 디시이슈  복원 (일부 필터규칙 해제)
 gall.dcinside.com#@#.r_dcmedia
 ! - 디시이슈 댓글 이후 안보이게 하기
@@ -2894,8 +2896,8 @@ pedia.watcha.com##.adFixed
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 남는 배너 이미지 공간
-!avsee.ru##div.title:nth-of-type(1)
-!avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
+avsee.ru##div.title:nth-of-type(1)
+avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
 ! - - - 스크립트의 ui 탭 을 막아서 해제
 avsee.ru#@#.tabs
 ! - - - https://j91.asia/
@@ -4726,9 +4728,9 @@ of996.com##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximi
 !pandalive.co.kr##.pointer-events-auto
 ! - 시청 페이지에서는 회원가입팝업 안뜨게 / 회원가입이나 로그인은 메인 페이지에서
 ! - - - ublock
-pandalive.co.kr##:matches-path(/play) [class*="pointer-events-auto"]
+!pandalive.co.kr##:matches-path(/play) [class*="pointer-events-auto"]
 ! - - - adguard
-[$path=/play]pandalive.co.kr##[class*="pointer-events-auto"]
+![$path=/play]pandalive.co.kr##[class*="pointer-events-auto"]
 ! - 기타
 ||digitalcamp.co.kr^
 ||onetag.co.kr^
@@ -4816,6 +4818,8 @@ xn--9l4b15e2td.com##.widget-box
 !
 !
 ! 18모아 (https://18moa028.com/)
+! - 배너 이미지
+18moa028.com###main_top
 ! - 이미지 복원
 !/^([\w-]+\.)?18moa\d+\.com$/#@#[class*="banner" i]
 !/^(www\.)?18moa\d+\.com$/#@#[class*="banner" i]
@@ -6570,6 +6574,12 @@ xportsnews.com##[id*="_ad_"]
 outstanding.kr##.Toastify
 ! - 기타
 ||acecounter.com^
+!
+!
+! https://mhnse.com/
+! - 기사내 좌. 우 배너
+##[class$="-ad-container"]
+
 
 
 
