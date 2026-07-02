@@ -451,6 +451,7 @@ nid.naver.com,clothoff.net,clien.net#@#[class*="popup" i]:not(body):not(html):no
 ##[id^="popup" i]:not(body):not(html):not(main):not([id*="_contents"]):not([id="popup-dialog"])
 
 ##[id$="popup" i]:not(body):not(html):not(main)
+nid.naver.com#@#[id$="popup" i]:not(body):not(html):not(main)
 
 ##[id*="-popup-" i]:not(body):not(html):not(main)
 
