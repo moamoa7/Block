@@ -35,7 +35,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD2.txt
 ※ DangerAD.txt
 <br/>
 
-개인 Filter List (범용 규칙으로 적용시 페이지가 안보이거나 깨질 수 있음)
+개인 Filter List (범용 규칙으로 페이지 일부가 제대로 안보일수 있음)
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/DangerAD.txt
 ```
