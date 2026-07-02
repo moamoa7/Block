@@ -115,17 +115,6 @@ ad.co.kr#@#[href*="/ad/" i]
 *click?*
 
 
-##[class*="advert" i]:not(body):not(html):not(main)
-!
-! - 위의 것이 문제가 많이 발생하면 아래것으로 세분해하자
-!*adverts*
-!*advertising*
-!||*.advert.*
-
-
-##[data-testid*="advert"]:not(body):not(html):not(main)
-
-
 ##[class$="tooltip" i]:not(body):not(html):not(main)
 
 ! - 치지직 아이디 / 팔로우 사라짐 방지 :not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
@@ -134,8 +123,23 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[class*="-tooltip_" i]:not(body):not(html):not(main)
 
 
+##[data-testid*="advert"]:not(body):not(html):not(main)
+
+
+##[class*="advert" i]:not(body):not(html):not(main)
+!
+! - 위의 것이 문제가 많이 발생하면 아래것으로 세분해하자
+!*adverts*
+!*advertising*
+!||*.advert.*
+
+
 ! - 레댓 홍보글
 ##[aria-label*="advert" i]:not(body):not(html):not(main)
+
+
+! - 레댓 홍보글
+##[class*="promote"]:not(body):not(html):not(main)
 
 
 ||ad.*
