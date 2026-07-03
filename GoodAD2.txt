@@ -1,7 +1,7 @@
 ! Title: Personal Privacy & Traffic Filter (uBO + AdGuard 겸용)
 ! Description: 추적/텔레메트리 차단 + 트래픽 절감 + 한국 라이브 스트리밍 광고 차단 + Annoyances
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260702-rev1-dual
+! Version: 20260704-rev1-dual
 !
 ! [겸용 메모]
 ! - !#if (adguard) ... !#else ... !#endif 로 엔진별 분기 (양쪽 모두 지원하는 지시문)
@@ -1508,6 +1508,8 @@ x.com/*/videoads/
 ||yas.xxx^$third-party
 ||moneyapp.co.kr^$doc
 ||moneyapp.co.kr^$third-party
+||yass.zip^^$doc
+||yass.zip^^$third-party
 
 
 ! ═══════════════════════════════════════════
