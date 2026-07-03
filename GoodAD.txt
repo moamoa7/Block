@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260703
+! Version: 20260704
 !
 !
 !
@@ -138,6 +138,7 @@ tv.kakao.com#@#div.ads
 ! 유튜브 (https://www.youtube.com/)
 !@@||www.youtube.com^$generichide
 ! - 메인 스폰서 영상
+youtube.com###masthead-ad
 youtube.com##.ytd-in-feed-ad-layout-renderer
 ! - 제품 광고/쇼핑 배너
 youtube.com##.ytp-featured-product
@@ -206,25 +207,7 @@ www.youtube.com##ytd-mini-guide-entry-renderer:has(a[title="Shorts"])
 !
 ! ===== 탐색 유발 요소 (선택) ===== (플레이리스트/믹스 묶음, 쇼츠 줄, 큐레이션 모음)
 www.youtube.com##ytd-rich-section-renderer
-!
-! - 스크립트릿
-youtube.com##+js(adjust-setTimeout, [native code], 17000, 0.001)
-youtube.com##+js(href-sanitizer, a[href^="https://www.youtube.com/redirect?event="][href*="&q=http"], ?q)
-youtube.com##+js(json-prune, entries.[-].command.reelWatchEndpoint.adClientParams.isAd)
-youtube.com##+js(json-prune-fetch-response, adPlacements adSlots no_ads playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.adSlots [].playerResponse.no_ads, '', propsToMatch, /player?)
-youtube.com##+js(json-prune-fetch-response, adPlacements adSlots playerResponse.adPlacements playerResponse.adSlots [].playerResponse.adPlacements [].playerResponse.adSlots, '', propsToMatch, /player?)
-youtube.com##+js(json-prune-fetch-response, adPlacements adSlots playerResponse.adPlacements playerResponse.adSlots, '', propsToMatch, /playlist?)
-youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, '', propsToMatch, /\/(player|get_watch)\?/)
-youtube.com##+js(json-prune-fetch-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads, '', propsToMatch, /playlist?)
-youtube.com##+js(json-prune-fetch-response, reelWatchSequenceResponse.entries.[-].command.reelWatchEndpoint.adClientParams.isAd entries.[-].command.reelWatchEndpoint.adClientParams.isAd, '', propsToMatch, url:/reel_watch_sequence?)
-youtube.com##+js(json-prune-xhr-response, adPlacements adSlots playerResponse.adPlacements playerResponse.adSlots [].playerResponse.adPlacements [].playerResponse.adSlots, '', propsToMatch, /\/player(?:\?.+)?$/)
-youtube.com##+js(json-prune-xhr-response, playerAds adPlacements adSlots no_ads playerResponse.playerAds playerResponse.adPlacements playerResponse.adSlots playerResponse.no_ads [].playerResponse.adPlacements [].playerResponse.playerAds [].playerResponse.adSlots [].playerResponse.no_ads, '', propsToMatch, /\/player(?:\?.+)?$/)
-youtube.com##+js(prevent-xhr, '/\/api\/stats\/atr\?.+?&rt=\d+\.\d+.+?&volume=\d+&cbr=.+?&fexp=v1%[-%0-9C]{300,}&.+?&muted=\d(&vis=3)?&docid=/ method:POST')
-youtube.com##+js(set-constant, google_ad_status, 1)
-youtube.com##+js(set-constant, playerResponse.adPlacements, undefined)
-youtube.com##+js(set-constant, ytInitialPlayerResponse.adPlacements, undefined)
-youtube.com##+js(set-constant, ytInitialPlayerResponse.adSlots, undefined)
-youtube.com##+js(set-constant, ytInitialPlayerResponse.playerAds, undefined)
+
 !
 !
 ! 디스코드 (https://discord.com/)
@@ -249,6 +232,9 @@ discord.com##div[class*="notice"]
 !
 !
 ! 레딧 (https://www.reddit.com/)
+! - 홍보.광고글
+!reddit.com##.promotedlink
+!##[class*="promote"]
 ! - 하단 Reddit 앱에서 보기 팝업 (모바일) - PC 가입/로그인/설정메뉴열기를 지워서 다른걸로 찾아야함
 !reddit.com##.justify-end
 ! - 기타
@@ -2096,7 +2082,7 @@ joatoon-oa.com##.bg-opacity-50
 @@/ad/*$domain=/^newtoki\d+\.[a-z.]+$/
 !
 !
-! 뉴토끼 (https://t.me/s/newtoki_url) (https://뉴토끼우회.com) (https://toki28.com/) (https://sbxh9.com)
+! 뉴토끼 (https://t.me/s/newtoki_url) (https://뉴토끼우회.com) (https://toki29.com/) (https://sbxh9.com)
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
@@ -2139,9 +2125,9 @@ joatoon-oa.com##.bg-opacity-50
 !/////////////////////////////////////////
 ! =====  배너 공간 감추기  =====
 ! 광고 컨테이너 화면 밖으로 이동
-! - - - left: -9999px - 500px / top: -9999px - 600px 변경 (26.05.30)
+! - - - left: -9999px - 500px / top: -9999px - 600px 변경 (26.05.30) - -9999로 재변경 (특별한 이상없음)
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
-[$domain=/sbxh/],[$domain=/toki/]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
+[$domain=/sbxh/],[$domain=/toki/]#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
 ! - 보안 검증 통과를 위한 조치
 !!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴
 @@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/
@@ -2898,7 +2884,7 @@ pedia.watcha.com##.adFixed
 ! - 남는 배너 이미지 공간
 avsee.ru##div.title:nth-of-type(1)
 avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
-! - - - 스크립트의 ui 탭 을 막아서 해제
+! - - - 개인 스크립트가 ui 탭 을 막아서 해제
 avsee.ru#@#.tabs
 ! - - - https://j91.asia/
 !/^https:\/\/[0-9a-z]{6,12}\.in(?:\/[a-z]{2,10}){1,3}$/$script,third-party,match-case
@@ -6339,6 +6325,7 @@ katfile.space###container > div:nth-of-type(2)
 ! - 기타
 ||cre.ma^
 ||datarize.io^
+! - - - https://map.naver.com/ 등
 ##iframe[width="0"][height="0"]
 !
 !
@@ -6579,6 +6566,18 @@ outstanding.kr##.Toastify
 ! https://mhnse.com/
 ! - 기사내 좌. 우 배너
 ##[class$="-ad-container"]
+!
+!
+! 딥시크 (https://www.deepseek.com)
+! - 기타
+||apmplus.volces.com^
+||fp-it-acc.portal101.cn^
+!
+!
+! https://www.aitimes.com/
+! - 기타
+||mci1.co.kr^
+
 
 
 
