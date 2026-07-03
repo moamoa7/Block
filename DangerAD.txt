@@ -302,7 +302,7 @@ sogirl.so,fd2ppv.cc#@#div iframe:not([src*="/embed/"]):not([src*="/player.php?"]
 ! - 쿠팡플레이 - |img.coupangstreaming.com/assets/feed-banners/
 ##[src*="/banners/" i]:not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]):not([src*="img.coupangstreaming.com/assets/feed-banners/"])
 
-! - 딥시크 - [style*="/_next/static/media/banner-background"]
+! - 딥시크(https://www.deepseek.com) - [style*="/_next/static/media/banner-background"]
 ##div[style*="banner" i]:not([style*="img.coupangstreaming.com/assets/feed-banners/"]):not([style*="/_next/static/media/banner-background"])
 
 
@@ -335,7 +335,7 @@ sogirl.so,fd2ppv.cc#@#div iframe:not([src*="/embed/"]):not([src*="/player.php?"]
 ! - 리치고 (https://m.richgo.ai/) - MapBrokerBanner  ComparisonBanner
 ! https://www.tokyokinky.com/ - class="main-wrap not-enable-banner"
 ! https://clothoff.ai/ - class="wrapper banner spacer_100"
-! 딥시크 - ##[class*="BannerCard_bannerCard"]
+! 딥시크 (https://www.deepseek.com) - ##[class*="BannerCard_bannerCard"]
 ##[class*="banner" i]:not(body):not(html):not(main):not([class*="fullwidthbanner"]):not([class="hero-banner"]):not([class*="topBanner--on"]):not([class*="mobile-banner top_hr"]):not([class*="open use-navbar no-banner"]):not([class="__className_62a70d has-promo-banner"]):not([class="vdo-top-part vieo-banner-div"]):not([class="banner-container css-beuhud"]):not([class*="adban banner-ad bannerad blockAd"]):not([class="ai-chat-banner-visible"]):not([class*="raise-masstransit-banner-experiment"]):not([class="banner-watch"]):not([class*="ssg-mobile-banner-hidden"]):not([class="comment ad_banner"]):not([class="megu-post-banner"]):not([class="comment inline_link ad_banner"]):not([class*="GetFirefoxBanner"]):not([class="contents_area_right_banner"]):not([class*="TopBanner_TopBanner"]):not([class="app-banner-parent"]):not([class*="mem--home-banner"]):not([class="main-banner topBillwrap"]):not([class*="main-banner__"]):not([class*="promo-free__banner"]):not([class*="install-app__banner"]):not([class="div_banner_content_containter"]):not([class="banner_right_container"]):not([class="comment inline_link ad_banner "]):not([class*="userBanner"]):not([class="col-xs-2 banner"]):not([class="banner_sns"]):not([class*="home_t_banner"]):not([class*="MapBrokerBanner"]):not([class*="ComparisonBanner"]):not([class="main-wrap not-enable-banner"]):not([class="wrapper banner spacer_100"]):not([class*="BannerCard_bannerCard"])
 
 
@@ -354,6 +354,9 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 
 
 */background/*
+! - 예외
+! 딥시크 (https://www.deepseek.com) - 이미지 안보임
+@@*/background/*$domain=deepseek.com
 
 
 *background*
