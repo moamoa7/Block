@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-03 05:04:01 UTC
+! Generated: 2026-07-03 08:30:26 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,522
+! Exception Rules: 6,524
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -3105,6 +3105,7 @@
 @@||mkto-ab690011.com^
 @@||mkto-ab690019.com^
 @@||mkto-ab690062.com^
+@@||mkto-ab690064.com^
 @@||mkto-ab690132.com^
 @@||mkto-ab690180.com^
 @@||mkto-ab700044.com^
@@ -5237,6 +5238,7 @@
 @@||suite34.emarsys.net^
 @@||suite35-cf.emarsys.net^
 @@||suite36.emarsys.net^
+@@||suite37.emarsys.net^
 @@||suite38.emarsys.net^
 @@||suite4-cf.emarsys.net^
 @@||suite4.emarsys.net^
