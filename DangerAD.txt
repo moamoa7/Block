@@ -102,7 +102,8 @@ ad.co.kr#@#[href*="/ad/" i]
 
 ##[id*="-ads-" i]:not(body):not(html):not(main)
 
-##[id*="_ads_" i]:not(body):not(html):not(main)
+! - https://adguard-dns.io/ - awavenue_ads_rule
+##[id*="_ads_" i]:not(body):not(html):not(main):not([id*="awavenue_ads_rule"])
 
 ##[id*="adsby" i]:not(body):not(html):not(main)
 
@@ -468,7 +469,8 @@ nid.naver.com#@#[id$="popup" i]:not(body):not(html):not(main)
 
 ##[id*="-popup-" i]:not(body):not(html):not(main)
 
-##[id*="_popup_" i]:not(body):not(html):not(main)
+! https://adguard-dns.io/ - adguard_popup_
+##[id*="_popup_" i]:not(body):not(html):not(main):not([id*="adguard_popup_"])
 
 
 
