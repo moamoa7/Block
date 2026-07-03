@@ -354,14 +354,11 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 
 
 */background/*
-! - 예외
-! 딥시크 (https://www.deepseek.com) - 이미지 안보임
-@@*/background/*$domain=deepseek.com
 
 
 *background*
 ! - 예외
-@@||*background$domain=cineaste.co.kr|coupangplay.com|t-browser.com
+@@||*background$domain=cineaste.co.kr|coupangplay.com|t-browser.com|deepseek.com
 
 
 
