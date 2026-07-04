@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-04 07:39:45 UTC
+! Generated: 2026-07-04 09:55:56 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,524
+! Exception Rules: 6,523
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -289,7 +289,6 @@
 @@||api-02.moengage.com^
 @@||api-03.moengage.com^
 @@||api-04.moengage.com^
-@@||api-101.moengage.com^
 @@||api-ao-list.adison.co^
 @@||api-ao.adison.co^
 @@||api-ap1.hubapi.com^
@@ -3035,7 +3034,6 @@
 @@||mkto-ab280126.com^
 @@||mkto-ab290102.com^
 @@||mkto-ab290138.com^
-@@||mkto-ab300154.com^
 @@||mkto-ab310115.com^
 @@||mkto-ab320028.com^
 @@||mkto-ab320182.com^
@@ -3087,7 +3085,6 @@
 @@||mkto-ab570110.com^
 @@||mkto-ab570128.com^
 @@||mkto-ab580004.com^
-@@||mkto-ab600004.com^
 @@||mkto-ab610035.com^
 @@||mkto-ab610084.com^
 @@||mkto-ab620024.com^
@@ -3232,6 +3229,7 @@
 @@||mkto-sj360104.com^
 @@||mkto-sj360117.com^
 @@||mkto-sj360142.com^
+@@||mkto-sj380142.com^
 @@||mkto-sj390079.com^
 @@||mkto-sjg0030.com^
 @@||mkto-sjh0084.com^
@@ -4741,6 +4739,7 @@
 @@||sitecheck5.opera.com^
 @@||sitecheck6.opera.com^
 @@||sitecheck7.opera.com^
+@@||sites.hscoscdn-ap1.net^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
 @@||sites.hscoscdn00.net^
