@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260704
+! Version: 20260705
 !
 !
 !
@@ -183,8 +183,8 @@ www.youtube.com#@#.ytd-yoodle-renderer
 ! ===== 추천 사이드바 (영상 옆) =====
 ! - - - 실시간 채팅까지 막고 싶으면 1번째 규칙을 실시간 채팅만 풀고 싶으면 2번째 규칙을 풀면 됨
 ! - - - 1번째 규칙으로 하면 동영상 화면이 커짐
-www.youtube.com###secondary
-!www.youtube.com##ytd-watch-next-secondary-results-renderer
+!www.youtube.com###secondary
+www.youtube.com##ytd-watch-next-secondary-results-renderer
 www.youtube.com###related
 !
 ! ===== 영상 끝 엔드스크린 / 다음 추천 =====
@@ -288,9 +288,10 @@ baidu.com###s-hotsearch-wrapper
 ##.cookie-wrapper
 ! - 연간 할인 혜택등 팝업
 !mypikpak.com##.coupon-tips-overlay.el-overlay
-!mypikpak.com##[class="el-overlay el-modal-dialog"]
+mypikpak.com##.coupon-tips-overlay
 ! - 연간 할인 탑 배너
 !mypikpak.com##.coupon-top-banner
+mypikpak.com##div[class*="banner" i]
 ! - 왼쪽 메뉴 하단 로테이션 팝업
 mypikpak.com##.operation-container
 ! - 확장프로그램 설치 안내 팝업
@@ -574,6 +575,8 @@ chzzk.naver.com##+js(json-prune, *.dab)
 !chzzk.naver.com##div[class*="popup_layer"]:has-text(/광고 차단|확장 프로그램/)
 !chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
+! - 왼쪽 배너 (치즈 무료 수확)
+!##li>[class*="banner"]
 ! 놓치면 후회할 무료 치즈 툴팁
 ! - - - 치지직 아이디 / 팔로우 사라짐 방지
 !chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
@@ -674,8 +677,10 @@ aagag.com##.bottom.center.sAlert
 aagag.com##.la.top.naver:style(width:0 !important; height:0 !important; min-width:0 !important; min-height:0 !important; margin:0 !important; padding:0 !important; display:block !important)
 ! - 일정 간격으로 게시물 사이사이 잇는 공간 없애기
 !aagag.com##.mirror_mid_ad
+aagag.com##[class$="ad"]:not([class$="hate_ad"])
 ! - 맨 하단 빈 공간
-aagag.com##div.cwarp2
+!aagag.com##div.cwarp2
+aagag.com##[class$="naver"]
 ! - 양 옆 필요없는 배너공간 없애기 ( kr: List-KR Classic)
 aagag.com##.la:style(height: 75px !important; width: 75px !important; visibility: hidden !important;)
 !
@@ -821,7 +826,7 @@ gall.dcinside.com#@#.r_dcmedia
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe652.com/) - 이미지 목록 사라짐
+! 펀비 (https://funbe654.com/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -1043,7 +1048,7 @@ mlbpark.donga.com##.btn_top01
 !ruliweb.com##.adrr
 !ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe652.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe654.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 !ruliweb.com##[class*="ad_"][style] - ##[class*="ad_slot" i]로 변경
 ! - 루리웹 전체 배너 (게시판 내 AD글 포함)
@@ -1637,7 +1642,7 @@ poooo.ml#@#.ad
 ||tns-counter.ru^
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki35.net/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki9.store/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
@@ -1729,7 +1734,7 @@ fingerprint.
 ! 티비착 (https://tvchak1.org/) - 티비위키 그대로 가져오는듯 / p2p차단하면 영상 재생 안됨
 !
 !
-! 짭플릭스 (https://zzapflix.live/) (https://zzap206.com)
+! 짭플릭스 (https://zzapflix.live/) (https://zzap208.com)
 ! - 성인 글자
 ![$domain=/^zzap\d+.com/]##div.snb-list:nth-of-type(6)
 ! - 이미지 복원
@@ -1748,7 +1753,7 @@ fingerprint.
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://bs.hoohootv421.xyz)
+! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://fz.hoohootv423.xyz/)
 ! - 배너 빈 공간
 ![$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 [$domain=/hoohootv/]###img_row_container
@@ -1928,8 +1933,8 @@ ttattack.com###thema_wrapper
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://t.me/s/toonkor_com) (https://tkor130.com/)
-! 펀비 (https://t.me/s/funbe_next) (https://funbe652.com/)
+! 툰코 (https://t.me/s/toonkor_com) (https://tkor132.com/)
+! 펀비 (https://t.me/s/funbe_next) (https://funbe654.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -1941,7 +1946,7 @@ ttattack.com###thema_wrapper
 !##[class*="mobile-banner"]
 !##img[id*="banner"]
 ! - 토토보증업체 글자
-![$domain=/^tkor\d+.com/]##.text-center.hidden-xs.navbar-nav.nav > li > [href="https://tkor020.com/토토보증업체"]
+##[href*="토토"]
 ! - 이미지 복원
 !@@||tkor*.com/img/*$image
 ! - 게시물내 하단 배너
@@ -1952,10 +1957,10 @@ ttattack.com###thema_wrapper
 !
 ! 나이스링크 (https://nicelink6.com/)
 ! 늑대닷컴 ((https://xn--ph1bph0az41x.com/))
-! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf476.com/)
-! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon217.com/)
-! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx332.com/)
-! W툰 (https://t.me/s/wtwt999) (https://wtwt331.com/)
+! 늑대닷컴 (https://t.me/s/wfwf_com) (https://wfwf412.com/)
+! 늑대닷컴2 (https://t.me/s/wfwf_com) (https://wftoon218.com/)
+! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx333.com/)
+! W툰 (https://t.me/s/wtwt999) (https://wtwt333.com/)
 ! - 팝업
 ! - - - 별별티비 (https://www.bbtv87.com/)
 !##.modal-wrapper
@@ -1982,7 +1987,7 @@ ttattack.com###thema_wrapper
 !##.thumbnail
 !
 !
-! 야툰 (https://t.me/s/yatoonlink) (https://yatoon238.com/)
+! 야툰 (https://t.me/s/yatoonlink) (https://yatoon238.asia/)
 ! 뉴툰 (https://newtoon294.com/)
 ! - 배너
 !##.cate.row
@@ -2019,7 +2024,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - 예외
 !sungsimdangmall.co.kr#@#div > a[target="_blank"] > picture
 ! - 박스형 배너
-!###category-Ad
+##.chapter-ad
 ! -기타
 ://tj.*.com$3p
 !
@@ -2133,22 +2138,23 @@ joatoon-oa.com##.bg-opacity-50
 @@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/newtoki_ch)  (https://토끼평생.com) (https://newto15.com/) (https://mato15.com/) (https://bookto15.com/)
+! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/newtoki_ch)  (https://토끼평생.net)
 ! - 뉴토끼평생 팝업
 !뉴토끼평생.net##.show.op_popup_overlay
 ! - 이미지
-! - - - 뉴토끼
+! - - - 뉴토끼 (https://newto18.com/)
 ||newto*.com/data/apms/*
-! - - - 마나토끼
+! - - - 마나토끼 (https://mato18.com/)
 ||mato*.com/data/apms/*
-! - - - 북토끼
+! - - - 북토끼 (https://bookto18.com/)
 ||bookto*.com/data/apms/*
 !
 !
 ! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon415.com/)
 ! - 최신주소 안내페이지 배너 공간 ((https://www.blacktoonurl2.com/) )
 ![$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
-[$domain=/blacktoonurl/]###comp-mon185d4 > div > div
+![$domain=/blacktoonurl/]###comp-mon185d4 > div > div
+[$domain=/.blacktoonurl/]##.comp-m8jy31rn
 ! - 상단 텍스트 배너
 ![$domain=/^blacktoon\d*\./]##.alert-danger.alert
 ![$domain=/blacktoon/]##.alert-danger.alert
@@ -2162,11 +2168,12 @@ joatoon-oa.com##.bg-opacity-50
 [$domain=/blacktoon/]##li.nav-item:nth-of-type(6)
 !
 !
-! 블루TV (https://bluelive79.com/)
+! 블루TV (https://bluelive81.com/)
 ! - 필요업는거
 ![$domain=/^bluelive\d*\./]##.navbar-collapse
 ![$domain=/^bluelive\d*\./]##.card-body
-[$domain=/bluelive/]##.navbar-collapse
+[$domain=/bluelive/]##.bozeang
+[$domain=/bluelive/]##.top-img-posian
 [$domain=/bluelive/]##.card-body
 !
 !
@@ -2192,10 +2199,27 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
 !
 !
-! 링크 비비기 (https://linkbbg.com/)
-! 온도티비 (https://01.ondotv.com/)
-! - 배너
-!##.basic-banner-4
+! 링크비비기 (https://linkbbg4.com/)
+! - - - 온도티비 (https://12.ondotv.com/)
+! - - - 온도애니 (https://13.ondoani.com/)
+! - - - 온도툰 (https://17.ondotoon.com/)
+! - - - 온도마나 (https://15.ondomana.com/)
+! - - - 온도북 (https://16.ondobook.net/)
+! -  -- 주소킹 (https://jusoking2.com/)
+! - --  주소야 (https://jusoya.com/)
+! - 배너 공간 없애기
+!##[class*="banner" i]:has([target]:not([class*="logo"]))
+!
+!
+! 엑스비비기 (https://16.xbbg.tv/)
+! - - - 온도티비 (https://12.ondotv.com/)
+! - - - 온도애니 (https://13.ondoani.com/)
+! - - - 온도툰 (https://17.ondotoon.com/)
+! - - - 온도마나 (https://15.ondomana.com/)
+! - - - 온도북 (https://16.ondobook.net/)
+! - - - 주소야 (https://jusoya.com/)
+! - 배너 공간 없애기
+!##[target]:has([src*="/background/"])
 !
 !
 ! 기상청 날씨누리 (https://www.weather.go.kr/)
@@ -2444,7 +2468,7 @@ edaily.co.kr##.special_area
 ! - 상단 배너
 !##[class*="box-banner" i]
 ! - 불필요없는 공간
-wowtv.co.kr##div:has(> .wrap-BannerBox)
+!wowtv.co.kr##div:has(> .wrap-BannerBox)
 !
 !
 ! 매일경제 (https://www.mk.co.kr/)
@@ -4004,7 +4028,6 @@ jamakyadong.me##[class*="g-col"]
 !
 ! 밤포탈 (https://bampt4.com/)
 ! - 팝업 및 뿌연거 해결  (PC)
-! - - - 뉴토끼 (https://sbxh9.com/)
 !##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
 !##[id="popupoverlay" i]
@@ -4137,7 +4160,7 @@ protonvpn.com#@#.items-center.justify-start.flex-wrap.flex
 ##.no-space
 ! - 영상 상단 텍스트 배너
 ##.da-above
-! - 약 광고 사이트 안보이게
+! - 약 광고 사이트 안보이게 (낙원약국)
 ![$domain=/^www.ndowon\d+\.com/]##[class*="content"]
 [$domain=/ndowon/]##[class*="content"]
 ! - ##[class^="ad" i] 해제 - 이미지 안나옴
@@ -4152,7 +4175,7 @@ protonvpn.com#@#.items-center.justify-start.flex-wrap.flex
 !1004sweet.com,1004deep.com##.swip-ticker
 !
 !
-! 조개파티 (https://jogaeparty176.com/)
+! 조개파티 (https://jogaeparty181.com/)
 ! - 영상 위 배너
 ! - - - 오른쪽 작은 배너
 ! - - - - - 토렌트 제이 (https://torrentj165.com/) - 접속불가
@@ -4167,8 +4190,6 @@ protonvpn.com#@#.items-center.justify-start.flex-wrap.flex
 ![$domain=/^jogaeparty\d+.com/]##.at-body > .widget-box > div
 ! - 영상 차단 해제
 !minochinos.com,turbovidhls.com#@#[class*="floating" i]
-! - 토토 차단
-[$domain=/^\d+clf\.com$/]##html
 !
 !
 ! 야동위키 (https://hanyasa.com/) - 주소모음으로 이동? 보류
@@ -4748,18 +4769,20 @@ of996.com##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximi
 [$domain=/wdwd/]###dvhidden
 !
 !
-! 주소킹  (https://www.주소핑바로가기.com) (https://jusoking2.com)
+! 주소핑  (https://jusoping3.com/)
+! - 배너 빈 공간
+[$domain=/jusoping/]##[class*="bg-black"]:has([href])
 ! - 순위 리스트 복원
 ![$domain=/^jusoping\d+.com/]#@#[class*="banner" i]
 ! - 상단 배너 지워짐으로 인한 빈공간
 ![$domain=/^jusoping\d+.com/]##[class*="carousel-inner"]
-[$domain=/jusoking/]##.main_d_bn
+![$domain=/jusoking/]##.main_d_bn
 ! -그 외 상단 공간
 ![$domain=/^jusoping\d+.com/]##div.col-md-12 > div:nth-of-type(1)
 ![$domain=/^jusoping\d+.com/]##div.col-md-12 > div:nth-of-type(2)
-[$domain=/jusoking/]##div.col-md-12 > div:nth-of-type(1)
-[$domain=/jusoking/]##div.col-md-12 > div:nth-of-type(3)
-[$domain=/jusoking/]##div.col-md-12 > div:nth-of-type(4)
+![$domain=/jusoking/]##div.col-md-12 > div:nth-of-type(1)
+![$domain=/jusoking/]##div.col-md-12 > div:nth-of-type(3)
+![$domain=/jusoking/]##div.col-md-12 > div:nth-of-type(4)
 !
 !
 ! 야주소 (https://xn--9l4b15e2td.com/)
@@ -4776,9 +4799,12 @@ xn--9l4b15e2td.com##.widget-box
 ! - 베너 이미지
 ||linklove*.com/data/editor/*$image
 ||linklove*.com/data/file/ls_*/*$image
-||linklove*.com/data/apms/background/*$image
+!||linklove*.com/data/apms/background/*$image
+! - - - 인생도박 (https://dobaklife24.com/)
+! - - - 주소야 (https://jusoya.com/)
+/data/apms/background/*$image
 ! - 상단 배너 공간
-![$domain=/^linklove\d+.com/]##.w-box
+[$domain=/^linklove\d+.com/]##.w-box
 ![$domain=/linklove/]##.w-box
 ! - 중간 배너 공간
 ![$domain=/^linklove\d+.com/]##.miso-love-ad
@@ -4895,14 +4921,6 @@ jusojula.com##.slide-container
 ! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.xn--365-938mx02g.com/)
 ! -- - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
 ##[id*="comp-m0nr4kzh"]
-! - 기타
-! - 연결페이지 배너 등 빈공간
-! - - - 동사무소 (https://www.xn--2q1bn3l8xewza.com/)
-!##.wixui-image
-! - 예외 - https://www.xn--9y2bn4wuzfxpb.com/ - 이미지 안나옴
-!www.xn--9y2bn4wuzfxpb.com#@#.wixui-image
-! - 예외 - www.jusotw.com - 이미지 안나옴
-!jusotw.com#@#.wixui-image
 !
 !
 ! 링크봇 (https://linkbot3.com/)
@@ -5158,10 +5176,12 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 !xfree.com#@#[class^="ad" i]
 !
 !
-! 인생도박 (https://dobaklife21.com/) - 링크페이지(https://dobaklife23.com/) 로 바뀌어 주석처리
+! 인생도박 (https://dobaklife21.com/) - 링크페이지(https://dobaklife24.com/)
 ! - 배너
 ![$domain=/^dobaklife\d+.com/]##.col-sm-8
 ![$domain=/^dobaklife\d+.com/]##.col-sm-4
+! - - - 주소핑 (https://jusoping3.com/)
+[$domain=/dobaklife/]##[class*="bg-black"]:has([href])
 ! - 안생도박 보증업체 테이블 (이미지)
 ![$domain=/^dobaklife\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
 !
@@ -5385,6 +5405,7 @@ modded-1.com#@#[class*="ad-container" i]
 !##.popup_right
 ! - 상단 배너
 [$domain=/^lrtv\d+.com/]##.yk-container
+[$domain=/lrtv]
 ! - 영상 하단 배너
 ! - - -  뷰티비 (https://vitv78.com/) 
 [$domain=/^lrtv\d+.com/],[$domain=/^vitv\d+.com/]##.yk-container3
@@ -5557,14 +5578,16 @@ playidol.org##div[class*="relative"]:has-text(/📢|충전|등록|결제|가입/
 !
 ! 오피랜드 (https://opland1.org/)
 ! - 아예 안보이게
-[$domain=/^opland\d+.org/]##.flex
+![$domain=/^opland\d+.org/]##.flex
+[$domain=/opland/]##.flex
 ! - 이미지
 !##.object-fill
 !
 !
 ! 도박랜드 (https://dobakland3.org/)
 ! - 아예 안보이게
-[$domain=/^dobakland\d+.org/]##.mx-auto
+![$domain=/^dobakland\d+.org/]##.mx-auto
+[$domain=/dobakland/]##.mx-auto
 ! - 메인 공식업체
 ![$domain=/^dobakland\d+.org/]##[class*="transition-shadow"]
 ! - 상세보기/바로가기 삭제
@@ -5580,17 +5603,22 @@ playidol.org##div[class*="relative"]:has-text(/📢|충전|등록|결제|가입/
 ! - 배너 이미지
 ||*.kormovie.com/img/*.jpg
 ! - 배너 빈 공간
-[$domain=/^m\d+.kormovie.com/]##.h10
-[$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/],[$domain=/^m\d+.kormovie.com/]##.nlin
-[$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/],[$domain=/^m\d+.kormovie.com/]###mnxo2
+![$domain=/^m\d+.kormovie.com/]##.h10
+![$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/],[$domain=/^m\d+.kormovie.com/]##.nlin
+![$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/],[$domain=/^m\d+.kormovie.com/]###mnxo2
+[$domain=/kormovie.com/]##.h10
+[$domain=/watchakr/],[$domain=/kowatcha/],[$domain=/kormovie.com/]##.nlin
+[$domain=/watchakr/],[$domain=/kowatcha/],[$domain=/kormovie.com/]###mnxo2
 !
 !
 ! 코왓챠(https://korsite.net/)  (https://m259.kowatcha.com/)
 ! - 배너 이미지
 ||*.kowatcha.com/img/*.jpg
 ! - 배너 빈공간
-[$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/]##.h20
-[$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/]##.h30
+![$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/]##.h20
+![$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/]##.h30
+[$domain=/watchakr/],[$domain=/kowatcha/]##.h20
+[$domain=/watchakr/],[$domain=/kowatcha/]##.h30
 !
 ! 왓챠KR(https://korsite.net/)  (https://m259.watchakr.com/)
 ! - 배너 이미지
@@ -5603,9 +5631,11 @@ playidol.org##div[class*="relative"]:has-text(/📢|충전|등록|결제|가입/
 !##[id*="popup-overlay" i]
 !tcafe21.com#@#div[style*="z-index:99" i], div[style*="z-index: 99" i]
 ! - 메인 하단 배너 공간
-[$domain=/^tcafe\d+.com/]##.main-p10
+![$domain=/^tcafe\d+.com/]##.main-p10
+[$domain=/tcafe/]##.main-p10
 ! - 게시판 검색 안내 팝업
-[$domain=/^tcafe\d+.com/]###tcag_overlay
+![$domain=/^tcafe\d+.com/]###tcag_overlay
+[$domain=/tcafe/]###tcag_overlay
 !
 !
 ! 매의눈닷컴 (https://heye.kr/)
@@ -5749,6 +5779,8 @@ womaneconomy.co.kr##span.frame > em.auto-images
 mimint.co.kr##[class*="row"]:has([id="powerLinkList"])
 ! - 게시물과 인기 게시물 사이 배너 공간
 mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
+! - 실시간 인기 TOP / 최근 등록된 게시물 내 빈 줄
+mimint.co.kr##ul > .adline-v2-slot
 ! - 이벤트
 mimint.co.kr##.event_right_new
 ! - 본문 하단에 필요없는 숲 영상 첨부 안보이게
@@ -6565,7 +6597,7 @@ outstanding.kr##.Toastify
 !
 ! https://mhnse.com/
 ! - 기사내 좌. 우 배너
-##[class$="-ad-container"]
+!##[class$="-ad-container"]
 !
 !
 ! 딥시크 (https://www.deepseek.com)
@@ -6577,11 +6609,8 @@ outstanding.kr##.Toastify
 ! https://www.aitimes.com/
 ! - 기타
 ||mci1.co.kr^
-!
-!
-! 링크비비기 (https://linkbbg4.com/)
-! - 배너 공간 없애기
-##[class*="banner"]:has([target]:not([class*="logo"]))
+
+
 
 
 
@@ -6632,589 +6661,3 @@ outstanding.kr##.Toastify
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 !////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-!@@|^$generichide,badfilter
-! - 위 잘못된 규칙으로 아래 2개 규칙 추가
-!@@||challenges.cloudflare.com^$generichide,ehide,shide
-!@@||avsee.ru^$generichide
-
-! - 폰트 깨짐
-/fontawesome-$font,3p,badfilter
-||fonts.gstatic.com^$3p,badfilter
-||fonts.googleapis.com/css?$badfilter
-
-@@||github.com/*/$1p.badfilter
-
-/ss/ss$badfilter
-
--ads.$badfilter
-
-/advertisement/*$badfilter
-
-||discord.com^$badfilter
-
-@@||fundingchoicesmessages.google.com^$script,badfilter
-@@||fundingchoicesmessages.google.com^$script,badfilter
-
-?adid=$badfilter
-
-/image/banner/*$image,from=~bilinovel.com,badfilter
-
-!/ad_$badfilter
-
-/gg_$badfilter
-/gg/*$badfilter
-*/gg/$domain=~cnr.cn|~20-0.net|~health.dahe.cn,badfilter
-
-/banners?$badfilter
-
-
-.cur|$image,domain=~pixiv.net|~deviantart.com,badfilter
-
-||bamgrid.com^$badfilter
-
-!#@#div#loading
-
-@@://www3.doubleclick.net^|$xhr,badfilter
-
-||terabox.com/nodeapi/reporterror?$badfilter
-
-yna.co.kr#@#.fixed-navigation01, .progress-bar01
-
-!/ads-$badfilter
-
-
-
-
-
-
-
-!============================================
-
-/^(\S+\.)?widgets?\./$badfilter
-
-
-
-! - 추가 https://javsubs91.uk/
-! - 추가 https://javgiga.com/
-! - 추가 https://jvs91.net/
-!*$script,third-party,domain=nimi.wiki|kissjav.*|javsubs91.*|jav91.*|javgiga.com
-
-
-
-! - 잘못된 사이트로 이동하는거 차단
-! - - - 판다티비 이동이라 차단하면 안됨
-!||*/?token=*$doc
-!||*/?ref=*$doc
-
-
-
-!
-!
-!##[class*="ad_" i]
-! - 예외
-! - 더쿠 (https://theqoo.net/) - 본문 다 날라감
-!theqoo.net#@#[class*="ad_" i]
-! - 클리앙 - 댓글 날라감
-!clien.net#@#[class*="ad_" i]
-!
-!
-#a[href*="adclick"]
-!
-!
-!##[class*="banner_m" i]
-!
-!
-!##[class^="basic-banner" i]
-
-!*.ads.*
-!
-!
-!*-ads*
-
-! https://www.hankyung.com/
-!*ads.js
-
-! - 일부 이미지도 지워질수 잇어 주석처리
-!##[alt*="광고"]
-! - 일부 이미지도 지워질수 잇어 주석처리
-!##[alt*="배너"]
-! - 일부 이미지도 지워질수 잇어 주석처리
-!##[alt*="스폰"]
-! - 일부 이미지도 지워질수 잇어 주석처리
-!##[alt*="혜택"]
-
-!||platform.twitter.com^$3p,from=~tweetdeck.com|~twitter.com|~twitter.jp,badfilter
-!||platform.twitter.com^$3p,from=~tweetdeck.com|~twitter.com|~twitter.jp|~x.com,badfilter
-
-!*$frame,3p,from=~goo.gl|~google.com|~youtu.be|~youtube.com,badfilter
-
-!*$frame,3p,from=~facebook.com|~flickr.com|~google.com|~instagram.com|~linkedin.com|~meta.com|~pinterest.com|~quora.com|~reddit.com|~tiktok.com|~tumblr.com|~twitter.com|~vimeo.com|~wattpad.com|~youtube.com,badfilter
-
-
-! - 기타
-!##[id*="taboola-"]
-!##[id^="aswift"]
-!##[id^="aswift_"]
-!##iframe[src*="about"]
-!##div[data-ad]
-!##[data-ad-slot]
-!##[data-ad-client]
-!##.adsbox
-
-||xn--$document.badfilter
-
-/advertise-*.js^$script,badfilter
-
-/share.*.js^$script,badfilter
-
-/ad0*$badfilter
-
-! ============================================================================
-
-
-
-
-!##[class*="popup" i]
-! - 예외 - https://javgiga.com/ - 플레이어가 사라짐
-! - 예외 - https://yandex.com/ - 검색란 사라짐
-! - 예외 - https://www.a-ha.io/ - 본문 사라짐
-!javgiga.com#@#[class*="popup" i]
-!yandex.com#@#[class*="popup" i]
-!a-ha.io#@#[class*="popup" i]
-!##[src*="popup" i]
-
-
-!##[class*="pop-up" i] 
-!##[class*="pop_up" i] 
-! - 예외
-! 다이닝코드 (https://www.diningcode.com/) - 팝업 차단시 랜덤 뿌연화면 발생 및 타지역 선택 불가
-!diningcode.com#@#[class*="popup" i] 
-! 픽팍 (https://mypikpak.com/) - 화면이 안보임
-!mypikpak.com#@#[class*="popup" i]
-
-
-!*ads*
-
-!#@#img[src*="ads" i]
-
-!!! 광역
-
-! - https://06.avsee.ru/
-!##a[href][target="_blank"] > img[width="100%"][src$=".gif"]
-!##a[target*="blank"] > img[width="100%"][src*=".gif"]
-
-
-
-
-! - 자브걸 (https://kr28.javgirl.co/)
-! - 티비핫 (https://tvhot1.com/)
-!i-boss.co.kr,~avsee.ru##a[target*="blank"] > img[src*=".gif"]
-
-
-
-! - 특이
-! - - - 만화방 (https://manhwabang.net/)
-!manhwabang.org##a[target*="target"] img
-
-
-!##[href*="banner" i]
-! 18모아 (https://18moa028.com/)
-!/^([\w-]+\.)?18moa\d+\.com$/#@#[href*="banner" i]
-!/^(www\.)?18moa\d+\.com$/#@#[href*="banner" i]
-
-
-!*banner*
-! - 11번가 - 사이트 구동이 안됨
-!@@||*banner*$script,domain=11st.co.kr|cookmana53.com
-! 18모아 (https://18moa028.com/)
-! 쿠팡플레이 (https://www.coupangplay.com/)
-! 엑스툰 (https://t3.xtoon365.com/) - 이미지 안보임
-! https://github.com/ - 일부 페이지 오류 발생
-! 킥 (https://kick.com/) - 영상 이미지 안보임
-! ZUM (https://zum.com/) - 일부 내용 안보임
-!@@||*banner*$image,domain=coupangplay.com
-!@@/https?:\/\/([^\/]+\.)?18moa\d+\.com\/.*banner.*/$image
-!@@||*banner*$domain=github.com
-!@@*banner*$image,domain=xtoon365.com
-!@@*banner*$image,domain=kick.com
-!@@*banner*$xhr,domain=zum.com
-! - 아래 안풀어도 됨 (배너 막혀서 나오는 메시지임. 검색과는 무관)
-!@@*banner*$xhr,domain=rememberapp.co.kr
-! - wixpress.com - 주소에 banner이 들어가지면 배너 아님 (일단 아래 2규칙 보류)
-!@@wixpress.com*banner*
-!@@siteassets.parastorage.com*banner*
-
-
-
-
-
-
-!!! 특정
-! - - - 이미지가 gif가 아닌 경우에도 사용
-! - - - 도지코믹스 (https://dozi352.com/)
-! - - - 애니위크 (https://aniweek.com/)
-! - - - 야툰 (https://yatoon238.com/)
-! - - - 마징가툰 (https://z70.mzgtoon.com/)
-! - - - 애니조아 (https://www.anizoa.net/)
-! - - - 펀비 (https://funbe652.com/)
-! - - - 애니어바웃 (https://aniabout.com/)
-! - - - 해피툰 (https://happytoon01.com/)
-! - - - 머니툰 (https://mtoon125.com/)
-! - - - 비툰 (https://btoon92.com/)
-! - - - 툰브르 (https://b18.toon-bro.xyz/)
-! - - - AV핑크 (https://avpink36.com/)
-! - - - 야모아 (https://yamoa36.site/)
-! - - - 쇼츠야동 (https://ya-world.net/)
-! - - - 야콩넷 (https://yakong5.net/)
-! - - - AV히로미 (https://avhiromi6.com/)
-! - - - 개조아 (https://dogjoa81.net/)
-! - - - 현자타임스 (https://hjtime96.com/)
-! - - - 딸타임 (https://ddaltime172.com/)
-! - - - 소리바다 (https://sorabada94.com/)
-! - - - 색색티비 (https://kr187.mysstv.com/)
-! - - - 야플릭스 (https://live9xxx.net/)
-! - - - 밤오빠 (https://bam444.com/)
-! - - - 야동나라 (https://yadongnala.com/) -영상 없는 듯
-! - - - 토렌트씨 (https://torrentsee287.com/)
-! - - - 토렌트팁 (https://torrenttip177.com/)
-! - - - 토렌트모바일 (https://torrentmobile203.com/)
-! - - - 토렌트썸 (https://torrentsome197.com/)
-! - - - 토렌트봇 (https://torrentbot195.com/)
-! - - - 토렌트밤 (https://torrentbam181.com/)
-! - - - 토렌트티티 (https://torrenttt182.com/)
-! - - - 토렌트좋다 (https://torrentzota135.com/)
-! - - - 토렌트탑 (https://torrenttop156.com/)
-! - - - 토렌트하하 (https://torrenthaha09.com/)
-! - - - 코티비씨 (https://m165.kotbc2.com/)
-! - - - AV핑유걸 (https://avpingyou20.com/)
-! - - - 야동그라운드 (https://yagro48.com/)
-! - - - 토팡 (https://torpang119.com/)
-! - - - 토렌트썰 (http://torrentsir175.com/)
-! - - - 다크걸 (https://darkgirl12.com/)
-! - - - AV쏘걸 (https://kr86.sogirl.so/)
-! - - - 애니24(https://ohli24.net/)
-! - - - 19다모아 (www.19damoa.org/)
-! - - - 콕콕티비 (https://cokcoktv10.com/)
-! - - - 청양티비 (https://cytv144.com/)
-! - - - 토렌트제이 (http://torrentj168.com/)
-! - - - 티비소리 (https://srtv119.com/)
-! - - - 4KJAV (https://kr29.4kjav.co/)
-! - - - 모두의AV (https://modooav6.com/)
-! - - - 주소골라 (https://jusopick01.com/)
-! - - - 조드 (https://zod.kr/)
-! - - - 엑스툰 (https://t3.xtoon365.com/)
-! - - - 토렌트쑥 (https://ssg2.torrentssg8.com/)
-! - - - 툰코 (https://tkor130.com/) 
-!##a[href*='http'][target*='blank'] img
-!##a[target*='blank']:has(img)
-![$domain=/^dozi\d+.com/],aniweek.com,[$domain=/^yatoon\d+.com/],[$domain=/^z\d+.mzgtoon.com/],anizoa.net,[$domain=/^funbe\d+.com/],aniabout.com,[$domain=/^happytoon\d+.com/],[$domain=/^mtoon\d+.com/],[$domain=/^btoon\d+.com/],[$domain=/^b\d+.toon-bro.xyz/],[$domain=/^avpink\d+.com/],[$domain=/^yamoa\d+.site/],ya-world.net,[$domain=/^yakong\d+.net/],[$domain=/^avhiromi\d+.com/],[$domain=/^dogjoa\d+.net/],[$domain=/^hjtime\d+.com/],[$domain=/^ddaltime\d+.com/],[$domain=/^sorabada\d+.com/],[$domain=/^kr\d+.mysstv.com/],live9xxx.net,[$domain=/^bam\d+.com/],yadongnala.com,[$domain=/^torrentsee\d+.com/],[$domain=/^torrenttip\d+.com/],[$domain=/^torrentmobile\d+.com/],[$domain=/^torrentsome\d+.com/],[$domain=/^torrentbot\d+.com/],[$domain=/^torrentbam\d+.com/],[$domain=/^torrenttt\d+.com/],[$domain=/^torrentzota\d+.com/],[$domain=/^torrenttop\d+.com/],[$domain=/^torrenthaha\d+.com/],[$domain=/^m\d+.kotbc2.com/],[$domain=/^avpingyou\d+.com/],[$domain=/^yagro\d+.com/],[$domain=/^torpang\d+.com/],[$domain=/^torrentsir\d+.com/],[$domain=/^darkgirl\d+.com/],[$domain=/^kr\d+.sogirl.so/],ohli24.net,[$domain=/^www.\d+damoa.org/],[$domain=/^cokcok\d+.com/],[$domain=/^cytv\d+.com/],[$domain=/^torrentj\d+.com/],[$domain=/^srtv\d+.com/],[$domain=/^kr\d+.4kjav.co/],[$domain=/^modooav\d+.com/],[$domain=/^jusopick.\d+.com/]##a[target*="blank"] img
-!zod.kr##a[target*="blank"] img
-![$domain=/^ssg\d+\.torrentssg\d+\.com/]##a[target*="blank"] img
-![$domain=/^t\d+.xtoon365.com/]##a[target*="blank"] img
-![$domain=/^jogaeparty\d+.com/]##a[target*="blank"] img
-![$domain=/^tkor/]##a[target*="blank"] img
-
-
-
-
-!!! - 광역 2
-! - - - 광역으로 사용
-! - - - AV조아 (https://avjoa70.com/) - 맨 상단 오른쪽 배너 / 영상내 큰 배너
-![$domain=/^wfwf\d+.com/]##a[href][target] img[src*="/wp-content/uploads/"]
-!##[id*="imgDiv"] img[src*="/wp-content/uploads/"] 하면 영상 이미지 사라짐
-!##a[href]>img[src*="/wp-content/uploads/"] 하면 오른쪽 상단. 영상내 큰배너. 영상 아래 배너만 선택되어 영상 이미지는 안사라지나 로고가 사라짐
-!##a[href][target] img[src*="/wp-content/uploads/"]
-!  아래 예외 사항들이 생겨 세부적으로 쪼갬
-! - - - AV조아 (https://avjoa75.com/) - 맨 상단 오른쪽 배너
-! - - - 시네마조아 (https://cinemajoa82.com/) - 맨 상단 오른쪽 배너
-! - - - AV핑보걸 (https://pinkbo47.com/) - 맨 상단 오른쪽 배너
-!##[role="banner"] a[href][target] img[src*="/wp-content/uploads/"]
-! - - -  AV조아 (https://avjoa70.com/) - 영상내 큰 배너
-! - - - 시네마조아 (https://cinemajoa82.com/) - 영상내 큰 배너
-!##[id*="imgDiv"] a[href][target] img[src*="/wp-content/uploads/"]
-! - - -  위 규칙에 해당되지 않는 배너 (위 기재된 규칙대로 했을때 사라지는 배너로 인해 못함에 따라)는 ##.happy-inside-player로 처리
-! - -  AV핑보걸 (https://pinkbo47.com/) - 맨 상단 오른쪽 배너
-! - - - 야통령 (https://xn--5-v10fo35av1l.com/)
-! - - - 조개무비 (https://v15.jogemovie.net/) - 상단 배너 중 1개만 선택됨
-! - - - 딥페이크코리아 (https://xn--k01b606a2qg0ld.com/ (https://dfake.top/) - 메인 상단 제외 전체 배너
-! - - - 아래 규칙으로 통일
-! - - - AV조아 오른쪽 상단 배너
-! - - - 야통령 오른쪽 상단 배너
-!##a[href] img[src*="/wp-content/uploads/"] 로 하면 다른 영상 이미지도 선택됨. 아래 규칙으로 변경
-!##[target]:has(img[src*="/wp-content/uploads/"])
-! - - - 예외
-! - - - - https://tati-log.com/ 기사 하단에 게시글 이미지 지워짐 (그냥 두자)
-! - - - 예외 (https://dramaday.me/) - 이미지 사라짐 (이미지 확장자가 .webp임)
-!dramaday.me#@#[target]:has(img[src*="/wp-content/uploads/"])
-! - - - https://www.tid-hee.com/ - 이미지 사라짐
-!tid-hee.com#@#[target]:has(img[src*="/wp-content/uploads/"])
-! - https://momoiroadult.com/ - 영상 이미지 링크 안보여서 클릭 못함
-! - https://emuokunmaster.com - 영상 이미지 링크 안보여서 클릭 못함
-! - https://alive-video.com - 영상 이미지 링크 안보여서 클릭 못함
-! - https://adult-live.com/ - 영상 이미지 링크 안보여서 클릭 못함
-! - https://of996.com/ - 이미지 안보임
-!momoiroadult.com#@#[target]:has(img[src*="/wp-content/uploads/"])
-!emuokunmaster.com#@#[target]:has(img[src*="/wp-content/uploads/"])
-!alive-video.com#@#[target]:has(img[src*="/wp-content/uploads/"])
-!adult-live.com#@#[target]:has(img[src*="/wp-content/uploads/"])
-!of996.com#@#[target]:has(img[src*="/wp-content/uploads/"])
-
-
-!========================
-
-
-! - 아래 규칙으로 하면 브라우저에서 로그인시 bitwarden에서 못가져옴
-!##[style*="z-index:9999"], [style*="z-index: 9999"], [style*="z-index:2147483647"], [style*="z-index: 2147483647"]
-!##div[style*="z-index:9999"], div[style*="z-index: 9999"], div[style*="z-index:2147483647"], div[style*="z-index: 2147483647"]
-! - 2147483647값은 스크립트에서 많이 사용해서 보류
-
-!##div[style*="z-index:10" i], div[style*="z-index: 10" i]
-!
-!##div[style*="z-index:9999" i], div[style*="z-index: 9999" i]
-! - 예외 - https://m.ilbe.com/ - 일부 사라짐
-! - 예외 - tcafe21.com - 출첵 이동 불가
-!tcafe21.com,ilbe.com#@#div[style*="z-index:9999" i], div[style*="z-index: 9999" i]
-
-!##div[style*="z-index:2000" i], div[style*="z-index: 2000" i]
-! - 예외 - https://www.genspark.ai/ - 왼쪽 하단 메뉴 클릭시 반응없음
-!genspark.ai#@#div[style*="z-index:2000" i], div[style*="z-index: 2000" i]
-
-!##div[style*="z-index:12345" i], div[style*="z-index: 12345" i]
-
-!##div[style="position: fixed" i]
-
-!##div[style*="'display: block" i]
-
-
-!========================
-
-
-! - 예외
-! - 옥션 (https://www.auction.co.kr/)
-! - 쿠팡 (https://www.coupang.com/)
-! - 네이버스토어 (https://shopping.naver.com/)
-!- 네이버쇼핑라이브 (https://shoppinglive.naver.com/)
-! - 스마트스토어 (https://smartstore.naver.com/)
-! - 브랜드스토어 (https://brand.naver.com)
-! - G마켓 (https://www.gmarket.co.kr/)
-! - 성심당몰 (https://www.sungsimdangmall.co.kr/)
-! - 와디즈 (https://www.wadiz.kr/)
-! - 11번가 (https://www.11st.co.kr/)
-! - 톡딜 (https://store.kakao.com/)
-! - 중고나라 (https://web.joongna.com/)
-! - 엑스툰 (https://t3.xtoon365.com/)
-! - 아이허브 (https://kr.iherb.com/)
-! - ZUM (https://zum.com/)
-! - GS샵 (https://www.gsshop.com/)
-! - 쿠팡플레이 (https://www.coupangplay.com/)
-! - 숲토어 (https://sooptore.sooplive.com/)
-! - 카카오TV (https://tv.kakao.com/)
-! - 애니라이프 (https://anilife.app/)
-!auction.co.kr,coupang.com,shopping.naver.com,shoppinglive.naver.com,smartstore.naver.com,brand.naver.com,gmarket.co.kr,sungsimdangmall.co.kr,wadiz.kr,11st.co.kr,store.kakao.com,web.joongna.com,t2.xtoon365.com,kr.iherb.com,zum.com,gsshop.com,coupangplay.com,sooptore.sooplive.com,tv.kakao.com,anilife.app#@#[class*="banner" i]
-! - 트위치 (https://www.twitch.tv/) - 하지말아볼것
-
-!=======================
-
-!*/smartpop/*
-!
-!
-!*/widget.*
-!@@||*/widget.*$css
-!
-!*/widgets/*
-!@@||*/widgets/*$css,xhr
-
-
-!##[class*="push" i]
-!##[src*="/push" i]
-!*/push*
-! - 위에꺼가 광범위하면 아래로
-! - https://static.pfrt.yna.co.kr/www/js/pushMessaging.js?v=20260326_0935 (연합뉴스 푸시 알림)
-! - https://api-talks.naver.com/jsonp/push/count/v2/services/chat?callback=showTalkCount (네이버 쇼핑  톡(채팅/상담)의 읽지 않은 메시지 수나 대화 수 같은 카운트가 안보일 수 잇음)
-!*/push*$script
-
-
-!=============================
-
-
-!
-!
-!
-! 기타 프레임 규칙들
-
-! - https://javplayer.org/
-!##iframe[width="300"][height="250"][sandbox][src]
-!##iframe[width="728"][height="90"][sandbox][src]
-!##iframe[width="160"][height="600"][sandbox][src]
-!##iframe[width="320"][height="50"][sandbox][src]
-!##iframe[width="336"][height="280"][sandbox][src]
-!##iframe[width="970"][height="250"][sandbox][src]
-
-
-
-
-
-!
-!
-!
-! - 모든 웹사이트에서 우클릭 방지나 이미지 저장 차단 스크립트를 무력
-!*##section:remove-class(image-copy-protection)
-!
-!
-!
-! - 출처 : Adblock-Rule-Collection-Lite
-! - - - Funding Choices 서비스 삽입 (광고 차단 감지(Anti-AdBlock) / GDPR/쿠키 동의 배너 / 광고 수익 보호)
-!##iframe[name="googlefcPresent" i]
-!##iframe[name="googlefcPresent"]
-!
-!
-! - .top으로 끝나는 사이트들은 기본적으로 다 막아버리되, 뒤에 나열된 도메인들은 안전하거나 필요한 곳이니 접속을 허용해라"라는 화이트리스트(백색목록) 규칙
-! - -  .top 도메인의 특성: .com이나 .net에 비해 도메인 등록 비용이 매우 저렴해서, 스팸 사이트, 피싱 사이트, 악성 광고 유포지 등으로 악용되는 경우가 굉장히 많습니다.
-! - - - 출처 : Adblock-Rule-Collection-Lite
-!||top^$document,domain=~caitlin.top|~callmebymygender.top|~corriente.top|~gdtot.top|~nicenature.top|~reminder.top|~magocoro.top|~castlevania.top|~suiten.top|~shucks.top|~1stream.top|~ambr.top|~changlam10.top|~changlam11.top|~pdcdn1.top|~pressplay.top|~chillx.top|~strims.top|~thedesk.top|~audioforyou.top|~awavenue.top|~reyhub.top|~iboxs.top|~adrules.top|~hostingowy.top|~to|~yggtorrent.top|~yggleak.top|~asiaon.top|~voxel.top|~passt.top|~polar.top|~rifton.top|~rugaming.top|~doubledouble.top|~hedon-haven.top|~outlands.top|~tk-web.top|~qpmegathread.top|~qmk.top
-
-
-
-
-==================================
-
-
-!=============================
-
-
-! 기타
-! - - -  https://glimmory.io/%ED%88%B0%EC%BD%94-%EC%B5%9C%EC%8B%A0%EC%A3%BC%EC%86%8C/
-! - - - 배너
-!##.random-banners
-
-/smartad.$script,from=~smartad.ai,badfilter
-
-||media.$frame,3p,from=~ted.com,badfilter
-
-logger.js^$script,from=~crowdin.com,badfilter
-
-#@#.banner:not(html):not(body)
-
-#@#.banner-wrap
-
-
-!===============================================================================
-
-
-
-@@||kissjav.com^$generichide,badfilter
-
-/ad-$~stylesheet.badfilter
-
-^advertisement^$badfilter
-
-
-||www$badfilter
-
-
-
-
-!===========================
-
-
-
-
-! - 안해도 되는 규칙들
-://chaturbate.com$3p,badfilter
-://chaturbate.com$3p,$domain=~trand.co.kr
-
-!##[class^="widget" i]
-!##[src^="widget" i]
-
-!&stamat=*&chmob=$document
-
-! 쿠키 안내 팝업?
-!##div[style*="box-shadow: rgb(136, 136, 136) 0px 0px 12px; color: "]
-!##div[style*="box-shadow"]
-
-
-
-
-!====================================================================
-
-
-! - 제3자 스크립트 차단
-! - 티비위키/티비착/티비핫/후후티비/애니tv
-!*$script,3p,domain=/hoohootv/|linkkf.tv|tvhot2.com|tvmon1.com|/tvwiki/
-
-
-
-
-
-
-! avsee / https://tcafe21.com/ - main-head  gamepad
-! https://xn--9w3b43d58f04atzyznd.com/ - class="hero-lead"
-! 연합뉴스 - class="lead"
-! 연합뉴스TV - class="public-head"  class="digital-head"  class="major-head"
-! 인벤 - class="head" Head  bttn_bad
-!##[class$="ad" i]:not(body):not(html):not([class*="head"]):not([class*="Head"]):not([class*="gamepad"]):not([class*="lead"]):not([class*="bttn_bad"])
-
-
-! https://adguard-dns.io/ - ace-adguard  react-select--adaptive-height
-! 인벤 - article-admin
-!##[class*="-ad" i]:not(body):not(html):not([class*="ace-adguard"]):not([class*="react-select--adaptive-height"]):not([class*="article-admin"])
-
-!##[class*="ad-" i]:not(body):not(html)
-
-! - 예외 - https://tktube.com/ - 영상내 이미지 및 플레이어 버튼 안보임 해결 is-ad-visible
-!##[class*="-ad-" i]:not(body):not(html):not([class*="is-ad-visible"])
-
-! - 숲 - chatbox_add_notice
-!##[class*="_ad" i]:not(body):not(html):not([class*="chatbox_add_notice"])
-
-! m.humoruniv.com - read_subject  ad_bri
-!##[class*="ad_" i]:not(body):not(html):not([class^="read_subject"]):not([class="ad_bri"])
-
-!##[class*="_ad_" i]:not(body):not(html)
-
-! https://m.humoruniv.com/ - download  read
-!##[id$="ad" i]:not(body):not(html):not([id$="download"]):not([id$="read"])
-
-!##[id*="-ad" i]:not(body):not(html)
-
-!##[id*="ad-" i]:not(body):not(html)
-
-!##[id*="-ad-" i]:not(body):not(html)
-
-!##[id*="_ad" i]:not(body):not(html)
-
-! https://m.humoruniv.com/ - read_
-!##[id*="ad_" i]:not(body):not(html):not([id*="read_"])
-
-!##[id*="_ad_" i]:not(body):not(html)
-
-
-!==========================================================
-
-
-! https://adguard-dns.io/ - ace-adguard  react-select--adaptive-height
-! 인벤 - article-admin (-admin)
-! avsee - -addon  -admin
-! https://www.aitimes.com/ - -address
-!##[class*="-ad" i]:not(body):not(html):not(main):not([class*="ace-adguard"]):not([class*="react-select--adaptive-height"]):not([class*="-admin"]):not([class*="-addon"]):not([class*="-address"])
-
-
-! 유튜브 - masthead-ad 이런식 이므로 제외
-!##[id*="ad-"]:not(body):not(html):not(main)
-!youtube.com#@#[id*="ad-"]:not(body):not(html):not(main)
-
-!##[class$="container"]:not(body):not(html):not(main)
-
-
-#!#[id$="container"]:not(body):not(html):not(main)
-
-! 유튜브 - id="container" 이므로 제외
-! 숲 - id="container" 이므로 제외
-!sooplive.com,youtube.com#@#[id$="container"]:not(body):not(html):not(main)
-
-
