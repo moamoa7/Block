@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260705
+! Version: 20260706
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -89,8 +89,8 @@ ad.co.kr#@#[href*="/ad/" i]
 
 ##[href*="/ads/" i]
 
-
-##[src*="/ads/" i]
+! - https://www.mrds66.com/ 계열 이미지 주소가 엄청 긴대 이중 /ads/로 되어있는것이 광고가 아니라서 제외 필요
+##[src*="/ads/" i]:not([src*="base64"])
 
 
 ##[src*=".ads/" i]
@@ -118,8 +118,6 @@ ad.co.kr#@#[href*="/ad/" i]
 
 ##[class$="tooltip" i]:not(body):not(html):not(main)
 
-! - 치지직 아이디 / 팔로우 사라짐 방지 :not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
-##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
 
 ##[class*="-tooltip_" i]:not(body):not(html):not(main)
 
@@ -279,10 +277,10 @@ ad.co.kr#@#[href*="/ad/" i]
 
 
 
-
 ! 쏘걸 - https://kr86.sogirl.so/  -  about:blank
 ! https://fd2ppv.cc/ - 프레임 이름이 없음
 !sogirl.so,fd2ppv.cc#@#div iframe:not([src*="/embed/"]):not([src*="/player.php?"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="view.php?ch="]):not([src*="xvqz.org/content/"]):not([src*="index.php?data="]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="media.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="]):not([src*="/static/player/artplayer/"]):not([src*=".php?&id="]):not([src*="yna.co.kr/program/"]):not([src*="stockwin.thinkpool.com/html/hktv/index.html"]):not([src*="upload18.com/play/"]):not([src*="18av.mm-cg.com/js/player/play.php?"]):not([src*="creatorofvideo.com/play/"]):not([src*="/javbraze_cdn/"]):not([src*="goodtv.co.kr/watch_banner.asp"]):not([src*="embed.streamxx.net"]):not([src*="guccihide.store/embed/"]):not([src*="play3737.com/?v="]):not([src*="streambeast.upn.one/"]):not([src*="ok.ru/videoembed/"]):not([src*="player.kick.com/"]):not([src*="kcdn.tving.com/"]):not([src*="jtbclive-cdn.jtbc.co.kr"]):not([src*="/attendance/"]):not([src*="x.videist.com/hls/"]):not([src*="llis-goodsdetail.lotteon.com"]):not([src*="itemdesc.ssg.com"]):not([src*="/comment.php?no="]):not([src*="gstatic.com/atari/embeds/"]):not([class*="nmContent"]):not([src*="nnmo0oi1.com/video/"]):not([src*="theofferwall.pincrux.com/chzzk/"]):not([src*="game.naver.com/notify?"]):not([src*="/?track=cam69_embed"]):not([src*="https://short.icu/"]):not([src*="emb.missav.to/?id="]):not([src*="1player.store/"]):not([src*="/jav.guru/searcho/?"]):not([src*="luluvid.com/"]):not([src*=".bestjavporn.com"]):not([src*="wasp.pandalive.co.kr/auth/?token="]):not([src*="/iframe/tab"]):not([src*="/video1.javdock.com/p/"]):not([src*="/vv/"]):not([src*="/static/player/videojs.html"]):not([src*="mypikpak.com/favorite-links-hub?"]):not([src*="/include/"]):not([src*="suckol-o5.asia/video/"]):not([src*="addons/dplayer/?url="]):not([data-src*="upload18.org"]):not([src*="dmm.co.jp/service/digitalapi/"]):not([src*="/player/r.php?r="]):not([src*="play.aving.tv/v.php?v="]):not([src*="rocketpay.coupang.com/rocketpay/pay/"]):not([src*="payment.coupang.com/v4/payments/payment?paymentToken="]):not([id="broadcastFrame"]):not([src*="bigwin.livenst.com/"]):not([src*="liventv.com/player?v="]):not([src*="wowtv.co.kr/ExportHTS/Index?popFrom="]):not([src*="-stream.live/"]):not([src*="/view/frame?"]):not([src*="/widget/article/"]):not([src*="/plugin/follow_button?"])
+
 
 
 ##[target] video
@@ -316,11 +314,30 @@ ad.co.kr#@#[href*="/ad/" i]
 deepseek.com#@#div[style*="banner" i]
 
 
-##li>[class*="banner"]
-toptoon.com#@#li > [class*="banner"]
 
-! - 개별 사이트마다 하는걸로 (##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]) 이것과 겹치는 일이 많음  / 해제도 2번 해야되는 일이 발생할 수 있음)
-!##div[class*="banner" i]
+! - 개별 사이트마다 하는걸로 (##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]) 이것과 겹치는 일이 많음  / 해제도 2번 해야되는 일이 발생할 수 있음) // 타겟이 없는 배너만 해당
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+!  - 치지직 (https://chzzk.naver.com/)
+! 쿠팡 (https://www.coupang.com/))
+! - 픽팍 (https://mypikpak.com/)
+! - 마이민트 (https://www.mimint.co.kr/)
+! - 포모스 (https://www.fomos.kr/)
+! - FapHouse (https://ko.fhcontent.com/)
+fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpak.com##[class*="banner" i]
+
+
+! - 개별 사이트마다 하는걸로 (##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]) 이것과 겹치는 일이 많음  / 해제도 2번 해야되는 일이 발생할 수 있음) // 타겟이 없는 배너만 해당
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! - https://today-sports9.com/
+[$domain=/today-sports/]##[src*="banner" i]
+
+
+! - 개별 사이트마다 하는걸로
+!##li[class*="banner"]
+
+! - 개별 사이트마다 하는걸로
+!##ul[class*="banner"]
+
 
 
 
@@ -366,12 +383,14 @@ toptoon.com#@#li > [class*="banner"]
 
 
 ! wdwd11.com - class="megu-post-banner"
-##[class*="banner" i]:has([target]:not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]))
+##[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! - 만개의 레시피 (https://www.10000recipe.com/)
+10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-[$domain=/funbe/],[$domain=/tkor/],[$domain=/jusoping/],wdwd11.com#@#[class*="banner" i]:has([target]:not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]))
+[$domain=/funbe/],[$domain=/tkor/],[$domain=/jusoping/],wdwd11.com#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
 
 
 ##[target]:has([src*="/background/"])
