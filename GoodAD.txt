@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260705
+! Version: 20260706
 !
 !
 !
@@ -291,7 +291,6 @@ baidu.com###s-hotsearch-wrapper
 mypikpak.com##.coupon-tips-overlay
 ! - 연간 할인 탑 배너
 !mypikpak.com##.coupon-top-banner
-mypikpak.com##div[class*="banner" i]
 ! - 왼쪽 메뉴 하단 로테이션 팝업
 mypikpak.com##.operation-container
 ! - 확장프로그램 설치 안내 팝업
@@ -408,7 +407,7 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 !
 ! 숲 (https://www.sooplive.com/)
 ! - 메인페이지 이벤트 팝업
-sooplive.com##[class*="noticelayer" i]
+sooplive.com##[class*="img"]:has([src*="event"])
 ! - 팝업
 !sooplive.com##.bnrimg_area
 ! - 개인페이지내 팝업
@@ -576,10 +575,10 @@ chzzk.naver.com##+js(json-prune, *.dab)
 !chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
 ! - 왼쪽 배너 (치즈 무료 수확)
-!##li>[class*="banner"]
+!chzzk.naver.com##[class*="banner" i]
 ! 놓치면 후회할 무료 치즈 툴팁
 ! - - - 치지직 아이디 / 팔로우 사라짐 방지
-!chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
+chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
 !##[class*="_tooltip_" i]
 ! 치트키 구매하기 툴팁
 !chzzk.naver.com##.tooltip - ##[class$="tooltip" i] 로 대체
@@ -657,7 +656,7 @@ kakaotv.daum.net#@#.ads
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
-! - 메인 배너
+! - 메인 배너 공간
 cineaste.co.kr##[class="main-title" i]
 ! - 오른쪽 배너
 !##.basic-banner
@@ -891,10 +890,9 @@ etoland.co.kr##.fixed-bottom
 ! -  -- 닉네임으로 된 광고
 !etoland.co.kr##body *[class*="list"]:has-text(/노마십가|인터넷상담|한결같은호랑이|비밀상점|SA2HAK/)
 !etoland.co.kr##body *[class*="list"]:has-text(/보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|야나기기1/)
-!etoland.co.kr##body *[class*="list"]:has-text(/내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr|캔커피/)
+!toland.co.kr##body *[class*="list"]:has-text(/내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr|캔커피/)
 ! -  -- 닉네임이 없는 광고
-!etoland.co.kr##[class*="bg-transparent"]
-!etoland.co.kr##[data-inouts-click="true"]
+etoland.co.kr##li:has([data-inouts-click="true"])
 ! =========================
 ! - 애드블럭 감지 해제 (출석체크 랜덤포인트 얻을려면 필요)
 @@||doubleclick.net^$domain=etoland.co.kr
@@ -1158,6 +1156,8 @@ ygosu.com##.board_view_fixed_container
 ! - - - 없앤 그 아래 요상한 텍스트 및 아이콘도 지움
 ygosu.com##.w_per100.dp_inline_block
 ygosu.com##.pull-left.btn-group
+! - AD 게시물
+ygosu.com##tr:has([href*="/ad/" i])
 !
 !
 ! 짱공유닷컴 (https://jj0u.com/) - 서비스 종료
@@ -1719,7 +1719,7 @@ fingerprint.
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 ![$domain=/^tvchak\d*\./]##[class*="popup_mdd" i]
 ! - 상단 배너 빈공간
-##[class*="card"]:has(> style)
+##[class*="card"]:has(> style):not(body):not(html):not(main)
 ! - 보증 안내 문구
 ![$domain=/^tvchak\d*\./]##.hezuo_div1
 [$domain=/tvchak/]##.hezuo_div1
@@ -1753,7 +1753,7 @@ fingerprint.
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://fz.hoohootv423.xyz/)
+! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://bi.hoohootv424.xyz/)
 ! - 배너 빈 공간
 ![$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 [$domain=/hoohootv/]###img_row_container
@@ -1847,6 +1847,7 @@ ttattack.com###thema_wrapper
 ![$domain=/^gogumatv\d+.com/]##.banner-container
 ![$domain=/gogumatv/]##.banner-container
 ! - 쓸데없는거
+! - - - 옥션 (추석 기획전)
 ##div[class^="swiper-"] > ul > li > a[target="_blank"]
 !
 !
@@ -2548,6 +2549,8 @@ sports.donga.com##.view_center
 !||mercury.coupang.com^
 ! - 메인 배너
 coupang.com##.main-today
+! - 오른쪽 작은 배너들 (target 없는것이라 별도 작성)
+!coupang.com##[class*="banner" i]
 ! - 오늘의 발견
 coupang.com###todayDiscoveryUnit
 ! - ㅡ이상품 놓치지 마세요
@@ -2608,7 +2611,7 @@ auction.co.kr##.hotspot
 auction.co.kr##.hp_thema
 ! - 맞춤  AI픽 (AI 광고 배너)
 !##[class*="bot_ad" i]
-auction.co.kr##.hp_bot_ad
+!!auction.co.kr##.hp_bot_ad
 ! - 검색시 나오는 하단 스폰서링크 삭제
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !auction.co.kr##.component--sponsor_link.component
@@ -3746,7 +3749,7 @@ kissjav.*,kpop.xxx,mrdouga.com,deepfakesporn.com,jpvoyeur.com,daftsex.net,javgay
 ##.banner-ad
 !
 !
-! 야동코리아 (https://www.yako06.com/)
+! 야동코리아 (https://yako09.com/)
 ! - 배너
 ![$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
 !##[class="banner_grid" i]
@@ -4023,7 +4026,7 @@ jamakyadong.me##[class*="g-col"]
 !##.rounded-md.border.p-1.w-full
 ! - 비디오 복원
 ![$domain=/^redvi\d+.com/]#@#iframe[sandbox][src]
-[$domain=/redvi/]#@#iframe[sandbox][src]
+![$domain=/redvi/]#@#iframe[sandbox][src]
 !
 !
 ! 밤포탈 (https://bampt4.com/)
@@ -4080,9 +4083,9 @@ jamakyadong.me##[class*="g-col"]
 !##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner > .draggable.slick-list
 !##[class^="live-stream-banner" i]
 ! - 게시물내 한칸짜리 배너
-##[src*="event_banner" i]
+!##[src*="event_banner" i]
 ! - 모바일 왼쪽 사람 아이콘 없애기
-##.sidebar-user-trigger
+[$domain=/today-sports/]##.sidebar-user-trigger
 ! - 이미지 복원
 ![$domain=/^today-sports\d+.com/]#@#[class*="img-box" i]
 !
@@ -4804,7 +4807,9 @@ xn--9l4b15e2td.com##.widget-box
 ! - - - 주소야 (https://jusoya.com/)
 /data/apms/background/*$image
 ! - 상단 배너 공간
-[$domain=/^linklove\d+.com/]##.w-box
+![$domain=/^linklove\d+.com/]##.w-box
+[$domain=/linklove/]##.w-box
+
 ![$domain=/linklove/]##.w-box
 ! - 중간 배너 공간
 ![$domain=/^linklove\d+.com/]##.miso-love-ad
@@ -5131,12 +5136,13 @@ zod.kr##[class*="app-clearfix"] [id]:has( img[src*="rainforest.cdn.zod.kr/files/
 zod.kr##[class*="app-aside"] [id]:has( img[src*="rainforest.cdn.zod.kr"])
 !
 !
-! 주소콘 (https://t.me/s/jusoconcom) (https://www.jusocon.com/) (https://jusocon1.com/)
+! 주소콘 (https://t.me/s/jusoconcom) (https://www.jusocon.com/) (https://jusocon6.com/)
 ! - 상단 배너
 !##.banner_box
 !##[class*="banner_box" i]
 ! - 배너 지움으로 인해 손가락 위치가 틀려서 지움에 따라 글자까지 같이 지우기
-[$domain=/^jusocon/]###dvhidden
+![$domain=/^jusocon/]###dvhidden
+[$domain=/jusocon/]###dvhidden
 !
 !
 ! 샤나 (https://shana.pe.kr/)
@@ -5210,11 +5216,11 @@ semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 fc-info.com##[class*="videoContainer"]
 !
 !
-! 야동티비 (https://xn--2q1bp1r9rce9ecnf02r.org/) (https://yadongtv89.com/)
+! 야동티비 (https://xn--2q1bp1r9rce9ecnf02r.org/) (https://yadongtv95.com/)
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
 ![$domain=/^yadongtv\d+.com/]##[class*="popup-"]
 ! - 게시물 사이 광고 삭제
-##div[class*="object-none"]:has([class*="object-top"] a[href][target])
+[$domain=/yadongtv/]##div[class*="object-none"]:has([class*="object-top"] a[href][target])
 !
 !
 ! 무료 임시 파일 공유 Kiosk (https://kio.ac/)
@@ -5396,19 +5402,21 @@ dschool.co.kr##[id*="lean_overlay" i]
 !
 ! https://modded-1.com/
 ! - 다운로드 버튼 안보이는거 해결
-modded-1.com#@#[class*="ad-container" i]
+!modded-1.com#@#[class*="ad-container" i]
 !
 !
-! 라바TV (https://lrtv113.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! 라바TV (https://lrtv117.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 팝업
 !##.popup_left
 !##.popup_right
 ! - 상단 배너
-[$domain=/^lrtv\d+.com/]##.yk-container
-[$domain=/lrtv]
+![$domain=/^lrtv\d+.com/]##.yk-container
+[$domain=/lrtv/]##.yk-container
 ! - 영상 하단 배너
-! - - -  뷰티비 (https://vitv78.com/) 
-[$domain=/^lrtv\d+.com/],[$domain=/^vitv\d+.com/]##.yk-container3
+! - - -  뷰티비 (https://vitv85.com/) 
+![$domain=/^lrtv\d+.com/],[$domain=/^vitv\d+.com/]##.yk-container3
+[$domain=/lrtv/],[$domain=/vitv/]##.yk-container3
+
 !
 !
 ! 별별티비 (https://bbtv87.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
@@ -5768,8 +5776,8 @@ kbjfree.com##.min-h-\[52px\].mx-auto
 !
 !
 ! 여성경제신문 (https://www.womaneconomy.co.kr/)
-! - 기사내  배너 공간 (모바일)
-womaneconomy.co.kr##span.frame > em.auto-images
+! - banner 잘못 지워짐 수정 (상단 검색 부분 지워짐 방지)
+womaneconomy.co.kr##[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]):not([class*="user-banner"])
 !
 !
 ! 마이민트 (https://www.mimint.co.kr/)
@@ -5780,7 +5788,7 @@ mimint.co.kr##[class*="row"]:has([id="powerLinkList"])
 ! - 게시물과 인기 게시물 사이 배너 공간
 mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
 ! - 실시간 인기 TOP / 최근 등록된 게시물 내 빈 줄
-mimint.co.kr##ul > .adline-v2-slot
+!mimint.co.kr##ul > .adline-v2-slot
 ! - 이벤트
 mimint.co.kr##.event_right_new
 ! - 본문 하단에 필요없는 숲 영상 첨부 안보이게
@@ -5991,7 +5999,7 @@ rou.video##div.md\:col-span-1
 ||view-api.fikfap.com^
 !
 !
-! https://www.tuptbsxdv.cc/  https://active.qpnwzxrj.cc/  https://advise.qpnwzxrj.cc/  https://again.qpnwzxrj.cc/   https://www.mrds66.com/   https://advise.kaugdkmgj.cc
+! https://www.mrds66.com/  https://www.tuptbsxdv.cc/  https://active.qpnwzxrj.cc/  https://advise.qpnwzxrj.cc/  https://again.qpnwzxrj.cc/   https://advise.kaugdkmgj.cc
 ! - - - 주소가 바뀌어서 이건 아예 주소없이 가야함
 ! - 맨위 상단 배너 1개 - 해당 사항 없음으로 바뀐듯
 !/qpnwzxrj/,/^(www\.)?mrds/###post-card-179882 > .post-card-mask
@@ -6609,6 +6617,18 @@ outstanding.kr##.Toastify
 ! https://www.aitimes.com/
 ! - 기타
 ||mci1.co.kr^
+!
+!
+! FapHouse (https://ko.fhcontent.com/) - 풀영상 보는곳이 아님
+! - 배너
+!fhcontent.com##[class*="banner" i]
+! - 구독 팝업
+fhcontent.com###modal-widgets
+!
+!
+! 만개의 레시피 (https://www.10000recipe.com/)
+! - 모바일 AD 광고 글
+m.10000recipe.com##li:has-text(AD)
 
 
 
