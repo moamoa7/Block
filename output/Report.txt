@@ -1,5 +1,5 @@
 DNS Blocklist Build Report
-Generated: 2026-07-05 05:13:15 UTC
+Generated: 2026-07-05 08:21:48 UTC
 ============================================================
 
 [1] Reference Filters
@@ -21,11 +21,11 @@ Generated: 2026-07-05 05:13:15 UTC
   - AdGuard HTTPS Firefox: 18 extracted
   - AdGuard HTTPS Windows: 7 extracted
   - AdGuard HTTPS Mac: 11 extracted
-  - HaGeZi DNS Pro: 1,530 extracted
+  - HaGeZi DNS Pro: 1,532 extracted
   - Discord Official Domains: 43 extracted
   - anudeepND Whitelist: 191 extracted
   - DandelionSprout AGH Whitelist: 285 extracted
-[External Whitelist Total] 6,721 domains
+[External Whitelist Total] 6,723 domains
 
 [Tracker Auto-Filter] Removed 205 trackers from external whitelist
   [Blacklist hits] 8 base domains:
@@ -117,4 +117,4 @@ Generated: 2026-07-05 05:13:15 UTC
   Step 2 (+ personal block): 357,977  (forced added: 16)
   Step 3 (- personal white): 357,977  (whitelist override: 0)
 
-[6] Final Whitelist: 6,523 domains
+[6] Final Whitelist: 6,525 domains

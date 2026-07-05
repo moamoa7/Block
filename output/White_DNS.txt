@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-05 05:13:15 UTC
+! Generated: 2026-07-05 08:21:48 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,523
+! Exception Rules: 6,525
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -289,6 +289,7 @@
 @@||api-02.moengage.com^
 @@||api-03.moengage.com^
 @@||api-04.moengage.com^
+@@||api-101.moengage.com^
 @@||api-ao-list.adison.co^
 @@||api-ao.adison.co^
 @@||api-ap1.hubapi.com^
@@ -3027,6 +3028,7 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
+@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -3072,7 +3074,6 @@
 @@||mkto-ab480014.com^
 @@||mkto-ab480015.com^
 @@||mkto-ab480166.com^
-@@||mkto-ab530057.com^
 @@||mkto-ab530192.com^
 @@||mkto-ab540059.com^
 @@||mkto-ab540143.com^
@@ -4739,7 +4740,6 @@
 @@||sitecheck5.opera.com^
 @@||sitecheck6.opera.com^
 @@||sitecheck7.opera.com^
-@@||sites.hscoscdn-ap1.net^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
 @@||sites.hscoscdn00.net^
@@ -5219,6 +5219,7 @@
 @@||suite16.emarsys.net^
 @@||suite17.emarsys.net^
 @@||suite19.emarsys.net^
+@@||suite2-cf.emarsys.net^
 @@||suite20.emarsys.net^
 @@||suite22-cf.emarsys.net^
 @@||suite22.emarsys.net^
@@ -5234,6 +5235,7 @@
 @@||suite30.emarsys.net^
 @@||suite33-cf.emarsys.net^
 @@||suite33.emarsys.net^
+@@||suite34-cf.emarsys.net^
 @@||suite34.emarsys.net^
 @@||suite35-cf.emarsys.net^
 @@||suite36.emarsys.net^
