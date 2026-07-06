@@ -24,14 +24,6 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/White_DNS.txt
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br/>
-※ GoodAD2.txt
-<br/>
-
-트래킹/텔레메트리 차단 필터
-```
-https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD2.txt
-```
-<br/>
 ※ DangerAD.txt
 <br/>
 
