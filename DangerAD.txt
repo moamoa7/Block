@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260706
+! Version: 20260707
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -583,9 +583,9 @@ fd2ppv.cc,nid.naver.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not
 
 !play.sooplive.com,aitimes.com,map.naver.com,leakedzone.com,m.richgo.ai,search.naver.com,[$domain=/watchfreekav/],toptoon.com,hook.tistory.com,torrentbob.com,pandalive.co.kr,[$domain=/ddalsney/],[$domain=/hdhd/],popkontv.com,reddit.com,hungryapp.co.kr,shopping.naver.com,avdbs.com,issuelink.co.krcineaste.co.kr,javgiga.com#@#[class*="float" i]:not(body):not(html):not(main)
 
-! - 필요할때 도메인별로 하는걸로
+! - 필요할때 도메인별로 하는걸로 : 인벤 하나뿐인듯으로 보여 여기에 안하고 인벤에 놓음
 ! - 인벤 - https://www.inven.co.kr/
-inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
+!inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 
 
@@ -644,3 +644,6 @@ adguard-dns.io,everythingmoe.com,avdbs.com,뉴토끼우회.com#@#[id^="ad" i]:no
 
 
 code.visualstudio.com,platinmods.com,javdock.com,kidd.co.kr,kaspersky.ru#@#[class*="ads" i]:not(body):not(html):not(main)
+
+
+!=========================================================================
