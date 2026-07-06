@@ -1,7 +1,7 @@
 ! Title: GoodAD2 Supplement (중복 제거·경량화판)
 ! Description: 공개 리스트(AdGuard Base/Tracking + uBO 기본)와 함께 쓰는 보충 필터. 중복 규칙 제외, 한국 스트리밍/서비스·AI 텔레메트리 중심.
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260706-supplement-v2
+! Version: 20260706-supplement-v3
 ! [사용법] AdGuard Base + AdGuard Tracking Protection + (uBO) 기본 리스트를 먼저 구독한 뒤 이 필터를 추가하세요.
 ! [참고] 모바일 앱 SDK·Statsig 등 저빈도/우회성 규칙은 DNS 필터로 이관 권장.
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -22,21 +22,7 @@
 
 
 ! ═══════════════════════════════════════════
-! [B] 이름 기반 전역 쿠키 차단 (AdGuard 전용, 방문마다 발동)
-! ═══════════════════════════════════════════
-!#if (adguard)
-$cookie=/^_ga/
-$cookie=/^_gcl_/
-$cookie=/^__utm/
-$cookie=/^_uetsid$/
-$cookie=/^_uetvid$/
-$cookie=/^cto_bundle$/
-$cookie=/^__hstc$/
-!#endif
-
-
-! ═══════════════════════════════════════════
-! [C] 라이브 스트리밍 — 한국 특화 (핵심만)
+! [B] 라이브 스트리밍 — 한국 특화 (핵심만)
 ! ═══════════════════════════════════════════
 ! ※ 안 보는 플랫폼 블록은 통째로 삭제해도 무방
 
@@ -55,7 +41,7 @@ $cookie=/^__hstc$/
 
 
 ! ═══════════════════════════════════════════
-! [D] AI / LLM 텔레메트리 (핵심만)
+! [C] AI / LLM 텔레메트리 (핵심만)
 ! ═══════════════════════════════════════════
 ! Statsig(도메인 우회)·split.io·launchdarkly는 저빈도/우회성 → 제외 (DNS로 이관 권장)
 ||chatgpt.com/ces/v1/t$xmlhttprequest,redirect-rule=noopjson
@@ -66,7 +52,7 @@ $cookie=/^__hstc$/
 
 
 ! ═══════════════════════════════════════════
-! [E] 토큰/세션 보호 예외 (오작동 방지, 필수)
+! [D] 토큰/세션 보호 예외 (오작동 방지, 필수)
 ! ═══════════════════════════════════════════
 @@|wss://$removeparam
 @@/^https?:\/\/([a-z0-9-]+\.)*?(github\.com|githubusercontent\.com|gitlab\.com|cloudflare\.com)/$removeparam
