@@ -928,6 +928,10 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 !inven.co.kr##.text
 ! - 상단 검색어 하단 텍스트
 inven.co.kr##.search-word
+! - 상단 예약 구매
+inven.co.kr##.hero-section__top-ad
+! - 게임 핫딜
+inven.co.kr##.inven-games.menuGroup
 ! - 오른쪽 배너 공간
 !- - - ##.ad-right2 처리 후 남는 공간
 inven.co.kr##.commu-right > div
@@ -984,8 +988,6 @@ inven.co.kr#@#.ad
 !one.google.com#@#[class*="Ad"]
 ! - - - map.naver.com - 검색란에 내용 안보임
 !map.naver.com#@#[class*="Ad"]
-! https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-inven.co.kr##.inven-games.menuGroup
 ! - - - PC
 !inven.co.kr##.new-board
 ! - - - 모바일
