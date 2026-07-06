@@ -2,7 +2,7 @@
 ! Title: DNS Rewrite (Supplement / 초경량화판)
 ! Description: 공개 DNS 리스트(HaGeZi Pro/Pro++, AdGuard DNS filter, Filter-KR 등)에
 !              없거나 거의 안 잡히는 항목만 남긴 순수 보충 필터.
-! Version: 20260706-supplement-v2
+! Version: 20260706-supplement-v3
 !
 ! [원칙] 유명 공개 리스트 아무거나 깔면 이미 커버될 도메인은 넣지 않는다.
 !        남기는 것: (1) 개인 예외/badfilter  (2) 직접 발견한 미등재 도메인
@@ -26,6 +26,10 @@
 
 ! ── badfilter (다른 리스트의 특정 규칙 무력화) ──
 ||adballoon.sooplive.com^$badfilter
+
+! 치지직 로딩/채팅 오작동 방지 (AdGuard 모바일 광고필터·List-KR의 veta.naver.com 차단 무력화)
+! 참고: gall.dcinside.com/adguard/10886, /10939
+@@||veta.naver.com^
 
 
 ! ═══════════════════════════════════════════
