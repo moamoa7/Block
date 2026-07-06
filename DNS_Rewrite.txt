@@ -2,7 +2,7 @@
 ! Title: DNS Rewrite (Supplement / 초경량화판)
 ! Description: 공개 DNS 리스트(HaGeZi Pro/Pro++, AdGuard DNS filter, Filter-KR 등)에
 !              없거나 거의 안 잡히는 항목만 남긴 순수 보충 필터.
-! Version: 20260706-supplement-v3
+! Version: 20260706-supplement-v4
 !
 ! [원칙] 유명 공개 리스트 아무거나 깔면 이미 커버될 도메인은 넣지 않는다.
 !        남기는 것: (1) 개인 예외/badfilter  (2) 직접 발견한 미등재 도메인
@@ -49,7 +49,7 @@
 !
 !
 ! ═══════════════════════════════════════════
-! [3] 개인 판단 차단 (취향/의심 — 리스트에 없을 수 있음)
+! [3] 개인 판단 차단
 ! ═══════════════════════════════════════════
 ! Quetta 브라우저 (의심스러워 개인적으로 차단)
 ||qt.quetta.net^
@@ -57,6 +57,19 @@
 ||feedback.quetta.net^
 ||bcp.quetta.net^
 ||online-sync.quetta.net^
+!
+!
+!
+! ═══════════════════════════════════════════
+! [4] 개인 판단 차단
+! ═══════════════════════════════════════════
+||11df2f7d8d.com^
+||view-api.fikfap.com^
+||cbox.ws^
+||cdn.gladly.com^
+||cdn.perfops.net^
+||tracking.cds.dmm.co.jp^
+||b.hatena.ne.jp^
 !
 !
 ! ═══════════════════════════════════════════
