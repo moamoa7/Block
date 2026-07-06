@@ -1,7 +1,7 @@
 ! Title: GoodAD2 Supplement (중복 제거·경량화판)
 ! Description: 공개 리스트(AdGuard Base/Tracking + uBO 기본)와 함께 쓰는 보충 필터. 중복 규칙 제외, 한국 스트리밍/서비스·AI 텔레메트리 중심.
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260706-supplement-v3
+! Version: 20260706-supplement-v4
 ! [사용법] AdGuard Base + AdGuard Tracking Protection + (uBO) 기본 리스트를 먼저 구독한 뒤 이 필터를 추가하세요.
 ! [참고] 모바일 앱 SDK·Statsig 등 저빈도/우회성 규칙은 DNS 필터로 이관 권장.
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -32,6 +32,8 @@
 ||apis.naver.com/commercial/*/vast^$xmlhttprequest,redirect=noopvast-2.0
 ||apis.naver.com/commercial/*/vmap^$xmlhttprequest,redirect=noopvmap-1.0
 ||livecloud.pstatic.net/*/ad/*^$media,redirect=noopmp4-1s
+! List-KR의 광범위 차단 무력화 (glad/prod 광고만 정밀 차단으로 대체)
+||ssl.pstatic.net/tveta/libs/$badfilter
 ||ssl.pstatic.net/tveta/libs/glad/prod/*$script,xmlhttprequest,domain=chzzk.naver.com
 
 ! ── 숲 (SOOP) ──
