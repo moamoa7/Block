@@ -40,17 +40,6 @@ $cookie=/^__hstc$/
 ! ═══════════════════════════════════════════
 ! ※ 안 보는 플랫폼 블록은 통째로 삭제해도 무방
 
-! ── Twitch 인스트림 광고 ($hls, AdGuard 전용) ──
-!#if (adguard)
-||usher.ttvnw.net/api/channel/hls/*$hls=/stitched-ad/
-||video-weaver.*.hls.ttvnw.net^$hls=/Amazon/
-||video-edge-*.*.hls.ttvnw.net^$hls=/Amazon/
-||twitch.tv^$cookie=unique_id
-||twitch.tv^$cookie=unique_id_durable
-!#endif
-||twitch.tv/api/channels/*/ad^
-||twitch.tv/api/channels/*/commercial^
-
 ! ── 치지직 (CHZZK) ──
 ||api.chzzk.naver.com/ad-polling/*/lives/*/ad
 ||api.chzzk.naver.com/service/*/ad/display-status
