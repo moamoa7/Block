@@ -1,31 +1,29 @@
 ! Title: GoodAD2 Supplement (중복 제거·경량화판)
-! Description: 공개 리스트(AdGuard Base/Tracking + uBO 기본)와 함께 쓰는 보충 필터. 중복 규칙 제외, 한국 스트리밍/서비스·앱 SDK·AI 텔레메트리 중심.
+! Description: 공개 리스트(AdGuard Base/Tracking + uBO 기본)와 함께 쓰는 보충 필터. 중복 규칙 제외, 한국 스트리밍/서비스·AI 텔레메트리 중심.
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260706-supplement
+! Version: 20260706-supplement-v2
 ! [사용법] AdGuard Base + AdGuard Tracking Protection + (uBO) 기본 리스트를 먼저 구독한 뒤 이 필터를 추가하세요.
+! [참고] 모바일 앱 SDK·Statsig 등 저빈도/우회성 규칙은 DNS 필터로 이관 권장.
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
 
 ! ═══════════════════════════════════════════
-! [A] 고유 removeparam (공개 리스트 미커버분만)
+! [A] 고유 removeparam (공개 리스트 미커버 + 상시 발동분)
 ! ═══════════════════════════════════════════
 ! utm_/*clid/아마존·이베이·알리 등은 AdGuard Tracking이 이미 처리 → 제외
+! tcd_code/cmp_code/lptag는 저빈도 → 제외
 *$removeparam=NaPm
 *$removeparam=nv_mid
 *$removeparam=n_query
 *$removeparam=n_rank
 *$removeparam=ssc,domain=~naver.com|~search.naver.com
 *$removeparam=kakao_track_id
-*$removeparam=lptag
-*$removeparam=tcd_code
-*$removeparam=cmp_code
 *$removeparam=/^n_(ad|campaign|keyword|media|match|query|rank)/
 
 
 ! ═══════════════════════════════════════════
-! [B] 이름 기반 전역 쿠키 차단 (AdGuard 전용)
+! [B] 이름 기반 전역 쿠키 차단 (AdGuard 전용, 방문마다 발동)
 ! ═══════════════════════════════════════════
-! 공개 리스트가 도메인 단위로만 잡는 부분을 쿠키명으로 보강
 !#if (adguard)
 $cookie=/^_ga/
 $cookie=/^_gcl_/
@@ -40,6 +38,7 @@ $cookie=/^__hstc$/
 ! ═══════════════════════════════════════════
 ! [C] 라이브 스트리밍 — 한국 특화 (핵심만)
 ! ═══════════════════════════════════════════
+! ※ 안 보는 플랫폼 블록은 통째로 삭제해도 무방
 
 ! ── Twitch 인스트림 광고 ($hls, AdGuard 전용) ──
 !#if (adguard)
@@ -65,75 +64,20 @@ $cookie=/^__hstc$/
 ||static.sooplive.com/asset/service/da/AdParameter.js^$script,redirect=noopjs
 ||sooplive.com/api/v1/ad^$xmlhttprequest
 
-! ── Kick ──
-||kick.com/api/v1/analytics^
-
-! ── 세이프티넷 (스트림 오작동 방지) ──
-@@||usher.ttvnw.net^
-@@||video-edge-*.ttvnw.net^
-@@||video-weaver.*.ttvnw.net^
-@@||livecloud.pstatic.net^
-@@||play.sooplive.com^
-@@||stream.sooplive.com^
-@@||stream.kick.com^
-
 
 ! ═══════════════════════════════════════════
-! [D] 한국 서비스 텔레메트리 (경로 단위)
+! [D] AI / LLM 텔레메트리 (핵심만)
 ! ═══════════════════════════════════════════
-||log.smartstore.naver.com^
-||stats.gmarket.co.kr^
-||action.11st.co.kr^
-||track.11st.co.kr^
-||stat.auction.co.kr^
-||log.coupang.com^
-||action.coupang.com^
-||logger.coupang.com^
-||ljc.coupang.com^$redirect-rule=nooptext
-||stat.musinsa.com^
-||tracking.yes24.com^
-||stats.aladin.co.kr^
-||stat.melon.com^
-||log.tving.com^
-||analytics.wavve.com^
-||log.watcha.com^
-||log.daangn.com^
-||analytics.bunjang.co.kr^
-||log.kakaopay.com^
-||analytics.afreecatv.com^
-||nstatic.dcinside.com/dc/dcad^
-
-
-! ═══════════════════════════════════════════
-! [E] AI / LLM 텔레메트리 (공개 리스트 미커버)
-! ═══════════════════════════════════════════
+! Statsig(도메인 우회)·split.io·launchdarkly는 저빈도/우회성 → 제외 (DNS로 이관 권장)
 ||chatgpt.com/ces/v1/t$xmlhttprequest,redirect-rule=noopjson
 ||chatgpt.com/ces/v1/p|$xmlhttprequest,redirect-rule=noopjson
 ||openai.com/v1/rgstr^
-||sdk.openai.com^$xmlhttprequest
 ||a-cdn.anthropic.com/analytics.js/*/analytics.min.js
 ||claude.ai/api/event_logging/
-||statsig.com^$xmlhttprequest
-||*.statsig.com^$xmlhttprequest
-||featureassets.org^$xmlhttprequest
-||events.launchdarkly.com^$xmlhttprequest
-||sdk.split.io^$xmlhttprequest
-||events.split.io^$xmlhttprequest
 
 
 ! ═══════════════════════════════════════════
-! [F] 앱/모바일 SDK 텔레메트리 (핵심만)
-! ═══════════════════════════════════════════
-||api.branch.io/v1/install^
-||sdk-api.appsflyer.com^$xmlhttprequest
-||t.appsflyer.com^$xmlhttprequest
-||api.airbridge.io^$xmlhttprequest
-||sdk.airbridge.io^$xmlhttprequest
-||app.adjust.com^$xmlhttprequest,third-party
-
-
-! ═══════════════════════════════════════════
-! [G] 토큰/세션 보호 예외 (오작동 방지, 필수)
+! [E] 토큰/세션 보호 예외 (오작동 방지, 필수)
 ! ═══════════════════════════════════════════
 @@|wss://$removeparam
 @@/^https?:\/\/([a-z0-9-]+\.)*?(github\.com|githubusercontent\.com|gitlab\.com|cloudflare\.com)/$removeparam
