@@ -70,7 +70,7 @@
 !
 !
 ! - 내가 어떤 사이트에 있든, 광고 회사나 추적 서버로 내 클릭 정보를 몰래 전송하는 모든 백그라운드 핑(Ping) 통신을 원천 봉쇄해라
-!*$ping,3p
+*$ping,3p
 !
 !
 ! - Google의 클릭 추적 기능을 무력화
@@ -555,7 +555,7 @@ sooplive.com##+js(no-fetch-if, check_new_ad)
 ||deapi.sooplive.com^
 ! - 기타
 /static*js/ad*.js$script,1p
-/banner.php$from=~research.hchs.hc.edu.tw
+!/banner.php$from=~research.hchs.hc.edu.tw
 !
 !
 ! 시네티 (https://cinety.sooplive.com/)
@@ -6612,8 +6612,6 @@ ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
 !
 !
 ! https://code.visualstudio.com
-! - 배경 복원
-@@*background$domain=code.visualstudio.com
 !
 !
 ! https://javclick.com/
