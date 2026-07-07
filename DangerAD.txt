@@ -580,6 +580,17 @@ code.visualstudio.com,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(
 
 
 
+! - 필요할때 도메인별로 하는걸로 : 인벤 하나뿐인듯으로 보여 여기에 안하고 인벤에 놓음
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! - 인벤 - https://www.inven.co.kr/
+! - 치치직 - https://chzzk.naver.com/
+chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
+
+
+
 ! - 混合规则(更新日期2026-07-07 18:51:46)
 ! - - - 추후 검토해볼것
 #@#[class*="ads_"]:not([class*="reads_"]):not(.main_and_ads_block)
