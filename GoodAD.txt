@@ -64,6 +64,11 @@
 !
 !
 !
+! - - - 거의 모든 사이트에서 서비스 워커 스크립트 파일(sw.js 등 변형 포함) 로딩을 차단하되, 나열된 5개 도메인은 예외로 둔다
+! - - - 서비스 워커는 푸시 알림 스팸, 백그라운드 추적, 캐시를 이용한 우회 광고/추적, 일부 악성 스크립트 지속성 등에 악용될 수 있음
+/^https?:\/\/.*\/(\%?[235][a-fA-F3-6]|[a-f-_]{3,})?[Ss](ervice)?[-_]?[Ww](orker)?\.js(\?.*)?$/$script,match-case,from=~dagrasso.pl|~idx.google.com|~tiktok.com|~twitter.com|~youtube.com
+!
+!
 ! - 내가 어떤 사이트에 있든, 광고 회사나 추적 서버로 내 클릭 정보를 몰래 전송하는 모든 백그라운드 핑(Ping) 통신을 원천 봉쇄해라
 !*$ping,3p
 !
@@ -106,6 +111,7 @@
 !
 ! 구글 플레이 (https://play.google.com/)
 ! - 기타
+||google.com/log^
 /log?format=
 /gen204/*
 /browserinfo?f.sid=$xhr
@@ -123,7 +129,8 @@
 !mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]
 ! YousLis 무력화
 !mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
-*adsbygoogle.js*
+!*adsbygoogle.js* - 이 규칙이 포함된 도메인이 아래 도메인임
+||googlesyndication.com^
 !##[class*="google-ad"] - ##[class*="google"] 로 대체
 !##[class*="google" i]
 ! - 예외
@@ -245,7 +252,7 @@ discord.com##div[class*="notice"]
 ! - 하단 Reddit 앱에서 보기 팝업 (모바일) - PC 가입/로그인/설정메뉴열기를 지워서 다른걸로 찾아야함
 !reddit.com##.justify-end
 ! - 기타
-||redditstatic.com/shreddit/sentry-
+@@||redditstatic.com/shreddit$from=reddit.com
 !
 !
 ! GitHub (https://github.com/)
@@ -309,11 +316,6 @@ mypikpak.com##.operation-container
 !||mypikpak.com/scripts/clarity.js
 !||mypikpak.com/scripts/adjust.min.js
 !mypikpak.com##+js(set-cookie, allow_analysis, false)
-! - 기타
-! - - - 거의 모든 사이트에서 서비스 워커 스크립트 파일(sw.js 등 변형 포함) 로딩을 차단하되, 나열된 5개 도메인은 예외로 둔다
-! - - - 서비스 워커는 푸시 알림 스팸, 백그라운드 추적, 캐시를 이용한 우회 광고/추적, 일부 악성 스크립트 지속성 등에 악용될 수 있음
-/^https?:\/\/.*\/(\%?[235][a-fA-F3-6]|[a-f-_]{3,})?[Ss](ervice)?[-_]?[Ww](orker)?\.js(\?.*)?$/$script,match-case,from=~dagrasso.pl|~idx.google.com|~tiktok.com|~twitter.com|~youtube.com
-@@||redditstatic.com/shreddit$from=reddit.com
 ! - 재생 안되는거 해결
 @@||cdn.adjust.com^$script,3p,domain=mypikpak.com
 !
@@ -1849,7 +1851,7 @@ anizoa.net##.widget_media_image.r-widget-control.widget
 ttattack.com###thema_wrapper
 !
 !
-! 고구마티비 (https://www.gogumatv.vip)
+! 고구마티비 (https://www.gogumatv.live/)
 ! - 이미지 복원
 ![$domain=/^gogumatv\d+.com/]#@#[class*="banner" i]
 ![$domain=/gogumatv/]#@#[class*="banner" i]
@@ -4815,9 +4817,10 @@ of996.com##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximi
 /wdwd/###dvhidden
 !
 !
-! 주소핑  (https://jusoping3.com/)
+! 주소핑  (https://jusoping3.com/) (https://www.jusoping3.com/)
 ! - 배너 빈 공간
-[$domain=/jusoping/]##[class*="bg-black"]:has([href])
+![$domain=/jusoping/]##[class*="bg-black"]:has([href])
+/jusoping/##[class*="bg-black"]:has([href])
 ! - 순위 리스트 복원
 ![$domain=/^jusoping\d+.com/]#@#[class*="banner" i]
 ! - 상단 배너 지워짐으로 인한 빈공간
@@ -6586,8 +6589,8 @@ lineup11.net##html.has-adblock-modal, html.has-adblock-modal body { overflow: au
 !
 !
 ! https://stadiumbuilds.io
-! - 상단 스폰서
-##[aria-label*="sponsor" i]:not([id*="post-title"])
+! - 상단 스폰서 (Sponsor StadiumBuilds)
+!##[aria-label*="sponsor" i]:not(body):not(html):not(main)
 ! - 화면 비정상 복원
 ! - -- 타규칙에 /adslot-도 있어 차단함으로 아래처럼 복원
 @@||stadiumbuilds.io/assets/AdSlot-*.js
@@ -6678,6 +6681,24 @@ fhcontent.com###modal-widgets
 ! 만개의 레시피 (https://www.10000recipe.com/)
 ! - 모바일 AD 광고 글
 m.10000recipe.com##li:has-text(AD)
+!
+!
+! 엠봉 (https://mbong.kr/)
+! - 배너
+mbong.kr##.ink_slide
+! - 오른쪽 배너
+mbong.kr##.right_banne
+! - 여러 광고
+!##div:has(> div[id^="ad-"])
+##div:has(> div[id^="ad"])
+! - 공지글과 게시물 사이 빈공간 (광고제거 후 빈공간)
+mbong.kr##tr.list_top.custom_code > td
+!
+!
+! https://sites.google.com/
+! - 기타
+/nalogimpressions^
+
 
 
 
