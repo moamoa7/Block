@@ -584,7 +584,8 @@ adguard-dns.io,everythingmoe.com,avdbs.com#@#[id^="ad" i]:not(body):not(html):no
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! - https://platinmods.com/
 ! - https://code.visualstudio.com/
-code.visualstudio.com,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(main):not([class*="player" i])
+! - https://www.up-4ever.net/
+up-4ever.net,code.visualstudio.com,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(main):not([class*="player" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
