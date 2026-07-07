@@ -2,7 +2,7 @@
 ! Title: DNS Rewrite
 ! Description: 공개 DNS 리스트(HaGeZi Pro/Pro++, AdGuard DNS filter, Filter-KR 등)에
 !              없거나 거의 안 잡히는 항목만 남긴 순수 보충 필터.
-! Version: 20260707-supplement-v1
+! Version: 20260707-supplement-v2
 !
 ! [원칙] 유명 공개 리스트 아무거나 깔면 이미 커버될 도메인은 넣지 않는다.
 !        남기는 것: (1) 개인 예외/badfilter  (2) 개인 판단 차단 도메인
@@ -10,18 +10,25 @@
 !
 !
 ! ═══════════════════════════════════════════
-! [1] 예외 / 오버라이드 — 이 필터의 최우선 가치
+! [1] 예외 도메인
 ! ═══════════════════════════════════════════
-! (공개 리스트가 잡는 걸 개인 사정으로 되살리는 규칙)
-@@||sdk-api.hackle.io^
-@@||pincrux.com^
-@@||nsl.pincrux.com^
-@@||api.pincrux.com^
+! - HaGeZi's Pro Blocklist에 의해 차단됨
+@@||apkmody.com^
+! - 성인 채팅사이트 이동시 필요
 @@||scashwl.com^
+! - 성인 채팅사이트 구동시 필요
 @@||strpst.com^
 @@||doppiocdn.org^
+! - https://upfilesgo.com/ 다운시 필요
 @@||netpub.media^
-@@||apkmody.com^
+! ⚠️ 앱테크 적립 서비스 사용
+@@||nsl.pincrux.com^
+@@||api.pincrux.com^
+! - 치지직 무료 치즈 할려면 해제 필요
+@@||pincrux.com^
+! - SDK 설정 조회는 허용 (기능 플래그 동작)
+@@||sdk-api.hackle.io^
+!
 @@||07c225f3.online^
 @@||content-loader.com^
 @@||log.tving.com^
@@ -37,6 +44,10 @@
 @@||css-load.com
 @@||cdn.bootcdn.net^
 !
+! 치지직 로딩/채팅 오작동 방지 (AdGuard 모바일 광고필터·List-KR의 veta.naver.com 차단 무력화)
+! 참고: gall.dcinside.com/adguard/10886, /10939
+@@||veta.naver.com^
+!
 ! ── badfilter (다른 리스트의 특정 규칙 무력화) ──
 ||adballoon.sooplive.com^$badfilter
 ||exlogcollector.sooplive.com^$badfilter
@@ -44,58 +55,33 @@
 ||awswaf.com^$badfilter
 ||bamgrid.com^$badfilter
 !
-! 치지직 로딩/채팅 오작동 방지 (AdGuard 모바일 광고필터·List-KR의 veta.naver.com 차단 무력화)
-! 참고: gall.dcinside.com/adguard/10886, /10939
-@@||veta.naver.com^
-!
 !
 ! ═══════════════════════════════════════════
-! [2] 직접 발견한 미등재 도메인 — 유일한 존재 이유
+! [2] 차단 도메인
 ! ═══════════════════════════════════════════
-! (한국 불법스트리밍/성인/단축링크 계열 anti-adblock·트래커.
-!  공개 리스트 검색으로 미등재 확인됨. 발견 시 추가)
+! 한국 사이트(티비위키/티비몬/티비핫/뉴토끼 계열) anti-adblock 트래커
 ||whoas.xyz^
 ||peertrk.com^
 ||netguard742.com^
+! 이토랜드 광고 클릭시 나오는 도메인 (팝업 연결?)
 ||newtip.net^
+! 단축링크로 활용되지만 마켓팅 등 안좋은쪽으로 연결
 ||yax.zone^
 ||klyro.sarl^
+! - https://missav01.com/ 배너 광고 이미지 전용 도메인?
 ||partwithner.com^
-||obcanzma.in^
-||pbfillyintelmedia.com^
+!
+||cbox.ws^
+||b.hatena.ne.jp^
+|
 !
 !
 ! ═══════════════════════════════════════════
-! [3] 개인 판단 차단
+! [3] 의심 도메인
 ! ═══════════════════════════════════════════
-! Quetta 브라우저 (의심스러워 개인적으로 차단)
+! Quetta 브라우저
 ||qt.quetta.net^
 ||f.quetta.net^
 ||feedback.quetta.net^
 ||bcp.quetta.net^
 ||online-sync.quetta.net^
-!
-!
-!
-! ═══════════════════════════════════════════
-! [4] 개인 판단 차단
-! ═══════════════════════════════════════════
-||11df2f7d8d.com^
-||view-api.fikfap.com^
-||cbox.ws^
-||cdn.gladly.com^
-||cdn.perfops.net^
-||tracking.cds.dmm.co.jp^
-||b.hatena.ne.jp^
-!
-!
-! ═══════════════════════════════════════════
-! [참고] 아래는 공개 리스트에서 이미 커버 확인되어 제외함
-! ═══════════════════════════════════════════
-! - ljc.coupang.com, mercury.coupang.com → HaGeZi Pro mini / Pro++
-! - veta.naver.com → AdGuard DNS filter(추가진행) + 다수 리스트
-! - adcr.naver.com → AdGuard DNS filter
-! - dable.io → HaGeZi Pro++ / Pop-Up Ads
-! - tiara.kakao.com → GoodbyeAds 등
-! - 삼성/애플/MS/중국 SDK/RTB/팝언더 전체 → HaGeZi Multi Pro + AdGuard DNS
-! → 한국 서비스 세밀 추적이 필요하면 'Filter-KR'(get.dns.seia.io) 구독 권장
