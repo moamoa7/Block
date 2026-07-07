@@ -1006,7 +1006,7 @@ inven.co.kr#@#.ad
 ! - 핫딜 게시판
 inven.co.kr##.hotdeal-list
 ! - 오른쪽 하단 떠다니는 배너 (PC/모바일)
-inven.co.kr##.inven-float-alarm
+!inven.co.kr##.inven-float-alarm
 ! - 게시글 하단 안내창 (모바일)
 !inven.co.kr##.invenAppSuggestionInner
 inven.co.kr###invenAppSuggestion
