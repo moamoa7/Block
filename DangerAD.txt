@@ -419,7 +419,8 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 
 *background*
 ! - 예외
-@@||*background$domain=cineaste.co.kr|coupangplay.com|t-browser.com|deepseek.com
+! 이데일리 (https://www.edaily.co.kr/) 로고
+@@||*background$domain=cineaste.co.kr|coupangplay.com|t-browser.com|deepseek.com|code.visualstudio.com|edaily.co.kr
 
 
 
@@ -499,6 +500,10 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 
 
 
+! - 뉴스핌 (https://www.newspim.com/)
+##[target] img[src*="shop"]
+
+
 
 ! - 개별 작업하는걸로 변경
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들 (빈 공간이 안생기는 것만 할것)
@@ -535,7 +540,8 @@ clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not(
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! - https://nid.naver.com/
 ! - https://adguard-dns.io/
-nid.naver.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not(main)
+! - https://m.newspim.com/
+m.newspim.com,nid.naver.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://fd2ppv.cc/
