@@ -552,7 +552,9 @@ play.sooplive.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):n
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://www.avdbs.com/
-avdbs.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
+! - https://balbums.st/
+! - https://bunkr.cr/
+/bunkr|balbums/,avdbs.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
 
 
 
@@ -565,7 +567,9 @@ adguard-dns.io,everythingmoe.com,avdbs.com#@#[id^="ad" i]:not(body):not(html):no
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://뉴토끼우회.com/
-뉴토끼우회.com#@#[id^="ad" i]:not(body):not(html):not(main)
+! - https://balbums.st/
+! - https://bunkr.cr/
+/bunkr|balbums/,뉴토끼우회.com#@#[id^="ad" i]:not(body):not(html):not(main)
 
 
 
