@@ -152,8 +152,10 @@ ad.co.kr#@#[href*="/ad/" i]
 ||ads-*
 
 
-! - 레딧 제목 - post-title
-##[aria-label*=sponsor i]:not(body):not(html):not(main):not([id*="post-title"])
+
+##[aria-label*="sponsor" i]:not(body):not(html):not(main)
+
+
 
 ##[class*="sponsor" i]:not(body):not(html):not(main)
 
@@ -331,9 +333,13 @@ fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpak.com##[c
 
 
 ! - 개별 사이트마다 하는걸로 (##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]) 이것과 겹치는 일이 많음  / 해제도 2번 해야되는 일이 발생할 수 있음) // 타겟이 없는 배너만 해당
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! - https://mbong.kr/
+mbong.kr##[src*="banner" i]
+
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://today-sports9.com/
-[$domain=/today-sports/]##[src*="banner" i]
+/today-sports/##[src*="banner" i]
 
 
 ! - 개별 사이트마다 하는걸로
@@ -580,5 +586,3 @@ code.visualstudio.com,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(
 
 
 
-
-!=========================================================================
