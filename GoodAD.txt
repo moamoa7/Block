@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260707
+! Version: 20260708
 !
 !
 !
@@ -3472,7 +3472,7 @@ javtiful.com##.front-feature-placement-side
 
 !
 !
-! 야통령 (https://xn--6-v10fo35av1l.com/)
+! 야통령 (https://야통령7.com/)
 ! - 오른쪽 배너
 !##[class="happy-sidebar"]
 ##.happy-sidebar
@@ -3727,6 +3727,11 @@ missav.fans###b-a-b
 missav.*##+js(remove-attr, @keyup.space.window|@click, div)
 !
 !
+! MISSAV (missav.max) (missav.cx) (https://missav.uno/) (https://avmiss34.life/)
+! - 배너
+/avmiss|missav/##[class*="grid"][class*="mx-auto"]
+!
+!
 ! MISSAV (https://missvod5.com/)
 ! - 배너
 ![$domain=/^missvod\d+.com/]###banner-list.banner-list
@@ -3776,6 +3781,9 @@ kissjav.*,kpop.xxx,mrdouga.com,deepfakesporn.com,jpvoyeur.com,daftsex.net,javgay
 ![$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
 !##[class="banner_grid" i]
 !##.banner_grid
+!
+!
+! 야동코리아 (https://ydkorea2.com/)
 !
 !
 ! HOHO (https://hohoj.tv/)
@@ -3887,11 +3895,11 @@ javmov.com##.spot
 !||dmzjmp.com^
 !
 !
-! 자막야동 (https://3.jamakyadong.me/)
+! 자막야동 (https://3.jamakyadong.me/) - 없어진듯
 ! - 배너 이미지
 !||jamakyadong.me/myimages/*$image
 ! - 메인 전체 배너
-jamakyadong.me##[class*="g-11"]
+!!jamakyadong.me##[class*="g-11"]
 !###top-desktop
 ! - 영상내 배너 및 닫기 버튼
 !##[class="happy-insid-player"]
@@ -3903,9 +3911,9 @@ jamakyadong.me##[class*="g-11"]
 ! - 영상 하단 배너
 !##[class="unde-player-ad"]
 !##.unde-player-ad
-##[class*="player-ad" i]
+!##[class*="player-ad" i]
 ! - 맨 하단 배너 (영상 하단 배너 포함)
-jamakyadong.me##[class*="g-col"]
+!!jamakyadong.me##[class*="g-col"]
 !##.g-col
 !
 !
@@ -4051,7 +4059,7 @@ jamakyadong.me##[class*="g-col"]
 ![$domain=/redvi/]#@#iframe[sandbox][src]
 !
 !
-! 밤포탈 (https://bampt4.com/)
+! 밤포탈 (https://밤포탈.com/) (https://bampt5.com/)
 ! - 팝업 및 뿌연거 해결  (PC)
 !##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
@@ -4068,12 +4076,17 @@ jamakyadong.me##[class*="g-col"]
 !##[class*="infeed-ad" i] - ##[class$="-ad" i] 로 대체
 ! - 영상 목록 사이 / 영상 하단 배너 (모바일)
 !##[class*="premium-ad" i] - ##[class$="-ad" i] 로 대체
+! - 스폰서
+/bampt/##[class*="infeed"]:has([class*="-sponsor"])
 ! - 영상내 배너
 ##.ad-active
 ! - 영상 재생 해제
 ![$domain=/^bampt\d+.com/],iframe.mediadelivery.net#@#[src*="frame"]
-! - 기타
+! - 영상을 5초 기다림 없이 바로 나오게
 /vast^$xhr
+! - 기타
+||mediadelivery.net/rum.js
+
 
 !
 !
@@ -5249,7 +5262,7 @@ semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 fc-info.com##[class*="videoContainer"]
 !
 !
-! 야동티비 (https://xn--2q1bp1r9rce9ecnf02r.org/) (https://yadongtv95.com/)
+! 야동티비 (https://xn--2q1bp1r9rce9ecnf02r.org/) (https://yadongtv97.com/)
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
 ![$domain=/^yadongtv\d+.com/]##[class*="popup-"]
 ! - 게시물 사이 광고 삭제
@@ -6736,6 +6749,13 @@ m.10000recipe.com##li:has-text(AD)
 ||moneyapp.co.kr^$third-party
 ||yass.zip^^$doc
 ||yass.zip^^$third-party
+
+
+
+! - Cloudflare가 사이트에 심어두는 main.js(지문·행동 신호 수집에 관여하는 스크립트)를 막아서 프라이버시를 보호하려는 목적
+! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
+!  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
+/cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
 
 
 
