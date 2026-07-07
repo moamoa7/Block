@@ -189,6 +189,9 @@ ad.co.kr#@#[href*="/ad/" i]
 /analysis.
 
 *banner.js
+! - 숲스토어 - 해제해야 본문 보임
+@@*banner.js$domain=sooptore.sooplive.com
+
 
 */popup/*
 
@@ -387,7 +390,8 @@ fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpak.com##[c
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! - 만개의 레시피 (https://www.10000recipe.com/)
-10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
+! - https://www.sooplive.com/
+sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 [$domain=/funbe/],[$domain=/tkor/],[$domain=/jusoping/],wdwd11.com#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
@@ -487,13 +491,7 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 !##[target] img:not([src*="/logo/"]):not([class*="logo"]):not([alt*="로고"]):not([class*="icon"]):not([src*="trand"]):not([class*="img-tag"]):not([src*="sooplive"]):not([src*="viewimage.php?"]):not([class*="og-img"]):not([src*="nateimg"]):not([src*="pstatic.net"]):not([src*="daumcdn"]):not([src*=".twimg.com"]):not([src*="avatars"]):not([src*="yastatic"]):not([src*="yandex"]):not([src*="/sticker/"]):not([src*="lamu.club"]):not([src*="ytimg.com"]):not([src*="base64"]):not([src*="community"]):not([src*="cdn.brave.com"]):not([src*="redd.it"]):not([src*="contents.fc2.com"]):not([src*="/data/file/photo/"]):not([src*="/data/file/AI/"]):not([src*="/data/file/bj/"]):not([src*="/rank"]):not([src*="jusocon"]):not([src*="cdn.ibos.kr"]):not([src*="/design/upload_file/"]):not([src*="img.danuri.io/catalog-image/"]):not([src*="coupangcdn.com/thumbnails/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo/"]):not([src*="image.coupangcdn.com/image/coupang/rds/logo_v2/"]):not([src*="image.coupangcdn.com/image/coupang/home/icons/"]):not([src*="inven.co.kr/upload/"]):not([src*="com/data/editor/"]):not([src*="/bric_now"]):not([src*="/app/board/attach/image/"]):not([class*="inlist"]):not([src*="i.namu.wiki/i/"]):not([src*="img.seoul.co.kr/img/upload/"]):not([src*="img.seoul.co.kr//img/newsletter/"]):not([src*="avppomppu.com/data/file/gallery/"]):not([src*="imgstream3.com/s/"]):not([src*="mmfree2.com/A_PH/"]):not([src*="18av.mm-cg.com/images/"]):not([src*="/widgets/coin_currency/tpl/gears.png"]):not([src*="image.fomos.kr/contents/images/"]):not([src*="adult-live.com/wp-content/uploads/"]):not([src*="/alive-video"]):not([class*="size-full"]):not([class*="size-large"]):not([class*="size-checathlon"]):not([id*="Image1"]):not([src*="imgs.minkch.com/imgs/"]):not([src*="/m_webp/"]):not([src*="/amateur/s"]):not([src*="/censored/s/"]):not([src*="/uncensored/s/"]):not([src*="/live_show/s/"]):not([src*="teamblind.com/img/channel/logo/"]):not([src*="/player_button"]):not([src*="cdn.011st.com"]):not([src*="gdimg.gmarket.co.kr"]):not([src*="image.auction.co.kr"]):not([src*="scdn.st/"]):not([data-src*="of996.com/wp-content/uploads/"]):not([src*="aashop.co.kr/data/item/"]):not([src*="/_next/image?url=https%3A%2F%2Fassets.mtn.co.kr"]):not([src*="pic.popkontv.com"]):not([src*="dramaday.me/wp-content/uploads/"]):not([src*="imgs.search.brave.com"]):not([src*="/login"]):not([src*="img.youtube.com"]):not([src*="/resources/img/logo/"]):not([src*="cdn.javmiku.com/wp-content/uploads/"]):not([src*="btcdn.etoland.co.kr/"]):not([src*="popi.io/uploads/"]):not([data-original-height="110"]):not([src*="/humor_logo.png"]):not([src*="down-webp.humoruniv.com/"]):not([src*="timg.humoruniv.com/thumb.php?"]):not([src*="image-logo.alba.kr"]):not([src*="/pdf"]):not([src*="thumb.zumst.com/"]):not([src*="static.egloos.com/content/images/"]):not([src*="search.zum.com/_next/image"]):not([src*="static-file.com/s/"]):not([src*="pics.dmm.co.jp/digital/video/"]):not([src*="/quick_menu/"]):not([src*="thumb.ad.co.kr/"]):not([src*="pornzog.com/media/videos/tmb/"]):not([src*="image.chosun.com"]):not([src*="chosun.com/resizer/v2/"]):not([src*="/logo"]):not([src*="member"]):not([src*="img.hankyung.com/photo/"]):not([src*="code.visualstudio.com/"]):not([class*="rank_img"]):not([src*="img.joongang.co.kr/"]):not([src*="pds.joongang.co.kr/"]):not([src*="wimg.kyeongin.com"]):not([src*="static.kyeongin.com"]):not([src*="/ico/"]):not([src*="wimg.mk.co.kr"]):not([src*="tokyokinky.com/blog/wp-content/uploads/"]):not([src*="/templates/"]):not([src*="static.fc2.com/contents/"]):not([src*="/img/Download"]):not([src*="cdn.aitimes.com"]):not([src*="cdn.lawtimes.co.kr/news/"])
 
 
-!##[target*="blank"] img
-! - 개별 작업하는걸로 변경
-! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-!##[target*=blank] img
 
-
-!##[target*="blank"] img
 
 ! - 개별 작업하는걸로 변경
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들 (빈 공간이 안생기는 것만 할것)
@@ -507,143 +505,70 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 ##[id*="pop_"]:not(body):not(html):not(main)
 
 
-! - 팝업
-! https://simpcity.cr/login/ - captcha
-! https://mypikpak.com/ - popup-parent
-! https://tv.naver.com/ - LayerPopup
-! 치지직 - popup_modal
-! https://javgiga.com/ - none-popup
-! 현대몰 - sc-co-popup
-! https://www.a-ha.io/ - popup-open
-! - yandex - ahead-popup_yes"
-! play.sooplive.com - 확장프로그램(숲 키트) - soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode
-! https://mypikpak.com/ 목록 및 재생 - class="el-overlay is-drawer guide-app-popup el-modal-drawer"  class="el-overlay is-drawer guide-popup el-modal-drawer" -- 안해도 됨
-!##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
-
 
 ##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"])
 
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! - https://www.clien.net/
+! - https://nid.naver.com/
+! - https://mypikpak.com/
+! - https://www.a-ha.io/
+! - https://www.naver.com/
+! - https://yandex.com/
+yandex.com,naver.com,a-ha.io,mypikpak.com,nid.naver.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"])
 
-play.sooplive.com,yandex.com,a-ha.io,javgiga.com,naver.com,mypikpak.com,simpcity.cr#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"])
-
-
-! 클리앙 - 쪽지 팝업이 class=popup이라 #@#로 대체
-! https://clothoff.net/ - 스크롤 및 클릭이 안됨 / popup-overlay로 해야해서 예외처리
-! 네이버 플러스 멤버쉽 - :not([class*="popup_layer"]):not([class="home_popup"]):not([class*="popup_swiper"]):not([class*="popup_list"]):not([class*="popup_item"])
-nid.naver.com,clothoff.net,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"]):not([class*="popup-parent"]):not([class*="LayerPopup"]):not([class*="popup_modal"]):not([class*="none-popup"]):not([class*="sc-co-popup"]):not([class="popup-open"]):not([class*="ahead-popup_yes"]):not([class="soop-kit-hide-offline soop-kit-enlarge-sidebar-popup ratio169_mode"])
-
-
-! - 치지직 후원 - popup_contents._contents
-! https://fd2ppv.cc/ - id="popup-dialog"
-!##[id^="popup" i]:not(body):not(html):not(main)
-
-!chzzk.naver.com,fd2ppv.cc#@#[id^="popup" i]:not(body):not(html):not(main)
-
-!##[id$="popup" i]:not(body):not(html):not(main)
-!nid.naver.com#@#[id$="popup" i]:not(body):not(html):not(main)
-
-!##[id*="-popup-" i]:not(body):not(html):not(main)
-
-! https://adguard-dns.io/ - adguard_popup_
-!##[id*="_popup_" i]:not(body):not(html):not(main)
-!adguard-dns.io#@#[id*="_popup_" i]:not(body):not(html):not(main)
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! - https://clothoff.net/
+! - https://javgiga.com/
+clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"])
 
 
 ##[id*="popup" i]:not(body):not(html):not(main)
 
-fd2ppv.cc,nid.naver.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not(main)
-
-
-
-! - 떠다니는?
-! - 숲 - float_box
-! - https://javgiga.com/ - jw-floating
-! - https://cineaste.co.kr/ - nav-float
-! - https://www.issuelink.co.kr/ - float-e-margins border-bottom  /  [class*="ibox float-e-margins"][class*="ibox"]
-! - https://www.avdbs.com/ - float-left  float-right
-! - https://shopping.naver.com/ - FloatingTab
-! - https://hungryapp.co.kr/ - cntwrapfloat
-! - 레딧 - float-back
-! - 팝콘티비 - FloatingWrapper  / FloatingMenu  / FloatingUserInfo
-! - 호두코믹스 - float-5
-! - 딸즈니 - class="w-100 float-start header  class="w-100 float-start body-section"
-! - 팬더티비 - animate-floating
-! - 카지노다이소 -  class="float-start"  class="float-end"  class="width-50 float-start"  class="width-50 float-end text-end" - 보류
-! - https://hook.tistory.com - class="floatWrapper"
-! - 탑툰챗 - [variant=floating]
-! - https://s5.watchfreekav.com - af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid 
-! - 네이버서치 - class="api_floating_header spi-lnb"
-! - 리치고 (https://m.richgo.ai/) - FloatAiDashBoard  _FloatRight_
-! - https://leakedzone.com/ - float-none
-! - 네이버 지도 - WeatherFloatingButton
-! - https://www.aitimes.com/ - float-center  IMGFLOATING
-!##[class*="float" i]:not(body):not(html):not(main):not([class*="float_box"]):not([class*="jw-floating"]):not([class*="nav-float"]):not([class*="float-e-margins border-bottom"]):not([class*="ibox float-e-margins"][class*="ibox"]):not([class*="float-left"]):not([class*="float-right"]):not([class*="FloatingTab"]):not([class="cntwrapfloat"]):not([class*="float-back"]):not([class*="FloatingWrapper"]):not([class*="FloatingMenu"]):not([class*="FloatingUserInfo"]):not([class*="float-5"]):not([class="w-100 float-start header"]):not([class="w-100 float-start body-section"]):not([class*="animate-floating"]):not([class="floatWrapper"]):not([class*="[variant=floating]"]):not([class*="af-sec-post latest-posts-grid col-3 float-l pad archive-layout-grid"]):not([class="api_floating_header spi-lnb"]):not([class*="FloatAiDashBoard"]):not([class*="_FloatRight_"]):not([class*="float-none"]):not([class*="WeatherFloatingButton"]):not([class*="float-center"]):not([class="IMGFLOATING"])
-
-
-
-!play.sooplive.com,aitimes.com,map.naver.com,leakedzone.com,m.richgo.ai,search.naver.com,[$domain=/watchfreekav/],toptoon.com,hook.tistory.com,torrentbob.com,pandalive.co.kr,[$domain=/ddalsney/],[$domain=/hdhd/],popkontv.com,reddit.com,hungryapp.co.kr,shopping.naver.com,avdbs.com,issuelink.co.krcineaste.co.kr,javgiga.com#@#[class*="float" i]:not(body):not(html):not(main)
-
-! - 필요할때 도메인별로 하는걸로 : 인벤 하나뿐인듯으로 보여 여기에 안하고 인벤에 놓음
-! - 인벤 - https://www.inven.co.kr/
-!inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
-
-
-
-
-
-! - 천사티비 - adult-  (class^="adult"로 통일)
-!##div[class^="ad" i]:not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i])
-! - https://www.avdbs.com/ - adt_mode_toggle
-! - 디시인사이드 - adr_copy
-! - 숲 확장 프로그램 (숲 키트) - advanced-controls-panel
-! - 망가조아 - class*="adult_id__main" (class^="adult"로 통일)
-! - 블랙툰 - adlut - adult를 오타 비슷하게 해서 넣어놓음
-##[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
-
-
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-play.sooplive.com,dcinside.com,avdbs.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
+! - https://nid.naver.com/
+! - https://adguard-dns.io/
+nid.naver.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-[$domain=/mangajoa/]#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
+! - https://fd2ppv.cc/
+fd2ppv.cc#@#[id*="popup" i]:not(body):not(html):not(main)
 
 
-!##[class*="-ad-"]:not(body):not(html):not(main)
 
+##[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
 
-!##[class$="-ad"]:not(body):not(html):not(main)
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! - https://www.dcinside.com/
+! - https://play.sooplive.com/
+play.sooplive.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
 
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! - https://www.avdbs.com/
+avdbs.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class^="ads" i]):not([class^="ads-" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
 
-! 네이버 - type_ad
-!##[class$="_ad" i]:not(body):not(html):not(main)
-
-!naver.com#@#[class$="_ad" i]:not(body):not(html):not(main)
-
-
-! - https://뉴토끼우회.com - id="address"
-! - https://www.avdbs.com/ - adt_mode_area
-! - https://everythingmoe.com/ - id="add-review-text"
-! - https://adguard-dns.io/ - adguard_dns  adguard_popup  add-custom-blocklist
-!##[id^="ad" i]:not(body):not(html):not(main):not([id="address"]):not([id="adt_mode_area"]):not([id="add-review-text"]):not([id^="adguard_dns"]):not([id^="adguard_popup"]):not([id="add-custom-blocklist"])
 
 
 ##[id^="ad" i]:not(body):not(html):not(main)
-adguard-dns.io,everythingmoe.com,avdbs.com,뉴토끼우회.com#@#[id^="ad" i]:not(body):not(html):not(main)
 
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! - https://www.avdbs.com/
+! - https://everythingmoe.com/
+adguard-dns.io,everythingmoe.com,avdbs.com#@#[id^="ad" i]:not(body):not(html):not(main)
 
-! - missav.to - with-sidebar-ads
-! - https://www.kaspersky.ru/ - MastheadSideBuyBlock
-! - 산업일보 - class="adStart"  class="adStart header-is-sticky"
-! - https://www.javdock.com/ -  class="home blog wp-theme-dock has-mobile-ads" class="wp-singular post-template-default single single-post postid-730986 single-format-standard wp-theme-dock has-mobile-ads"
-! - https://platinmods.com/ - 개벌 게시물내 - threadStatusField  threadStarterPost
-! - https://code.visualstudio.com - class*="alt-downloads"
-!##[class*="ads" i]:not(body):not(html):not(main):not([class*="with-sidebar-ads"]):not([class*="MastheadSideBuyBlock"]):not([class="adStart"]):not([class="adStart header-is-sticky"]):not([class="home blog wp-theme-dock has-mobile-ads"]):not([class="wp-singular post-template-default single single-post postid-730986 single-format-standard wp-theme-dock has-mobile-ads"]):not([class*="threadStatusField"]):not([class*="threadStarterPost"]):not([class*="alt-downloads"])
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! - https://뉴토끼우회.com/
+뉴토끼우회.com#@#[id^="ad" i]:not(body):not(html):not(main)
+
 
 
 ##[class*="ads" i]:not(body):not(html):not(main)
 
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! - https://platinmods.com/
+! - https://code.visualstudio.com/
+code.visualstudio.com,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(main)
 
-code.visualstudio.com,platinmods.com,javdock.com,kidd.co.kr,kaspersky.ru#@#[class*="ads" i]:not(body):not(html):not(main)
-
-
-!=========================================================================
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! - https://missav.bz/
+missav.bz#@#[class*="ads" i]:not(body):not(html):not(main)
