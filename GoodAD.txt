@@ -101,6 +101,7 @@
 ! 구글 (https://www.google.com/)
 ! - 기타
 /gen_204^
+||accounts.google.com/gsi/log
 !
 !
 ! 구글 플레이 (https://play.google.com/)
@@ -1704,7 +1705,7 @@ poooo.ml#@#.ad
 !||whoas.xyz^ 차단으로 이미 해결
 !||whoas.xyz/live/track.js
 ! - p2p 차단 - Personal Privacy & Traffic Filter 규칙에 이미 있음
-!||tracker.$websocket
+||tracker.$websocket
 ! -P2P 추가 차단
 ! -P2P Media Loader라는 라이브러리의 핵심(core) 스크립트입니다. jsDelivr라는 공개 CDN에서 배포되는 오픈소스 npm 패키지
 ! -영상 스트리밍을 P2P(피어 투 피어) 방식으로 분산시키는 라이브러리
@@ -1715,7 +1716,7 @@ poooo.ml#@#.ad
 ! - - - https://cdn.jsdelivr.net/npm/p2p-media-loader-hlsjs@latest/build/p2p-media-loader-hlsjs.min.js
 ! - - - 애니라이프
 ! - - - https://cdn.jsdelivr.net/npm/swarmcloud-hls@latest/dist/hls-proxy.js
-!/p2p
+/p2p
 ! - 핑거프린팅 스크립트가 수집한 데이터를 전송하는 바로 그 서버 측 엔드포인트 차단
 ! - -  https://tvwiki35.net/bbs/ajax.fingerprint.php
 fingerprint.
@@ -6710,6 +6711,31 @@ m.10000recipe.com##li:has-text(AD)
 
 ! - 타규칙 오탐방지
 #@#img[width="0"][height="0"]
+
+
+! ───── WebSocket 연결은 removeparam 예외 ─────
+@@|wss://$removeparam
+
+
+! ═══════════════════════════════════════════
+! [추가] 의심스러운 단축 URL 리다이렉트 차단
+! ═══════════════════════════════════════════
+||19hot.news^$doc
+||19hot.news^$third-party
+||ho.fi^$doc
+||ho.fi^$third-party
+||n9k.run^$doc
+||n9k.run^$third-party
+||yax.zone^$doc
+||yax.zone^$third-party
+||shm.to^$doc
+||shm.to^$third-party
+||yas.xxx^$doc
+||yas.xxx^$third-party
+||moneyapp.co.kr^$doc
+||moneyapp.co.kr^$third-party
+||yass.zip^^$doc
+||yass.zip^^$third-party
 
 
 
