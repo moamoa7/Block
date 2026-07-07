@@ -2148,7 +2148,9 @@ joatoon-oa.com##.bg-opacity-50
 /sbxh|toki/#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
 ! - 보안 검증 통과를 위한 조치
 !!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴
-!@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/
+! - - - ublock
+@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/
+! - - - adguard
 @@/ad/*$from=/^toki\d+\.[a-z.]+\$/|/^sbxh\d+\.[a-z.]+\$/
 !
 !
