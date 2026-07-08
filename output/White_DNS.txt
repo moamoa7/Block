@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-08 07:18:33 UTC
+! Generated: 2026-07-08 09:42:05 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,534
+! Exception Rules: 6,535
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -2780,7 +2780,6 @@
 @@||lloydsbank.com^
 @@||lloydsbank.nl^
 @@||lndata.com^
-@@||lner-cdn.exponea.com^
 @@||lnks.co.in^
 @@||loader.adrelayer.com^
 @@||loadercdn.com^
@@ -3021,6 +3020,7 @@
 @@||mkto-ab130188.com^
 @@||mkto-ab140048.com^
 @@||mkto-ab150013.com^
+@@||mkto-ab150224.com^
 @@||mkto-ab170094.com^
 @@||mkto-ab170123.com^
 @@||mkto-ab170161.com^
@@ -3144,6 +3144,7 @@
 @@||mkto-lon050143.com^
 @@||mkto-lon050200.com^
 @@||mkto-lon060131.com^
+@@||mkto-lon060217.com^
 @@||mkto-lon070192.com^
 @@||mkto-lon080006.com^
 @@||mkto-lon080059.com^
@@ -3217,7 +3218,6 @@
 @@||mkto-sj210170.com^
 @@||mkto-sj220006.com^
 @@||mkto-sj230006.com^
-@@||mkto-sj230010.com^
 @@||mkto-sj240021.com^
 @@||mkto-sj250062.com^
 @@||mkto-sj250111.com^
@@ -4748,6 +4748,7 @@
 @@||sitecheck5.opera.com^
 @@||sitecheck6.opera.com^
 @@||sitecheck7.opera.com^
+@@||sites.hscoscdn-ap1.net^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
 @@||sites.hscoscdn00.net^
