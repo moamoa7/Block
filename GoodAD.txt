@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260708
+! Version: 20260709
 !
 !
 !
@@ -266,6 +266,13 @@ discord.com##div[class*="notice"]
 ! wikipedia.org
 wikipedia.org###siteNotice
 wikipedia.org###centralNotice
+!
+!
+! https://adguard-dns.io/
+! - 기타 (타 규칙에 애드가드 추가) 추가하지 않으면 대시보드 집입 안됨
+! - - - /stats 규칙은 "차단 결과를 세는 일"이 아니라 "차단 내역을 외부로 보고하는 일"을 막는 규칙
+/stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com,badfilter
+/stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com|~adguard-dns.io
 !
 !
 ! 덕덕고 (https://duckduckgo.com/)
@@ -3683,6 +3690,8 @@ homejav.com,123av.*,njavtv.com##.lg\:block
 ! - - - https://homejav.com/
 ! - - - nJAVTV (https://njavtv.com/)  하단 떠다니는 배너 포함
 ! - - - https://123av.org/
+! - - - https://www.missav365.sbs/
+! - - - https://www.thisav.sbs/
 !homejav.com,missav.*,njavtv.com##[class^="mx-auto" i]
 ![$domain=/^missav\d+.com/]##[class^="mx-auto" i]
 !homejav.com,missav.*,njavtv.com##[class*="space"] [class*="mx-auto"]
@@ -3709,7 +3718,7 @@ homejav.com,123av.*,njavtv.com##.lg\:block
 ! - 공간 남으며 위의 규칙으로 이미 다 지워진거라 필요가 없음
 !##[src*="//ads.adxadserv.com/" i]
 ! - 하단 배너
-missav.fans###b-a-b
+/missav/###b-a-b
 ! - 팝업 차단 (ublock)
 /missav/##+js(window.open-defuser)
 ! - 팝업 차단 (adguard)
@@ -6687,7 +6696,7 @@ mbong.kr##.ink_slide
 ! - 오른쪽 배너
 mbong.kr##.right_banne
 ! - 여러 광고
-##div:has(> div[id^="ad-"])
+mbong.kr##div:has(> div[id^="ad-"])
 ! - 공지글과 게시물 사이 빈공간 (광고제거 후 빈공간)
 mbong.kr##tr.list_top.custom_code > td
 !
@@ -6695,6 +6704,12 @@ mbong.kr##tr.list_top.custom_code > td
 ! https://sites.google.com/
 ! - 기타
 /nalogimpressions^
+!
+!
+! https://nimi.wiki/
+! - 기타
+://analytics.*/event
+
 
 
 
@@ -6776,3 +6791,7 @@ mbong.kr##tr.list_top.custom_code > td
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
 
 
+
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
