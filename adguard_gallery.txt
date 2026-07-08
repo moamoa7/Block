@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.07.08.0
+! Version: 2026.07.09.2
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -35,7 +35,7 @@ hungryapp.co.kr,hungapp.com##.fixed-top
 hungryapp.co.kr,hungapp.com##[aria-label="헝그리앱 배너"]
 inven.co.kr,mt.co.kr##[class$='ads']
 inven.co.kr,wowtv.co.kr,damoang.net,hungryapp.co.kr,hungapp.com##[class*='-banner']
-linkareer.com,m.ppomppu.co.kr,ggoorr.net,coinpan.com,shipdago.com##div:has(> ins.adsbygoogle)
+linkareer.com,m.ppomppu.co.kr,ggoorr.net,coinpan.com,shipdago.com,outstanding.kr##div:has(> ins.adsbygoogle)
 m.cafe.daum.net,bokuennews.com##[class*='_banner']
 m.wowtv.co.kr,inven.co.kr##[id*='Banner']
 maplescouter.com,loawa.com###popup
@@ -148,6 +148,7 @@ m.ppomppu.co.kr##ul:has(> .mobile-ad-sponsor)
 m.ruliweb.com##aside.native_timeline_ad
 m.ruliweb.com##tr:has(.nbp_container)
 m.wowtv.co.kr##.container > div[style]
+maplescouter.com##div.justify-center:has([alt="boomback ad"])
 mbong.kr##.ink_slide
 mbong.kr##.right_banne
 mbong.kr##div:has(> a > img[alt$="배너"])
@@ -368,6 +369,7 @@ www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 !
 !#safari_cb_affinity(general)
 @@||arca.live^$ghide
+@@||cdn.cms.outstanding.kr/images/origin/2
 !#safari_cb_affinity
 
 ! Malware & Spam
