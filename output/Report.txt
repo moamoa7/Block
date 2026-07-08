@@ -1,5 +1,5 @@
 DNS Blocklist Build Report
-Generated: 2026-07-08 22:50:59 UTC
+Generated: 2026-07-08 23:55:46 UTC
 ============================================================
 
 [1] Reference Filters
@@ -13,73 +13,35 @@ Generated: 2026-07-08 22:50:59 UTC
   - In all three sources : 43,251
 
 [2] External Whitelist Sources
-  - AdGuard SDNS Exclusions: 543 extracted
+  - AdGuard SDNS Exclusions: 0 extracted
   - AdGuard HTTPS Banks: 3,981 extracted
   - AdGuard HTTPS Sensitive: 180 extracted
   - AdGuard HTTPS Issues: 68 extracted
   - AdGuard HTTPS Android: 97 extracted
   - AdGuard HTTPS Firefox: 18 extracted
-  - AdGuard HTTPS Windows: 7 extracted
+  - AdGuard HTTPS Windows: 0 extracted
   - AdGuard HTTPS Mac: 11 extracted
   - HaGeZi DNS Pro: 1,543 extracted
-  - Discord Official Domains: 43 extracted
+  - Discord Official Domains: 0 extracted
   - anudeepND Whitelist: 191 extracted
   - DandelionSprout AGH Whitelist: 285 extracted
-[External Whitelist Total] 6,734 domains
+[External Whitelist Total] 6,183 domains
 
-[Tracker Auto-Filter] Removed 206 trackers from external whitelist
-  [Blacklist hits] 8 base domains:
+[Tracker Auto-Filter] Removed 151 trackers from external whitelist
+  [Blacklist hits] 5 base domains:
     - amazonaws.com
     - apple.com
     - googleapis.com
-    - googletagservices.com
-    - omtrdc.net
     - pinterest.com
-    - scorecardresearch.com
     - twitter.com
-  [Tracker domain hits] 33 exact matches:
-    - adfox.ru
-    - adverigo.com
-    - alipromo.com
-    - atdmt.com
-    - bat.bing.com
+  [Tracker domain hits] 2 exact matches:
     - bnc.lt
-    - cedexis.net
-    - csi.gstatic.com
-    - digidip.net
-    - easylist.club
-    - edigitalsurvey.com
-    - epn.bz
-    - ethn.io
-    - freegeoip.net
-    - g17media.com
-    - georiot.com
-    - hxtrack.com
-    - iesnare.com
-    - imrworldwide.com
-    - ip-api.com
-    - marfeel.com
-    - mixpanel.com
-    - ospserver.net
-    - podtrac.com
-    - qualtrics.com
-    - sascdn.com
-    - smartmediarep.com
-    - smartredirect.de
-    - v3cdn.net
-    - vectorstock.com
-    - visualwebsiteoptimizer.com
     - xg4ken.com
-    - zdbb.net
-  [Pattern hits] 165 domains (sample first 30):
-    - 2mdn.net
+  [Pattern hits] 144 domains (sample first 30):
     - a1.adform.net
     - ad.admitad.com
     - ad.doubleclick.net
     - adform.com
-    - adjust.com
-    - admitad.com
-    - adobedtm.com
     - adobetarget.data.adobedc.net
     - adservice.google.at
     - adservice.google.ca
@@ -102,7 +64,11 @@ Generated: 2026-07-08 22:50:59 UTC
     - adservice.google.co.uk
     - adservice.google.co.uz
     - adservice.google.co.ve
-    ... and 135 more
+    - adservice.google.co.vi
+    - adservice.google.co.za
+    - adservice.google.co.zm
+    - adservice.google.co.zw
+    ... and 114 more
 
 [3] Personal Blocklist
   - Personal Blocklist: 51 domains
@@ -113,8 +79,8 @@ Generated: 2026-07-08 22:50:59 UTC
 [Personal Whitelist Total] 13 domains
 
 [5] Apply Priority Rules
-  Step 1 (base - external whitelist): 366,018
-  Step 2 (+ personal block): 366,034  (forced added: 16)
-  Step 3 (- personal white): 366,034  (whitelist override: 0)
+  Step 1 (base - external whitelist): 366,178
+  Step 2 (+ personal block): 366,191  (forced added: 13)
+  Step 3 (- personal white): 366,191  (whitelist override: 0)
 
-[6] Final Whitelist: 6,535 domains
+[6] Final Whitelist: 6,044 domains
