@@ -500,11 +500,6 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 
 
 
-! - 뉴스핌 (https://www.newspim.com/)
-##[target] img[src*="shop"]
-
-
-
 ! - 개별 작업하는걸로 변경
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들 (빈 공간이 안생기는 것만 할것)
 ! - 블랙툰 (https://www.blacktoonurl2.com/) - 빈공간 생김
