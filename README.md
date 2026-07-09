@@ -19,7 +19,7 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/White_DNS.txt
 ※ GoodAD.txt
 <br/>
 
-개인 Filter List (한국사이트 위주)
+개인 Filter List ( 한국사이트 위주)  (일부 타 규칙 인용)
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
@@ -27,7 +27,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ※ DangerAD.txt
 <br/>
 
-개인 Filter List (범용 규칙으로 페이지 일부가 제대로 안보일수 있음)
+개인 Filter List (범용 규칙으로 페이지 일부가 안보일 수 있음) (일부 타 규칙 인용)
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/DangerAD.txt
 ```
