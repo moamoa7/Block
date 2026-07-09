@@ -1,5 +1,5 @@
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
-! Title: DNS Rewrite
+! Title: GoodDNS
 ! Description: 공개 DNS 리스트(HaGeZi Pro/Pro++, AdGuard DNS filter, Filter-KR 등)에
 !              없거나 거의 안 잡히는 항목만 남긴 순수 보충 필터.
 ! Version: 20260707-supplement-v2
