@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.07.09.4
+! Version: 2026.07.10.0
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -83,7 +83,7 @@ chimhaha.net##[id^='slot']
 chimhaha.net##div[style='margin-top: 50px; ']
 coinpan.com##li:has(> span.wgp_ad)
 coinpan.com##li:has(ins.adsbygoogle)
-coinpan.com##p > strong > span:contains(AD):upward(p)
+coinpan.com##p > strong > span:has-text(AD):upward(p)
 community.rememberapp.co.kr##[alt="배너 광고 이미지"]
 damoang.net##.dm-card:has(#gam-index-top-damoang-banner-index)
 daum.net##div[data-slot-type="AD_BRANDING_STATION"]
@@ -159,6 +159,7 @@ mimint.co.kr##.banner-split-reveal
 mimint.co.kr##.g-center-wrap
 mimint.co.kr##.index-right-banner
 mimint.co.kr##.list_row:has(div[data-ad-mode])
+missav01.com##+js(nowoif)
 mlbpark.donga.com##[class^='coupang'], [class*='naver_place']
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mmzone.co.kr###header_top:has(.ads-wrap)
@@ -203,6 +204,7 @@ teamblind.com##div.article-list-pre:has([href^='https://link.coupang.com/re/AFFS
 teamblind.com##div.article:has(> [href^='https://link.coupang.com/re/AFFSDP'])
 teamblind.com##div.border-b:has(> div.flex > div[id^="infeed-home-"])
 teamblind.com##div.comment_area.wrap-comment[style='cursor: pointer;']
+tiendeo.co.kr##section.justify-center:has([id^="div-gpt-ad-web"])
 tvseoul.kr##div[style*="width:360px"][style*="height:300px"]
 uppity.co.kr##.adrop-outer
 veritas-a.com##article.grid.body > div.clearfix:has(.ad-template)
@@ -221,6 +223,7 @@ yozm.wishket.com##[data-testid^="advertisement-"]
 ||link.coupang.com/re/AFFHOME?lptag=*&amp;subid=pointlink$all,reason=수익링크
 ||pandalive.co.kr^$document,domain=heye.kr
 ||player.bunny-frame.online/js/ad_fetcher.js
+||red52.kr/ads
 ||shortformstats.kakao.com^$app=com.kakao.talk
 ||t*kor*.com/images/
 ||thumb.kakaocdn.net^$app=com.kakao.talk
