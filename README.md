@@ -36,7 +36,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/DangerAD.txt
 ※ DNS_Rewrite.txt
 <br/>
 
-개인적 DNS 추가 차단 리스트
+개인 DNS List
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/DNS_Rewrite.txt
 ```
