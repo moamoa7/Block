@@ -1,6 +1,6 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-09 05:50:35 UTC
+! Generated: 2026-07-09 09:07:28 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
 ! Exception Rules: 6,535
 !
@@ -2855,6 +2855,7 @@
 @@||m-tcg.custobar.com^
 @@||m-tfe.custobar.com^
 @@||m-tmsif.custobar.com^
+@@||m-tp3tv.custobar.com^
 @@||m-ueuba.custobar.com^
 @@||m-va.custobar.com^
 @@||m-vek.custobar.com^
@@ -3020,7 +3021,6 @@
 @@||mkto-ab130188.com^
 @@||mkto-ab140048.com^
 @@||mkto-ab150013.com^
-@@||mkto-ab150224.com^
 @@||mkto-ab170094.com^
 @@||mkto-ab170123.com^
 @@||mkto-ab170161.com^
@@ -3032,6 +3032,7 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
+@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -3103,6 +3104,7 @@
 @@||mkto-ab640171.com^
 @@||mkto-ab650097.com^
 @@||mkto-ab650172.com^
+@@||mkto-ab650200.com^
 @@||mkto-ab660121.com^
 @@||mkto-ab660168.com^
 @@||mkto-ab680016.com^
@@ -4748,7 +4750,6 @@
 @@||sitecheck5.opera.com^
 @@||sitecheck6.opera.com^
 @@||sitecheck7.opera.com^
-@@||sites.hscoscdn-ap1.net^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
 @@||sites.hscoscdn00.net^
@@ -5242,7 +5243,6 @@
 @@||suite30-cdnnet.emarsys.net^
 @@||suite30-cf.emarsys.net^
 @@||suite30.emarsys.net^
-@@||suite32.emarsys.net^
 @@||suite33-cf.emarsys.net^
 @@||suite33.emarsys.net^
 @@||suite34.emarsys.net^
