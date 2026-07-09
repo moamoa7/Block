@@ -1,5 +1,5 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.07.09.2
+! Version: 2026.07.09.4
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -28,8 +28,6 @@ auction.co.kr,gmarket.co.kr##.plcc_banner
 blog.naver.com,comic.naver.com##[class*='banner_area']
 chimhaha.net,seoul.co.kr,mule.co.kr##[class*='Ad']
 danawa.com,m.cafe.naver.com,hungryapp.co.kr,hungapp.com##[class^='banner']
-ddaltube.com,yastar.xyz##+js(remove-attr, data-a, #dtube-player)
-ddaltube.com,yastar.xyz##.dtube-banner-grid, .vjs-video-ad-click-overlay, .player-banner-overlay > a.block
 gaykorea.net,yoboyobo.kr##.cu_gallery-item, .main-slider, .md_ad, .product_viewpage-latest, div[class^="m-b-"]:has(> div > p.powered)
 hungryapp.co.kr,hungapp.com##.fixed-top
 hungryapp.co.kr,hungapp.com##[aria-label="헝그리앱 배너"]
@@ -90,6 +88,8 @@ community.rememberapp.co.kr##[alt="배너 광고 이미지"]
 damoang.net##.dm-card:has(#gam-index-top-damoang-banner-index)
 daum.net##div[data-slot-type="AD_BRANDING_STATION"]
 dcinside.com##li[id^='comment_']:has(p[class*='txt']:has-text(/^(https?:\/\/)[A-Za-z0-9]{2,10}(\.[a-z]{2,7}|\.co\.kr)(\/(?=.*[a-z])(?=.*[0-9])[A-Za-z0-9_]{5,9})$/):not(:has-text(/git|g2sh|img|tebin|sendanywhe|twitter|rentry|x\.com|youtu|ibb\.co|archive\.md|t\.me|streamable|dev/i))):style(opacity: 0.1 !important;)
+ddaltube.com##+js(remove-attr, data-a, #dtube-player)
+ddaltube.com##.dtube-banner-grid, .vjs-video-ad-click-overlay, .player-banner-overlay > a.block
 diningcode.com##.ad-container
 diningcode.com##li:has(.PoiAdsSpacerList)
 doctornow.co.kr##div.flex.w-full:has(> div.relative, > ins.adsbygoogle)
@@ -227,7 +227,7 @@ yozm.wishket.com##[data-testid^="advertisement-"]
 ||trillion.toss.im^
 !
 bamgad7.com,bamgad8.com,bamgad9.com##ul.row:has(img[src*="/file/advertise/"])
-bampt5.com,bampt6.com,bampt7.com##.small-banners-grid, .small-ad-item, .premium-banner-wrapper
+bampt6.com,bampt7.com,bampt8.com##.small-banners-grid, .small-ad-item, .premium-banner-wrapper
 darkgirl12.com,darkgirl13.com,darkgirl14.com###adskip, #posterWrap, #main-banner
 darkgirl12.com,darkgirl13.com,darkgirl14.com##.banner, a[href*="clickadu.net"]
 darkgirl12.com,darkgirl13.com,darkgirl14.com#%#//scriptlet('trusted-click-element', '#adbtn')
@@ -242,6 +242,7 @@ xxzone25.top,xxzone26.top,xxzone27.top##[id*="main-banner"], .gplayer-ad-overlay
 !#endif
 !
 !#if (adguard_app_ios || adguard_ext_safari) && !adguard_app_mac
+/^https:\/\/[a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.com\/[a-z][a-z][a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?(\/[a-z][a-z][a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?)?(\/[a-z][a-z][a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?[a-z]?)?\?[0-9a-zA-Z][0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?=[0-9a-zA-Z%][0-9a-zA-Z%]?[0-9a-zA-Z%]?[0-9a-zA-Z%]?[0-9a-zA-Z%]?[0-9a-zA-Z%]?&[0-9a-zA-Z][0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?=[0-9a-zA-Z%.]+&[0-9a-zA-Z][0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?=[0-9a-zA-Z%]+.*$/$script,third-party,match-case
 hitomi.la##+js(nowoif)
 hitomi.la##div:has(> [id^="__clb-spot"])
 !#endif
@@ -292,8 +293,6 @@ ruliweb.com##+js(remove-class, ai_blind, #board_read)
 0db.co.kr##+js(nostif, adsbygoogle, 1500)
 aagag.com##+js(set-cookie, ab, 0)
 aagag.com#$#.la { position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
-chatgpts.kr,free4u.tistory.com##+js(nostif, checkAdBlock)
-chatgpts.kr,free4u.tistory.com##+js(nostif, checkRealAdBlock)
 cola16.app##+js(acis, decodeURIComponent, ABCDEFGHIJKLMNOPQRSTUVWXYZ)
 damoang.net##+js(nostif, bait_hidden)
 dcinside.com###moveOverlay, #gaejukimg
@@ -302,7 +301,6 @@ litomi.cc#%#(()=>{"use strict";let t=1;const e=new Map,n=new WeakSet;window.__RE
 m.fmkorea.com##+js(set, _make_power_link_identifier, noopFunc)
 m.fmkorea.com##script ~ div.bd_mobile.bd:matches-css(margin: /[0-5]px [0-5]px/):matches-css(padding: /[0-5]px/):remove()
 m.fmkorea.com##section.fmWidgetStyle2019.bd_mobile.bd:matches-css(margin: /[0-5]px [0-5]px/):matches-css(padding: /[0-5]px/):remove()
-money-master-365.tistory.com##+js(nostif, detectAdblock)
 namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
 oraksil.cc##+js(acis, onload, showAdblockMessage)
 postshare.co.kr##+js(set-cookie, ad_unlocked_timer_final_v2, true)
