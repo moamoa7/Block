@@ -1,67 +1,65 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260709
+! Version: 20260710
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
 
 
-*##.ad
-! - 예외 - https://www.ad.co.kr/ - 메뉴 사라짐
-ad.co.kr#@#.ad
+||ad.*
+! - 예외 - https://www.ad.co.kr/ - 도메인 자체가 ad.로 시작하는 사이트
+@@||ad.*$domain=ad.co.kr
 
 
-*_ad.*
+! 옥션
+||ad-*
+
+
+||ad.*
+
+
+||ads-*
+
+
+! 퀘이사존
+||ads.*
+
+
+*-ad*:not(-ad-)
+
+
+*-ads*:not(-ads-)
+
+
+*ad-*:not(-ad-)
+
+
+*ads-*:not(-ads-)
+
+
+! https://www.genspark.ai/ - 이미지
+*-ad-*
+
+
+*-ads-*
+
+
+*_ad*:not(_ad_)
 ! - 예외 - https://github.com/ - 이름이 같을 경우 저장시 에러발생
-@@*_ad.*$domain=github.com
+@@*_ad*$domain=github.com
 
 
-*/ad/*
-! - 예외
-@@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
+*_ads*:not(_ads_)
 
 
-*/ad?*
+*ad_*:not(_ad_)
 
 
-*/ad.*
-@@*/ad.*$css
+*ads_*:not(_ads_)
 
 
-*/ad_
-
-
-*/ad-*
-! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
-@@||*/ad-*$domain=github.com
-
-
-^ad|
-
-
-*/ads_
-
-
-*/ads*
-! - 예외 - https://github.com/ - ads가 들어간 페이지 로딩 안됨
-! - 예외 - 브레이브 검색 - 이미지 검색시 멈춤
-@@||*/ads*$domain=github.com|search.brave.com
-!@@||*/ads*$domain=login.coupang.com
-
-*/ads-*
-@@*/ads-*$css
-
-
-*/ads/*
-! - 예외
-! - 옥션/지마켓 배너 안보임
-!@@ad-img.gmarket.com/ADS/*
-! - 예외 - https://career.rememberapp.co.kr/ - 아래 안해도 됨. 에러는 배너 막혀서 나오는 메시지. 검색과 무관
-!@@/ads/*$xhr,domain=career.rememberapp.co.kr
-
-
-*_ads.*
+*_ad_*
 
 
 *_ads_*
@@ -70,7 +68,107 @@ ad.co.kr#@#.ad
 @@*_ads_*$domain=platinmods.com
 
 
-##.ads
+! 티비착
+*/ad/*
+! - 예외
+@@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
+
+
+! 마이민트
+*/ads/*
+! - 예외
+! - 옥션/지마켓 배너 안보임
+!@@ad-img.gmarket.com/ADS/*
+! - 예외 - https://career.rememberapp.co.kr/ - 아래 안해도 됨. 에러는 배너 막혀서 나오는 메시지. 검색과 무관
+!@@/ads/*$xhr,domain=career.rememberapp.co.kr
+
+
+*/ad?*
+
+
+*/ads?*
+
+
+! 루리웹
+*/ad.*
+@@*/ad.*$css
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+*/ads.*
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것 (너무 많을거 같음)
+! - https://cineaste.co.kr/skin/addon/controller-miso/widget.js - 페이지 오류는 없으나 로그인시 창분할없이 로그인됨
+*/ad*:not(/addons/)
+! - 예외
+@@*/ad*$css
+
+! - 예외
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+@@*/ad*$domain=github.com
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
+
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+@@*/ad*$image,domain=trand.co.kr|coupang.com|mimint.co.kr
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! - 메이저링크 (https://majorlink2.com/)
+@@*/ad*$image,domain=/majorlink/
+
+
+! 티카페
+*/ads*
+! - 예외 - https://github.com/ - ads가 들어간 페이지 로딩 안됨
+! - 예외 - 브레이브 검색 - 이미지 검색시 멈춤
+@@||*/ads*$domain=github.com|search.brave.com
+!@@||*/ads*$domain=login.coupang.com
+
+
+! 티비위키 / 티비몬 / 티비핫
+! 디시인사이드
+*/ad_
+
+
+*/ads_
+
+
+! 이토랜드
+! 디시인사이드
+*/ad-*
+! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
+! - https://outstanding.kr/ - 오른쪽 내용이 안보임
+@@||*/ad-*$domain=github.com|outstanding.kr
+
+
+
+*/ads-*
+@@*/ads-*$css
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+*ad.js:not(load.js)
+
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! -뉴토끼 (https://toki29.com/) - 페이지 오류
+@@*ad.js$domain=/toki/
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+! 뽐뿌
+*ads.js
+
+
+^ad|
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+^ads|
+
+
 
 *videoad*
 
@@ -79,12 +177,12 @@ ad.co.kr#@#.ad
 @@*video-ad*$css,script
 
 
-##[alt*="보증토토"]
-
-
 ###videoad
 ###video-ad
 ##.video-ad
+
+
+##[alt*="보증토토"]
 
 
 *click?*
@@ -115,17 +213,6 @@ ad.co.kr#@#.ad
 ##[class*="promote"]:not(body):not(html):not(main)
 
 
-||ad.*
-! - 예외 - https://www.ad.co.kr/ - 도메인 자체가 ad.로 시작하는 사이트
-@@||ad.*$domain=ad.co.kr
-
-||ad-*
-
-||ads.*
-
-||ads-*
-
-
 
 ##[aria-label*="sponsor" i]:not(body):not(html):not(main)
 
@@ -154,29 +241,37 @@ ad.co.kr#@#.ad
 /popup.
 @@/popup.$css
 
+
 /popups.
 
-/banner.
 
-/extension.
-@@/extension$image
-
-/log.
-
-/analysis.
-
-*banner.js
-! - 숲스토어 - 해제해야 본문 보임
-@@*banner.js$domain=sooptore.sooplive.com
-
-
+! 와디즈
+! 뽐뿌
+! 테무
 */popup/*
+
 
 /popups/*
 
+
 *popup*.php
 
+
 *popup*.script
+
+
+! 숲
+/extension.
+@@/extension$image
+
+
+/log.
+
+
+/analysis.
+
+
+
 
 
 
@@ -256,6 +351,9 @@ ad.co.kr#@#.ad
 !sogirl.so,fd2ppv.cc#@#div iframe:not([src*="/embed/"]):not([src*="/player.php?"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="view.php?ch="]):not([src*="xvqz.org/content/"]):not([src*="index.php?data="]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="media.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="]):not([src*="/static/player/artplayer/"]):not([src*=".php?&id="]):not([src*="yna.co.kr/program/"]):not([src*="stockwin.thinkpool.com/html/hktv/index.html"]):not([src*="upload18.com/play/"]):not([src*="18av.mm-cg.com/js/player/play.php?"]):not([src*="creatorofvideo.com/play/"]):not([src*="/javbraze_cdn/"]):not([src*="goodtv.co.kr/watch_banner.asp"]):not([src*="embed.streamxx.net"]):not([src*="guccihide.store/embed/"]):not([src*="play3737.com/?v="]):not([src*="streambeast.upn.one/"]):not([src*="ok.ru/videoembed/"]):not([src*="player.kick.com/"]):not([src*="kcdn.tving.com/"]):not([src*="jtbclive-cdn.jtbc.co.kr"]):not([src*="/attendance/"]):not([src*="x.videist.com/hls/"]):not([src*="llis-goodsdetail.lotteon.com"]):not([src*="itemdesc.ssg.com"]):not([src*="/comment.php?no="]):not([src*="gstatic.com/atari/embeds/"]):not([class*="nmContent"]):not([src*="nnmo0oi1.com/video/"]):not([src*="theofferwall.pincrux.com/chzzk/"]):not([src*="game.naver.com/notify?"]):not([src*="/?track=cam69_embed"]):not([src*="https://short.icu/"]):not([src*="emb.missav.to/?id="]):not([src*="1player.store/"]):not([src*="/jav.guru/searcho/?"]):not([src*="luluvid.com/"]):not([src*=".bestjavporn.com"]):not([src*="wasp.pandalive.co.kr/auth/?token="]):not([src*="/iframe/tab"]):not([src*="/video1.javdock.com/p/"]):not([src*="/vv/"]):not([src*="/static/player/videojs.html"]):not([src*="mypikpak.com/favorite-links-hub?"]):not([src*="/include/"]):not([src*="suckol-o5.asia/video/"]):not([src*="addons/dplayer/?url="]):not([data-src*="upload18.org"]):not([src*="dmm.co.jp/service/digitalapi/"]):not([src*="/player/r.php?r="]):not([src*="play.aving.tv/v.php?v="]):not([src*="rocketpay.coupang.com/rocketpay/pay/"]):not([src*="payment.coupang.com/v4/payments/payment?paymentToken="]):not([id="broadcastFrame"]):not([src*="bigwin.livenst.com/"]):not([src*="liventv.com/player?v="]):not([src*="wowtv.co.kr/ExportHTS/Index?popFrom="]):not([src*="-stream.live/"]):not([src*="/view/frame?"]):not([src*="/widget/article/"]):not([src*="/plugin/follow_button?"])
 
 
+!##iframe[src]
+
+
 ! - 개별 사이트마다 하는걸로
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 
@@ -265,15 +363,89 @@ ad.co.kr#@#.ad
 ! - https://www.thisav.sbs/
 ! - https://www.hanime123.mom
 ! - https://www.missav123.art/
-/missav|hanime|thisav/##iframe[src]
+! - upnstreamlive.shop	(조개무비 영상 재생시 필요한 사이트)
+! - https://sexkbj.com/ - 모바일에서 iframe 안막혀있음 - 플레이 영상이 iframe여서 embed로 막힌거 해제
+/sexkbj|upnstreamlive|missav|hanime|thisav/##iframe[src]:not([src*="embed"])
+
 
 
 ##[target] video
 
 
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+*-banner*:not(*-banner-*)
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+*banner-*:not(*-banner-*)
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+! 와디즈
+*-banner-*
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+*_banner*:not(*_banner_*)
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+*banner_*:not(*_banner_*)
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+! 마이민트
+! 디시인사이드
+! 옥션
+*_banner_*
+
+! - 숲
+*/banner.*
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+*/banner?*
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+! - */banner/* 포함
+! 와디즈
+! 티비위키 / 티비몬 / 티비핫
+! 네이버스토어
+*/banner*
+
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+*/banner_*
+
+
+! - 이 규칙은 해보고 아닌 이유 달아놓을것
+*/banner-*
+
+
+! 티카페
+! 딴지일보
+! 네이버 스토어
+! https://www.genspark.ai
+/*banner*
+@@/*banner*$css
+
+! - 예외
+@@/*banner*$domain=github.com
+
+
 /*banner*/*
 ! - 예외  - 이미지 안보임
 @@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
+
+! 숲
+*banner.js
+! - 숲스토어 - 해제해야 본문 보임
+@@*banner.js$domain=sooptore.sooplive.com
 
 
 ##[data-testid*="banner"]:not(body):not(html):not(main)
@@ -285,6 +457,9 @@ ad.co.kr#@#.ad
 !##[src*="/banner/" i]:not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
 
 ##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
 
 ! - 쿠팡플레이 - |img.coupangstreaming.com/assets/feed-banners/
@@ -308,17 +483,18 @@ deepseek.com#@#div[style*="banner" i]
 ! - 마이민트 (https://www.mimint.co.kr/)
 ! - 포모스 (https://www.fomos.kr/)
 ! - FapHouse (https://ko.fhcontent.com/)
-fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpak.com##[class*="banner" i]
+! - https://www.wadiz.kr/
+wadiz.kr,fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpak.com##[class*="banner" i]
 
 
 ! - 개별 사이트마다 하는걸로 (##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]) 이것과 겹치는 일이 많음  / 해제도 2번 해야되는 일이 발생할 수 있음) // 타겟이 없는 배너만 해당
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! - https://mbong.kr/
-mbong.kr##[src*="banner" i]
+!mbong.kr##[src*="banner" i] - /*banner*로 이미지 차단 처리
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! - https://today-sports9.com/
-/today-sports/##[src*="banner" i]
+! - https://today-sports10.com/ - _banner.로 이미지 차단 처리
+!/today-sports/##[src*="banner" i]
 
 
 ! - 개별 사이트마다 하는걸로
@@ -380,7 +556,23 @@ mbong.kr##[src*="banner" i]
 sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-[$domain=/funbe/],[$domain=/tkor/],[$domain=/jusoping/],wdwd11.com#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
+! - 주소월드 (https://wdwd12.com/)
+! - 펀비 (https://funbe654.com/)
+! - 툰코 (https://tkor128.com/)
+! - 주소핑 (https://www.jusoping3.com/)
+/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
+
+
+##[href*="banner"]
+
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! - https://outstanding.kr/
+outstanding.kr#@#[href*="banner"]
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! - https://18moa028.com/
+18moa028.com#@#[href*="banner"]
+
 
 
 ##[target]:has([src*="/background/"])
@@ -417,7 +609,7 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 ! - 기상청 - ytimg.com  base64
 ! - avsee / 알바천국 - community (이거 avsee아닌대 머지?)
 ! - 레딧 - redd.it
-! - https://today-sports9.com/ - /data/file/photo/  /data/file/AI/  /data/file/bj/
+! - https://today-sports10.com/ - /data/file/photo/  /data/file/AI/  /data/file/bj/
 ! - https://www.i-boss.co.kr/ - cdn.ibos.kr  /design/upload_file/
 ! - https://dpg.danawa.com/bbs - img.danuri.io/catalog-image/
 ! - 밤가드 - com/data/editor/
@@ -601,13 +793,6 @@ adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads
 chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-
-
-
-
-! - 混合规则(更新日期2026-07-07 18:51:46)
-! - - - 추후 검토해볼것
-#@#[class*="ads_"]:not([class*="reads_"]):not(.main_and_ads_block)
 
 
 
