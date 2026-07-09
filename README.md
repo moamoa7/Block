@@ -33,7 +33,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/DangerAD.txt
 ```
 <br/>
 
-※ DNS_Rewrite.txt
+※ GoodDNS.txt
 <br/>
 
 개인 DNS List
