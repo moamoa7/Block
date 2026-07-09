@@ -38,7 +38,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/DangerAD.txt
 
 개인 DNS List
 ```
-https://raw.githubusercontent.com/moamoa7/adblock/main/DNS_Rewrite.txt
+https://raw.githubusercontent.com/moamoa7/adblock/main/GoodDNS.txt
 ```
 <br/>
 ※ adguard_gallery.txt (추천 필터) - adguard
