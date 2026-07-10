@@ -5758,7 +5758,7 @@ playidol.org##div[class*="relative"]:has-text(/📢|충전|등록|결제|가입/
 /tcafe/##.main-p10
 ! - 게시판 검색 안내 팝업
 ![$domain=/^tcafe\d+.com/]###tcag_overlay
-/tcafe/###tcag_overlay
+!/tcafe/###tcag_overlay
 !
 !
 ! 매의눈닷컴 (https://heye.kr/)
@@ -6818,15 +6818,6 @@ tiendeo.co.kr##[class*="justify"]:has([data-testid*="ad_"])
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
 ! =별도 추가
-
-
-! <html> 바로 아래에 <div>를 꽂아 넣는 것 차단
-! - - -  광고 스크립트, 오버레이, 안티애드블록 팝업, 또는 확장프로그램이 강제로 밀어 넣은 요소들
-! - - - 문제 발생하는 사이트 예외 필요시 적용할 것 (로그인 모달, 결제 창, 쿠키 동의창 등)가 통째로 사라져서 페이지가 먹통될 경우)
-! - - - https://cloudfam.io/  오른쪽 팝업같은거 2개  차단
-! cloudfam.io##html > div
-##html > div
-
 
 
 
