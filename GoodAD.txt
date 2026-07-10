@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260710
+! Version: 20260711
 !
 !
 !
@@ -357,6 +357,8 @@ mypikpak.com##.operation-container
 !mypikpak.com##+js(set-cookie, allow_analysis, false)
 ! - 재생 안되는거 해결
 @@||cdn.adjust.com^$script,3p,domain=mypikpak.com
+! - 기타
+/gtag.js
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -674,6 +676,8 @@ www.twitch.tv###twilight-sticky-footer-root
 !www.twitch.tv##.top-bar:style(background:unset!important)
 ! - 영상 하단 지저분한거
 !www.twitch.tv##div[data-a-target=player-controls]:style(background:unset!important)
+! - 확장 프로그램 차단
+twitch.tv##[class*="extensions" i]
 !
 !
 ! 킥 (https://kick.com/)
@@ -1731,7 +1735,9 @@ poooo.ml#@#.ad
 ![$domain=/^tvwiki\d+\.net$/]##.mobile-only.full
 /tvwiki/##.mobile-only.full
 ! - 바로 플레이버튼 나오게 변경
-###viewCover
+!###viewCover
+! - - - 숲 (###videoLayerCover)
+##[id$="cover" i]
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
 ! - 로딩 동그라마
@@ -2454,7 +2460,7 @@ dongascience.com##.block
 !##[class*="adsub" i]
 ##.adSub
 !##.new_ad7
-##[class*="new_ad" i]
+!##[class*="new_ad" i]
 ! - 기사 오른쪽 빈 공간
 ohmynews.com##.V0511
 ! - 기사 중간 배너 공간
@@ -5235,13 +5241,12 @@ tistory.com##body:style(pointer-events: auto !important; overflow: auto !importa
 !
 !
 ! 조드 (https://zod.kr/)
-! - 배너
-! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
-!zod.kr##[data-href^='https://zod.kr/go/']:has(img)
-! - 상단 배너
-zod.kr##[class*="app-clearfix"] [id]:has( img[src*="rainforest.cdn.zod.kr/files/attach/images/"])
+! - 상단 배너 및 빈공간
+zod.kr##[class*="app-clearfix"] [id]:has( img[src*="/files/attach/images/"])
+! - 좌. 우 일부 배너
+zod.kr##a[href][class]:has(img):not([src*="svg"])
 ! - 오른쪽 배너
-zod.kr##[class*="app-aside"] [id]:has( img[src*="rainforest.cdn.zod.kr"])
+zod.kr##[class*="zod-widgets"] [href*="partner"]
 !
 !
 ! 주소콘 (https://t.me/s/jusoconcom) (https://www.jusocon.com/) (https://jusocon7.com/)
@@ -5602,10 +5607,11 @@ m.wikitree.co.kr###wikitree_image1_bottom
 !
 !
 ! https://cloudfam.io/
-! - 하단 배너 - 이거 차단한면 버튼이 사라짐
+! - 하단 배너 
 *##.adbox
 ! - 기타
 !||gtcpicnics.com^
+||paypal.com/xoplatform/logger/api/logger^
 !
 !
 ! 카지노 다이소 (https://www.torrentbob.com/)
@@ -5806,6 +5812,8 @@ chimhaha.net##[id*="slot-4" i]
 ! - 메인 배너 빈공간
 coinpan.com##div[style*="height: 93px; width: 776px;"]
 coinpan.com##div[style*="250px"]
+! - 하단 인공지능 AD
+coinpan.com##[class*="widget"]:has([href="https://aigreem.com"])
 !
 !
 ! 아시아뉴스통신(https://www.anewsa.com/)
@@ -5882,6 +5890,8 @@ kbjfree.com##.min-h-\[52px\].mx-auto
 ! - 탑툰챗 및 이용안내 텍스트 배너
 ![$domain=/^red\d+.kr/]##[class*="notice"]
 /red/##[class*="notice"]
+! -기타
+/cdn-cgi/trace^$xhr
 !
 !
 ! 여성경제신문 (https://www.womaneconomy.co.kr/)
@@ -6399,13 +6409,15 @@ hmstory.net##script:contains(detect-message-shown):remove()
 !
 !
 ! 길호넷 (https://kilho.net/)
-! - 길호넷 다른주소 차단
+! - 길호넷 다른주소 차단 - 프로그램내 업데이트 가능 클릭하면 광고뜨는 엉뚱한 사이트로 이동됨
 ||adblock.demobox.top^$document
-||adblock.demobox.top^$popup
-||wisdomgrove.tistory.com^$document
-||wisdomgrove.tistory.com^$popup
-adblock.demobox.top##body
-wisdomgrove.tistory.com##body
+!||adblock.demobox.top^$popup
+!||wisdomgrove.tistory.com^$document
+!||wisdomgrove.tistory.com^$popup
+!adblock.demobox.top##body
+!wisdomgrove.tistory.com##body
+! - 기타
+/analytics.js^$script
 !
 !
 ! 논현일보 (https://tenbizt.com/)
@@ -6761,6 +6773,16 @@ mbong.kr##tr.list_top.custom_code > td
 ! https://nimi.wiki/
 ! - 기타
 ://analytics.*/event
+!
+!
+! https://www.tiendeo.co.kr/
+! - 배너
+tiendeo.co.kr##[class*="justify"]:has([data-testid*="ad_"])
+! - 쿠키 배너 차단
+||cookielaw.org^$3p
+! - 기타
+!||adv.red^
+
 
 
 
@@ -6795,7 +6817,17 @@ mbong.kr##tr.list_top.custom_code > td
 
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
-! - 기타
+! =별도 추가
+
+
+! <html> 바로 아래에 <div>를 꽂아 넣는 것 차단
+! - - -  광고 스크립트, 오버레이, 안티애드블록 팝업, 또는 확장프로그램이 강제로 밀어 넣은 요소들
+! - - - 문제 발생하는 사이트 예외 필요시 적용할 것 (로그인 모달, 결제 창, 쿠키 동의창 등)가 통째로 사라져서 페이지가 먹통될 경우)
+! - - - https://cloudfam.io/  오른쪽 팝업같은거 2개  차단
+! cloudfam.io##html > div
+##html > div
+
+
 
 
 ||warning.or.kr^
@@ -6843,7 +6875,3 @@ mbong.kr##tr.list_top.custom_code > td
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
 
 
-
-!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-!////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
