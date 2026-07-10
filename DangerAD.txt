@@ -200,6 +200,7 @@
 ##[class*="-tooltip_" i]:not(body):not(html):not(main)
 
 
+
 ##[data-testid*="advert"]:not(body):not(html):not(main)
 
 
@@ -414,6 +415,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 옥션
 ! https://www.ubisoft.com/
 ! https://toon.at/
+! https://adguard-vpn.com/
 *_banner_*
 
 ! - 숲
@@ -770,9 +772,10 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! - https://www.dcinside.com/
-! - https://play.sooplive.com/
-play.sooplive.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
+! https://www.dcinside.com/
+! https://play.sooplive.com/
+! https://adguard-vpn.com/
+adguard-vpn.com,play.sooplive.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://www.avdbs.com/
@@ -825,6 +828,25 @@ adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads
 ! - 인벤 - https://www.inven.co.kr/
 ! - 치치직 - https://chzzk.naver.com/
 chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
+
+
+
+! - 오베레이 제거
+! - - - 개별적으로 해야함
+! - - - https://cloudfam.io/ 
+! - - - https://mypikpak.com/
+! - - - https://status.adguard.com/
+!##[id][role="dialog"][aria-modal]
+! - - - aria-modal="true" - "이 요소는 모달(modal) 창이며, 열려 있는 동안 그 바깥의 나머지 콘텐츠는 비활성 상태로 취급하라"
+##div[role*="dialog"][aria-modal="true"]
+
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://adguard-dns.io/ - 개별 도메인 로그 클릭시 창 안보임
+! https://adguardaccount.com/ - 계정 - 보안 내용 설정시 안보임
+adguardaccount.com,adguard-dns.io#@#div[role*="dialog"][aria-modal="true"]
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
