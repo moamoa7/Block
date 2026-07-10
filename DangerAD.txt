@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260710
+! Version: 20260711
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -13,9 +13,11 @@
 
 
 ! 옥션
+! 빨간오이 (https://red52.kr/)
 ||ad-*
 
 
+! https://toon.at/
 ||ad.*
 
 
@@ -74,7 +76,9 @@
 @@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
 
 
+! 치지직
 ! 마이민트
+! https://kilho.net/
 */ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -120,6 +124,7 @@
 
 
 ! 티카페
+! https://cloudfam.io/
 */ads*
 ! - 예외 - https://github.com/ - ads가 들어간 페이지 로딩 안됨
 ! - 예외 - 브레이브 검색 - 이미지 검색시 멈춤
@@ -135,6 +140,7 @@
 */ads_
 
 
+! 트위치
 ! 이토랜드
 ! 디시인사이드
 */ad-*
@@ -219,6 +225,12 @@
 
 
 ##[class*="sponsor" i]:not(body):not(html):not(main)
+! https://www.ohmynews.com/
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
+
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
 
 
@@ -248,6 +260,7 @@
 ! 와디즈
 ! 뽐뿌
 ! 테무
+! https://toon.at/
 */popup/*
 
 
@@ -261,6 +274,7 @@
 
 
 ! 숲
+! 트위치
 /extension.
 @@/extension$image
 
@@ -381,6 +395,7 @@
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
+! 트위치
 ! 와디즈
 *-banner-*
 
@@ -397,6 +412,8 @@
 ! 마이민트
 ! 디시인사이드
 ! 옥션
+! https://www.ubisoft.com/
+! https://toon.at/
 *_banner_*
 
 ! - 숲
@@ -415,6 +432,8 @@
 */banner*
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://lgtwins.com/
+@@*/banner*$domain=lgtwins.com
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
@@ -424,15 +443,30 @@
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
+! 픽팍
+! https://kilho.net/
+! 오늘의 중계 (https://today-sports10.com/)
+! https://diconofficial.com/
 */banner-*
 
 
+! 트위치
 ! 티카페
 ! 딴지일보
 ! 네이버 스토어
 ! https://www.genspark.ai
+! https://www.ubisoft.com/
+! 오늘의 중계 (https://today-sports10.com/)
+! https://diconofficial.com/
 /*banner*
 @@/*banner*$css
+
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+@@/*banner*$domain=ep-prod-cdcqfmasbve4b4gv.a01.azurefd.net
+
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
 
 ! - 예외
 @@/*banner*$domain=github.com
