@@ -834,21 +834,3 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 
 
-! - 오베레이 제거
-! - - - 개별적으로 해야함
-! - - - https://cloudfam.io/ 
-! - - - https://mypikpak.com/
-! - - - https://status.adguard.com/
-!##[id][role="dialog"][aria-modal]
-! - - - aria-modal="true" - "이 요소는 모달(modal) 창이며, 열려 있는 동안 그 바깥의 나머지 콘텐츠는 비활성 상태로 취급하라"
-##div[role*="dialog"][aria-modal="true"]
-
-! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! https://adguard-dns.io/ - 개별 도메인 로그 클릭시 창 안보임
-! https://adguardaccount.com/ - 계정 - 보안 내용 설정시 안보임
-adguardaccount.com,adguard-dns.io#@#div[role*="dialog"][aria-modal="true"]
-
-! - 주소 변경이나 사라질  가능성이 높은 도메인들
-
-
-
