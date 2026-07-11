@@ -6782,6 +6782,11 @@ tiendeo.co.kr##[class*="justify"]:has([data-testid*="ad_"])
 ||cookielaw.org^$3p
 ! - 기타
 !||adv.red^
+!
+!
+! https://vexfile.com/
+! - 가운대 배너
+vexfile.com##center
 
 
 
