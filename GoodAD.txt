@@ -6459,10 +6459,8 @@ camconsole.com##div.clearfix.block:nth-of-type(2)
 !
 !
 ! https://katfile.space/
-! - 하단 오른쪽 프리미엄 세일 팝업 (PC)
-katfile.space###container > div > div
-! - 하단 오른쪽 프리미엄 세일 팝업 (모바일)
-katfile.space###container > div:nth-of-type(2)
+! - 하단 오른쪽 프리미엄 세일 팝업
+katfile.space##[style="position: fixed; bottom: 25px; right: 25px; z-index: 99999; max-width: 380px;"]
 !
 !
 ! https://www.52t.org/
