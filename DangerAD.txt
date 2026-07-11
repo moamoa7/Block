@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260711
+! Version: 20260712
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -123,7 +123,7 @@
 @@*/ad*$image,domain=/majorlink/
 
 
-! 티카페
+! 티카페 (https://tcafe21.com/)
 ! https://cloudfam.io/
 */ads*
 ! - 예외 - https://github.com/ - ads가 들어간 페이지 로딩 안됨
@@ -149,7 +149,7 @@
 @@||*/ad-*$domain=github.com|outstanding.kr
 
 
-
+! https://javgiga.com/
 */ads-*
 @@*/ads-*$css
 
@@ -161,11 +161,12 @@
 
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! -뉴토끼 (https://toki29.com/) - 페이지 오류
+! -뉴토끼 (https://toki30.com/) - 페이지 오류
 @@*ad.js$domain=/toki/
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
 ! 뽐뿌
+! https://javgiga.com/
 *ads.js
 
 
@@ -243,13 +244,6 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ##[data-ad_slot_name]
 ##[data-event*="ad_click"]
 
-##script[src*="/ad/"] + ins
-##script[src*="/ads/"] + ins
-##script[src*="/ad-"] + ins
-##script[src*="/ad_"] + ins
-##script[src*="/ads-"] + ins
-##script[src*="/ads_"] + ins
-
 
 /popup.
 @@/popup.$css
@@ -316,7 +310,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - 한국경제신문 - stockwin.thinkpool.com/html/hktv/index.html
 ! - https://redgg50.cc/ - upload18.com/play/
 ! - https://18av.mm-cg.com/ - 18av.mm-cg.com/js/player/play.php?
-! - 후후티비 (https://if.hoohootv414.xyz/) - creatorofvideo.com/play/
+! - 후후티비 (https://be.hoohootv427.xyz/) - creatorofvideo.com/play/
 ! - https://javbraze.com/ - /javbraze_cdn/
 ! - https://goodtv.co.kr/ - goodtv.co.kr/watch_banner.asp
 ! - https://javgiga.com/ - embed.streamxx.net
@@ -454,7 +448,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 
 
 ! 트위치
-! 티카페
+! 티카페 (https://tcafe21.com/)
 ! 딴지일보
 ! 네이버 스토어
 ! https://www.genspark.ai
@@ -480,6 +474,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 @@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
 
 ! 숲
+! https://javgiga.com/
 *banner.js
 ! - 숲스토어 - 해제해야 본문 보임
 @@*banner.js$domain=sooptore.sooplive.com
@@ -595,7 +590,7 @@ vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소월드 (https://wdwd12.com/)
-! 펀비 (https://funbe654.com/)
+! 펀비 (https://funbe656.com/)
 ! 툰코 (https://tkor128.com/)
 ! 주소핑 (https://www.jusoping3.com/)
 /wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
