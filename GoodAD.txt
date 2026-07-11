@@ -911,34 +911,35 @@ m.fmkorea.com##script:has-text(/window\["\d+"\] = function\(\) \{ return \d+; \}
 !etoland.co.kr##.overflow-y-auto
 ! - - -.fixed - 반드시 개별 도메인으로만 처리할것
 !etoland.co.kr##.fixed
-etoland.co.kr##.py-6.px-4.bg-black\/75.overflow-y-auto.justify-center.items-center.flex.z-1000.inset-0.fixed
+! - - - Listr-KR에서 처리하므로 주석 처리
+!etoland.co.kr##.py-6.px-4.bg-black\/75.overflow-y-auto.justify-center.items-center.flex.z-1000.inset-0.fixed
 ! - 네이버 광고 차단 (모바일)
-etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
-! - 게시물 하단 공백
+!etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
+! - 게시물내 하단 공백
 etoland.co.kr##[id*="view-center"]
 ! - 게시물 목록 상단 배너 공간 (모바일)
 ! - 개별 게시물과 댓글 사이 빈 공간 (모바일)
-etoland.co.kr##article.w-full:has(> ul.mx-\[5px\])
+!etoland.co.kr##article.w-full:has(> ul.mx-\[5px\])
 ! - 전체 게시물 목록과 히트글 사이 빈 공간 (개편 후 안전 버전)
-etoland.co.kr##div[class*="min-h-"]:has(> script)
+!etoland.co.kr##div[class*="min-h-"]:has(> script)
 ! - 개별 게시물 댓글 하단과 히트글 사이 빈 공간 (모바일)
-etoland.co.kr##div.my-4.flex:has(> script)
+!etoland.co.kr##div.my-4.flex:has(> script)
 ! - 게시물 하단 배너 (PC)
 !##[data-inouts-event-name*="banner"]
 !##[id*="banner" i]
 ! - 게시물내 하단 배너 공백 (모바일)
-etoland.co.kr##div.mt-2\.5.flex
+!etoland.co.kr##div.mt-2\.5.flex
 ! - 댓글 아래 배너 공백 (PC)
 etoland.co.kr##.flex.mb-2\.5
 ! - 댓글 아래 배너 공백 (모바일)
-etoland.co.kr###mo-300x250-comment-bottom
+!etoland.co.kr###mo-300x250-comment-bottom
 ! - 게시물내 광고글
-etoland.co.kr##li[class*="amber-100"]
-etoland.co.kr##li[class*="h-10"]
+!etoland.co.kr##li[class*="amber-100"]
+!etoland.co.kr##li[class*="h-10"]
 ! - 모바일 일부 게시판과 맞지 않는 게시물 삭제
-etoland.co.kr##ul.px-\[5px\] > li:nth-of-type(4)
+!etoland.co.kr##ul.px-\[5px\] > li:nth-of-type(4)
 ! - PC  별도 블라인드 처리된 게시물 안보이게 하기
-etoland.co.kr##li.h-fit.min-h-14:has(> div.group.flex)
+!etoland.co.kr##li.h-fit.min-h-14:has(> div.group.flex)
 ! - 모바일 하단 따라다니는 3개 버튼
 etoland.co.kr##.fixed-bottom
 ! =========================
@@ -949,8 +950,8 @@ etoland.co.kr##.fixed-bottom
 !etoland.co.kr##body *[class*="list"]:has-text(/노마십가|인터넷상담|한결같은호랑이|비밀상점|SA2HAK/)
 !etoland.co.kr##body *[class*="list"]:has-text(/보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|야나기기1/)
 !toland.co.kr##body *[class*="list"]:has-text(/내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr|캔커피/)
-! -  -- 광고 글
-etoland.co.kr##li:has([data-inouts-click="true"])
+! -  -- 광고 글 - List-KR에서 처리하므로 주석 처리
+!etoland.co.kr##li:has([data-inouts-click="true"])
 ! - - - 히트 게시판에서 핫딜 없애기
 etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
 ! =========================
@@ -6809,6 +6810,11 @@ vexfile.com##center
 ##[class$="modal-overlay"]
 ! - 오른쪽 팝업?
 ##promo-widget
+!
+!
+! 주간경향 (https://weekly.khan.co.kr/)
+! - 배너
+weekly.khan.co.kr##[class*="banner" i]:not(body):not(html):not(main)
 
 
 
@@ -6879,6 +6885,5 @@ vexfile.com##center
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
