@@ -61,6 +61,13 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 <br/>
 <br/>
 
+※ 브레이브에서 사용하는 필터
+```
+https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
+```
+<br/>
+<br/>
+
 # 스크립트
 
 <br/>
