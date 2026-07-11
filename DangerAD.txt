@@ -449,6 +449,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! https://kilho.net/
 ! 오늘의 중계 (https://today-sports10.com/)
 ! https://diconofficial.com/
+! https://vexfile.com/
 */banner-*
 
 
@@ -587,26 +588,27 @@ wadiz.kr,fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpa
 ##[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! - 만개의 레시피 (https://www.10000recipe.com/)
-! - https://www.sooplive.com/
-sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
+! 만개의 레시피 (https://www.10000recipe.com/)
+! https://www.sooplive.com/
+! https://vexfile.com/
+vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! - 주소월드 (https://wdwd12.com/)
-! - 펀비 (https://funbe654.com/)
-! - 툰코 (https://tkor128.com/)
-! - 주소핑 (https://www.jusoping3.com/)
+! 주소월드 (https://wdwd12.com/)
+! 펀비 (https://funbe654.com/)
+! 툰코 (https://tkor128.com/)
+! 주소핑 (https://www.jusoping3.com/)
 /wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
 
 
 ##[href*="banner"]
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! - https://outstanding.kr/
+! https://outstanding.kr/
 outstanding.kr#@#[href*="banner"]
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! - https://18moa028.com/
+! https://18moa028.com/
 18moa028.com#@#[href*="banner"]
 
 
