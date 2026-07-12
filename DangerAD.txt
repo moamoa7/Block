@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260712
+! Version: 20260713
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -61,6 +61,7 @@
 *ads_*:not(_ads_)
 
 
+! 디스코드
 *_ad_*
 
 
@@ -79,6 +80,7 @@
 ! 치지직
 ! 마이민트
 ! https://kilho.net/
+! 주간경향
 */ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -134,6 +136,7 @@
 
 ! 티비위키 / 티비몬 / 티비핫
 ! 디시인사이드
+! 풍투데이
 */ad_
 
 
@@ -192,6 +195,7 @@
 ##[alt*="보증토토"]
 
 
+! https://myfans.jp/
 *click?*
 
 
@@ -310,7 +314,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - 한국경제신문 - stockwin.thinkpool.com/html/hktv/index.html
 ! - https://redgg50.cc/ - upload18.com/play/
 ! - https://18av.mm-cg.com/ - 18av.mm-cg.com/js/player/play.php?
-! - 후후티비 (https://be.hoohootv427.xyz/) - creatorofvideo.com/play/
+! - 후후티비 (https://ks.hoohootv427.xyz/) - creatorofvideo.com/play/
 ! - https://javbraze.com/ - /javbraze_cdn/
 ! - https://goodtv.co.kr/ - goodtv.co.kr/watch_banner.asp
 ! - https://javgiga.com/ - embed.streamxx.net
@@ -425,6 +429,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 와디즈
 ! 티비위키 / 티비몬 / 티비핫
 ! 네이버스토어
+! 애니라이프
+! 풍투데이
 */banner*
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -469,6 +475,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 @@/*banner*$domain=github.com
 
 
+! X
 /*banner*/*
 ! - 예외  - 이미지 안보임
 @@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
@@ -586,7 +593,8 @@ wadiz.kr,fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpa
 ! 만개의 레시피 (https://www.10000recipe.com/)
 ! https://www.sooplive.com/
 ! https://vexfile.com/
-vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
+! https://trand.co.kr/ - 메인에서 로그인 박스 사라짐
+trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소월드 (https://wdwd12.com/)
@@ -596,6 +604,9 @@ vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i
 /wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
 
 
+! 픽팍
+! 씨네스트
+! 이토랜드
 ##[href*="banner"]
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -758,10 +769,12 @@ ad.co.kr#@#[href*="/ad/" i]
 
 ##[href*="/ads/" i]
 
+! - 주간경향
 ! - https://www.mrds66.com/ 계열 이미지 주소가 엄청 긴대 이중 /ads/로 되어있는것이 광고가 아니라서 제외 필요
 ##[src*="/ads/" i]:not([src*="base64"])
 
 
+! 주간경향
 ##[src*=".ads/" i]
 
 
