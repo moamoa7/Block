@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260712
+! Version: 20260713
 !
 !
 !
@@ -136,16 +136,16 @@ heye.kr#%#//scriptlet('prevent-window-open')
 !
 ! 구글 (https://www.google.com/)
 ! - 기타
-/gen_204^
-||accounts.google.com/gsi/log
+!/gen_204^
+!||accounts.google.com/gsi/log
 !
 !
 ! 구글 플레이 (https://play.google.com/)
 ! - 기타
-||google.com/log^
-/log?format=
-/gen204/*
-/browserinfo?f.sid=$xhr
+!||google.com/log^
+!/log?format=
+!/gen204/*
+!/browserinfo?f.sid=$xhr
 !
 !
 ! 구글 광고 차단
@@ -252,28 +252,29 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !
 ! ===== 탐색 유발 요소 (선택) ===== (플레이리스트/믹스 묶음, 쇼츠 줄, 큐레이션 모음)
 !www.youtube.com##ytd-rich-section-renderer
-
 !
 !
 ! 디스코드 (https://discord.com/)
 ! - 상단 공지
-discord.com##div[class*="notice"]
+!discord.com##div[class*="notice"]
 ! - 기타
-&client_ad_session_id=
-/sentry.*.js^$script,from=~powerthesaurus.org
+!/otautoblock.js
+!/track^$from=~megap.fm|~pdst.fm|~podtrac.com|~spotify.com|~twitch.tv|~wolf359.fm
 !
 !
 ! X (https://x.com/)
 ! - 기타
-/referrer.js
-||x.com/1.1/graphql/user_flow.json
+!||x.com/i/csp_report!
+!||x.com/1.1/jot
+!/referrer.js
 !
 !
 ! 인스타 (https://www.instagram.com/)
 ! - 기타
-||graph.instagram.com^
-||facebook.com/ajax/qm/
-||com/ads
+!||graph.instagram.com^
+!||instagram.com/ajax/qm/?
+!||facebook.com/ajax/qm/
+!||com/ads
 !
 !
 ! 레딧 (https://www.reddit.com/)
@@ -283,7 +284,7 @@ discord.com##div[class*="notice"]
 ! - 하단 Reddit 앱에서 보기 팝업 (모바일) - PC 가입/로그인/설정메뉴열기를 지워서 다른걸로 찾아야함
 !reddit.com##.justify-end
 ! - 기타
-@@||redditstatic.com/shreddit$from=reddit.com
+!@@||redditstatic.com/shreddit$from=reddit.com
 !
 !
 ! GitHub (https://github.com/)
@@ -294,9 +295,9 @@ discord.com##div[class*="notice"]
 !
 !
 !
-! wikipedia.org
-wikipedia.org###siteNotice
-wikipedia.org###centralNotice
+! https://ko.wikipedia.org/
+!wikipedia.org###siteNotice
+!wikipedia.org###centralNotice
 !
 !
 ! https://adguard-dns.io/
@@ -357,7 +358,7 @@ mypikpak.com##.operation-container
 ! - 재생 안되는거 해결
 @@||cdn.adjust.com^$script,3p,domain=mypikpak.com
 ! - 기타
-/gtag.js
+!/gtag.js
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -606,9 +607,8 @@ sooplive.com##+js(no-fetch-if, check_new_ad)
 !
 !
 ! 풍투데이 (https://poong.today/)
-! - 작은 AD 배너
-!##li:has([class*="adcard" i])
-##[alt="ad"]
+! - 광고 배너
+poong.today##*:has(> a[href="/my/inquiries/add"] [class*="_adCard_"])
 !
 !
 ! 치지직 (https://chzzk.naver.com/)
@@ -1708,7 +1708,7 @@ poooo.ml#@#.ad
 !||tns-counter.ru^
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki16.store/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki37.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
@@ -1824,7 +1824,7 @@ fingerprint.
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://be.hoohootv427.xyz/)
+! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://ks.hoohootv427.xyz/)
 ! - 배너 빈 공간
 ![$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 /hoohootv/###img_row_container
@@ -1878,8 +1878,7 @@ anilife.live##.MainBnnWrap
 anilife.app##.duration-300
 ! - 기타
 !||ip-api.com^
-! - 영상 재생 해결 (타규칙 차단 해제)
-/^https?:\/\/.*\/(\%?[235][a-fA-F3-6]|[a-f-_]{3,})?[Ss](ervice)?[-_]?[Ww](orker)?\.js(\?.*)?$/$xhr,match-case,from=~dagrasso.pl|~idx.google.com|~tiktok.com|~twitter.com|~youtube.com|~anilife.live
+/^https?:\/\/.*\/(\%?[235][a-fA-F3-6]|[a-f-_]{3,})?[Ss](ervice)?[-_]?[Ww](orker)?\.js(\?.*)?$/$xhr,match-case,from=~dagrasso.pl|~idx.google.com|~tiktok.com|~twitter.com|~youtube.com
 !
 !
 !  애니조아 (https://www.anizoa.net/) - 영상 재생 안됨
@@ -6218,11 +6217,6 @@ patreon.com##body:style(overflow: auto !important;)
 ilbe.com##.sidePoll
 !
 !
-! 강남 엄마 (https://www.gangmom.kr/)
-! - 기타
-/track^$from=~spotify.com|~podtrac.com|~megap.fm|~wolf359.fm|~pdst.fm|~twitch.tv
-!
-!
 ! https://ouo.io/
 ! - 기타
 !ouo.io##+js(prevent-fab-3.2.0)
@@ -6807,6 +6801,7 @@ vexfile.com##center
 !
 ! https://www.winmy20.com/
 ! - 팝업 차단 후 뿌연화면 해결 - 스크롤 잠긴거 풀 필요없음 / 도박 사이트인듯
+! - - - 라채티비 (https://lctv2019.com/)
 ##[class$="modal-overlay"]
 ! - 오른쪽 팝업?
 ##promo-widget
