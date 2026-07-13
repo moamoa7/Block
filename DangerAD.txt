@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260713
+! Version: 20260714
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -137,6 +137,7 @@
 ! 티비위키 / 티비몬 / 티비핫
 ! 디시인사이드
 ! 풍투데이
+! 조선에듀
 */ad_
 
 
@@ -146,6 +147,7 @@
 ! 트위치
 ! 이토랜드
 ! 디시인사이드
+! https://loawa.com/
 */ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
@@ -177,6 +179,14 @@
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
 ^ads|
+
+
+! 야동존 (https://xxzone26.top/)
+_ads.php?
+
+
+! https://cloudfam.io/
+*##.adbox
 
 
 
@@ -260,16 +270,19 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 뽐뿌
 ! 테무
 ! https://toon.at/
+! AV조아
 */popup/*
 
 
 /popups/*
 
 
+! 아동존 (https://xxzone26.top/) - /assets/popup_banner.php?
 *popup*.php
 
 
 *popup*.script
+
 
 
 ! 숲
@@ -300,7 +313,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - javsubid.sx - /ws/  /lf/  /st/
 ! - https://sigundul.site/ - /te/
 ! - https://www.fomos.kr/ - (댓글란) /comments/ / mediag5jvqbd.fmkorea.com/  ext.fmkorea.com/   media.fmkorea.com/
-! - AV조아https://avjoa75.com/  |  XX조아 (https://xxjoa48.com/) -  /player-x.php?
+! - AV조아https://avjoa76.com/  |  XX조아 (https://xxjoa48.com/) -  /player-x.php?
 ! - 핑유걸 https://avpingyou20.com/ - /player/dplayer.html
 ! - 야동닷컴 https://yadong8.com/ - /player.html
 ! - 숲 - /embed?
@@ -414,6 +427,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! https://www.ubisoft.com/
 ! https://toon.at/
 ! https://adguard-vpn.com/
+! https://www.hani.co.kr/
+! 헬스조선
 *_banner_*
 
 ! - 숲
@@ -431,11 +446,13 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 네이버스토어
 ! 애니라이프
 ! 풍투데이
+! 다크걸 (https://darkgirl13.com/)
+! https://dasdas.jp/
 */banner*
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://lgtwins.com/
-@@*/banner*$domain=lgtwins.com
+@@*/banner*$domain=lgtwins.com|nexon.com
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
@@ -450,6 +467,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 오늘의 중계 (https://today-sports10.com/)
 ! https://diconofficial.com/
 ! https://vexfile.com/
+! https://www.poomki.net/
 */banner-*
 
 
@@ -461,11 +479,15 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! https://www.ubisoft.com/
 ! 오늘의 중계 (https://today-sports10.com/)
 ! https://diconofficial.com/
+! 야동존 (https://xxzone26.top/)
+! 지니파일
+! https://www.avdbs.com/
+! 헬스조선
 /*banner*
 @@/*banner*$css
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-@@/*banner*$domain=ep-prod-cdcqfmasbve4b4gv.a01.azurefd.net
+@@/*banner*$domain=ep-prod-cdcqfmasbve4b4gv.a01.azurefd.net|nexon.com
 
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -476,12 +498,15 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 
 
 ! X
+! 다크걸 (https://darkgirl13.com/)
 /*banner*/*
 ! - 예외  - 이미지 안보임
 @@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
 
 ! 숲
 ! https://javgiga.com/
+! 지니파일
+! 헬스조선
 *banner.js
 ! - 숲스토어 - 해제해야 본문 보임
 @@*banner.js$domain=sooptore.sooplive.com
@@ -607,6 +632,8 @@ trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class
 ! 픽팍
 ! 씨네스트
 ! 이토랜드
+! 야동존 (https://xxzone26.top/)
+! https://jable.tv/
 ##[href*="banner"]
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -769,12 +796,18 @@ ad.co.kr#@#[href*="/ad/" i]
 
 ##[href*="/ads/" i]
 
-! - 주간경향
-! - https://www.mrds66.com/ 계열 이미지 주소가 엄청 긴대 이중 /ads/로 되어있는것이 광고가 아니라서 제외 필요
+! 주간경향
+! 스포츠경향
+! 뉴스1
+! https://www.mrds66.com/ 계열 이미지 주소가 엄청 긴대 이중 /ads/로 되어있는것이 광고가 아니라서 제외 필요
+! https://www.hani.co.kr/
+! https://javopen.co/
 ##[src*="/ads/" i]:not([src*="base64"])
 
 
 ! 주간경향
+! 스포츠경향
+! https://www.hani.co.kr/
 ##[src*=".ads/" i]
 
 
