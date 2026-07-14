@@ -459,6 +459,8 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 ! 숲 (https://www.sooplive.com/)
 ! - 메인페이지 이벤트 팝업
 sooplive.com##[class*="img"]:has([src*="event"])
+! - 개인페이지 이벤트 팝업
+sooplive.com##[class*="NoticeLayer"]
 ! - 일부 도메인만 적용 배너
 play.sooplive.com##[class*="banner" i]
 ! - 팝업
@@ -6824,6 +6826,8 @@ jable.tv##[class*="video"]:has([href*="banner"])
 ! 로아와 (https://loawa.com/)
 ! - 배너
 ##[alt*="후원"], [alt*="홍보"]
+! - 예외 - 숲 - 별풍선 후원 이미지 복원
+play.sooplive.com#@#[alt*="후원"]
 ! - 배너 빈 공간
 loawa.com##.mb-4
 !
