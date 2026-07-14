@@ -4845,7 +4845,9 @@ of996.com##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximi
 ! - - - https://www.reddit.com/ - 상단 타이틀이 사라지므로 광역 금지
 !pandalive.co.kr##.pointer-events-auto
 ! - 로그인시 영상에 아이디 돌아다니는거 삭제
-##[id="watermark"]
+##[id="watermark" i]
+! - 홍보 목록 삭제
+##li:has([alt*="홍보"])
 ! - 시청 페이지에서는 회원가입팝업 안뜨게 / 회원가입이나 로그인은 메인 페이지에서
 ! - - - ublock
 !pandalive.co.kr##:matches-path(/play) [class*="pointer-events-auto"]
@@ -6818,7 +6820,7 @@ jable.tv##[class*="video"]:has([href*="banner"])
 !
 !
 ! 넥슨 (https://www.nexon.com/)
-@@||nexon.com^$generichide,image
+@@||nexon.com^$generichide,image,xhr,script
 !
 !
 ! 로아와 (https://loawa.com/)
@@ -6838,6 +6840,11 @@ boutique.chosun.com###bo_main_modalWrap
 edu.chosun.com##[target] [src*="edu.chosun.com/images/"]
 ! 메인 가운데 배너 빈 공간
 edu.chosun.com###indexBlock2
+!
+!
+! https://avjb.com/
+! - 배너
+##[alt="ad" i]
 
 
 
@@ -6864,40 +6871,9 @@ edu.chosun.com###indexBlock2
 @@|wss://$removeparam
 
 
-! 틱톡 추천인/코인 이벤트 광고 차단
-! af_dp: AppsFlyer 딥링크 초대 링크
-||tiktok.com/*af_dp=
-! push_coin: 코인 푸셔 이벤트 경로
-||tiktok.com/*push_coin$doc
-! ug/incentive: 보상 캠페인 경로
-||tiktok.com/ug/incentive/
-
-! 알리익스프레스 제휴 링크 접근 자체 차단
-||aliexpress.com/?aff_fcid
-||aliexpress.com/*aff_platform
-||aliexpress.com/*aff_trace_key
-
-! 알리익스프레스 best 프로모션 페이지 차단
-||best.aliexpress.com^
-
-
-! ═══════════════════════════════════════════
-! 의심스러운 단축 URL 차단
-! ═══════════════════════════════════════════
-||19hot.news^
-||ho.fi^
-||n9k.run^
-||yax.zone^
-||shm.to^
-||yas.xxx^
-||moneyapp.co.kr
-||yass.zip^
-
-
 ! - Cloudflare가 사이트에 심어두는 main.js(지문·행동 신호 수집에 관여하는 스크립트)를 막아서 프라이버시를 보호하려는 목적
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
