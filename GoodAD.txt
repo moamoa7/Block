@@ -1927,8 +1927,6 @@ ttattack.com###thema_wrapper
 ![$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
 ! - 영상 재생 불가 해제
 @@||imasdk.googleapis.com^$domain=upnstreamlive.shop
-! - 기타
-/log^$xhr,from=~backloggd.com|~meet.google.com|~sigstore.dev
 !
 !
 ! 도라마코리아 (https://www.dorama.kr/)
@@ -6862,6 +6860,7 @@ edu.chosun.com###indexBlock2
 
 ! - 쿠팡 광고
 ##[href*="link.coupang.com"]
+
 
 ! - 타규칙 오탐방지
 #@#img[width="0"][height="0"]
