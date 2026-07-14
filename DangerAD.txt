@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260714
+! Version: 20260715
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -127,6 +127,7 @@
 
 ! 티카페 (https://tcafe21.com/)
 ! https://cloudfam.io/
+! 짤티비
 */ads*
 ! - 예외 - https://github.com/ - ads가 들어간 페이지 로딩 안됨
 ! - 예외 - 브레이브 검색 - 이미지 검색시 멈춤
@@ -297,6 +298,17 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 /analysis.
 
 
+!
+##[href*="/event" i]
+
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://trand.co.kr/ - 아이콘 사라짐
+trand.co.kr#@#[href*="/event" i]
+
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
+
 
 
 
@@ -429,7 +441,6 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! https://adguard-vpn.com/
 ! https://www.hani.co.kr/
 ! 헬스조선
-! https://www.moviebloc.com/
 *_banner_*
 
 ! - 숲
@@ -449,7 +460,6 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 풍투데이
 ! 다크걸 (https://darkgirl13.com/)
 ! https://dasdas.jp/
-! https://www.moviebloc.com/
 */banner*
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -460,6 +470,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
+! https://www.lezhinsnack.com/
 */banner_*
 
 
@@ -489,7 +500,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 @@/*banner*$css
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-@@/*banner*$domain=ep-prod-cdcqfmasbve4b4gv.a01.azurefd.net
+@@/*banner*$domain=ep-prod-cdcqfmasbve4b4gv.a01.azurefd.net|lezhinsnack.com
 
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -524,6 +535,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 
 ##[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://www.lezhinsnack.com/
+lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
@@ -636,6 +649,7 @@ trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class
 ! 이토랜드
 ! 야동존 (https://xxzone26.top/)
 ! https://jable.tv/
+! https://www.lezhinsnack.com/
 ##[href*="banner" i]
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -770,7 +784,8 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 ! https://www.naver.com/
 ! https://yandex.com/
 ! https://www.sooplive.com/ - 즐겨찾기 삭제시 팝업 안보임. 어쩔수없이 모든 곳에 팝업 허용
-sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,nid.naver.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
+! https://www.lezhinsnack.com/
+lezhinsnack.com,sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,nid.naver.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://clothoff.net/
@@ -905,6 +920,7 @@ adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads
 chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
 
 
 
