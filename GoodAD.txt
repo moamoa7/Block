@@ -6825,7 +6825,7 @@ jable.tv##[class*="video"]:has([href*="banner"])
 !
 ! 로아와 (https://loawa.com/)
 ! - 배너
-##[alt*="후원"], [alt*="홍보"]
+##[alt*="후원"]
 ! - 예외 - 숲 - 별풍선 후원 이미지 복원
 play.sooplive.com#@#[alt*="후원"]
 ! - 배너 빈 공간
