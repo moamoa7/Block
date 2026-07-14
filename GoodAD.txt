@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260714
+! Version: 20260715
 !
 !
 !
@@ -4846,8 +4846,6 @@ of996.com##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximi
 !pandalive.co.kr##.pointer-events-auto
 ! - 로그인시 영상에 아이디 돌아다니는거 삭제
 ##[id="watermark" i]
-! - 홍보 목록 삭제
-##li:has([alt*="홍보"])
 ! - 시청 페이지에서는 회원가입팝업 안뜨게 / 회원가입이나 로그인은 메인 페이지에서
 ! - - - ublock
 !pandalive.co.kr##:matches-path(/play) [class*="pointer-events-auto"]
@@ -6847,7 +6845,25 @@ edu.chosun.com###indexBlock2
 ! https://avjb.com/
 ! - 배너
 ##[alt="ad" i]
-
+!
+!
+! 무비블록 (https://www.moviebloc.com/)
+@@||moviebloc.com^$generichide,image,xhr
+!
+!
+! 빌런 18+ (https://villain.city/)
+! 배너 및 이벤트 / 핫딜
+villain.city##[target] img[class*="object-cover"]
+##[class="event" i]
+##[alt*="이벤트"]
+!##[href*="/event" i]
+villain.city##[class*="hot-deal"]
+villain.city##[style*="background-image:url"]
+!
+!
+! 네이트 판 (https://m.pann.nate.com/)
+! - 필요없는거 (하단 보험회사)
+m.pann.nate.com##.shopBox
 
 
 
