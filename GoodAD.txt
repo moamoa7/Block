@@ -953,8 +953,8 @@ etoland.co.kr##.fixed-bottom
 !etoland.co.kr##body *[class*="list"]:has-text(/노마십가|인터넷상담|한결같은호랑이|비밀상점|SA2HAK/)
 !etoland.co.kr##body *[class*="list"]:has-text(/보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|야나기기1/)
 !toland.co.kr##body *[class*="list"]:has-text(/내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr|캔커피/)
-! -  -- 광고 글 - List-KR에서 처리하므로 주석 처리
-!etoland.co.kr##li:has([data-inouts-click="true"])
+! - - - 광고 글 - List-KR에서 처리하므로 주석 처리하엿으나 li로 묶지 않아서 빈칸 발생 확인하여 재등록
+etoland.co.kr##li:has([data-inouts-click="true"])
 ! - - - 히트 게시판에서 핫딜 없애기
 etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
 ! =========================
