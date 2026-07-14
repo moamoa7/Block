@@ -216,7 +216,7 @@ _ads.php?
 
 
 
-##[data-testid*="advert"]:not(body):not(html):not(main)
+##[data-testid*="advert" i]:not(body):not(html):not(main)
 
 
 ##[class*="advert" i]:not(body):not(html):not(main)
@@ -232,7 +232,7 @@ _ads.php?
 
 
 ! - 레댓 홍보글
-##[class*="promote"]:not(body):not(html):not(main)
+##[class*="promote" i]:not(body):not(html):not(main)
 
 
 
@@ -256,7 +256,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 
 
 ##[data-ad_slot_name]
-##[data-event*="ad_click"]
+##[data-event*="ad_click" i]
 
 
 /popup.
@@ -391,7 +391,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - https://www.missav123.art/
 ! - upnstreamlive.shop	(조개무비 영상 재생시 필요한 사이트)
 ! - https://sexkbj.com/ - 모바일에서 iframe 안막혀있음 - 플레이 영상이 iframe여서 embed로 막힌거 해제
-/sexkbj|upnstreamlive|missav|hanime|thisav/##iframe[src]:not([src*="embed"])
+/sexkbj|upnstreamlive|missav|hanime|thisav/##iframe[src]:not([src*="embed" i])
 
 
 
@@ -452,7 +452,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://lgtwins.com/
-@@*/banner*$domain=lgtwins.com|nexon.com
+@@*/banner*$domain=lgtwins.com
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
@@ -487,7 +487,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 @@/*banner*$css
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-@@/*banner*$domain=ep-prod-cdcqfmasbve4b4gv.a01.azurefd.net|nexon.com
+@@/*banner*$domain=ep-prod-cdcqfmasbve4b4gv.a01.azurefd.net
 
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -512,7 +512,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 @@*banner.js$domain=sooptore.sooplive.com
 
 
-##[data-testid*="banner"]:not(body):not(html):not(main)
+##[data-testid*="banner" i]:not(body):not(html):not(main)
 
 
 ! - 킥 - files.kick.com/images/subcategories/
@@ -520,7 +520,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - - - 킥 / 탑툰 둘 다 타겟이 없음
 !##[src*="/banner/" i]:not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
 
-##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
+##[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -530,7 +530,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - - - 타겟 없음
 !##[src*="/banners/" i]:not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
 
-##[target]:has([src*="/banners/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
+##[target]:has([src*="/banners/" i]):not([class*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 
 ! - 딥시크(https://www.deepseek.com) - [style*="/_next/static/media/banner-background"]
 ##div[style*="banner" i]
@@ -562,10 +562,10 @@ wadiz.kr,fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpa
 
 
 ! - 개별 사이트마다 하는걸로
-!##li[class*="banner"]
+!##li[class*="banner" i]
 
 ! - 개별 사이트마다 하는걸로
-!##ul[class*="banner"]
+!##ul[class*="banner" i]
 
 
 
@@ -612,21 +612,21 @@ wadiz.kr,fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpa
 
 
 ! wdwd11.com - class="megu-post-banner"
-##[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
+##[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! 만개의 레시피 (https://www.10000recipe.com/)
 ! https://www.sooplive.com/
 ! https://vexfile.com/
 ! https://trand.co.kr/ - 메인에서 로그인 박스 사라짐
-trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
+trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소월드 (https://wdwd12.com/)
 ! 펀비 (https://funbe656.com/)
 ! 툰코 (https://tkor128.com/)
 ! 주소핑 (https://www.jusoping3.com/)
-/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="logo"])
+/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 
 
 ! 픽팍
@@ -634,19 +634,19 @@ trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class
 ! 이토랜드
 ! 야동존 (https://xxzone26.top/)
 ! https://jable.tv/
-##[href*="banner"]
+##[href*="banner" i]
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://outstanding.kr/
-outstanding.kr#@#[href*="banner"]
+outstanding.kr#@#[href*="banner" i]
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://18moa028.com/
-18moa028.com#@#[href*="banner"]
+18moa028.com#@#[href*="banner" i]
 
 
 
-##[target]:has([src*="/background/"])
+##[target]:has([src*="/background/" i])
 
 
 
@@ -754,11 +754,11 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 
 
 
-##[id*="pop_"]:not(body):not(html):not(main)
+##[id*="pop_" i]:not(body):not(html):not(main)
 
 
 
-##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"])
+##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! - https://www.clien.net/
@@ -767,12 +767,12 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 ! - https://www.a-ha.io/
 ! - https://www.naver.com/
 ! - https://yandex.com/
-yandex.com,naver.com,a-ha.io,mypikpak.com,nid.naver.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"])
+yandex.com,naver.com,a-ha.io,mypikpak.com,nid.naver.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://clothoff.net/
 ! - https://javgiga.com/
-clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha"])
+clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
 
 
 ##[id*="popup" i]:not(body):not(html):not(main)
@@ -802,7 +802,7 @@ ad.co.kr#@#[href*="/ad/" i]
 ! https://www.mrds66.com/ 계열 이미지 주소가 엄청 긴대 이중 /ads/로 되어있는것이 광고가 아니라서 제외 필요
 ! https://www.hani.co.kr/
 ! https://javopen.co/
-##[src*="/ads/" i]:not([src*="base64"])
+##[src*="/ads/" i]:not([src*="base64" i])
 
 
 ! 주간경향
@@ -873,7 +873,6 @@ adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads
 chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-
 
 
 
