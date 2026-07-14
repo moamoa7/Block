@@ -761,13 +761,14 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 ##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! - https://www.clien.net/
-! - https://nid.naver.com/
-! - https://mypikpak.com/
-! - https://www.a-ha.io/
-! - https://www.naver.com/
-! - https://yandex.com/
-yandex.com,naver.com,a-ha.io,mypikpak.com,nid.naver.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
+! https://www.clien.net/
+! https://nid.naver.com/
+! https://mypikpak.com/
+! https://www.a-ha.io/
+! https://www.naver.com/
+! https://yandex.com/
+! https://www.sooplive.com/ - 즐겨찾기 삭제시 팝업 안보임. 어쩔수없이 모든 곳에 팝업 허용
+sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,nid.naver.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://clothoff.net/
@@ -796,19 +797,23 @@ ad.co.kr#@#[href*="/ad/" i]
 
 ##[href*="/ads/" i]
 
+! https://play.sooplive.com/
+##[src*="/ad/" i]
+
+
+
 ! 주간경향
 ! 스포츠경향
 ! 뉴스1
 ! https://www.mrds66.com/ 계열 이미지 주소가 엄청 긴대 이중 /ads/로 되어있는것이 광고가 아니라서 제외 필요
 ! https://www.hani.co.kr/
-! https://javopen.co/
 ##[src*="/ads/" i]:not([src*="base64" i])
 
 
 ! 주간경향
 ! 스포츠경향
 ! https://www.hani.co.kr/
-##[src*=".ads/" i]
+!##[src*=".ads/" i]
 
 
 
@@ -837,6 +842,30 @@ adguard-vpn.com,play.sooplive.com,dcinside.com#@#[class^="ad" i]:not(body):not(h
 up-4ever.net,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(main):not([class*="player" i]):not([class*="downloads" i]):not([class*="source" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
+
+! https://www.hani.co.kr/
+! https://trand.co.kr/
+! https://08.avsee.ru/
+! 숲 - class*="_add_"
+##[class*="_ad"]:not(body):not(html):not(main):not([class*="_ad_"]):not([class*="_add_"])
+
+
+! https://www.hani.co.kr/
+! 숲
+##[class*="ad_"]:not(body):not(html):not(main):not([class*="_ad_"]):not([class*="_add_"])
+
+
+##[class*="_ad_"]:not(body):not(html):not(main):not([class*="_add_"])
+
+! 개별 도메인별로 필요시 할 것
+!##[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"])
+
+! 개별 도메인별로 필요시 할 것
+!##[class*="ad-"]:not(body):not(html):not(main):not([class*="-ad-"])
+
+! 개별 도메인별로 필요시 할 것
+!##[class*="-ad-"]:not(body):not(html):not(main)
 
 
 
