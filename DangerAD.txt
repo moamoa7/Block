@@ -429,6 +429,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! https://adguard-vpn.com/
 ! https://www.hani.co.kr/
 ! 헬스조선
+! https://www.moviebloc.com/
 *_banner_*
 
 ! - 숲
@@ -448,6 +449,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 풍투데이
 ! 다크걸 (https://darkgirl13.com/)
 ! https://dasdas.jp/
+! https://www.moviebloc.com/
 */banner*
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -843,20 +845,21 @@ up-4ever.net,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(main):not
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
-
+! 개별 도메인별로 필요시 할 것
 ! https://www.hani.co.kr/
 ! https://trand.co.kr/
 ! https://08.avsee.ru/
 ! 숲 - class*="_add_"
-##[class*="_ad"]:not(body):not(html):not(main):not([class*="_ad_"]):not([class*="_add_"])
+!##[class*="_ad"]:not(body):not(html):not(main):not([class*="_ad_"]):not([class*="_add_"])
 
-
+! 개별 도메인별로 필요시 할 것
 ! https://www.hani.co.kr/
 ! 숲
-##[class*="ad_"]:not(body):not(html):not(main):not([class*="_ad_"]):not([class*="_add_"])
+! https://www.moviebloc.com/ - 플레이어
+!##[class*="ad_"]:not(body):not(html):not(main):not([class*="_ad_"]):not([class*="_add_"]):not([class*="load_"])
 
-
-##[class*="_ad_"]:not(body):not(html):not(main):not([class*="_add_"])
+! 개별 도메인별로 필요시 할 것
+!##[class*="_ad_"]:not(body):not(html):not(main):not([class*="_add_"])
 
 ! 개별 도메인별로 필요시 할 것
 !##[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"])
@@ -902,7 +905,6 @@ adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads
 chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-
 
 
 
