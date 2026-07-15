@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260715
+! Version: 20260716
 !
 !
 !
@@ -847,6 +847,8 @@ gall.dcinside.com#@#.r_dcmedia
 !
 !
 ! 아카라이브 (https://arca.live/)
+! - 광고 게시물
+arca.live##[class*="row"]:has-text(광고)
 ! 민감한 콘텐츠 주의 메시지 없애기
 ||arca.live/static/assets/js/adult.min.js
 !
@@ -6503,6 +6505,8 @@ pixiv.net##[class*="sc-"][class*="-ca"]
 ! - 하단 광고 차단 문구
 !##[id*="adblock_notice" i]
 !##[id$="_notice" i]
+! - 공동구매 배너
+!0db.co.kr##[class*="widget"]:has([href*="shop" i])
 !
 !
 ! 알바천국 (https://www.alba.co.kr/)
@@ -6872,6 +6876,8 @@ m.pann.nate.com##.shopBox
 ##img[src][onclick*="window.open"]
 ! - 빈 공간
 ##div.mb-sm-4.mb-3 > .hr
+
+
 
 
 
