@@ -6848,7 +6848,9 @@ edu.chosun.com###indexBlock2
 ! 배너 및 이벤트 / 핫딜
 villain.city##[target] img[class*="object-cover"]
 ##[class="event" i]
-##[alt*="이벤트"]
+!##[alt*="이벤트"]
+! - 예외 - 팬더티비 - 영상 이미지 복원
+pandalive.co.kr#@#[alt*="이벤트"]
 !##[href*="/event" i]
 villain.city##[class*="hot-deal"]
 villain.city##[style*="background-image:url"]
@@ -6870,11 +6872,6 @@ m.pann.nate.com##.shopBox
 ##img[src][onclick*="window.open"]
 ! - 빈 공간
 ##div.mb-sm-4.mb-3 > .hr
-!
-!
-! https://apkmody.com/
-! - 지저분한거
-apkmody.com##video:has(> source)
 
 
 
