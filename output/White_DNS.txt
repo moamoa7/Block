@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-15 06:03:16 UTC
+! Generated: 2026-07-15 08:38:50 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,538
+! Exception Rules: 6,540
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -300,8 +300,6 @@
 @@||api-na2.hubapi.com^
 @@||api-na3.hubapi.com^
 @@||api-notify.dropbox.com^
-@@||api-pdx02-origin.hubapi.com^
-@@||api-syd02-origin.hubapi.com^
 @@||api.accuweather.com^
 @@||api.adguard.com^
 @@||api.adguard.org^
@@ -3025,6 +3023,7 @@
 @@||mkto-ab130188.com^
 @@||mkto-ab140048.com^
 @@||mkto-ab150013.com^
+@@||mkto-ab150224.com^
 @@||mkto-ab170094.com^
 @@||mkto-ab170123.com^
 @@||mkto-ab170161.com^
@@ -3092,6 +3091,7 @@
 @@||mkto-ab550184.com^
 @@||mkto-ab560068.com^
 @@||mkto-ab560119.com^
+@@||mkto-ab560171.com^
 @@||mkto-ab570110.com^
 @@||mkto-ab570128.com^
 @@||mkto-ab580004.com^
@@ -3127,6 +3127,7 @@
 @@||mkto-cs0007.com^
 @@||mkto-d0024.com^
 @@||mkto-d0170.com^
+@@||mkto-dev.certinia.com^
 @@||mkto-e0014.com^
 @@||mkto-e0126.com^
 @@||mkto-e0231.com^
@@ -4752,6 +4753,7 @@
 @@||sitecheck5.opera.com^
 @@||sitecheck6.opera.com^
 @@||sitecheck7.opera.com^
+@@||sites.hscoscdn-ap1.net^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
 @@||sites.hscoscdn00.net^
