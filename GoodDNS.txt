@@ -2,7 +2,7 @@
 ! Title: GoodDNS
 ! Description: 공개 DNS 리스트(HaGeZi Pro/Pro++, AdGuard DNS filter, Filter-KR 등)에
 !              없거나 거의 안 잡히는 항목만 남긴 순수 보충 필터.
-! Version: 20260707-supplement-v2
+! Version: 20260715-supplement-v1
 !
 ! [원칙] 유명 공개 리스트 아무거나 깔면 이미 커버될 도메인은 넣지 않는다.
 !        남기는 것: (1) 개인 예외/badfilter  (2) 개인 판단 차단 도메인
@@ -13,7 +13,7 @@
 ! [1] 예외 도메인
 ! ═══════════════════════════════════════════
 ! - HaGeZi's Pro Blocklist에 의해 차단됨
-@@||apkmody.com^
+!@@||apkmody.com^
 ! - 성인 채팅사이트 이동시 필요
 @@||scashwl.com^
 ! - 성인 채팅사이트 구동시 필요
