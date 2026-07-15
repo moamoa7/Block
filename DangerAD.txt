@@ -72,6 +72,7 @@
 
 
 ! 티비착
+! 조아툰
 */ad/*
 ! - 예외
 @@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
@@ -406,8 +407,12 @@ trand.co.kr#@#[href*="/event" i]
 /sexkbj|upnstreamlive|missav|hanime|thisav/##iframe[src]:not([src*="embed" i])
 
 
-
+! https://apkmody.com/
 ##[target] video
+
+! https://apkmody.com/
+! 탑걸 (https://kr44.topgirl.co/)
+##video:has(> source)
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -583,6 +588,8 @@ wadiz.kr,fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpa
 !##ul[class*="banner" i]
 
 
+! - 머니툰 (https://mtoon144.asia/)
+##[alt*="banner" i]
 
 
 ! t-browser.com - fullwidthbanner
