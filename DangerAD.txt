@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260715
+! Version: 20260716
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -924,6 +924,7 @@ adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads
 chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
 
 
 
