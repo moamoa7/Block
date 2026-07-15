@@ -409,7 +409,7 @@ trand.co.kr#@#[href*="/event" i]
 
 ! https://apkmody.com/
 ! 탑걸 (https://kr44.topgirl.co/)
-##video:has(> source)
+##[target] video
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -924,7 +924,6 @@ adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads
 chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-
 
 
 
