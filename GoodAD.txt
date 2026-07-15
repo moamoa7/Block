@@ -118,10 +118,10 @@
 ! sendvid.com
 ! - - - ublock
 heye.kr##+js(window.open-defuser)
-sendvid.com,/mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
+/sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
 ! - - - adguard
 heye.kr#%#//scriptlet('prevent-window-open')
-sendvid.com,/mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
+/sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
 !
 !
 ! 카카오TV (https://tv.kakao.com/) - 서비스 종료
@@ -1711,7 +1711,7 @@ poooo.ml#@#.ad
 !||tns-counter.ru^
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki38.net/)  (https://tvwiki1.space/) - https://tvwiki1~.space/ 랜덤으로 붙여주는듯
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki38.net/)  (https://tvwiki1.space/) - 주소를 랜덤으로 뿌려서 막힌곳/열린곳 다 존재
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
@@ -3288,7 +3288,7 @@ xnxx.*##.premium-results-line
 !
 ! SexLBJ (https://sexkbj.com/)
 ! - 영상 목록내 영상 클릭시 발생하는 팝업 방지
-@@||sexkbj.com^$generichide
+!@@||sexkbj.com^$generichide
 ! - 영상내 플레이버튼 위 닫기 버튼
 sexkbj.com##.happy-inside-player
 ! - 영상 재생 버튼 클릭시 팝업 (새창) 방지 (ublock)
