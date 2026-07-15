@@ -408,9 +408,6 @@ trand.co.kr#@#[href*="/event" i]
 
 
 ! https://apkmody.com/
-##[target] video
-
-! https://apkmody.com/
 ! 탑걸 (https://kr44.topgirl.co/)
 ##video:has(> source)
 
