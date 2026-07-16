@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260716
+! Version: 20260717
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -254,6 +254,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 
 /adsblocker.
 
+
 ###adblock-dialog
 
 
@@ -293,18 +294,15 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 @@/extension$image
 
 
-/log.
 
+! 마이민트(https://www.mimint.co.kr/) - 당첨자 제외 /eventwin
+##[href*="/event" i]:not([href*="/eventwin" i])
 
-/analysis.
-
-
-!
-##[href*="/event" i]
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://trand.co.kr/ - 아이콘 사라짐
-trand.co.kr#@#[href*="/event" i]
+! 만개의 레시피 (https://www.10000recipe.com/)
+10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eventwin" i])
 
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -413,25 +411,25 @@ trand.co.kr#@#[href*="/event" i]
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
-*-banner*:not(*-banner-*)
+!*-banner*:not(*-banner-*)
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
-*banner-*:not(*-banner-*)
+!*banner-*:not(*-banner-*)
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
 ! 트위치
 ! 와디즈
-*-banner-*
+!*-banner-*
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
-*_banner*:not(*_banner_*)
+!*_banner*:not(*_banner_*)
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
-*banner_*:not(*_banner_*)
+!*banner_*:not(*_banner_*)
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -443,14 +441,14 @@ trand.co.kr#@#[href*="/event" i]
 ! https://adguard-vpn.com/
 ! https://www.hani.co.kr/
 ! 헬스조선
-*_banner_*
+!*_banner_*
 
 ! - 숲
-*/banner.*
+!*/banner.*
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
-*/banner?*
+!*/banner?*
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -460,20 +458,20 @@ trand.co.kr#@#[href*="/event" i]
 ! 네이버스토어
 ! 애니라이프
 ! 풍투데이
-! 다크걸 (https://darkgirl13.com/)
+! 다크걸 (https://darkgirl14.com/)
 ! https://dasdas.jp/
-*/banner*
+!*/banner*
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://lgtwins.com/
-@@*/banner*$domain=lgtwins.com
+!@@*/banner*$domain=lgtwins.com
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
 ! https://www.lezhinsnack.com/
-*/banner_*
+!*/banner_*
 
 
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -483,7 +481,7 @@ trand.co.kr#@#[href*="/event" i]
 ! https://diconofficial.com/
 ! https://vexfile.com/
 ! https://www.poomki.net/
-*/banner-*
+!*/banner-*
 
 
 ! 트위치
@@ -498,25 +496,25 @@ trand.co.kr#@#[href*="/event" i]
 ! 지니파일
 ! https://www.avdbs.com/
 ! 헬스조선
-/*banner*
-@@/*banner*$css
+!/*banner*
+!@@/*banner*$css
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-@@/*banner*$domain=ep-prod-cdcqfmasbve4b4gv.a01.azurefd.net|lezhinsnack.com
+!@@/*banner*$domain=ep-prod-cdcqfmasbve4b4gv.a01.azurefd.net|lezhinsnack.com
 
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
 
 ! - 예외
-@@/*banner*$domain=github.com
+!@@/*banner*$domain=github.com
 
 
 ! X
-! 다크걸 (https://darkgirl13.com/)
-/*banner*/*
+! 다크걸 (https://darkgirl14.com/)
+!/*banner*/*
 ! - 예외  - 이미지 안보임
-@@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
+!@@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
 
 ! 숲
 ! https://javgiga.com/
@@ -527,6 +525,11 @@ trand.co.kr#@#[href*="/event" i]
 @@*banner.js$domain=sooptore.sooplive.com
 
 
+
+##.banner:not(html):not(body)
+
+
+
 ##[data-testid*="banner" i]:not(body):not(html):not(main)
 
 
@@ -535,19 +538,17 @@ trand.co.kr#@#[href*="/event" i]
 ! - - - 킥 / 탑툰 둘 다 타겟이 없음
 !##[src*="/banner/" i]:not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
 
-##[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+##[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.lezhinsnack.com/
-lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
 
-! - 쿠팡플레이 - |img.coupangstreaming.com/assets/feed-banners/
-! - - - 타겟 없음
-!##[src*="/banners/" i]:not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"])
 
-##[target]:has([src*="/banners/" i]):not([class*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+##[target]:has([src*="/banners/" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+
 
 ! - 딥시크(https://www.deepseek.com) - [style*="/_next/static/media/banner-background"]
 ##div[style*="banner" i]
@@ -557,15 +558,59 @@ deepseek.com#@#div[style*="banner" i]
 
 
 ! - 개별 사이트마다 하는걸로 (##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]) 이것과 겹치는 일이 많음  / 해제도 2번 해야되는 일이 발생할 수 있음) // 타겟이 없는 배너만 해당
-! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-!  - 치지직 (https://chzzk.naver.com/)
-! 쿠팡 (https://www.coupang.com/))
-! - 픽팍 (https://mypikpak.com/)
-! - 마이민트 (https://www.mimint.co.kr/)
-! - 포모스 (https://www.fomos.kr/)
-! - FapHouse (https://ko.fhcontent.com/)
-! - https://www.wadiz.kr/
-wadiz.kr,fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpak.com##[class*="banner" i]
+
+
+
+!  치지직 (https://chzzk.naver.com/)
+##[class*="_banner" i]:not([class*="_banner_" i])
+
+
+! 픽팍 (https://mypikpak.com/)
+##[class*="banner_" i]:not([class*="_banner_" i])
+
+
+
+##[class*="_banner_" i]
+! 만개의 레시피 (https://m.10000recipe.com/]
+m.10000recipe.com#@#[class*="_banner_" i]
+
+
+! https://www.wadiz.kr/
+##[class*="banner-" i]:not([class*="-banner-" i])
+
+! https://vexfile.com/
+vexfile.com#@#[class*="banner-" i]:not([class*="-banner-" i])
+
+! 마이민트 (https://www.mimint.co.kr/)
+! FapHouse (https://ko.fhcontent.com/)
+! 쿠팡 (https://www.coupang.com/)
+##[class*="-banner" i]:not([class*="-banners" i]):not([class*="-banner-" i])
+
+! https://vexfile.com/
+! 주소월드 (https://wdwd12.com/)
+! 펀비 (https://funbe657.com/)
+! 툰코 (https://tkor135.com/)
+vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-banner-" i])
+
+/tkor|funbe|wdwd/#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-banner-" i])
+
+
+
+! https://javsubs91.uk/ - 영상 하단 배너
+! FapHouse (https://ko.fhcontent.com/)
+! 쿠팡 (https://www.coupang.com/)
+##[class*="-banner-" i]
+
+
+! 포모스 (https://www.fomos.kr/)
+! 쿠팡 (https://www.coupang.com/)
+##[class*="-banners" i]:not([class*="-banners-" i])
+
+
+##[class*="banners-" i]:not([class*="-banners-" i])
+
+
+##[class*="-banners-" i]
 
 
 ! - 개별 사이트마다 하는걸로 (##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]) 이것과 겹치는 일이 많음  / 해제도 2번 해야되는 일이 발생할 수 있음) // 타겟이 없는 배너만 해당
@@ -632,57 +677,59 @@ wadiz.kr,fhcontent.com,coupang.com,chzzk.naver.com,fomos.kr,mimint.co.kr,mypikpa
 
 ! wdwd11.com - class="megu-post-banner"
 ! 클리앙 - 댓글 안보이는거:not([class*="comment"])
-##[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
+!##[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! 만개의 레시피 (https://www.10000recipe.com/)
 ! https://www.sooplive.com/
 ! https://vexfile.com/
 ! https://trand.co.kr/ - 메인에서 로그인 박스 사라짐
-trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
+!trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소월드 (https://wdwd12.com/)
 ! 펀비 (https://funbe656.com/)
 ! 툰코 (https://tkor128.com/)
 ! 주소핑 (https://www.jusoping3.com/)
-/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
+!/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 
 
+! - 개별 사이트마다 하는걸로
 ! 픽팍
 ! 씨네스트
 ! 이토랜드
 ! 야동존 (https://xxzone26.top/)
 ! https://jable.tv/
 ! https://www.lezhinsnack.com/
-##[href*="banner" i]
+!##[href*="banner" i]
 
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://outstanding.kr/
-outstanding.kr#@#[href*="banner" i]
+!outstanding.kr#@#[href*="banner" i]
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://18moa028.com/
-18moa028.com#@#[href*="banner" i]
+!18moa028.com#@#[href*="banner" i]
+
+
+
+##[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
+! - nid.naver.com - 멤버쉽 결제시 나오는 화면 안보임
+nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 
 
 
 ##[target]:has([src*="/background/" i])
 
 
-
-##[id*="banner" i]:not(body):not(html):not(main)
-! - nid.naver.com - 멤버쉽 결제시 나오는 화면 안보임
-nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
-
-
-
 */background/*
 
-
-*background*
 ! - 예외
 ! 이데일리 (https://www.edaily.co.kr/) 로고
 @@||*background$domain=cineaste.co.kr|coupangplay.com|t-browser.com|deepseek.com|code.visualstudio.com|edaily.co.kr
+
+
+! 개별 필요시
+!##[style*="background-image:url" i]
 
 
 
@@ -770,7 +817,8 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main)
 ! - https://www.thisav.sbs/
 ! - https://www.hanime123.mom
 ! - https://www.missav123.art/
-/missav|hanime|thisav|jogaeparty/##[target*="blank"] img
+! 19가이드닷컴 (https://www.19guide03.com/)
+/19guide|missav|hanime|thisav|jogaeparty/##[target*="blank"] img
 
 
 
@@ -817,6 +865,7 @@ ad.co.kr#@#[href*="/ad/" i]
 
 
 ##[href*="/ads/" i]
+
 
 ! https://play.sooplive.com/
 ##[src*="/ad/" i]
@@ -924,7 +973,6 @@ adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads
 chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-
 
 
 
