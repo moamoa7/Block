@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-16 06:40:30 UTC
+! Generated: 2026-07-16 09:05:52 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,540
+! Exception Rules: 6,538
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -286,7 +286,6 @@
 @@||api-02.moengage.com^
 @@||api-03.moengage.com^
 @@||api-04.moengage.com^
-@@||api-101.moengage.com^
 @@||api-ao-list.adison.co^
 @@||api-ao.adison.co^
 @@||api-ap1.hubapi.com^
@@ -1457,6 +1456,7 @@
 @@||dutchbanglabank.com^
 @@||dvbank.ua^
 @@||dvbbank.com^
+@@||dvr-cdn.exponea.com^
 @@||dvrb.de^
 @@||dw.cbsi.com^
 @@||dwpbank.de^
@@ -3023,7 +3023,6 @@
 @@||mkto-ab130188.com^
 @@||mkto-ab140048.com^
 @@||mkto-ab150013.com^
-@@||mkto-ab150224.com^
 @@||mkto-ab170094.com^
 @@||mkto-ab170123.com^
 @@||mkto-ab170161.com^
@@ -3035,6 +3034,7 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
+@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -3081,7 +3081,6 @@
 @@||mkto-ab480014.com^
 @@||mkto-ab480015.com^
 @@||mkto-ab480166.com^
-@@||mkto-ab530057.com^
 @@||mkto-ab530192.com^
 @@||mkto-ab540059.com^
 @@||mkto-ab540143.com^
@@ -3091,7 +3090,6 @@
 @@||mkto-ab550184.com^
 @@||mkto-ab560068.com^
 @@||mkto-ab560119.com^
-@@||mkto-ab560171.com^
 @@||mkto-ab570110.com^
 @@||mkto-ab570128.com^
 @@||mkto-ab580004.com^
@@ -3107,6 +3105,7 @@
 @@||mkto-ab640171.com^
 @@||mkto-ab650097.com^
 @@||mkto-ab650172.com^
+@@||mkto-ab650200.com^
 @@||mkto-ab660121.com^
 @@||mkto-ab660168.com^
 @@||mkto-ab680016.com^
@@ -3119,6 +3118,7 @@
 @@||mkto-ab700044.com^
 @@||mkto-abc0114.com^
 @@||mkto-abc0241.com^
+@@||mkto-abd0206.com^
 @@||mkto-abd0218.com^
 @@||mkto-abj0022.com^
 @@||mkto-abm0255.com^
@@ -3127,7 +3127,6 @@
 @@||mkto-cs0007.com^
 @@||mkto-d0024.com^
 @@||mkto-d0170.com^
-@@||mkto-dev.certinia.com^
 @@||mkto-e0014.com^
 @@||mkto-e0126.com^
 @@||mkto-e0231.com^
@@ -4753,7 +4752,6 @@
 @@||sitecheck5.opera.com^
 @@||sitecheck6.opera.com^
 @@||sitecheck7.opera.com^
-@@||sites.hscoscdn-ap1.net^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
 @@||sites.hscoscdn00.net^
