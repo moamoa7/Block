@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260716
+! Version: 20260717
 !
 !
 !
@@ -462,7 +462,7 @@ sooplive.com##[class*="img"]:has([src*="event"])
 ! - 개인페이지 이벤트 팝업
 sooplive.com##[class*="NoticeLayer"]
 ! - 일부 도메인만 적용 배너
-play.sooplive.com##[class*="banner" i]
+!play.sooplive.com##[class*="banner" i]
 ! - 팝업
 !sooplive.com##.bnrimg_area
 ! - 개인페이지내 팝업
@@ -868,7 +868,7 @@ arca.live##[class*="row"]:has-text(광고)
 !theqoo.net#@#[class*="ad_"] [style]
 ! - - - https://www.ddanzi.com/ 본문 일부 사라짐
 !ddanzi.com#@#[class*="ad_"] [style]
-! - - - 야동코리아 (https://www.yako06.com/) - 상단 지워짐
+! - - - 야동코리아 (https://www.yako14.com/) - 상단 지워짐
 ![$domain=/^yako\d+.net/]#@#[class*="ad_"] [style]
 ! - - - 이토랜드 (https://www.etoland.co.kr/) - 모바일에서 게시물 본문 지워짐
 !etoland.co.kr#@#[class*="ad_"] [style]
@@ -1239,7 +1239,7 @@ ygosu.com##tr:has([href*="/ad/" i])
 !###banner-link - 아래 규칙으로 대체
 !##[id*="banner"]
 ! - 메인/게시물 왼쪽 배너 공간 (PC)
-! - - - 야동코리아 (https://www.yako06.com/) - 영상 하단 배너
+! - - - 야동코리아 (https://www.yako14.com/) - 영상 하단 배너
 ! - - - 밍키넷 영상 하단 텍스트 배너
 ! - - - 유튜브에서도 적용
 !##[id="banner"]
@@ -1867,7 +1867,7 @@ fingerprint.
 ! 콕콕티비 (https://cokcoktv1.org/) - 반응이 없는 링크 (만들다가 말앗나)
 !
 !
-! 무비킹 (https://t.me/s/mvking777)  (https://xn--v92b29c9uy.com/)  (https://mvking11.org/)
+! 무비킹 (https://t.me/s/mvking777)  (https://무비킹.com/)  (https://mvking11.org/)
  ! - 영상 위 배너
 ![$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
 !
@@ -3145,7 +3145,7 @@ javgg.*##.home_iframead
 !javsubs91.uk#%#//scriptlet('prevent-window-open')
 ! - 기타
 !||ahrefs.com^
-.php?ping=
+!.php?ping=
 !
 !
 ! 7MMTV (https://7tv081.com/)
@@ -3836,13 +3836,6 @@ action=js_stats
 ##.banner-ad
 !
 !
-! 야동코리아 (https://yako09.com/)
-! - 배너
-![$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
-!##[class="banner_grid" i]
-!##.banner_grid
-!
-!
 ! 야동코리아 (https://ydkorea2.com/)
 !
 !
@@ -4178,7 +4171,7 @@ javmov.com##.spot
 !##div.slick-slider.slick-initialized.banner-slide-wrap-pc.live-stream-banner > .draggable.slick-list
 !##[class^="live-stream-banner" i]
 ! - 게시물내 한칸짜리 배너
-!##[src*="event_banner" i]
+/today-sports/##[src*="banner" i]
 ! - 모바일 왼쪽 사람 아이콘 없애기
 /today-sports/##.sidebar-user-trigger
 ! - 이미지 복원
@@ -4496,7 +4489,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ! - - - 여기여 (https://www.yugiyu.com/) - 카지노/토토 링크 지워진거라 그냥 둘 것
 !
 !
-! 빠른주소4 (https://xn--4-3k1fr9j3xd8tm.com/)
+! 빠른주소 (https://quickjuso.net/) (https://빠른주소7.com/)
 ! - 배너
 ![$domain=/^xn--\d+-3k1fr9j3xd8tm.com/]##[class*="pic_" i]
 ##[aria-label*="제휴업체"]
@@ -4710,7 +4703,7 @@ jusogall.com###banner-container
 !
 !
 !
-! 야동파티 (https://xn--2q1bv3xm4cpse87p1e.net/) (https://ydparty04.tv/)
+! 야동파티 (https://야동파티주소.net/) (https://ydparty04.tv/)
 ! - 배너 이미지
 ||img.imagecoco.net/assets/*
 ! - 배너 공간
@@ -4775,7 +4768,7 @@ jusogall.com###banner-container
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl13.com/)
+! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl14.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl3.com/)
 ! - - - 야동닷컴 (https://ydong.net/ (https://yadong8.com/)
@@ -4792,6 +4785,10 @@ jusogall.com###banner-container
 !##a[target*="blank"]:has(img[src*="admin_banner"])
 !##img[src*="admin_banner" i]
 !##[id*="main-banner" i]
+! - iframe 2개 중 광고영상 1개  제거 - 5초 기다리는건 팝업이 안나오고 이건 팝업이 나올수 있음
+##iframe[src*="darkgirl"]
+! - iframe 2개 중 광고영상 1개  제거 - 5초 기다려야 하지만 팝업 안나옴
+!##iframe[src*="sendvid.com"]
 ! - 스킵 후 자동으로 플레이 재생 (영상 괜히 클릭하지 마세요. 팝업 나옴)
 ![$domain=/^sanail\d+.com/],[$domain=/^yadong\d+.com/],[$domain=/^dodogirl\d+.com/],[$domain=/^darkgirl\d+.com/]##+js(trusted-click-element, #adbtn.ready, , 500-30000)
 ! - - - ublock
@@ -4849,6 +4846,7 @@ of996.com##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximi
 ! - 기타
 !||digitalcamp.co.kr^
 !||onetag.co.kr^
+/advert^
 !
 !
 ! 링크판 (https://linkpan72.com/) - 점검 중 (죽은건지 재확인 요망)
@@ -5015,10 +5013,10 @@ jusojula.com##.slide-container
 ![$domain=/^jusopick\d+.com/]##.md\:w-\[400px\].md\:ml-56.max-md\:hidden.max-md\:ml-12.z-50.fixed
 !
 !
-! 야튜브 (https://yatube2.com/)
+! 야튜브 (https://yatube2.com/) - 접속불가
 ! - 배너
 ![$domain=/^yatube\d+.com/]##.py-4
-/yatube/##.py-4
+!/yatube/##.py-4
 !
 !
 ! 주소탑 (https://jusotop05.org/)
@@ -5120,15 +5118,15 @@ noonnu.cc##.lg\:top-8
 !
 ! 먹튀슈퍼맨 (https://mt-superman.net/)
 ! - 배너
-mt-superman.net##.swiper-slide
+!mt-superman.net##.swiper-slide
 !
 !
-! 링크닷컴 (https://linknnn.com/) - 주소 바뀌는듯
+! 링크닷컴 (https://linkdot2.com/) - 주소 바뀌는듯
 ! - 상단 배너
 !linkddd.com##.wst-post-gl
 !||*files/attach/images/*$image
 ! - 상단 배너 공간
-linknnn.com##.wst-post-gl
+!linknnn.com##.wst-post-gl
 ! - - -  일베 배너 (https://www.ilbe.com/)
 !||/files/attach/*$image
 ! - 배너 공간
@@ -5298,6 +5296,8 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 /dobaklife/##[class*="bg-black"]:has([href])
 ! - 안생도박 보증업체 테이블 (이미지)
 ![$domain=/^dobaklife\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
+! - 게시물내 광고글
+/dobaklife/##[class="list-col"]:has-text(포인트)
 !
 !
 ! https://thepinkstuff.co.kr/
@@ -5324,7 +5324,15 @@ semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 fc-info.com##[class*="videoContainer"]
 !
 !
-! 야동티비 (https://xn--2q1bp1r9rce9ecnf02r.org/) (https://yadongtv97.com/)
+! 야동코리아 (https://yako09.com/) - 야동티비 (https://yadongtv97.com/) 로 이동
+! 야동코리아 (https://www.yako14.com/)
+! - 배너
+![$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
+!##[class="banner_grid" i]
+!##.banner_grid
+!
+!
+! 야동티비 (https://야동티비주소.org/) (https://yadongtv97.com/)
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
 ![$domain=/^yadongtv\d+.com/]##[class*="popup-"]
 ! - 게시물 사이 광고 삭제
@@ -5888,6 +5896,7 @@ kbjfree.com##.min-h-\[52px\].mx-auto
 /red/##.integrated-ad-slot, .article-tool
 ! - 탑툰챗 및 이용안내 텍스트 배너
 ![$domain=/^red\d+.kr/]##[class*="notice"]
+! - - - 무비킹(https://mvking11.org/)에서 영상재생시 https://player-v2.bcbc.red/player/의 notice를 차단. 재생시 문제는 없는대 /red/ 로 간결표현이 문제될 시 참고할것
 /red/##[class*="notice"]
 ! -기타
 /cdn-cgi/trace^$xhr
@@ -5906,7 +5915,7 @@ mimint.co.kr##[class*="row"]:has([id="powerLinkList"])
 ! - 게시물과 인기 게시물 사이 배너 공간
 mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
 ! - 실시간 인기 TOP / 최근 등록된 게시물 내 빈 줄
-!mimint.co.kr##ul > .adline-v2-slot
+mimint.co.kr##ul > .adline-v2-slot
 ! - 이벤트
 mimint.co.kr##.event_right_new
 ! - 본문 하단에 필요없는 숲 영상 첨부 안보이게
@@ -6270,6 +6279,8 @@ yozm.wishket.com#@#div[class*="border"]:has(> [target] img)
 !##[alt*="솔루션"]
 !  배너 공간 남는거 해결
 /avflix/##[class*="py-6"]
+! 기타
+/banners^$xhr
 !
 !
 ! 링커리어 (https://linkareer.com/)
@@ -6310,7 +6321,7 @@ linkareer.com##[class*="PopularActivity" i]
 !###popup
 !
 !
-! 꽃밤 (https://xn--js0b77vw8duzi.com/) (https://ggbam14.com/)
+! 꽃밤 (https://꽃밤주소.com/) (https://ggbam16.com/)
 ! - 필요없는거
 !/ggbam/##.nav-row-2
 ! - 광고 영상 진행시 실수로 팝업 뜨는거 방지
@@ -6794,7 +6805,7 @@ vexfile.com##center
 !
 ! 주간경향 (https://weekly.khan.co.kr/)
 ! - 배너
-weekly.khan.co.kr##[class*="banner" i]:not(body):not(html):not(main)
+!weekly.khan.co.kr##[class*="banner" i]:not(body):not(html):not(main)
 !
 !
 ! https://www.x1hub.com/
