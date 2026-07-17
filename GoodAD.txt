@@ -732,7 +732,7 @@ aagag.com##.bottom.center.sAlert
 aagag.com##.la.top.naver:style(width:0 !important; height:0 !important; min-width:0 !important; min-height:0 !important; margin:0 !important; padding:0 !important; display:block !important)
 ! - 일정 간격으로 게시물 사이사이 잇는 공간 없애기
 !aagag.com##.mirror_mid_ad
-aagag.com##[class$="ad"]:not([class$="hate_ad"])
+aagag.com##[class$="_ad"]:not([class$="hate_ad"])
 ! - 맨 하단 빈 공간
 !aagag.com##div.cwarp2
 aagag.com##[class$="naver"]
@@ -6931,5 +6931,6 @@ m.pann.nate.com##.shopBox
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
+
 
 
