@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260717
+! Version: 20260718
 !
 !
 !
@@ -434,6 +434,11 @@ shopping.naver.com##li:has([class*="productCard"]>[class*="adButton"])
 ! - - - kr: List-KR Classic
 !||ssl.pstatic.net/tveta/libs/
 !||ssl.pstatic.net/melona/libs/
+!
+!
+! 네이버 스토어 (https://snxbest.naver.com/)
+! - 광고 물품 삭제
+snxbest.naver.com##[class*="card"]:has([class*="advert"])
 !
 !
 ! 네이버 쇼핑 라이브 (https://shoppinglive.naver.com/)
@@ -6398,7 +6403,7 @@ frdl.my##+js(adjust-setTimeout, seconds, *, 0.02)
 !
 ! https://myfans.jp/
 ! - 기타
-||posthog.myfans.jp^
+!||posthog.myfans.jp^
 !
 !
 ! https://www.hmall.com/
@@ -6755,10 +6760,12 @@ outstanding.kr##.Toastify
 ! - 배너
 !fhcontent.com##[class*="banner" i]
 ! - 구독 팝업
-fhcontent.com###modal-widgets
+!fhcontent.com###modal-widgets
+fhcontent.com##[id*="premium-modal"]
 ! - 배너
 !##[data-el*="banner" i]
-
+! - 팝업 차단으로 인한 스크롤 잠금 해제
+fhcontent.com##html,body:style(overflow: auto !important;)
 !
 !
 ! 만개의 레시피 (https://www.10000recipe.com/)
@@ -6834,6 +6841,8 @@ x1hub.com##.table
 ! https://javopen.co/
 ! - 영상 옆 애드블로커 끄라는 박스 및 하단 일부 공간
 javopen.co##[class="widget widget_text"]:has([class*="textwidget"])
+! - 기타
+ab=1
 !
 !
 ! https://jable.tv/
@@ -6898,11 +6907,20 @@ m.pann.nate.com##.shopBox
 ##[class*="skip-ad"]
 !
 !
-! 최강링크 (https://최강링크9.com/)
+! 최강링크 (https://최강링크10.com/)
 ! - 배너
 ##img[src][onclick*="window.open"]
+! - 예외
+gall.dcinside.com#@#img[src][onclick*="window.open"]
 ! - 빈 공간
 ##div.mb-sm-4.mb-3 > .hr
+!
+!
+! 사커라인 (https://soccerline.kr/)
+! - 게시물 내 빈공간
+soccerline.kr##[class$="Bann"]
+##[style*="height"]:has([style="width: 100%; height: 100%;"])
+
 
 
 
