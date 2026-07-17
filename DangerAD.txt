@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260717
+! Version: 20260718
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -90,12 +90,6 @@
 !@@/ads/*$xhr,domain=career.rememberapp.co.kr
 
 
-*/ad?*
-
-
-*/ads?*
-
-
 ! 루리웹
 */ad.*
 @@*/ad.*$css
@@ -174,13 +168,8 @@
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
 ! 뽐뿌
 ! https://javgiga.com/
+! https://k01.aving.tv/
 *ads.js
-
-
-^ad|
-
-! - 이 규칙은 해보고 아닌 이유 달아놓을것
-^ads|
 
 
 ! 야동존 (https://xxzone26.top/)
@@ -193,6 +182,7 @@ _ads.php?
 
 
 *videoad*
+
 
 *video-ad*
 ! - - - 트위치 (https://www.twitch.tv/)
