@@ -114,14 +114,15 @@
 ! https://jpvoyeur.com
 ! https://daftsex.net
 ! https://javgays.com
+! https://javfc2.top/
 ! MISSAV 계열 사이트
 ! sendvid.com
 ! - - - ublock
 heye.kr##+js(window.open-defuser)
-/sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
+/javfc|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
 ! - - - adguard
 heye.kr#%#//scriptlet('prevent-window-open')
-/sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
+/javfc|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
 !
 !
 ! 카카오TV (https://tv.kakao.com/) - 서비스 종료
@@ -3060,6 +3061,11 @@ sextb.net##div.col-3.right:nth-of-type(2)
 javfc2.*##.row > div.text-center:has(> h5#messageAds)
 ! - 영상 하단 텍스트 안내 문구
 !javfc2.xyz##.isp-notice
+! - 팝업 방지 (uBlock filters – Ads)
+/^https?:\/\/[-a-z]{6,}\.com\/b[\/A-Z_a-z]3[.A-Za-z]V[.\/A-Z_a-z]0[.\/A-Z_a-z]P[.A-Za-z]3[-\/0-9A-Z_a-z]{59}$/$popup,match-case,to=com
+! - 기타
+://creative.*/widget*.js$3p
+||popcash.net^$3p,important,redirect-rule=empty
 !
 !
 ! JavNeon (https://javneon.tv/)
