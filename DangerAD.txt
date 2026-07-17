@@ -324,7 +324,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - javsubid.sx - /ws/  /lf/  /st/
 ! - https://sigundul.site/ - /te/
 ! - https://www.fomos.kr/ - (댓글란) /comments/ / mediag5jvqbd.fmkorea.com/  ext.fmkorea.com/   media.fmkorea.com/
-! - AV조아https://avjoa76.com/  |  XX조아 (https://xxjoa48.com/) -  /player-x.php?
+! - AV조아https://avjoa76.com/  |  XX조아 (https://xxjoa49.com/) -  /player-x.php?
 ! - 핑유걸 https://avpingyou20.com/ - /player/dplayer.html
 ! - 야동닷컴 https://yadong8.com/ - /player.html
 ! - 숲 - /embed?
@@ -531,6 +531,10 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 
 
 ##[data-testid*="banner" i]:not(body):not(html):not(main)
+
+
+! https://ko.fhcontent.com/
+##[data-el*="banner" i]
 
 
 ! - 킥 - files.kick.com/images/subcategories/
@@ -973,6 +977,12 @@ adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads
 chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
+
+
+https://damoang.net/
+##[id$="-ad"]
+
 
 
 
