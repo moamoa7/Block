@@ -1479,7 +1479,7 @@ clien.net###hongboInfoList
 ! - 메인 전체 배너
 !damoang.net##.ad-slot-empty-collapsed
 !damoang.net##[class*="frame"]
-1##[style][class*="frame"]
+##[style][class*="frame"]
 ! - 메인 배너 공간
 damoang.net##.dm-card
 !damoang.net##.svelte-f0o7xm
@@ -6751,6 +6751,9 @@ outstanding.kr##.Toastify
 !fhcontent.com##[class*="banner" i]
 ! - 구독 팝업
 fhcontent.com###modal-widgets
+! - 배너
+!##[data-el*="banner" i]
+
 !
 !
 ! 만개의 레시피 (https://www.10000recipe.com/)
@@ -6771,7 +6774,7 @@ mbong.kr##tr.list_top.custom_code > td
 !
 ! https://sites.google.com/
 ! - 기타
-/nalogimpressions^
+!/nalogimpressions^
 !
 !
 ! https://nimi.wiki/
