@@ -3241,7 +3241,7 @@ xnxx.*##.premium-results-line
 ! - 오른쪽 상단 광고 영역
 ! - - - JAVGIGA (https://javgiga.com/)
 ! - - - AV 핑크 (https://avpink36.com/)
-! - - - AV 핑보걸 (https://pinkbo47.com/)
+! - - - AV 핑보걸 (https://pinkbo48.com/)
 ! - - - https://fc2ppv.stream/
 ! - - - https://k4.kbjsvip.win/
 ! - - - PC
@@ -3321,7 +3321,7 @@ tktube.com##.top
 !
 !
 ! 탑걸 (https://kr.av탑걸.com/) (https://www.탑걸.com/) (https://kr43.topgirl.co/)
-! 자브걸 (https://kr28.javgirl.co/)
+! 자브걸 (https://kr31.javgirl.co/)
 ! - 배너
 ! - - - 딸플릭스 (https://kr14.ddal.xyz/) 
 !##.ad_banner
@@ -3343,7 +3343,7 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 */mall/index.php$document
 !
 !
-! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo47.com/) / AV러브걸 (https://avlove29.com/) / XX조아 (https://xxjoa48.com/) / 야통령 (https://xn--7-v10fo35av1l.com/)
+! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo48.com/) / AV러브걸 (https://avlove30.com/) / XX조아 (https://xxjoa49.com/) / 야통령 (https://야통령9.com/)
 ! - 배너 이미지
 !##[id*=imgDiv]
 !###imgDiv > table
@@ -3359,17 +3359,17 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !###imgDiv22
 ! - 핑보걸 인증업체
 ![$domain=/^pinkbo\d+.com/]##[href*="/%ec%9d%b8%ec%a6%9d%ec%97%85%ec%b2%b4/"]
-/pinkbo/##[href*="/%ec%9d%b8%ec%a6%9d%ec%97%85%ec%b2%b4/"]
+!/pinkbo/##[href*="/%ec%9d%b8%ec%a6%9d%ec%97%85%ec%b2%b4/"]
 ! - 핑보걸 동맹사이트
 ![$domain=/^pinkbo\d+.com/]##[href*="https://링크사랑"]
-/pinkbo/##[href*="https://링크사랑"]
+!/pinkbo/##[href*="https://링크사랑"]
 ! - 핑보걸 광고문의
 ![$domain=/^pinkbo\d+.com/]##[href*="/%eb%ac%b8%ec%9d%98/"]
-/pinkbo/##[href*="/%eb%ac%b8%ec%9d%98/"]
+!/pinkbo/##[href*="/%eb%ac%b8%ec%9d%98/"]
 ! - - - AV핑유걸 (https://avpingyou20.com/)
 ! - 로그 없어지는거 해결
 ![$domain=/^pinkbo\d+.com/]#@#.loading
-/pinkbo/#@#.loading
+!/pinkbo/#@#.loading
 ! - 최상단 오른쪽 배너
 ##.happy-header > [href]
 ! - 상단 배너 공간
@@ -3388,7 +3388,7 @@ minkch.com#@#.execphpwidget
 ! AV핑유걸 (https://avpingyou20.com/)
 ! - 인증업체
 ![$domain=/^avpingyou\d+.com/]##[href="/index.php/art/type/id/27.html"]
-/avpingyou/##[href="/index.php/art/type/id/27.html"]
+!/avpingyou/##[href="/index.php/art/type/id/27.html"]
 ! - - - - - 핑유걸 그 외 왼쪽.오른쪽 배너
 !##div.long > div
 ! - - - - - 핑유걸 영상 위 팝업
@@ -3397,17 +3397,17 @@ minkch.com#@#.execphpwidget
 !||maccms.com^
 !
 !
-! AV러브걸 (https://avlove29.com/)
+! AV러브걸 (https://avlove30.com/)
 ! - 인증업체 / 문의 / 동맹사이트
 ![$domain=/^avlove\d+.com/]###menu-item-18764 > .nav-link
 ![$domain=/^avlove\d+.com/]###menu-item-14537 > .nav-link
 ![$domain=/^avlove\d+.com/]##.nav-link.dropdown-toggle
-/avlove/###menu-item-18764 > .nav-link
-/avlove/###menu-item-14537 > .nav-link
-/avlove/##.nav-link.dropdown-toggle
+!/avlove/###menu-item-18764 > .nav-link
+!/avlove/###menu-item-14537 > .nav-link
+!/avlove/##.nav-link.dropdown-toggle
 !
 !
-! XX조아 (https://xxjoa48.com/)
+! XX조아 (https://xxjoa49.com/)
 ! - 영상 광고 - /vast/*$xhr 로 대체
 !|joajoajoamoamoa.store/VAST/
 ! - 보증업체 / 오피가이드 / 밤의 민족 / 자료요청
@@ -3415,10 +3415,10 @@ minkch.com#@#.execphpwidget
 ![$domain=/^xxjoa\d+.com/]###menu-item-8073 > a.nav-link
 ![$domain=/^xxjoa\d+.com/]###menu-item-20981 > .nav-link
 ![$domain=/^xxjoa\d+.com/]###menu-item-7813 > a.nav-link
-/xxjoa/###menu-item-1593 > a.nav-link
-/xxjoa/###menu-item-8073 > a.nav-link
-/xxjoa/###menu-item-20981 > .nav-link
-/xxjoa/###menu-item-7813 > a.nav-link
+!/xxjoa/###menu-item-1593 > a.nav-link
+!/xxjoa/###menu-item-8073 > a.nav-link
+!/xxjoa/###menu-item-20981 > .nav-link
+!/xxjoa/###menu-item-7813 > a.nav-link
 !
 !
 ! JavFinder (https://javfinder.ai/)
@@ -3530,7 +3530,7 @@ javtiful.com##.front-partner-card
 javtiful.com##.front-feature-placement-side
 !
 !
-! 야통령 (https://야통령7.com/)
+! 야통령 (https://야통령9.com/)
 ! - 오른쪽 배너
 !##[class="happy-sidebar"]
 ##.happy-sidebar
@@ -3538,6 +3538,8 @@ javtiful.com##.front-feature-placement-side
 ###tracking-url
 ! - 동맹 글자
 !xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
+! - 기타
+/wp-content/plugins/popup-maker/*$~stylesheet,from=~schornsteinfeger-liv-bayern.de
 !
 !
 ! 야애니24 (https://www.aniya24.com/)
@@ -3588,7 +3590,7 @@ avdbs.com###bnotice-wrap
 !
 ! AV조아 (https://avjoa76.com/)
 ! 영상 하단 텍스트 배너
-! - - https://pinkbo47.com/
+! - - https://pinkbo48.com/
 ![$domain=/^avjoa\d+.com/],[$domain=/^pinkbo\d+.com/]##.button
 ! - 토토 카지노 보증업체 / 오피가이드 / 밤의 민족 / 자료요청
 ![$domain=/^avjoa\d+.com/]##.menu-item-1593
@@ -4088,7 +4090,7 @@ javmov.com##.spot
 ##.w-80.relative
 !
 !
-! - - - ! 빨간비디오 (https://redvi80.com/)
+!  빨간비디오 (https://redvi80.com/)
 ! - 팝업 (PC)
 !###desktop-popup-wrapper
 !##[class*="popup-item" i]
@@ -6151,9 +6153,9 @@ simpcity.*#@#[class*="-notice" i]
 !
 ! JAVsubid (https://t.me/s/javsubindo1106) (https://javsubid.sx/) (https://sigundul.site/)
 ! - 로그 사라짐 해결
-javsubid.*#@#.loading
+!javsubid.*#@#.loading
 ! - 플레이어 사라짐 해결
-sigundul.*,javsubid.*#@#[class*="-ad" i]
+!sigundul.*,javsubid.*#@#[class*="-ad" i]
 ! - 기타
 !||s10.histats.com^
 !||entitlements.jwplayer.com^
@@ -6177,7 +6179,7 @@ live.imagetwist.com##.chatbox_green
 !||links.services.disqus.com^
 !disqus.com##+js(href-sanitizer, a[href*="://disq.us/url?url="], ?url)
 ! - 깜빡임 해결
-misskon.com#@#.loading
+!misskon.com#@#.loading
 !
 !
 ! 퓨어미디어 (https://puremedia.kr/)
