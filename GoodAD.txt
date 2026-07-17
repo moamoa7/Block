@@ -6442,7 +6442,7 @@ cam69.com##[id*="slider-ad"]
 !
 ! https://leakedzone.com/
 ! - 상단 프리미엄 배너
-##[href="/premium"]
+##[href*="/premium"]
 !
 !
 ! https://www.camconsole.com/ - 채팅영상이 막혀있음 (HaGeZi's Pro Blocklist)
@@ -6931,6 +6931,5 @@ m.pann.nate.com##.shopBox
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
