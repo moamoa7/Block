@@ -556,7 +556,8 @@ deepseek.com#@#div[style*="banner" i]
 
 
 !  치지직 (https://chzzk.naver.com/)
-##[class*="_banner" i]:not([class*="_banner_" i])
+! 클리앙 검색 지워지는거 / 댓글 사라지는거 방지  class="search ad_banner"  class="comment ad_banner"
+##[class*="_banner" i]:not([class*="_banner_" i]):not([class="search ad_banner"]):not([class="comment ad_banner"])
 
 
 ! 픽팍 (https://mypikpak.com/)
