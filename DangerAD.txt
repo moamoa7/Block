@@ -395,6 +395,11 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 /sexkbj|upnstreamlive|missav|hanime|thisav/##iframe[src]:not([src*="embed" i])
 
 
+! https://leakedzone.com/ - 모바일에서 iframe 보임 (그냥 ##iframd 하면 공간이 남아서 has 사용)
+leakedzone.com##div:has(iframe)
+
+
+
 ! https://apkmody.com/
 ! 탑걸 (https://kr44.topgirl.co/)
 ##[target] video
