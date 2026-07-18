@@ -324,6 +324,10 @@ search.brave.com##.download-cta
 ! 스타트페이지 (https://www.startpage.com/)
 ! - 하단 안내
 !startpage.com##.privacy-extension-and-app-widget
+! - 기타
+!/cpmbanners.js$script
+!||startpage.com/clev
+!||startpage.com/perf
 
 !
 ! 바이두 (https://www.baidu.com/)
@@ -944,6 +948,7 @@ etoland.co.kr##[id*="view-center"]
 etoland.co.kr##.flex.mb-2\.5
 ! - 게시물 하단 / 댓글 하단 공백 (모바일)
 ! - - - 핫딜 추천 상품 나오는 부분
+! - - - https://ridy.kr/
 ##[aria-label*="추천"]
 ! - 게시물내 광고글
 !etoland.co.kr##li[class*="amber-100"]
@@ -3066,6 +3071,11 @@ sextb.net##div.col-3.right:nth-of-type(2)
 !turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]
 !
 !
+! https://sextb.lol/
+! - 일부 규칙 깨짐 방지
+@@||cdncja.semuadisini.xyz^
+!
+!
 ! JAVFC2.XYZ (https://javfc2.xyz/) -> (https://javfc2.top/)
 ! - 영상 상단 공백
 javfc2.*##.row > div.text-center:has(> h5#messageAds)
@@ -3926,7 +3936,7 @@ javmov.com##.spot
 !avped.com##.loading
 !
 !
-! 야동판 (https://3.yadongpan.me/)
+! 야동판 (https://3.yadongpan.me/) - 접속불가
 ! - 배너 이미지
 !||yadongpan.me/myimages/*$image
 !||*/*/myimages/*$image
@@ -3947,7 +3957,8 @@ javmov.com##.spot
 !##.happy-under-player-mobile
 ! - PC 메인 하단 배너
 !##[class="under-video-block"]
-##.under-video-block
+! - - - 광역규칙으로 하면 https://sextb.lol/ 영상 하단 부분의 영상 리스트가 안보임
+!##.under-video-block
 ! - 모바일 상단 배너
 ! - 모바일 상단 제외 전체 배너
 ! - - - 섹툰 (https://3.sektoon.me/)
@@ -6713,6 +6724,13 @@ ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
 @@||ktmmobile.com^$generichide,image
 !
 !
+! 스포츠조선 (https://www.sportschosun.com/)
+! - 배너 (영문버젼)
+! - ##[aria-label*="advert" i]:not(body):not(html):not(main) 이 규칙이 상위라 주석 처리
+!##[data-ad-sizes]
+
+!
+!
 ! MK스포츠 (https://www.mksports.co.kr)
 ! - 메인 오른쪽 빈공간
 mksports.co.kr##[class*="wrap"]:has([class*="adsbygoogle"])
@@ -6918,8 +6936,7 @@ gall.dcinside.com#@#img[src][onclick*="window.open"]
 !
 ! 사커라인 (https://soccerline.kr/)
 ! - 게시물 내 빈공간
-soccerline.kr##[class$="Bann"]
-##[style*="height"]:has([style="width: 100%; height: 100%;"])
+soccerline.kr##[class*="Bann"]
 
 
 
@@ -6954,6 +6971,5 @@ soccerline.kr##[class$="Bann"]
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
