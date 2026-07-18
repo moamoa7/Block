@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260718
+! Version: 20260719
 !
 !
 !
@@ -5475,8 +5475,9 @@ dogdrip.net##[class$="right-ad"]
 ! - 상단 배너
 !##[id="top_banner" i]
 !###top_banner
-! - 오른쪽 배너
-dvdprime.com###sidebar_container
+! - 게시물내 빈 공간들
+! - - - 침하하 (https://chimhaha.net/)
+##[id*="slot-"]
 ! - 왼쪽 하단 배너
 !dvdprime.com##.menu_left_banner
 !
@@ -5826,7 +5827,7 @@ bunjang.co.kr##a:has([class*="bottomContainer" i]):upward(1)
 !
 ! 침하하 (https://chimhaha.net/)
 ! 중간 배너
-chimhaha.net##[id*="slot-4" i]
+!chimhaha.net##[id*="slot-4" i]
 !
 !
 ! 首頁 - 肉視頻,您的私人AV影院 (https://rou.video/)
@@ -6971,5 +6972,6 @@ soccerline.kr##[class*="Bann"]
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
+
 
 
