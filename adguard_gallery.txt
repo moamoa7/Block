@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.07.18.0
-! TimeUpdated: 2026-07-17T15:06:30+00:00
+! Version: 2026.07.19.1
+! TimeUpdated: 2026-07-18T15:06:26+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -60,7 +60,6 @@ wowtv.co.kr,cafe.naver.com##[class*='Banner']
 [$domain=/^tvmon[0-9]*\.[a-z]{2,}/]##.banner_wrap2
 [$domain=/^tvwiki[0-9]*\.net/]###bannerList, #viewCover, img[src*="/banner/"]
 [$domain=/^wftoon[0-9]*\.com/]##.top-banner
-[$domain=/^wfwf[0-9]*\.com/]##.top-banner
 [$domain=/^wtwt[0-9]*\.com/]##.banner
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##[href*='/ad'][target='_blank']:has(img)
 [$domain=/torrent[a-z0-9]*\.[a-z]{2,}/]##div[class$='gallery'][id] [target='_blank']:upward(1)
@@ -102,6 +101,7 @@ dschool.co.kr###modal-banner
 dschool.co.kr##[id="lean_overlay"]
 dvdprime.com##[id$='top_banner']
 dvdprime.com##[id^='ad_mobile']
+dvdprime.com##[id^='slot-']
 ebs.co.kr##.ji_adban
 edu.chosun.com##a:has(> [src*="edu.chosun.com/images/bn/"])
 edu.chosun.com##section:has(> [id^="AD_Main_"])
