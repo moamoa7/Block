@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260719
+! Version: 20260720
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -82,6 +82,7 @@
 ! 마이민트
 ! https://kilho.net/
 ! 주간경향
+! 엔카 (https://www.encar.com/)
 */ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -176,6 +177,9 @@
 _ads.php?
 
 
+! https://jav-angel.net/ - 딱히 잡히는거 없음
+!*##.ad
+
 ! https://cloudfam.io/
 *##.adbox
 
@@ -184,6 +188,7 @@ _ads.php?
 *videoad*
 
 
+! https://www3.javfun.me/
 *video-ad*
 ! - - - 트위치 (https://www.twitch.tv/)
 @@*video-ad*$css,script
@@ -507,6 +512,11 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - 예외  - 이미지 안보임
 !@@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
 
+
+
+*/banners/*
+
+
 ! 숲
 ! https://javgiga.com/
 ! 지니파일
@@ -601,6 +611,14 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 ! FapHouse (https://ko.fhcontent.com/)
 ! 쿠팡 (https://www.coupang.com/)
 ##[class*="-banner-" i]
+
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+
+
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! https://s7.kav.so/ - 본문 안보임
+/kav.so/#@#[class*="-banner-" i]
+
 
 
 ! 포모스 (https://www.fomos.kr/)
@@ -933,11 +951,18 @@ up-4ever.net,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(main):not
 ! 개별 도메인별로 필요시 할 것
 !##[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"])
 
+
+! 링크사랑 (https://linklove18.com/) - 스폰서 배너
+##[class$="-ad"]:not(body):not(html):not(main)
+
+
 ! 개별 도메인별로 필요시 할 것
 !##[class*="ad-"]:not(body):not(html):not(main):not([class*="-ad-"])
 
 ! 개별 도메인별로 필요시 할 것
 !##[class*="-ad-"]:not(body):not(html):not(main)
+
+
 
 
 
