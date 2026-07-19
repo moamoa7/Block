@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260719
+! Version: 20260720
 !
 !
 !
@@ -105,7 +105,7 @@
 ! https://javsubs91.uk/
 ! https://javgiga.com/
 ! https://sexkbj.com/
-! 색색티비 (https://kr550.mysstv.com/)
+! 색색티비 (https://kr551.mysstv.com/)
 ! https://kissjav.com/
 ! https://kissjav.li/
 ! https://kpop.xxx
@@ -609,7 +609,7 @@ sooplive.com##+js(no-fetch-if, check_new_ad)
 ||deapi.sooplive.com^
 ! - 기타
 /static*js/ad*.js$script,1p
-!/banner.php$from=~research.hchs.hc.edu.tw
+/banner.php$from=~research.hchs.hc.edu.tw
 !
 !
 ! 시네티 (https://cinety.sooplive.com/)
@@ -2614,7 +2614,7 @@ www.spojoy.com###TopAdv250
 ! - 기사내 배너
 sports.donga.com##[class*="subcont_ad"]
 sports.donga.com##.view_center
-##[class*="ad_aside" i]
+!##[class*="ad_aside" i] - ##[class^="ad" i]로 통합
 !
 !
 ! 아이즈 IZE (https://www.ize.co.kr/)
@@ -4234,6 +4234,8 @@ javmov.com##.spot
 reddit.com#@#div[class*="border"]:has(> [target] img)
 ! - - - https://shopping.naver.com/ - 박스 내용 사라짐
 shopping.naver.com#@#div[class*="border"]:has(> [target] img)
+! - - - https://linkget1.com/ - 목록 사라짐 (일단 보류 - 리스트 넣지 않음)
+!/linkget/#@#div[class*="border"]:has(> [target] img)
 ! - 상단 빈 공간 (PC/모바일 공통)
 !##.justify-start.flex-wrap.flex
 !  - 각 주제별 상단 빈 공간 (PC/모바일 공통)
@@ -4931,29 +4933,25 @@ xn--9l4b15e2td.com##.widget-box
 ##.ad-img
 !
 !
-! 링크사랑 (https://linklove16.com/) (https://linklove54.com/)
+! 링크사랑 (https://linklove55.com/)  (https://linklove18.com/)
 ! - 베너 이미지
-||linklove*.com/data/editor/*$image
-||linklove*.com/data/file/ls_*/*$image
+!||linklove*.com/data/editor/*$image
+!||linklove*.com/data/file/ls_*/*$image
 !||linklove*.com/data/apms/background/*$image
 ! - - - 인생도박 (https://dobaklife01.com/)
 ! - - - 주소야 (https://jusoya.com/)
 /data/apms/background/*$image
 ! - 상단 배너 공간
 ![$domain=/^linklove\d+.com/]##.w-box
-/linklove/##.w-box
-
+!/linklove/##.w-box
+! 스폰서AD 라인 지우기
+/linklove/##div.w-row.row:nth-of-type(2)
 ![$domain=/linklove/]##.w-box
 ! - 중간 배너 공간
 ![$domain=/^linklove\d+.com/]##.miso-love-ad
 ! - - - https://adult.contents.fc2.com/ 오른쪽 PR 배너
 ! - - - 엑스툰 (https://t3.xtoon365.com/) - 개별 만화 관람시 ##.chapter-ad
 ! - - - https://javsubs91.uk/ - 영상 하단 배너
-!
-!
-!링크 123 (https://linkloveko.com/) (https://www.nuutvtv.com/)
-! -배너 공간
-##.wixui-gallery
 !
 !
 ! 여기여 (https://xn--ok0bt1cu7yjqdmxaba206c.com/) (https://www.xn--ok0b408a79cba430b.com/) (https://www.yugiyu.com/) (https://www.ygy02.com/)  - 서로 다른 여기여 지만 같은 사이트
@@ -5353,7 +5351,6 @@ semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 fc-info.com##[class*="videoContainer"]
 !
 !
-! 야동코리아 (https://yako09.com/) - 야동티비 (https://yadongtv97.com/) 로 이동
 ! 야동코리아 (https://www.yako14.com/)
 ! - 배너
 ![$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
@@ -5361,7 +5358,8 @@ fc-info.com##[class*="videoContainer"]
 !##.banner_grid
 !
 !
-! 야동티비 (https://야동티비주소.org/) (https://yadongtv97.com/)
+! 야동티비 (https://야동티비주소.org/) (https://yadongtv94.com/)
+! - - - 야동코리아 (https://yako09.com/) - 야동티비 (https://yadongtv94.com/) 로 이동
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
 ![$domain=/^yadongtv\d+.com/]##[class*="popup-"]
 ! - 게시물 사이 광고 삭제
@@ -5913,8 +5911,8 @@ m.anewsa.com##div[style*="width:300px"]
 !
 !
 ! KBJFree (https://kbjfree.com/) - 멤버쉽
-! - 상단 배너
-kbjfree.com##.min-h-\[52px\].mx-auto
+! - 상단 배너 (수익 배너)
+!kbjfree.com##.min-h-\[52px\].mx-auto
 !
 !
 ! 빨간오이 (https://red52.co.kr/)  (https://red52.kr/)
@@ -6443,7 +6441,8 @@ hmstory.net##script:contains(detect-message-shown):remove()
 !adblock.demobox.top##body
 !wisdomgrove.tistory.com##body
 ! - 기타
-/analytics.js^$script
+! - - - https://www.encar.com/ - 차 검색시 본문내용 안나와서 예외처리
+/analytics.js^$script,domain=~encar.com
 !
 !
 ! 논현일보 (https://tenbizt.com/)
@@ -6896,6 +6895,7 @@ edu.chosun.com###indexBlock2
 !
 ! https://avjb.com/
 ! - 배너
+! - - - https://www.encar.com/
 ##[alt="ad" i]
 !
 !
@@ -6938,6 +6938,19 @@ gall.dcinside.com#@#img[src][onclick*="window.open"]
 ! 사커라인 (https://soccerline.kr/)
 ! - 게시물 내 빈공간
 soccerline.kr##[class*="Bann"]
+!
+!
+! https://manko.fun/
+! - 기타
+/pop-under.
+/^https?:\/\/[a-z0-9]{7,40}\.com\/([^\s]{350,400}|[a-z0-9]{8,10}(\?[a-z]{3,5}=.*)?|[a-z?]{13,}=[^\s]+)[?&]key=[a-f0-9]{32}/$popup,important
+/stat^
+!
+!
+! https://javbar.com/
+! - 영상 옆 빈 공간
+##.player-sidebar
+
 
 
 
@@ -6972,6 +6985,5 @@ soccerline.kr##[class*="Bann"]
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
