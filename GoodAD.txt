@@ -5745,7 +5745,7 @@ yoboyobo.kr##[class*="headline"]:has([class*="powered"])
 !playidol.org##.toastui-editor-contents
 ! - 배너 공간
 ! - - - 야부리 (https://yaburi66.com/) 팝업
-##[class*="hidden"]:has([target] img)
+##[class*="hidden"]:has([target] img):not(body):not(html):not(main)
 ! - 예외 - 이토랜드 (https://etoland.co.kr/) - HIT 인기 사라짐
 etoland.co.kr#@#[class*="hidden"]:has([target] img)
 ! - 필요없는거
