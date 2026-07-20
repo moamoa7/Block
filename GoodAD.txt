@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260720
+! Version: 20260719
 !
 !
 !
@@ -77,7 +77,7 @@
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! - 내가 어떤 사이트에 있든, 광고 회사나 추적 서버로 내 클릭 정보를 몰래 전송하는 모든 백그라운드 핑(Ping) 통신을 원천 봉쇄해라
+! - 내가 어떤 사이트에 있든, 광고 회사나 추적 서버로 내 클릭 정보를 몰래 전송하는 모든 백그라운드 핑(Ping) 통신을 원천 봉쇄해라 (EasyPrivacy)
 *$ping,3p
 !
 !
@@ -1845,7 +1845,7 @@ fingerprint.
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://ku.hoohootv428.xyz/)
+! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://fe.hoohootv431.xyz/)
 ! - 배너 빈 공간
 ![$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 /hoohootv/###img_row_container
@@ -1854,7 +1854,7 @@ fingerprint.
 ! 후후티비 (https://hoohootv1.org/) - 티비위키 그대로 가져오는듯 / p2p차단하면 영상재생 안됨
 !
 !
-! 티비룸  (https://티비룸.com/) (https://tvroom.one/) (https://tvroom19.org/)
+! 티비룸  (https://티비룸.com/) (https://tvroom.one/) (https://tvroom20.org/)
 ! - 팝업
 ![$domain=/^tvroom\d+.org/]##.popup
 ! - 화면 뿌옇게 변한거 해결
@@ -1883,18 +1883,19 @@ fingerprint.
 ! 콕콕티비 (https://cokcoktv1.org/) - 반응이 없는 링크 (만들다가 말앗나)
 !
 !
-! 무비킹 (https://t.me/s/mvking777)  (https://무비킹.com/)  (https://mvking11.org/)
+! 무비킹 (https://t.me/s/mvking777)  (https://무비킹.com/)  (https://mvking12.org/)
  ! - 영상 위 배너
 ![$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
 !
 !
 ! 애니라이프 (https://xn--9i1b62g0yo44b910a.com/)  (https://kr1.anilife.app/)  (https://anilife.live)
 ! - 배너 이미지
-||anilife.live/assets/banner/
-! - 상단 배너 공간
-anilife.app##.lg\:h-\[460px\]
-anilife.app##.sm\:grid-cols-2
-anilife.live##.MainBnnWrap
+!||anilife.live/assets/banner/
+! - 상단 배너 공간 - KR 에서 처리
+!##[class*="MainBnn" i]
+!anilife.app##.lg\:h-\[460px\]
+!anilife.app##.sm\:grid-cols-2
+!anilife.live##.MainBnnWrap
 ! - 앱 설치하기 팝업
 anilife.app##.duration-300
 ! - 기타
@@ -1902,9 +1903,9 @@ anilife.app##.duration-300
 /^https?:\/\/.*\/(\%?[235][a-fA-F3-6]|[a-f-_]{3,})?[Ss](ervice)?[-_]?[Ww](orker)?\.js(\?.*)?$/$xhr,match-case,from=~dagrasso.pl|~idx.google.com|~tiktok.com|~twitter.com|~youtube.com
 !
 !
-!  애니조아 (https://www.anizoa.net/) - 영상 재생 안됨
+!  애니조아 (https://www.anizoa.net/) - 폐쇄?
 ! - 영상 옆 오른쪽 배너 1개
-anizoa.net##.widget_media_image.r-widget-control.widget
+!anizoa.net##.widget_media_image.r-widget-control.widget
 !
 !
 ! 땡땡티비 (https://ootv45.com/)
@@ -2184,7 +2185,7 @@ joatoon-oa.com##.bg-opacity-50
 !@@/ad/*$domain=/^newtoki\d+\.[a-z.]+$/
 !
 !
-! 뉴토끼 (https://t.me/s/newtoki_juso) (https://뉴토끼우회.com) (https://toki30.com/) (https://sbxh9.com)
+! 뉴토끼 (https://t.me/s/newtoki_juso) (https://뉴토끼우회.com) (https://toki31.com/) (https://sbxh9.com)
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
@@ -2256,6 +2257,7 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 ![$domain=/blacktoonurl/]###comp-mon185d4 > div > div
 /blacktoonurl/##.comp-m8jy31rn
+##[class*="wixui"]:has([target*="blank"] img)
 ! - 상단 텍스트 배너
 ![$domain=/^blacktoon\d*\./]##.alert-danger.alert
 ![$domain=/blacktoon/]##.alert-danger.alert
@@ -3226,7 +3228,7 @@ javgg.*##.home_iframead
 !
 ! https://www.pornhub.com/
 ! - 광고
-!##[class^="videos"] - 쏘걸 (https://kr86.sogirl.so/) - 영상 아미지 안나옴
+!##[class^="videos"] - 쏘걸 (https://kr87.sogirl.so/) - 영상 아미지 안나옴
 !
 !
 ! XNXX.COM (https://www.xnxx.com/)
@@ -3245,7 +3247,7 @@ xnxx.*##.premium-results-line
 !xnxx.com##+js(set-local-storage-item, xvutils.nb_tabs_opened, 1)
 !
 !
-! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr86.sogirl.so/)
+! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr87.sogirl.so/)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) - 없어짐
 ! - 입장시 18세 물어보는 팝업
 ###dclm_modal_content
@@ -3282,7 +3284,8 @@ xnxx.*##.premium-results-line
 !##[class="header-advertising"]
 !##[class*="advertising" i]
 ! - 전체 배너 (젤 오른쪽 상단 작은 배너 / 젤 하단 배너 제외]
-!##[class^="textwidget" i] img
+! - - - [class="textwidget" i]로 하면 일부 사이트에서 텍스트영역이 사라짐
+##[class^="textwidget" i] img
 !##[class*="widget" i][class^="textwidget" i] img
 ! - 젤 하단 배너
 ! - - - PC
@@ -3346,7 +3349,7 @@ tktube.com##.top
 !@@||ttse.b-cdn.net^
 !
 !
-! 탑걸 (https://kr.av탑걸.com/) (https://www.탑걸.com/) (https://kr43.topgirl.co/)
+! 탑걸 (https://kr.av탑걸.com/) (https://www.탑걸.com/) (https://kr44.topgirl.co/)
 ! 자브걸 (https://kr31.javgirl.co/)
 ! - 배너
 ! - - - 딸플릭스 (https://kr14.ddal.xyz/) 
@@ -3818,7 +3821,7 @@ homejav.com,123av.*,njavtv.com##.lg\:block
 /avmiss|missav/##[class*="grid"][class*="mx-auto"]
 !
 !
-! MISSAV (https://missvod5.com/)
+! MISSAV (https://missvod6.com/)
 ! - 배너
 ![$domain=/^missvod\d+.com/]###banner-list.banner-list
 ! - 영상 하단 배너
@@ -4023,13 +4026,17 @@ javmov.com##.spot
 !##.bottom-adv
 !
 !
-! 야모아 (https://yamoa36.site/)
+! 야모아 (https://yamoa48.top/)
 ! - 상단 배너 공간 (모바일) (검색란도 지워짐)
 ![$domain=/^yamoa\d+.site/]##.w-full
 ! - 상단 배너 공간 (모바일)
 ![$domain=/^yamoa\d+.site/]##.max-w-screen-xl:nth-of-type(5)
 ! - 이미지 복원 (배너 이미지와 같은 경로라 어쩔 수 없음)
 !@@||static.yaaamoa.com/img/*$image
+! - 배너
+##[class*="mx-auto"] [target] img
+! - 배너 빈 공간
+/yamoa/##[class*="mt-2"]
 !
 !
 ! 야오리 (https://yaohri37.com/) - 접속불가
@@ -4104,7 +4111,7 @@ javmov.com##.spot
 !
 !
 ! 야동그라운드 (https://yagro48.com/) X
-! 빨간비디오 (https://redvi80.com/)
+! 빨간비디오 (https://redvi84.com/)
 ! 야동도시 (https://yadongred6.org/)
 ! 야동공장 (https://yagong92.com/)
 ! - 배너 이미지
@@ -4117,7 +4124,7 @@ javmov.com##.spot
 ##.w-80.relative
 !
 !
-!  빨간비디오 (https://redvi80.com/)
+!  빨간비디오 (https://redvi84.com/)
 ! - 팝업 (PC)
 !###desktop-popup-wrapper
 !##[class*="popup-item" i]
@@ -4214,7 +4221,7 @@ javmov.com##.spot
 !
 ! 야동공장 (https://yagong92.com/)
 ! - 전체 배너
-! - - -AV탑걸 (https://kr43.topgirl.co/) 전체 배너
+! - - -AV탑걸 (https://kr44.topgirl.co/) 전체 배너
 !##div[class*="mx-auto" i] a[href*="http"][target*="blank"] img[src]
 ! - 예외 - https://etoland.co.kr/ - 일부 본문 내용 사라짐
 !etoland.co.kr#@#div[class*="mx-auto" i] a[href*="http"][target*="blank"] img[src]
@@ -4321,7 +4328,7 @@ protonvpn.com#@#.items-center.justify-start.flex-wrap.flex
 !
 ! 야부리존 (https://yaburi66.com/)
 ! - 팝업  잔상 없애기 (모바일)
-! - - -  광역규칙으로 하면 AV탑걸 이미지가 안보임 (https://kr43.topgirl.co/)
+! - - -  광역규칙으로 하면 AV탑걸 이미지가 안보임 (https://kr44.topgirl.co/)
 ![$domain=/^yaburi\d+.com/]##div.centered
 /yaburi/##div.centered
 ! - 상단 배너
@@ -4399,7 +4406,7 @@ sexygirl.cc##div.overflow-auto
 ! 야동홀릭 (https://yhl-59.com/)
 ! AV스팟 (https://avspot47.com/)
 ! AV소다 (https://soda59.com/)
-! 들어와 (https://comein16.com/)
+! 들어와 (https://comein21.com/)
 ! 방앗간 (https://gristmill31.com/)
 ! 섹플릭스 (https://www.xn--py2b11lf5aq86b.com/) (https://sexflix25.com/)
 ! 야동대학 (https://ydu14.com/)
@@ -4435,7 +4442,7 @@ sexygirl.cc##div.overflow-auto
 ! 해피밤 (https://happy-n62.com/)
 ! 여의봉 (https://yeouibong63.com/)
 ! 야동홀릭 (https://yhl-59.com/)
-! 들어와 (https://comein16.com/)
+! 들어와 (https://comein21.com/)
 ! 방앗간 (https://gristmill31.com/)
 ! 섹플릭스 (https://sexflix25.com/)
 ! AV하나 (https://avhana-60.com/)
@@ -4578,12 +4585,12 @@ jusogall.com###banner-container
 ![$domain=/^avhiromi\d+.com/]##.has-sub.menu-item-3763.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
 !
 !
-! 개조아 (https://dogjoa80.net/)
+! 개조아 (https://dogjoa97.net/)
 ! - 배너
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 야동투어 (https://xn--2q1bl84a3e140c.com/) (https://ydtour45.sbs/) - /p2p* 해제해야 영상재생 가능
+! 야동투어 (https://야동투어.com/) (https://ydtour51.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
 !##[id*="-ads" i]
@@ -5746,35 +5753,45 @@ playidol.org##div[class*="relative"]:has-text(/📢|충전|등록|결제|가입/
 ![$domain=/^dobakland\d+.org/]##[class*="cursor"]
 !
 !
-! 코티비씨 (https://korsite.net/)  (https://m171.kotbc2.com/)
+! 코티비씨 (https://korsite.net/)  (https://m179.kotbc2.com/)
+! - 배너
+! - - - 코무비 (https://m318.kormovie.com/)
+! - - - 코왓챠 (https://m267.kowatcha.com/)
+! - - - 왓챠KR (https://m267.watchakr.com/)
+! - - - 애니위크 (https://aniweek.com/)
+! - - - 딸타임 (https://ddaltime188.com/)
+! - --  개조아 (https://dogjoa97.net/)
+!##[class*="col"] [target] img
+!##[class*="col"]:has([target] img)
+##.at-title > .at-container
 ! - 기타
 ##script[src$="/ad-provider.js"] + ins
 !
 !
-! 코무비 (https://korsite.net/) (https://m310.kormovie.com/)
+! 코무비 (https://korsite.net/) (https://m318.kormovie.com/)
 ! - 배너 이미지
-||*.kormovie.com/img/*.jpg
+!||*.kormovie.com/img/*.jpg
 ! - 배너 빈 공간
 ![$domain=/^m\d+.kormovie.com/]##.h10
 ![$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/],[$domain=/^m\d+.kormovie.com/]##.nlin
 ![$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/],[$domain=/^m\d+.kormovie.com/]###mnxo2
-/kormovie.com/##.h10
-/watchakr|kowatcha|kormovie.com/##.nlin
-/watchakr|kowatcha|kormovie.com/###mnxo2
+!/kormovie.com/##.h10
+!/watchakr|kowatcha|kormovie.com/##.nlin
+!/watchakr|kowatcha|kormovie.com/###mnxo2
 !
 !
-! 코왓챠(https://korsite.net/)  (https://m259.kowatcha.com/)
+! 코왓챠(https://korsite.net/)  (https://m267.kowatcha.com/)
 ! - 배너 이미지
-||*.kowatcha.com/img/*.jpg
+!||*.kowatcha.com/img/*.jpg
 ! - 배너 빈공간
 ![$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/]##.h20
 ![$domain=/^m\d+.watchakr.com/],[$domain=/^m\d+.kowatcha.com/]##.h30
-/watchakr|kowatcha/##.h20
-/watchakr|kowatcha/##.h30
+!/watchakr|kowatcha/##.h20
+!/watchakr|kowatcha/##.h30
 !
 ! 왓챠KR(https://korsite.net/)  (https://m259.watchakr.com/)
 ! - 배너 이미지
-||*.watchakr.com/img/*.jpg
+!||*.watchakr.com/img/*.jpg
 !
 !
 !  T카페 (https://tcafe21.com/)
@@ -5924,7 +5941,7 @@ m.anewsa.com##div[style*="width:300px"]
 /red/##.integrated-ad-slot, .article-tool
 ! - 탑툰챗 및 이용안내 텍스트 배너
 ![$domain=/^red\d+.kr/]##[class*="notice"]
-! - - - 무비킹(https://mvking11.org/)에서 영상재생시 https://player-v2.bcbc.red/player/의 notice를 차단. 재생시 문제는 없는대 /red/ 로 간결표현이 문제될 시 참고할것
+! - - - 무비킹(https://mvking12.org/)에서 영상재생시 https://player-v2.bcbc.red/player/의 notice를 차단. 재생시 문제는 없는대 /red/ 로 간결표현이 문제될 시 참고할것
 /red/##[class*="notice"]
 ! -기타
 /cdn-cgi/trace^$xhr
@@ -6082,7 +6099,9 @@ visitorstv.com##[class*="list-item"]>[class*="na-title"]
 visitorstv.com###me_2 > .px-4
 ! - 오른쪽 이벤트
 !/^(www\.)?visitorstv/##.eventSide
-##[class*="eventside" i]
+!##[class*="eventside" i]
+! - - - 빨간비디오 (https://redvi84.com/) 일부 남겨진 팝업 잔해
+##[class*="events" i]
 !
 !
 ! VIP TV (https://www.viptv24.com/)
@@ -6985,5 +7004,6 @@ soccerline.kr##[class*="Bann"]
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
+
 
 
