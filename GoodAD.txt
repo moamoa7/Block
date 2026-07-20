@@ -4034,7 +4034,9 @@ javmov.com##.spot
 ! - 이미지 복원 (배너 이미지와 같은 경로라 어쩔 수 없음)
 !@@||static.yaaamoa.com/img/*$image
 ! - 배너
-##[class*="mx-auto"] [target] img
+! - - - 이토랜드 아이콘 사라지는거 방지
+!##[class*="mx-auto"] [target*="blank" i] img
+##[class*="mx-auto"] [target*="blank" i] img[src*="gif"]
 ! - 배너 빈 공간
 /yamoa/##[class*="mt-2"]
 !
@@ -4132,7 +4134,10 @@ javmov.com##.spot
 !##.w-80.relative
 !##.relative.w-80
 ![$domain=/^redvi\d+.com/]##div.fixed.sm\:hidden:nth-of-type(11)
-/redvi/##div.fixed.sm\:hidden:nth-of-type(11)
+!/redvi/##div.fixed.sm\:hidden:nth-of-type(11)
+! - 일부 남겨진 팝업 잔해
+! - - - 이토랜드 검색란 (pointer-events) 동일해서 개별 도메인으로 처리
+/redvi/##[class*="events" i]
 ! - 메인 상단 배너 (PC)
 !##.cursor-pointer.shadow-sm.rounded-sm.w-full.object-fill
 ! - 메인 상단 배너 (모바일)
@@ -4952,13 +4957,19 @@ xn--9l4b15e2td.com##.widget-box
 ![$domain=/^linklove\d+.com/]##.w-box
 !/linklove/##.w-box
 ! 스폰서AD 라인 지우기
-/linklove/##div.w-row.row:nth-of-type(2)
+! - - - 주소파워 (https://linkpower29.com/) 스폰서AD 라인 지위기
+/linkpower|linklove/##div.w-row.row:nth-of-type(2)
 ![$domain=/linklove/]##.w-box
 ! - 중간 배너 공간
 ![$domain=/^linklove\d+.com/]##.miso-love-ad
 ! - - - https://adult.contents.fc2.com/ 오른쪽 PR 배너
 ! - - - 엑스툰 (https://t3.xtoon365.com/) - 개별 만화 관람시 ##.chapter-ad
 ! - - - https://javsubs91.uk/ - 영상 하단 배너
+!
+!
+! 주소 파워 (https://linkpower29.com/)
+! - 상단 배너 공간
+/linkpower/##.no-margin
 !
 !
 ! 여기여 (https://xn--ok0bt1cu7yjqdmxaba206c.com/) (https://www.xn--ok0b408a79cba430b.com/) (https://www.yugiyu.com/) (https://www.ygy02.com/)  - 서로 다른 여기여 지만 같은 사이트
@@ -6095,13 +6106,11 @@ windowsforum.kr##+js(aopr, alert)
 !
 ! 고릴라TV (https://t.me/s/gorillatv24notice) (https://gorillatv24.com/) --> (https://visitorstv.com/)
 ! - 필요없는 부분 안보이게
-visitorstv.com##[class*="list-item"]>[class*="na-title"]
-visitorstv.com###me_2 > .px-4
+!visitorstv.com##[class*="list-item"]>[class*="na-title"]
+!visitorstv.com###me_2 > .px-4
 ! - 오른쪽 이벤트
 !/^(www\.)?visitorstv/##.eventSide
 !##[class*="eventside" i]
-! - - - 빨간비디오 (https://redvi84.com/) 일부 남겨진 팝업 잔해
-##[class*="events" i]
 !
 !
 ! VIP TV (https://www.viptv24.com/)
@@ -6339,7 +6348,7 @@ linkareer.com##html,body:style(overflow: auto !important;)
 linkareer.com##[class*="PopularActivity" i]
 !
 !
-! 딸튜브 (http://xn--301bl1og0r.com/) (https://kr10.ddaltube.com/) - 광고 영상이 재생시 나옴
+! 딸튜브 (https://딸튜브.com/) (https://kr10.ddaltube.com/) - 광고 영상이 재생시 나옴
 ! 야동스타 (https://kr1.yastar.xyz/) - 광고 영상이 재생시 나옴
 ! - 플레이어 안보이는거 해결
 /yastar|ddaltube/#@#[class*="-ad-" i]
@@ -7004,6 +7013,5 @@ soccerline.kr##[class*="Bann"]
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
