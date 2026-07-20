@@ -945,7 +945,8 @@ etoland.co.kr##[id*="view-center"]
 ! - 게시물내 하단 배너 공백 (모바일)
 !etoland.co.kr##div.mt-2\.5.flex
 ! - 댓글 아래 배너 공백 (PC)
-etoland.co.kr##.flex.mb-2\.5
+!  -- - 메인 HIT 타이틀 사라짐
+!etoland.co.kr##.flex.mb-2\.5
 ! - 게시물 하단 / 댓글 하단 공백 (모바일)
 ! - - - 핫딜 추천 상품 나오는 부분
 ! - - - https://ridy.kr/
@@ -4350,6 +4351,12 @@ protonvpn.com#@#.items-center.justify-start.flex-wrap.flex
 ![$domain=/^yaburi\d+.com/]##.sm\:block.sm\:w-full.hidden > .w-full.my-4.p-1
 ! - 하단 이벤트 바로가기 클릭 없애기
 ![$domain=/^yaburi\d+.com/]##.grow.sm\:max-w-5xl.min-h-screen > div.w-full.p-1
+! - 하단 따라다니는 버튼
+! - - - 플레이랜드 (https://playland01.com/) 팝업
+! - - - https://missav01.com/ 상단메뉴 사라지는 등 부작용 / 하지 말것
+!##[class^="fixed" i]
+!##.fixed
+! -  
 !
 !
 ! Ichiha 4.5(https://komi.la/)
@@ -4868,7 +4875,8 @@ jusogall.com###banner-container
 !
 ! OnlyFans资源社 (https://of996.com/)
 ! - 왼쪽  떠다니는 메뉴
-of996.com##.ftwp-animate-zoom-in.ftwp-fixed-to-post.ftwp-middle-left.ftwp-maximize.ftwp-wrap
+!of996.com##[class*="-fixed-" i]
+##[class*="-fixed-" i]
 !
 !
 ! 팬더티비 (https://www.pandalive.co.kr/)
@@ -5724,9 +5732,9 @@ litt.ly#@#[href*="link.coupang.com"]
 yoboyobo.kr##[class*="headline"]:has([class*="powered"])
 !
 !
-!  플레이랜드 (https://playidol.org/)
+!  플레이랜드 (https://playland01.com/)
 ! - 모바일 팝업
-playidol.org##.fixed
+!playidol.org##.fixed
 ! - 배너
 !  - - - 도박랜드 (https://dobakland3.org/)
 ![$domain=/^dobakland\d+.org/],playidol.org##[src*="229x72"], [src*="320x110"], [src*="&q=75"]
@@ -5736,17 +5744,18 @@ playidol.org##.fixed
 ! - 클릭시 이동하는 페이지 안보이게 하기
 !playidol.org##.toastui-editor-contents
 ! - 배너 공간
-![$domain=/^dobakland\d+.org/],playidol.org##.gap-1.lg\:grid-cols-4
-playidol.org##.gap-1.lg\:grid-cols-4
-playidol.org##.max-w-\[426px\]
+! - - - 야부리 (https://yaburi66.com/) 팝업
+##[class*="hidden"]:has([target] img)
+! - 예외 - 이토랜드 (https://etoland.co.kr/) - HIT 인기 사라짐
+etoland.co.kr#@#[class*="hidden"]:has([target] img)
 ! - 필요없는거
 !playidol.org##li.flex-col.flex:nth-of-type(2)
 !playidol.org##li.flex-col.flex:nth-of-type(3)
 ! -  필요없는거 - 게시물 중 필요없는거
-playidol.org##div[class*="relative"]:has-text(/📢|충전|등록|결제|가입/)
+/playland/##div[class*="relative"]:has-text(/📢|충전|등록|결제|가입/)
 !
 !
-! 오피랜드 (https://opland1.org/)
+! 오피랜드 (https://opland2.org/)
 ! - 아예 안보이게
 ![$domain=/^opland\d+.org/]##.flex
 /opland/##.flex
