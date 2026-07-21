@@ -3287,16 +3287,17 @@ xnxx.*##.premium-results-line
 ! - 맨 위 오른쪽 상단 작은 배너
 ! - - - PC
 !##[class="happy-header"]
-##.happy-header
+!##.happy-header
 ! - - - 모바일
 !##[class="happy-header-mobile"]
-##.happy-header-mobile
+!##.happy-header-mobile
 ! - 상단 배너
 !##[class="header-advertising"]
 !##[class*="advertising" i]
 ! - 전체 배너 (젤 오른쪽 상단 작은 배너 / 젤 하단 배너 제외]
 ! - - - [class="textwidget" i]로 하면 일부 사이트에서 텍스트영역이 사라짐
-##[class^="textwidget" i] img
+! - - - https://glamoroustube.com/ 일부 아이콘 사라짐
+!##[class^="textwidget" i] img
 !##[class*="widget" i][class^="textwidget" i] img
 ! - 젤 하단 배너
 ! - - - PC
@@ -4887,8 +4888,9 @@ jusogall.com###banner-container
 !
 ! OnlyFans资源社 (https://of996.com/)
 ! - 왼쪽  떠다니는 메뉴
-!of996.com##[class*="-fixed-" i]
-##[class*="-fixed-" i]
+! - - - https://www.tokyomotion.net/ 상단메뉴 사라지므로 개별도메인으로 처리
+of996.com##[class*="-fixed-" i]
+!##[class*="-fixed-" i]
 !
 !
 ! 팬더티비 (https://www.pandalive.co.kr/)
