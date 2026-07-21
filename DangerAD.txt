@@ -740,7 +740,7 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 
 ##[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 ! - nid.naver.com - 멤버쉽 결제시 나오는 화면 안보임
-nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
+!nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 
 
 
@@ -867,7 +867,7 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo
 ! https://yandex.com/
 ! https://www.sooplive.com/ - 즐겨찾기 삭제시 팝업 안보임. 어쩔수없이 모든 곳에 팝업 허용
 ! https://www.lezhinsnack.com/
-lezhinsnack.com,sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,nid.naver.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
+lezhinsnack.com,sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://clothoff.net/
@@ -881,7 +881,7 @@ clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not(
 ! - https://nid.naver.com/
 ! - https://adguard-dns.io/
 ! - https://m.newspim.com/
-m.newspim.com,nid.naver.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not(main)
+m.newspim.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not(main)
 
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://fd2ppv.cc/
