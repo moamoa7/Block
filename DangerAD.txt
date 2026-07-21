@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260721
+! Version: 20260722
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -965,6 +965,19 @@ up-4ever.net,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(main):not
 !##[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"])
 
 
+! avsee / https://tcafe21.com/ - main-head  gamepad
+! https://xn--9w3b43d58f04atzyznd.com/ - class="hero-lead"
+! 연합뉴스 - class="lead"
+! 연합뉴스TV - class="public-head"  class="digital-head"  class="major-head"
+! 인벤 - class="head" Head  bttn_bad
+!##[class$="ad" i]:not([class*="head"]):not([class*="Head"]):not([class*="gamepad"]):not([class*="lead"]):not([class*="bttn_bad"])
+
+! 개별 도메인별로 필요시 할 것
+! https://www.goodgag.net/
+goodgag.net##[class$="ad" i]:not(body):not(html):not(main)
+
+
+
 ! 링크사랑 (https://linklove18.com/) - 스폰서 배너
 ##[class$="-ad"]:not(body):not(html):not(main)
 
@@ -1017,6 +1030,7 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 
 ! https://damoang.net/
 ##[id$="-ad"]
+
 
 
 
