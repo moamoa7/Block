@@ -49,10 +49,10 @@
 !
 !
 !
-!@@*.or.kr^$generichide,image,css,font,script,xhr,frame,other
-@@*.or.kr^$generichide,css,image,script,xhr
-!@@*.go.kr^$generichide,image,css,font,script,xhr,frame,other
-@@*.go.kr^$generichide,css,image,script,xhr
+!@@|or.kr^$generichide,image,css,font,script,xhr,frame,other
+@@||or.kr^$generichide,css,image,script,xhr
+!@@|go.kr^$generichide,image,css,font,script,xhr,frame,other
+@@||go.kr^$generichide,css,image,script,xhr
 !
 !
 !
@@ -416,13 +416,17 @@ m.naver.com##script#MM_search_disaster ~*
 !/gtag.js
 !
 !
+! 네이버 (https://nid.naver.com/)
+@@||nid.naver.com^$generichide
+!
+!
 ! 네이버 블로그 (blog.naver.com)
 ! - 기타
 ||ssl.pstatic.net/t.static.blog/nmobile/versioning/ntmbalog-*.js
 !
 !
 ! 네이버 스토어 (https://shopping.naver.com/)
-!@@||shopping.naver.com^$generichide
+@@||shopping.naver.com^$generichide,image,xhr
 ! - 배너
 ##.ad-container
 ! - 광고 물품 삭제
@@ -441,11 +445,13 @@ shopping.naver.com##li:has([class*="productCard"]>[class*="adButton"])
 !
 !
 ! 네이버 스토어 (https://snxbest.naver.com/)
+@@||snxbest.naver.com^$generichide,image,xhr
 ! - 광고 물품 삭제
 snxbest.naver.com##[class*="card"]:has([class*="advert"])
 !
 !
 ! 네이버 쇼핑 라이브 (https://shoppinglive.naver.com/)
+@@||shoppinglive.naver.com^$generichide,image,xhr
 ! - 팝업
 !##[class*="popupbanner" i]
 !##[class*="popup_banner" i]
@@ -2626,7 +2632,7 @@ sports.donga.com##.view_center
 !
 !
 ! 쿠팡 (https://www.coupang.com/)
-@@coupang.com^$generichide,image,xhr
+@@||coupang.com^$generichide,image,xhr
 ! - 광고 도메인 차단 (DNS에서 차단하는지 확인 후 등록 필요 / Adguard DNS에서는 기등록)
 !||mercury.coupang.com^
 ! - 메인 배너
@@ -2665,7 +2671,7 @@ coupang.com##li:has-text(광고)
 !
 !
 ! 옥션 (https://www.auction.co.kr)
-@@auction.co.kr^$generichide,image,xhr
+@@||auction.co.kr^$generichide,image,xhr
 ! -  배너 나오게 (따로 필터에서 막아 놓지 않아서 할 필요 없음)
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요
 ! - 배너 이미지 보이게 하기
@@ -2703,7 +2709,7 @@ coupang.com##li:has-text(광고)
 !
 !
 ! G마켓 (https://www.gmarket.co.kr/)
-@@gmarket.co.kr^$generichide,image,xhr
+@@||gmarket.co.kr^$generichide,image,xhr
 ! - 광고 차단? (출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt)
 !gmarket.co.kr##.section__main-banner.section__main
 ! - 배너 이미지 복원 (List KR)
@@ -2716,7 +2722,7 @@ coupang.com##li:has-text(광고)
 !
 !
 ! 11번가 (https://www.11st.co.kr/)
-@@11st.co.kr^$generichide,image,xhr
+@@||11st.co.kr^$generichide,image,xhr
 ! - 플러스 상품 삭제 (List-KR) 복원
 !search.11st.co.kr#@##section_plusPrd
 ! - 서치 후 상품 클릭 안됨 해결 (List-kr)
@@ -6053,6 +6059,7 @@ gemini.google.com##.input-area-container:style(max-width:1600px!important)
 !
 !
 ! StackSocial (https://www.stacksocial.com/)
+@@||stacksocial.com^$generichide
 ! - 기타
 !||cdn.gladly.com^
 !||lightboxcdn.com^
