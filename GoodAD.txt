@@ -3343,7 +3343,7 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 ! - 상단 배너
 !##[class="header-advertising"]
 !##[class*="advertising" i]
-! - 일부 사라지지 않은 중.하단 배너
+! - 일부 사라지지 않은 배너 (탑걸/쏘걸)
 ! - - - ##.textwidget 로 하면 일부 사이트에서 텍스트영역이 사라짐
 ! - - - https://dramaday.me/ 일부 텍스트 사라짐
 ! - - - https://glamoroustube.com/ 일부 이미지 및 텍스트 사라짐
