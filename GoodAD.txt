@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260721
+! Version: 20260722
 !
 !
 !
@@ -1598,7 +1598,7 @@ rgo4.com##div.xe-widget-wrapper.xe_content:nth-of-type(1)
 ! - 광고 허용 안내 팝업
 !goodgag.net##.fc-dialog-container
 ! - 게시물 목록 중간 배너
-goodgag.net##.inventoryAd
+!goodgag.net##.inventoryAd
 ! - 팝업 차단으로 인한 스크롤 차단 해제
 !goodgag.net##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
@@ -7029,6 +7029,11 @@ iloa.gg##div.justify-center[class*="min-h-"]:has(> div.items-center:empty):not(:
 ! - 메인 등 빈 공간
 ! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
 kloa.gg##div[class*="min-h-"]:has(> div[id]:empty):not(:has(a))
+!
+!
+! https://taiwebs.org/ - taiwbs.com에서 주소 바뀜
+! - 일부 배너
+/taiwebs/##[class*="textwidget" i]
 
 
 
@@ -7065,5 +7070,6 @@ kloa.gg##div[class*="min-h-"]:has(> div[id]:empty):not(:has(a))
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
+
 
 
