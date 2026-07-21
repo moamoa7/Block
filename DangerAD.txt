@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260720
+! Version: 20260721
 
 
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -63,6 +63,10 @@
 
 ! 디스코드
 *_ad_*
+! - 예외
+! - - - 11번가 (https://www.11st.co.kr/) - AD광고표시 삭제됨
+@@*_ad_*$domain=11st.co.kr
+
 
 
 *_ads_*
@@ -73,9 +77,10 @@
 
 ! 티비착
 ! 조아툰
+! https://iloa.gg/
 */ad/*
 ! - 예외
-@@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
+@@*/ad/*$domain=avsee.ru|linkareer.com
 
 
 ! 치지직
@@ -83,6 +88,7 @@
 ! https://kilho.net/
 ! 주간경향
 ! 엔카 (https://www.encar.com/)
+! https://iloa.gg/
 */ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -599,8 +605,8 @@ vexfile.com#@#[class*="banner-" i]:not([class*="-banner-" i])
 
 ! https://vexfile.com/
 ! 주소월드 (https://wdwd12.com/)
-! 펀비 (https://funbe657.com/)
-! 툰코 (https://tkor135.com/)
+! 펀비 (https://funbe658.com/)
+! 툰코 (https://tkor136.com/)
 vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-banner-" i])
 
 /tkor|funbe|wdwd/#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-banner-" i])
@@ -649,7 +655,8 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 !##ul[class*="banner" i]
 
 
-! - 머니툰 (https://mtoon144.asia/)
+! 머니툰 (https://mtoon144.asia/)
+! https://iloa.gg/
 ##[alt*="banner" i]
 
 
@@ -706,7 +713,7 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 !trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소월드 (https://wdwd12.com/)
-! 펀비 (https://funbe656.com/)
+! 펀비 (https://funbe658.com/)
 ! 툰코 (https://tkor128.com/)
 ! 주소핑 (https://www.jusoping3.com/)
 !/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
@@ -830,14 +837,18 @@ nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo
 
 ! - 개별 작업하는걸로 변경
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들 (빈 공간이 안생기는 것만 할것)
-! - 블랙툰 (https://www.blacktoonurl2.com/) - 빈공간 생김
-! - 주소모아 (https://www.joosomoa1.com/) - 빈공간 생김
-! - 조개파티 (https://jogaeparty181.com/)
-! - https://www.thisav.sbs/
-! - https://www.hanime123.mom
-! - https://www.missav123.art/
+! 블랙툰 (https://www.blacktoonurl2.com/) - 빈공간 생김
+! 주소모아 (https://www.joosomoa1.com/) - 빈공간 생김
+! 조개파티 (https://jogaeparty181.com/)
+! https://www.thisav.sbs/
+! https://www.hanime123.mom
+! https://www.missav123.art/
 ! 19가이드닷컴 (https://www.19guide03.com/)
-/19guide|missav|hanime|thisav|jogaeparty/##[target*="blank"] img
+! 나미툰 하단 배너 (https://namee104.asia/)
+! 무료툰 하단 배너 (https://foc116.asia/)
+! 야동닷컴 (https://yadong8.com/)
+! AV핫 (https://avhot1.com/)
+/avhot|yadong|foc|namee|19guide|missav|hanime|thisav|jogaeparty/##[target*="blank"] img
 
 
 
