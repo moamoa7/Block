@@ -3343,12 +3343,13 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 ! - 상단 배너
 !##[class="header-advertising"]
 !##[class*="advertising" i]
-! - 전체 배너 (젤 오른쪽 상단 작은 배너 / 젤 하단 배너 제외]
+! - 일부 사라지지 않은 중.하단 배너
 ! - - - ##.textwidget 로 하면 일부 사이트에서 텍스트영역이 사라짐
 ! - - - https://dramaday.me/ 일부 텍스트 사라짐
 ! - - - https://glamoroustube.com/ 일부 이미지 및 텍스트 사라짐
-!##[class^="textwidget" i] img 로 해도 https://glamoroustube.com/ 여전히 일부 이미지 사라짐
-##[class*="widget" i][class^="textwidget" i] img
+!##[class^="textwidget" i] img
+!##[class*="widget" i][class^="textwidget" i] img
+##[class="textwidget" i][class^="textwidget" i] img
 ! - 젤 하단 배너
 ! - - - PC
 !##[class="happy-footer"]
