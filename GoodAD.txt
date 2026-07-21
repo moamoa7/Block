@@ -3347,7 +3347,7 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 ! - - - [class="textwidget" i]로 하면 일부 사이트에서 텍스트영역이 사라짐
 ! - - - https://glamoroustube.com/ 일부 아이콘 사라짐
 !##[class^="textwidget" i] img
-!##[class*="widget" i][class^="textwidget" i] img
+##[class*="widget" i][class^="textwidget" i] img
 ! - 젤 하단 배너
 ! - - - PC
 !##[class="happy-footer"]
