@@ -404,7 +404,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - upnstreamlive.shop	(조개무비 영상 재생시 필요한 사이트)
 ! - https://sexkbj.com/ - 모바일에서 iframe 안막혀있음 - 플레이 영상이 iframe여서 embed로 막힌거 해제
 ! https://leakedzone.com/ - 모바일에서 iframe 보임 (그냥 ##iframd 하면 공간이 남아서 has 사용하면 PC에서 본문 다 날라감) - 베이스필터 대신 easylist를 사용할 경우 필요
-!/leakedzone|sexkbj|upnstreamlive|missav|hanime|thisav/##iframe[src]:not([src*="embed" i])
+/leakedzone|sexkbj|upnstreamlive|missav|hanime|thisav/##iframe[src]:not([src*="embed" i])
 
 
 ! https://apkmody.com/
