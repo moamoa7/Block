@@ -533,7 +533,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 
 
 
-##.banner:not(html):not(body)
+!##.banner:not(html):not(body)
+
 
 
 
@@ -605,7 +606,7 @@ vexfile.com#@#[class*="banner-" i]:not([class*="-banner-" i])
 
 ! https://vexfile.com/
 ! 주소월드 (https://wdwd12.com/)
-! 펀비 (https://funbe658.com/)
+! 펀비 (https://funbe659.com/)
 ! 툰코 (https://tkor136.com/)
 vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-banner-" i])
 
@@ -713,7 +714,7 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 !trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소월드 (https://wdwd12.com/)
-! 펀비 (https://funbe658.com/)
+! 펀비 (https://funbe659.com/)
 ! 툰코 (https://tkor128.com/)
 ! 주소핑 (https://www.jusoping3.com/)
 !/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
@@ -848,7 +849,8 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 ! 무료툰 하단 배너 (https://foc116.asia/)
 ! 야동닷컴 (https://yadong8.com/)
 ! AV핫 (https://avhot1.com/)
-/avhot|yadong|foc|namee|19guide|missav|hanime|thisav|jogaeparty/##[target*="blank"] img
+! 야모아 (https://yamoa48.top/)
+/yamoa|avhot|yadong|foc|namee|19guide|missav|hanime|thisav|jogaeparty/##[target*="blank"] img
 
 
 
