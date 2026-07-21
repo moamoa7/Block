@@ -3344,9 +3344,10 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !##[class="header-advertising"]
 !##[class*="advertising" i]
 ! - 전체 배너 (젤 오른쪽 상단 작은 배너 / 젤 하단 배너 제외]
-! - - - [class="textwidget" i]로 하면 일부 사이트에서 텍스트영역이 사라짐
-! - - - https://glamoroustube.com/ 일부 아이콘 사라짐
-!##[class^="textwidget" i] img
+! - - - ##.textwidget 로 하면 일부 사이트에서 텍스트영역이 사라짐
+! - - - https://dramaday.me/ 일부 텍스트 사라짐
+! - - - https://glamoroustube.com/ 일부 이미지 및 텍스트 사라짐
+!##[class^="textwidget" i] img 로 해도 https://glamoroustube.com/ 여전히 일부 이미지 사라짐
 ##[class*="widget" i][class^="textwidget" i] img
 ! - 젤 하단 배너
 ! - - - PC
@@ -7063,6 +7064,5 @@ kloa.gg##div[class*="min-h-"]:has(> div[id]:empty):not(:has(a))
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
