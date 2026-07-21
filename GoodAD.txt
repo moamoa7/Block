@@ -898,7 +898,7 @@ arca.live##[class*="row"]:has-text(광고)
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe658.com/) - 이미지 목록 사라짐
+! 펀비 (https://funbe659.com/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -1134,7 +1134,7 @@ mlbpark.donga.com##.btn_top01
 !ruliweb.com##.adrr
 !ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe658.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe659.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 !ruliweb.com##[class*="ad_"][style] - ##[class*="ad_slot" i]로 변경
 ! - 루리웹 전체 배너 (게시판 내 AD글 포함)
@@ -2036,7 +2036,7 @@ anilife.app##.duration-300
 !
 !
 ! 툰코 (https://t.me/s/toonkor_com) (https://tkor136.com/) - 텔레그램 주소 사라짐
-! 펀비 (https://t.me/s/funbe_next) (https://funbe658.com/)
+! 펀비 (https://t.me/s/funbe_next) (https://funbe659.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -2259,7 +2259,7 @@ joatoon-oa.com##.bg-opacity-50
 ||bookto*.com/data/apms/*
 !
 !
-! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon416.com/)
+! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon417.com/)
 ! - 최신주소 안내페이지 배너 공간 ((https://www.blacktoonurl2.com/) )
 ![$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 ![$domain=/blacktoonurl/]###comp-mon185d4 > div > div
@@ -3413,23 +3413,26 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !/pinkbo/#@#.loading
 ! - 최상단 오른쪽 배너
 !##.happy-header > [href]
-! - 상단 배너 공간
-!##[class="bannerul"]
-!##.bannerul
 ! - 모바일 영상 하단 배너
 !||*/pink_*/img/*-1200x300*$important
 ! - 배너 이미지 공간 및 빈공간
 !##.bounce
 !###imgDiv > table
+###imgDiv
 ! - - - https://glamoroustube.com/ 테이블 도표가 사라짐
 !##table:has(> tbody)
 !glamoroustube.com#@#table:has(> tbody)
-##table:has(> tbody):not(:has-text(/./))
+!##table:has(> tbody):not(:has-text(/./))
+!##table:has(> tbody:empty)
+##.execphpwidget
 ! - 예외 - https://minkch.com/
-!minkch.com#@#.execphpwidget
+minkch.com#@#.execphpwidget
 !
 !
 ! AV핑유걸 (https://avpingyou20.com/)
+! - 상단 배너 공간 - target img로 하면 공간이 남음
+!##[class="bannerul"]
+##.bannerul
 ! - 인증업체
 ![$domain=/^avpingyou\d+.com/]##[href="/index.php/art/type/id/27.html"]
 !/avpingyou/##[href="/index.php/art/type/id/27.html"]
@@ -4053,7 +4056,7 @@ javmov.com##.spot
 ! - 배너
 ! - - - 이토랜드 아이콘 사라지는거 방지
 !##[class*="mx-auto"] [target*="blank" i] img
-##[class*="mx-auto"] [target*="blank" i] img[src*="gif"]
+!##[class*="mx-auto"] [target*="blank" i] img[src*="gif"]
 ! - 배너 빈 공간
 /yamoa/##[class*="mt-2"]
 !
