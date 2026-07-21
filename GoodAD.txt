@@ -3258,6 +3258,55 @@ xnxx.*##.premium-results-line
 !xnxx.com##+js(set-local-storage-item, xvutils.nb_tabs_opened, 1)
 !
 !
+! SexLBJ (https://sexkbj.com/)
+! - 영상 목록내 영상 클릭시 발생하는 팝업 방지
+!@@||sexkbj.com^$generichide
+! - 영상내 플레이버튼 위 닫기 버튼
+sexkbj.com##.happy-inside-player
+! - 영상 재생 버튼 클릭시 팝업 (새창) 방지 (ublock)
+!sexkbj.com##+js(window.open-defuser)
+! - 영상 재생 버튼 클릭시 팝업 (새창) 방지 (adguard)
+!sexkbj.com#%#//scriptlet('prevent-window-open')
+! - 기타
+!||retirementpension.cfd^
+
+!
+!
+! TK Tubo (https://tktube.com/)
+! - 상단 배너
+tktube.com##.top
+! - - - 예외
+! - - - https://adguard-dns.io/ 도메인 클릭시 팝업 안뜸
+!adguard-dns.io#@#.top
+! - iframe 차단
+/player/html.php?aid=*&video_id=*&referer=
+!
+!
+!
+! AV핑크 (https://avpink43.com/)
+! - 배너 이미지
+!##.fg-image
+! - 영상 시청시 검은화면 나오면서 소리만 나옴 - media 차단해제 (List-KR)
+!@@||ttse.b-cdn.net^
+!
+!
+! 탑걸 (https://kr.av탑걸.com/) (https://www.탑걸.com/) (https://kr44.topgirl.co/)
+! 자브걸 (https://kr31.javgirl.co/)
+! - 배너
+! - - - 딸플릭스 (https://kr15.ddal.xyz/) 
+!##.ad_banner
+! - 영상내 광고
+! - - - 아브티비 (https://kr2.avtv.co/) - 없어진듯
+! - - - 딸플릭스 (https://kr15.ddal.xyz/) - 같은 비디오라 막으면 안됨
+||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
+! - - - 자브걸 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
+!||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
+! - - - - - 경로로 달라지는 부분이 있어 변경
+||*/js/videojs.hotkeys.min.js$important
+! - 영상 하단 텍스트 배너
+topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
+!
+!
 ! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr87.sogirl.so/)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) - 없어짐
 ! - 입장시 18세 물어보는 팝업
@@ -3329,59 +3378,10 @@ xnxx.*##.premium-results-line
 !||metrics-bunny.net^
 !
 !
-! SexLBJ (https://sexkbj.com/)
-! - 영상 목록내 영상 클릭시 발생하는 팝업 방지
-!@@||sexkbj.com^$generichide
-! - 영상내 플레이버튼 위 닫기 버튼
-sexkbj.com##.happy-inside-player
-! - 영상 재생 버튼 클릭시 팝업 (새창) 방지 (ublock)
-!sexkbj.com##+js(window.open-defuser)
-! - 영상 재생 버튼 클릭시 팝업 (새창) 방지 (adguard)
-!sexkbj.com#%#//scriptlet('prevent-window-open')
-! - 기타
-!||retirementpension.cfd^
-
-!
-!
-! TK Tubo (https://tktube.com/)
-! - 상단 배너
-tktube.com##.top
-! - - - 예외
-! - - - https://adguard-dns.io/ 도메인 클릭시 팝업 안뜸
-!adguard-dns.io#@#.top
-! - iframe 차단
-/player/html.php?aid=*&video_id=*&referer=
-!
-!
-!
-! AV핑크 (https://avpink43.com/)
-! - 배너 이미지
-!##.fg-image
-! - 영상 시청시 검은화면 나오면서 소리만 나옴 - media 차단해제 (List-KR)
-!@@||ttse.b-cdn.net^
-!
-!
-! 탑걸 (https://kr.av탑걸.com/) (https://www.탑걸.com/) (https://kr44.topgirl.co/)
-! 자브걸 (https://kr31.javgirl.co/)
-! - 배너
-! - - - 딸플릭스 (https://kr14.ddal.xyz/) 
-!##.ad_banner
-! - 영상내 광고
-! - - - 아브티비 (https://kr2.avtv.co/) - 없어진듯
-! - - - 딸플릭스 (https://kr14.ddal.xyz/) - 같은 비디오라 막으면 안됨
-||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
-! - - - 자브걸 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
-!||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
-! - - - - - 경로로 달라지는 부분이 있어 변경
-||*/js/videojs.hotkeys.min.js$important
-! - 영상 하단 텍스트 배너
-topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
-!
-!
-! 딸플릭스 (https://kr.xn--301bo8fzqjqzt.net/) (https://kr14.ddal.xyz/)
+! 딸플릭스 (https://kr.xn--301bo8fzqjqzt.net/) (https://kr15.ddal.xyz/)
 ! - 쓸데없는 사이트 이동 차단
-*/?code=*$document
-*/mall/index.php$document
+!*/?code=*$document
+!*/mall/index.php$document
 !
 !
 ! AV핑보걸 (https://xn--av1-qv9mx21c.com/) (https://pinkbo48.com/) / AV러브걸 (https://avlove30.com/) / XX조아 (https://xxjoa49.com/) / 야통령 (https://야통령9.com/)
@@ -3412,18 +3412,21 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 ![$domain=/^pinkbo\d+.com/]#@#.loading
 !/pinkbo/#@#.loading
 ! - 최상단 오른쪽 배너
-##.happy-header > [href]
+!##.happy-header > [href]
 ! - 상단 배너 공간
-##[class="bannerul"]
+!##[class="bannerul"]
 !##.bannerul
 ! - 모바일 영상 하단 배너
 !||*/pink_*/img/*-1200x300*$important
-! - 배너 이미지 공간
-##.bounce
-###imgDiv > table
-##.execphpwidget
+! - 배너 이미지 공간 및 빈공간
+!##.bounce
+!###imgDiv > table
+! - - - https://glamoroustube.com/ 테이블 도표가 사라짐
+!##table:has(> tbody)
+!glamoroustube.com#@#table:has(> tbody)
+##table:has(> tbody):not(:has-text(/./))
 ! - 예외 - https://minkch.com/
-minkch.com#@#.execphpwidget
+!minkch.com#@#.execphpwidget
 !
 !
 ! AV핑유걸 (https://avpingyou20.com/)
@@ -3460,6 +3463,20 @@ minkch.com#@#.execphpwidget
 !/xxjoa/###menu-item-8073 > a.nav-link
 !/xxjoa/###menu-item-20981 > .nav-link
 !/xxjoa/###menu-item-7813 > a.nav-link
+!
+!
+! 야통령 (https://야통령9.com/)
+! - 오른쪽 배너
+!##[class="happy-sidebar"]
+##.happy-sidebar
+! - 영상 하단 배너글자
+###tracking-url
+! - 동맹 글자
+!xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
+! - 채팅창
+###execphp-38
+! - 기타
+/wp-content/plugins/popup-maker/*$~stylesheet,from=~schornsteinfeger-liv-bayern.de
 !
 !
 ! JavFinder (https://javfinder.ai/)
@@ -3569,18 +3586,6 @@ javtiful.com##.front-feature-placement-player
 javtiful.com##.front-partner-card
 ! - 영상 옆 빈 공간
 javtiful.com##.front-feature-placement-side
-!
-!
-! 야통령 (https://야통령9.com/)
-! - 오른쪽 배너
-!##[class="happy-sidebar"]
-##.happy-sidebar
-! - 영상 하단 배너글자
-###tracking-url
-! - 동맹 글자
-!xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
-! - 기타
-/wp-content/plugins/popup-maker/*$~stylesheet,from=~schornsteinfeger-liv-bayern.de
 !
 !
 ! 야애니24 (https://www.aniya24.com/)
