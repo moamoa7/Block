@@ -981,12 +981,14 @@ goodgag.net##[class$="ad" i]:not(body):not(html):not(main)
 ##[class$="-ad"]:not(body):not(html):not(main)
 !
 !
-! 보배드림 모바일 (https://m.bobaedream.co.kr/) 빈공간
-##[class*="ad-"]:not(body):not(html):not(main):not([class*="-ad-"])
+! ! 개별 도메인별로 필요시 할 것
+! 인벤 본문 안보임
+!##[class*="ad-"]:not(body):not(html):not(main):not([class*="-ad-"])
 !
 !
+! ! 개별 도메인별로 필요시 할 것
 ! 보배드림 모바일 (https://m.bobaedream.co.kr/) 빈공간
-##[class*="-ad-"]:not(body):not(html):not(main)
+!##[class*="-ad-"]:not(body):not(html):not(main)
 !
 !
 !
