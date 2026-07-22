@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260722
+! Version: 20260723
 !
 !
 !
@@ -261,7 +261,7 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !discord.com##div[class*="notice"]
 ! - 기타
 !/otautoblock.js
-!/track^$from=~megap.fm|~pdst.fm|~podtrac.com|~spotify.com|~twitch.tv|~wolf359.fm
+/track^$from=~megap.fm|~pdst.fm|~podtrac.com|~spotify.com|~twitch.tv|~wolf359.fm
 !
 !
 ! X (https://x.com/)
@@ -983,8 +983,8 @@ etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
 @@||doubleclick.net^$domain=etoland.co.kr
 ! - 오류 방지 (상관없는 규칙으로 판단)
 !@@||facebook.net^$domain=etoland.co.kr
-! 에토랜드 팝업 차단
-etoland.co.kr#%#//scriptlet('prevent-window-open')
+! 팝업 차단
+!etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
 !etoland.co.kr##+js(window.open-defuser)
@@ -993,7 +993,7 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - - - 특정 팝업, 모달, 혹은 하단 쿠키/개인정보 처리방침 안내 바(Bar) 같은 독립된 요소에만 스타일을 안전하게 입히고 싶을 때 사용
 !##.privacy-container:not(body):not(html):not(.content-container)
 ! - 기타
-/prebid/*
+!/prebid/*
 !||openxcdn.net^
 !
 !
@@ -1324,7 +1324,7 @@ humorpick.com##.ie-center.ie-zone > p
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 !namu.wiki#$#div[class][id]:is(:empty, :has(> iframe[id^='google_ads_iframe'])) { display: none !important; }
 !namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
-! - 상단 빈 공간 (내가 새로 만든 규칙) - 나무위키 스크립트에서 차단중이라 주석 처리
+! - 상단 빈 공간
 namu.wiki##div:has(> div > div[id]:empty:only-child)
 ! - 오른쪽 나무뉴스 포함 삭제
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
@@ -2814,16 +2814,18 @@ c.appstory.co.kr###modalPreventExit
 !
 !
 ! 다나와 (https://danawa.com/)
-@@||danawa.com^$generichide,xhr
+@@||danawa.com^$generichide,image
 ! - 오늘 그만보기 및 뿌연거 해결 (모바일)
 danawa.com##div.layer-bottom-sheet.show:has(> .box__banner)
 danawa.com###mdnw-main-dimm
+! - 검색란 오른쪽 광고
+danawa.com##.auto_product_list
 ! - 빈 배너 공간
-danawa.com###t1Banner
+!danawa.com###t1Banner
 ! - 오른쪽 빈 배너 / 상단 텍스트
-danawa.com##.main-top__right
+!danawa.com##.main-top__right
 ! - 중간 배너 공간
-danawa.com##.main__grid--bg
+!danawa.com##.main__grid--bg
 ! 상단 배너 보이게
 ! - - -  List-KR 해제
 !danawa.com#@##danawa_main_container > .main-top > .main-top__center > .main-middlebnr
@@ -2838,15 +2840,15 @@ danawa.com##.main__grid--bg
 ! - - - - - YousList
 !danawa.com#@#iframe[src*="/RealMedia/ads/"]
 ! - 뉴스
-danawa.com##.main-top__center
+!danawa.com##.main-top__center
 ! - 광고 배너 (로테이션)
-danawa.com##.main-clip
+!danawa.com##.main-clip
 !- 커뮤니티 / 자동차 / 샵다나와
-danawa.com##div.main__grid > .main__inner
+!danawa.com##div.main__grid > .main__inner
 ! - 광고 배너 (오늘 봐야할 추천 상품)
-danawa.com###adSmartProductContainer
+!danawa.com###adSmartProductContainer
 ! - 검색시 나오는 광고 배너
-danawa.com##[id^='powerShoppingArea']
+!danawa.com##[id^='powerShoppingArea']
 #iframe[title*="배너"]
 !##div:has(> iframe[title*="배너"])
 !##li:has(> iframe[title*="배너"])
@@ -4400,9 +4402,11 @@ harpi.in##.css-1r7df7j
 !||hdbkome.com^
 !
 !
-! https://sexygirl.cc/
+! SexyGirl (https://sexygirl.cc/) - VPN
 ! - 배너 공간
-sexygirl.cc##div.overflow-auto
+!sexygirl.cc##div.overflow-auto
+! - 공간 공백 없애기 (빈 클래스) - 광역사용금지 (타 사이트 깨짐)
+sexygirl.cc##div[class*="overflow-auto"]
 ! - 차단 사이트
 !||beetlestaircaselobster.com^
 !
@@ -6932,7 +6936,9 @@ jable.tv##[class*="video"]:has([href*="banner"])
 ! - 배너
 ##[alt*="후원"]
 ! - 예외 - 숲 - 별풍선 후원 이미지 복원
+! - 예외 - 야동갤러리 - 게시물 제목 이미지
 play.sooplive.com#@#[alt*="후원"]
+/yagall/#@#[alt*="후원"]
 ! - 배너 빈 공간
 loawa.com##.mb-4
 !
