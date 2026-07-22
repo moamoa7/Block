@@ -2035,7 +2035,7 @@ anilife.app##.duration-300
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://t.me/s/toonkor_com) (https://tkor136.com/) - 텔레그램 주소 사라짐
+! 툰코 (https://t.me/s/toonkor_com) (https://tkor137.com/) - 텔레그램 주소 사라짐
 ! 펀비 (https://t.me/s/funbe_next) (https://funbe659.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
