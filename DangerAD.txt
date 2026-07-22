@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260722
+! Version: 20260723
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -581,12 +581,20 @@ clien.net#@#[class*="_banner" i]:not([class*="_banner_" i])
 ! 픽팍 (https://mypikpak.com/)
 ##[class*="banner_" i]:not([class*="_banner_" i])
 !
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! -  숲 (https://www.sooplive.com) - 개인 페이지 상단이 날라감
+sooplive.com#@#[class*="banner_" i]:not([class*="_banner_" i])
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
 !
 ##[class*="_banner_" i]
-
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! 만개의 레시피 (https://m.10000recipe.com/]
 10000recipe.com#@#[class*="_banner_" i]
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
 !
 ! https://www.wadiz.kr/
@@ -981,7 +989,8 @@ goodgag.net##[class$="ad" i]:not(body):not(html):not(main)
 ##[class$="-ad"]:not(body):not(html):not(main)
 !
 !
-! ! 개별 도메인별로 필요시 할 것
+! 개별 도메인별로 필요시 할 것
+! 보배드림 모바일 (https://m.bobaedream.co.kr/) 빈공간
 ! 인벤 본문 안보임
 !##[class*="ad-"]:not(body):not(html):not(main):not([class*="-ad-"])
 !
