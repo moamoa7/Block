@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-23 18:05:07 UTC
+! Generated: 2026-07-23 19:51:40 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,566
+! Exception Rules: 6,564
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -416,7 +416,6 @@
 @@||auth-analytix.com^
 @@||auth.simperium.com^
 @@||auto-swiat.pl^
-@@||autolinkmaker.itunes.apple.com^
 @@||automotive.services^
 @@||autopays.ru^
 @@||autopilothq.com^
@@ -3762,7 +3761,6 @@
 @@||paranabanco.com.br^
 @@||parasol.anser.ne.jp^
 @@||partnerlinks.io^
-@@||partners.webmasterplan.com^
 @@||pashabank.az^
 @@||pashaonline.pashabank.com.tr^
 @@||pasientsky.no^
