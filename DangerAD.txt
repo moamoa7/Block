@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260723
+! Version: 20260724
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -861,8 +861,8 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 ##[id*="pop_" i]:not(body):not(html):not(main)
 !
 !
-!
-##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
+! https://www.javbangers.com/ - class*="age-popup" 예외
+##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.clien.net/
