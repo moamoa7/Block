@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260723
+! Version: 20260724
 !
 !
 !
@@ -101,6 +101,7 @@
 !
 !
 ! - 팝업 (새창) 방지
+! 이토랜드 (https://etoland.co.kr/)
 ! 매의눈닷컴 (https://heye.kr/)
 ! https://javsubs91.uk/
 ! https://javgiga.com/
@@ -118,10 +119,10 @@
 ! MISSAV 계열 사이트
 ! sendvid.com
 ! - - - ublock
-heye.kr##+js(window.open-defuser)
+etoland.co.kr,heye.kr##+js(window.open-defuser)
 /javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
 ! - - - adguard
-heye.kr#%#//scriptlet('prevent-window-open')
+etoland.co.kr,heye.kr#%#//scriptlet('prevent-window-open')
 /javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
 !
 !
@@ -981,8 +982,6 @@ etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
 ! =========================
 ! - 애드블럭 감지 해제 (출석체크 랜덤포인트 얻을려면 필요)
 @@||doubleclick.net^$domain=etoland.co.kr
-! - 오류 방지 (상관없는 규칙으로 판단)
-!@@||facebook.net^$domain=etoland.co.kr
 ! 팝업 차단
 !etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - 팝업 차단
@@ -2973,7 +2972,7 @@ pedia.watcha.com##.adFixed
 !/torrentpi[0-9]+\.com/##.sero1
 !
 !
-! AVseeTV (https://08.avsee.ru/) - 배너가 없어졋음
+! AVseeTV (https://09.avsee.ru/) - 배너가 없어졋음
 ! - 배너 이미지
 ||avsee.ru/imgs/$image
 ! - 메인 배너
@@ -3523,8 +3522,8 @@ kr13.mix-19.com#@#[class*="layer"]
 !
 !
 ! Topjav (https://topjav.tv/)
-! - 모바일 상단 배너 공간
-topjav.tv##.koukoku_11
+! - 모바일 상단 배너 공간 ( jp: AdGuard Japanese 필터에서 처리)
+!topjav.tv##.koukoku_11
 !
 !
 ! SMUTR.COM (https://smutr.com/)
@@ -3533,6 +3532,7 @@ topjav.tv##.koukoku_11
 !
 !
 ! https://javten.com/
+! - 기타
 ! - 차단 사이트
 !||xadsmart.com^
 !
@@ -3562,15 +3562,16 @@ topjav.tv##.koukoku_11
 !
 ! JAVFAN (https://javfan.one/)
 ! 메인 - 각 목록별 배너 공간 (모바일)
-javfan.one##div:nth-of-type(9)
-javfan.one##div:nth-of-type(11)
+! - - - https://jav.direct/
+! - - - https://openload.mov/
+openload.mov,jav.direct,javfan.one##[style*="width: 300px"]
 ! - 정가운대 / 왼쪽 / 오른쪽 일부 배너
-javfan.one##[id*="_ad_"]
+!javfan.one##[id*="_ad_"]
 !
 !
 ! JAV.direct (https://jav.direct/)
 ! 메인 - 각 목록별 배너 공간 (모바일)
-jav.direct##div:nth-of-type(12)
+!jav.direct##div:nth-of-type(12)
 !
 !
 ! OPENLOAD.PRO (https://openload.mov/)
@@ -3607,14 +3608,14 @@ javtiful.com##.front-feature-placement-side
 !emuokunmaster.com#@#section:has([target] img[src*="/wp-content/uploads/"])
 aniya24.com##section:has(img[width="1200"])
 ! - 배너 남는 공간
-aniya24.com##.elementor-element-5fc256c
-aniya24.com##.elementor-element-48515f4
-aniya24.com##.elementor-element-78dd0fa
-aniya24.com##.elementor-element-ce2e4d3
-aniya24.com##.elementor-element-3771cc7
-aniya24.com##.elementor-element-f06bcec
-aniya24.com##.elementor-element-139cd90
-aniya24.com##.elementor-element-adf8da5
+!aniya24.com##.elementor-element-5fc256c
+!aniya24.com##.elementor-element-48515f4
+!aniya24.com##.elementor-element-78dd0fa
+!aniya24.com##.elementor-element-ce2e4d3
+!aniya24.com##.elementor-element-3771cc7
+!aniya24.com##.elementor-element-f06bcec
+!aniya24.com##.elementor-element-139cd90
+!aniya24.com##.elementor-element-adf8da5
 ! - 영상 하단 배너 공간
 aniya24.com##.above-content-sidebar
 ! 기타 차단
@@ -4987,7 +4988,7 @@ xn--9l4b15e2td.com##.widget-box
 !||linklove*.com/data/editor/*$image
 !||linklove*.com/data/file/ls_*/*$image
 !||linklove*.com/data/apms/background/*$image
-! - - - 인생도박 (https://dobaklife01.com/)
+! - - - 인생도박 (https://dobaklife03.com/)
 ! - - - 주소야 (https://jusoya.com/)
 /data/apms/background/*$image
 ! - 상단 배너 공간
@@ -5370,7 +5371,7 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 !xfree.com#@#[class^="ad" i]
 !
 !
-! 인생도박 (https://indobak.com/) (https://dobaklife01.com/)
+! 인생도박 (https://indobak.com/) (https://dobaklife03.com/)
 ! - 배너
 ![$domain=/^dobaklife\d+.com/]##.col-sm-8
 ![$domain=/^dobaklife\d+.com/]##.col-sm-4
@@ -5379,7 +5380,7 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 ! - 안생도박 보증업체 테이블 (이미지)
 ![$domain=/^dobaklife\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
 ! - 게시물내 광고글
-/dobaklife/##[class="list-col"]:has-text(포인트)
+/dobaklife/##[class="list-col"]:has-text(/포인트|보증/)
 !
 !
 ! https://thepinkstuff.co.kr/
@@ -6388,7 +6389,7 @@ linkareer.com##[class*="PopularActivity" i]
 ! - 플레이어 안보이는거 해결
 /yastar|ddaltube/#@#[class*="-ad-" i]
 ! - 광고 영상 진행시 실수로 팝업 뜨는거 방지
-/yastar|ddaltube/#%#//scriptlet('prevent-window-open')
+!/yastar|ddaltube/#%#//scriptlet('prevent-window-open')
 !
 !
 ! https://www.similarweb.com/
@@ -7039,8 +7040,14 @@ kloa.gg##div[class*="min-h-"]:has(> div[id]:empty):not(:has(a))
 ! https://taiwebs.org/ - taiwbs.com에서 주소 바뀜
 ! - 일부 배너
 /taiwebs/##[class*="textwidget" i]
-
-
+!
+!
+! 아주경제 (https://www.ajunews.com/)
+! - 기사내 중간 빈공간 [id*="_ad_" i]로 안잡힘
+! - - - 문제는 관련기사와 너무 바짝 붙는다는거/ 그래서 관련기사 항목을 없앰
+##[style]>:has([id*="_ad_" i])
+! - 관련기사
+ajunews.com/##.related_news
 
 
 
@@ -7075,6 +7082,5 @@ kloa.gg##div[class*="min-h-"]:has(> div[id]:empty):not(:has(a))
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
