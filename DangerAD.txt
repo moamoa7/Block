@@ -1,12 +1,13 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260724
+! Version: 20260725
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
 !
 !
+! https://jjtv.kr/
 ||ad.*
 ! - 예외 - https://www.ad.co.kr/ - 도메인 자체가 ad.로 시작하는 사이트
 @@||ad.*$domain=ad.co.kr
@@ -144,6 +145,7 @@
 */ad_
 !
 !
+! https://vkvideo.ru/
 */ads_
 !
 !
@@ -519,6 +521,10 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 */banners/*
 !
 !
+! 짜딸파티 (https://jaddal38.top/) - 왼쪽 배너 이미지
+!*/admin_banner/*
+!
+!
 ! 숲
 ! https://javgiga.com/
 ! 지니파일
@@ -526,6 +532,10 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 *banner.js
 ! - 숲스토어 - 해제해야 본문 보임
 @@*banner.js$domain=sooptore.sooplive.com
+!
+!
+! 자딸파티 (https://jaddal38.top/)
+*banner*.php
 !
 !
 !
@@ -628,7 +638,8 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://s7.kav.so/ - 본문 안보임
-/kav.so/#@#[class*="-banner-" i]
+! 야동25 (https://kr13.noonatv.com/) - 플레이어 사라짐
+/noonatv|kav.so/#@#[class*="-banner-" i]
 !
 !
 !
@@ -844,7 +855,7 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들 (빈 공간이 안생기는 것만 할것)
 ! 블랙툰 (https://www.blacktoonurl2.com/) - 빈공간 생김
 ! 주소모아 (https://www.joosomoa1.com/) - 빈공간 생김
-! 조개파티 (https://jogaeparty181.com/)
+! 조개파티 (https://jogaeparty184.com/)
 ! https://www.thisav.sbs/
 ! https://www.hanime123.mom
 ! https://www.missav123.art/
@@ -873,7 +884,7 @@ vexfile.com#@#[class*="-banner" i]:not([class*="-banners" i]):not([class*="-bann
 ! https://yandex.com/
 ! https://www.sooplive.com/ - 즐겨찾기 삭제시 팝업 안보임. 어쩔수없이 모든 곳에 팝업 허용
 ! https://www.lezhinsnack.com/
-lezhinsnack.com,sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
+lezhinsnack.com,sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://clothoff.net/
