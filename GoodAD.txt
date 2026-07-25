@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260725
+! Version: 20260726
 !
 !
 !
@@ -172,7 +172,7 @@ etoland.co.kr,heye.kr#%#//scriptlet('prevent-window-open')
 !gemini.google.com#@#[class*="google" i]
 !##[id*="google" i]
 !##[id*="adsbygoogle" i] - ##[class*="adsby" i]로 대체
-##[data-google-av-ad-container]
+!##[data-google-av-ad-container]
 ! 구글 광고 차단 (추가)
 /adsense/*
 ! - 문단 태그 존재 여부(:not(:has(p)))만 체크해서 본문이 날아가는 걸 방지하는 절충안
@@ -306,7 +306,6 @@ www.youtube.com#@#.ytd-yoodle-renderer
 ! https://adguard-dns.io/
 ! - 기타 (타 규칙에 애드가드 추가) 추가하지 않으면 대시보드 집입 안됨
 ! - - - /stats 규칙은 "차단 결과를 세는 일"이 아니라 "차단 내역을 외부로 보고하는 일"을 막는 규칙
-/stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com,badfilter
 /stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com|~adguard-dns.io
 !
 !
@@ -314,12 +313,12 @@ www.youtube.com#@#.ytd-yoodle-renderer
 ! - 오른쪽 메뉴 없애기
 !##.header--aside
 ! - 중간 본문 없어지는거 해결 (타 규칙)
-duckduckgo.com#@#section[class^="homepage-cta-section_"]
+!duckduckgo.com#@#section[class^="homepage-cta-section_"]
 !
 !
 ! 브레이브 검색 (https://search.brave.com/)
 ! - 하단 브라우저 다운 안내
-search.brave.com##.download-cta
+!search.brave.com##.download-cta
 !
 !
 ! 스타트페이지 (https://www.startpage.com/)
@@ -329,11 +328,10 @@ search.brave.com##.download-cta
 !/cpmbanners.js$script
 !||startpage.com/clev
 !||startpage.com/perf
-
 !
 ! 바이두 (https://www.baidu.com/)
 ! - 하단
-baidu.com###s-hotsearch-wrapper
+!baidu.com###s-hotsearch-wrapper
 !
 !
 ! 스포티파이 (https://open.spotify.com/)
@@ -348,7 +346,8 @@ baidu.com###s-hotsearch-wrapper
 ##.cookie-wrapper
 ! - 연간 할인 혜택등 팝업
 !mypikpak.com##.coupon-tips-overlay.el-overlay
-mypikpak.com##.coupon-tips-overlay
+!mypikpak.com##.coupon-tips-overlay
+##[class*="-overlay" i]
 ! - 연간 할인 탑 배너
 !mypikpak.com##.coupon-top-banner
 ! - 왼쪽 메뉴 하단 로테이션 팝업
@@ -363,7 +362,7 @@ mypikpak.com##.operation-container
 !||mypikpak.com/scripts/adjust.min.js
 !mypikpak.com##+js(set-cookie, allow_analysis, false)
 ! - 재생 안되는거 해결
-@@||cdn.adjust.com^$script,3p,domain=mypikpak.com
+!@@||cdn.adjust.com^$script,3p,domain=mypikpak.com
 ! - 기타
 !/gtag.js
 !
@@ -423,7 +422,7 @@ m.naver.com##script#MM_search_disaster ~*
 !
 ! 네이버 블로그 (blog.naver.com)
 ! - 기타
-||ssl.pstatic.net/t.static.blog/nmobile/versioning/ntmbalog-*.js
+!||ssl.pstatic.net/t.static.blog/nmobile/versioning/ntmbalog-*.js
 !
 !
 ! 네이버 스토어 (https://shopping.naver.com/)
@@ -475,7 +474,7 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 !
 ! 숲 (https://www.sooplive.com/)
 ! - 메인페이지 이벤트 팝업
-sooplive.com##[class*="img"]:has([src*="event"])
+!!sooplive.com##[class*="img"]:has([src*="event"])
 ! - 개인페이지 이벤트 팝업
 sooplive.com##[class*="NoticeLayer"]
 ! - 일부 도메인만 적용 배너
@@ -487,12 +486,12 @@ sooplive.com##[class*="NoticeLayer"]
 ! - 메인 모르겠는데 떠 있는거
 !sooplive.com###soopi_wrap
 ! - 채팅 위 연관상품
-sooplive.com##.store_box.box
+!!sooplive.com##.store_box.box
 !sooplive.com##.floating_btns
 !##[class*="floating" i] - 영상이 재생이 안되는 등 문제가 많으니 광역으로 하지 말것
 ! - 구독 플러스
 !sooplive.com##.subs_plus.seasonal_area
-! - 구독 플러스 안내 메시지
+! - 구독 플러스 안내 메시지 (플레이어 내부)
 sooplive.com##.message_player_wrap
 ! - 구독 플러스 툴팁
 !##.event_tooltip
@@ -509,30 +508,30 @@ sooplive.com##.message_player_wrap
 ! - 채팅 상단 배너
 !sooplive.com##.on.chat_banner2
 ! - 로딩바
-sooplive.com##.loading
+!!sooplive.com##.loading
 ! - 예외 - https://javgiga.com/ - 이미지 사라짐
 !javgiga.com#@#.loading
 ! - 에외 - themoviedb.org - 이미지 사라짐
 !themoviedb.org#@#.loading
 ! - 채팅 공지 (필요시)
-sooplive.com##.chat_notice
+!!sooplive.com##.chat_notice
 ! - 더쿠 본문 사라짐
 !##[class$="_notice" i]
 ! - 채팅 상단 배너 & 채팅 공지 (필요시)
-sooplive.com##.chat_topbox
+!!sooplive.com##.chat_topbox
 ! - 채팅 버블 메시지
 !sooplive.com##.bubble-container
 ! -스트리머에게 수익이 후원되는 광고를 재생하고 계십니다. 없애기
-sooplive.com##.text_output
+!!sooplive.com##.text_output
 ! - - - 광고 영상 안보이게 (광고 차단 안될시 소리만 나오고 영상은 재생되지 않음)
 !||vod-player*.sooplive.com
 !||deapi.sooplive.com^
-sooplive.com##.da_area
+!!sooplive.com##.da_area
 !sooplive.com###da_video
 ! - 방송요약 팝업
-sooplive.com###sarsa_btn
+!!sooplive.com###sarsa_btn
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
-sooplive.com##.tuneout
+!!sooplive.com##.tuneout
 ! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
 !##[class="extensions_item"]
 !sooplive.com##.extensions_item
@@ -706,7 +705,7 @@ kick.com##.contents > div.z-modal.fixed.bottom-4
 !
 ! 틱톡 (https://www.tiktok.com/)
 ! - 기타
--ads-$script
+!-ads-$script
 !
 !
 ! 다음 (https://www.daum.net/)
@@ -724,7 +723,7 @@ daum.net##.wrap_trend
 !
 ! 다음 스포츠 (https://sports.daum.net/)
 ! - 영상 안나옴 해결
-kakaotv.daum.net#@#.ads
+!kakaotv.daum.net#@#.ads
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -1090,7 +1089,7 @@ m.inven.co.kr##.goto_top_arrow
 ! - 오류 방지
 !@@||07c225f3.online^
 ! - 지금뜨는 핫벤 /팟벳 사라지는거 방지
-inven.co.kr#@#div[class^="swiper-"] > ul > li > a[target="_blank"]
+!inven.co.kr#@#div[class^="swiper-"] > ul > li > a[target="_blank"]
 ! -기타
 /js/float*.js
 !
@@ -1502,10 +1501,11 @@ clien.net###hongboInfoList
 !damoang.net##.ad-slot-empty-collapsed
 !damoang.net##[class*="frame"]
 ! - - - https://poooo.ml/ - 잡히긴 하는대 머가 잡힌건지는 안보임
-! - - - 티비위키 - 잡히긴 하는대 머가 잡힌건지는 안보임
-##[style][class*="frame"]
+! - - - 티비위키 - 잡히긴 하는대 머가 잡힌건지는 안보임 / 규칙 재변경
+!##[style][class*="frame"]
+!##[style*="ad-slot"]
 ! - 메인 배너 공간
-damoang.net##.dm-card
+!!damoang.net##.dm-card
 !damoang.net##.svelte-f0o7xm
 !damoang.net##.ad-slot-btf
 ! - List-KR
@@ -1516,7 +1516,7 @@ damoang.net##.dm-card
 !##.gap-4.flex-col > div:has(> div[data-position="side-image-text-banner"])
 !##div[data-position="side-image-text-banner"]
 ! - 하단 광고 차단 팝업
-damoang.net##.adblock-notice
+!!damoang.net##.adblock-notice
 !##[class*="-notice" i] - 광역으로 절대 하지 말것
 !damoang.net##[aria-label="광고 차단 안내"]
 ! - [aria-label*="차단"] : 제품 중 햇빛 차단 제품이 사라질 수 잇음
@@ -1793,6 +1793,7 @@ poooo.ml#@#.ad
 !||whoas.xyz^ 차단으로 이미 해결
 !||whoas.xyz/live/track.js
 ! - p2p 차단 - Personal Privacy & Traffic Filter 규칙에 이미 있음
+! - - - 조개무비 (https://v24.jogemovie.net/)
 ||tracker.$websocket
 ! -P2P 추가 차단
 ! -P2P Media Loader라는 라이브러리의 핵심(core) 스크립트입니다. jsDelivr라는 공개 CDN에서 배포되는 오픈소스 npm 패키지
@@ -1952,11 +1953,11 @@ anilife.app##.duration-300
 !##div[class^="swiper-"] > ul > li > a[target="_blank"]
 !
 !
-! 조개무비 (https://jogemovie.xyz/) (https://v23.jogemovie.net/)
+! 조개무비 (https://jogemovie.xyz/) (https://v24.jogemovie.net/)
 ! - 배너 공간
 ![$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
 ! - 영상 재생 불가 해제
-@@||imasdk.googleapis.com^$domain=upnstreamlive.shop
+!@@||imasdk.googleapis.com^$domain=upnstreamlive.shop
 !
 !
 ! 도라마코리아 (https://www.dorama.kr/)
@@ -2016,7 +2017,7 @@ anilife.app##.duration-300
 !
 ! 헐크티비 (https://xn--2p7bp2h.tv/)  (https://www.hulk24.com/)
 ! - 필요없는 이미지
-||www.hulk24.com/images/*.jpg
+!||www.hulk24.com/images/*.jpg
 ! - 오른쪽 상단 배너
 ![$domain=/^www.hulk\d+.com/]##.right_top_banner
 !##[class*="top_banner" i]
@@ -2262,11 +2263,12 @@ joatoon-oa.com##.bg-opacity-50
 !
 !
 ! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon417.com/)
-! - 최신주소 안내페이지 배너 공간 ((https://www.blacktoonurl2.com/) )
+! - 최신주소 안내페이지 배너 공간 (https://www.blacktoonurl2.com/)
 ![$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 ![$domain=/blacktoonurl/]###comp-mon185d4 > div > div
-/blacktoonurl/##.comp-m8jy31rn
-##[class*="wixui"]:has([target*="blank"] img)
+/blacktoonurl/##[class*="comp"] :has(img)
+!  -- - 주소타운 (https://www.jusotw.com/) - 본문 절반이 사라짐
+!##[class*="wixui"]:has([target*="blank"] img)
 ! - 상단 텍스트 배너
 ![$domain=/^blacktoon\d*\./]##.alert-danger.alert
 ![$domain=/blacktoon/]##.alert-danger.alert
@@ -2440,16 +2442,22 @@ joongang.co.kr##.sm_hidden.md_hidden.ad_wrap
 ##.ad_wide
 ! - 오른쪽 배너
 !##.ad_wrap
+! - 기사내 중간 광고 및 텍스트
+joongang.co.kr##[class*="photo"]:has([target] img)
 ! - 기사 오른쪽 플러스 아이콘
 joongang.co.kr##.ico_shortcut_plus
+! - 기사 하단 더중앙플러스 지금 바로 시작하기
+##[class*="subscription" i]
 ! - 기사 스크롤시 하단에서 나오는 안내문구
-joongang.co.kr###topicSnackbar
+!joongang.co.kr###topicSnackbar
 ! - 영상 플레이어
 !joongang.co.kr##.player_area
 ! - 많이 본 기사
 !joongang.co.kr##.widget--v.ad_sm_hidden.chain_wrap
 ! - 추천 기사
 !joongang.co.kr##.contents_issue_sticky.contents > .row > .col_lg3
+! - 팝업 차단(hello! Parents 뉴스레터를 구독하면 볼 수 있는 기사입니다.) 으로 인한 스크롤 잠금 해제
+joongang.co.kr##html,body:style(overflow: auto !important;)
 !
 !
 ! 일간스포츠 (https://isplus.com/)
@@ -3069,7 +3077,7 @@ turbovidhls.com###pop1
 ! - 영상 재생 안되는거 해결 (uBlock filters – Ads)
 !streamtape.*##+js(trusted-replace-node-text, script, /\$\(['"]\.play-overlay['"]\)\.click.+/s, document.getElementById("mainvideo").src=srclink;player.currentTrack=0;})}), condition, srclink)
 ! - 영상 클릭안되는거 해결 (uBlock filters – Ads)
-##.play-overlay
+!##.play-overlay - ##[class*="-overlay" i] 로 대체
 !
 !
 ! https://javplayer.org/
@@ -3306,11 +3314,11 @@ tktube.com##.top
 ! 탑걸 (https://kr.av탑걸.com/) (https://www.탑걸.com/) (https://kr44.topgirl.co/)
 ! 자브걸 (https://kr31.javgirl.co/)
 ! - 배너
-! - - - 딸플릭스 (https://kr15.ddal.xyz/) 
+! - - - 딸플릭스 (https://kr16.ddal.xyz/) 
 !##.ad_banner
 ! - 영상내 광고
 ! - - - 아브티비 (https://kr2.avtv.co/) - 없어진듯
-! - - - 딸플릭스 (https://kr15.ddal.xyz/) - 같은 비디오라 막으면 안됨
+! - - - 딸플릭스 (https://kr16.ddal.xyz/) - 같은 비디오라 막으면 안됨
 ||video.twimg.com$domain=topgirl.co|javgirl.co|avtv.co
 ! - - - 자브걸 영상 내 광고 삽입 차단시 스트립트가 막아서 스트립트도 차단
 !||javgirl.co/project/ma/js/videojs.hotkeys.min.js$important
@@ -3393,7 +3401,7 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !||metrics-bunny.net^
 !
 !
-! 딸플릭스 (https://kr.xn--301bo8fzqjqzt.net/) (https://kr15.ddal.xyz/)
+! 딸플릭스 (https://kr.딸플릭스.net/) (https://kr16.ddal.xyz/)
 ! - 쓸데없는 사이트 이동 차단
 !*/?code=*$document
 !*/mall/index.php$document
@@ -3822,7 +3830,7 @@ homejav.com,123av.*,njavtv.com##.lg\:block
 !adguard-dns.io#@#[class*="bottomright" i]
 ! - 예외 - https://www.sooplive.com/ - 개인방송국 팝업 사라짐
 !sooplive.com#@#[class*="bottomright" i]
-##[rel*="sponsor"]
+!##[rel*="sponsor"]
 ! https://missav01.com/ 
 ! - 하단 떠다니는 배너
 !##[class*="root"]:has(video)
@@ -4190,7 +4198,7 @@ javmov.com##.spot
 ![$domain=/redvi/]#@#iframe[sandbox][src]
 !
 !
-! 밤포탈 (https://밤포탈.com/) (https://밤포탈.net/) (https://bampt6.com/)
+! 밤포탈 (https://밤포탈.com/) (https://밤포탈.net/) (https://bampt6.com/) - 사라졋나?
 ! - 팝업 및 뿌연거 해결  (PC)
 !##[class*="popup-overlay" i]
 ! - 팝업 뿌연거 해결  (모바일)
@@ -4210,7 +4218,7 @@ javmov.com##.spot
 ! - 영상 목록 사이 / 영상 하단 배너 (모바일)
 !##[class*="premium-ad" i] - ##[class$="-ad" i] 로 대체
 ! - 스폰서
-/bampt/##[class*="infeed"]:has([class*="-sponsor"])
+!/bampt/##[class*="infeed"]:has([class*="-sponsor"])
 ! - 영상내 배너
 ##.ad-active
 ! - 영상 재생 해제
@@ -4221,7 +4229,7 @@ javmov.com##.spot
 ||mediadelivery.net/rum.js
 !
 !
-! 야동존 (https://t.me/s/ydzone19)  (https://ydzone.cc/)  (https://xxzone26.top/) - x.videist.com is blocked
+! 야동존 (https://t.me/s/ydzone19)  (https://ydzone.cc/)  (https://xxzone26.top/) - x.videist.com is blocked 영상 재생 안됨
 ! - 영상 광고 차단
 */data/file/admin_banner/*.mp4
 ! - 팝업 일부
@@ -4256,7 +4264,7 @@ javmov.com##.spot
 ![$domain=/^today-sports\d+.com/]#@#[class*="img-box" i]
 !
 !
-! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/) (https://av-korea.com/)
+! 성인동영상 (https://xn--2q1bu8vtjaj8ns2b.com/) (https://av-korea1.com/)
 ! - 상단 배너 공간
 !xn--2q1bu8vtjaj8ns2b.com##.toto-banner__list
 !
@@ -4965,7 +4973,7 @@ of996.com##[class*="-fixed-" i]
 ![$domain=/wdwd/]#@#[class*="banner" i]
 ! - 카지노 토토사이트 더 보기
 ![$domain=/^wdwd\d+.com/]###dvhidden
-/wdwd/###dvhidden
+!/wdwd/###dvhidden
 !
 !
 ! 주소핑  (https://jusoping3.com/) (https://www.jusoping3.com/)
@@ -4985,14 +4993,14 @@ of996.com##[class*="-fixed-" i]
 ![$domain=/jusoking/]##div.col-md-12 > div:nth-of-type(4)
 !
 !
-! 야주소 (https://xn--9l4b15e2td.com/)
+! 야주소 (https://야주소.com/)
 ! - 상단 배너 공간
-xn--9l4b15e2td.com##.widget-box
+!xn--9l4b15e2td.com##.widget-box
 !
 !
 ! 픽스코어 (https://pickscore119.com/)
 ! - 배너
-##.ad-img
+!##.ad-img
 !
 !
 ! 링크사랑 (https://linklove55.com/)  (https://linklove18.com/)
@@ -5035,7 +5043,7 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 18모아 (https://18moa028.com/)
 ! - 배너 이미지
-18moa028.com###main_top
+!18moa028.com###main_top
 ! - 이미지 복원
 !/^([\w-]+\.)?18moa\d+\.com$/#@#[class*="banner" i]
 !/^(www\.)?18moa\d+\.com$/#@#[class*="banner" i]
@@ -5043,7 +5051,7 @@ xn--9l4b15e2td.com##.widget-box
 !/^(www\.)?18moa\d+\.com$/##.banner
 !
 !
-! 주소요 (https://jusoyo42.com/)
+! 주소요 (https://jusoyo03.com/)
 ! - 배너
 ! - - -  링크고 (https://lkg3.com/)
 ! - - - 토렌트쓱 (https://ssg2.torrentssg8.com/)
@@ -5071,7 +5079,7 @@ xn--9l4b15e2td.com##.widget-box
 !
 ! 주소타운 (https://www.jusotw.com/)
 ! - 상단 배너 (링크 없이 만들어진 배너)
-jusotw.com##.wixui-section.comp-lt8phbbp
+jusotw.com##[id="comp-lt8phbbp"]
 ! - 기타
 !||frog.wix.com^
 !
@@ -5337,7 +5345,7 @@ zod.kr##a[href][class]:has(img):not([src*="svg"])
 zod.kr##[class*="zod-widgets"] [href*="partner"]
 !
 !
-! 주소콘 (https://t.me/s/jusoconcom) (https://www.jusocon.com/) (https://jusocon7.com/)
+! 주소콘 (https://t.me/s/jusoconcom) (https://www.jusocon.com/) (https://jusocon101.com/)
 ! - 상단 배너
 !##.banner_box
 !##[class*="banner_box" i]
@@ -6330,7 +6338,7 @@ imgbox.com##div[id^="aad-header-"]
 !
 ! MMZ (https://www.mmzone.co.kr/)
 ! 상단 로그 안보임 해결
-mmzone.co.kr#@#.ads-wrap
+!mmzone.co.kr#@#.ads-wrap
 !
 !
 ! https://streamtape.com/
@@ -6396,12 +6404,14 @@ linkareer.com##html,body:style(overflow: auto !important;)
 linkareer.com##[class*="PopularActivity" i]
 !
 !
-! 딸튜브 (https://딸튜브.com/) (https://kr10.ddaltube.com/) - 광고 영상이 재생시 나옴
-! 야동스타 (https://kr1.yastar.xyz/) - 광고 영상이 재생시 나옴
+! 딸튜브 (https://딸튜브.com/) (https://kr12.ddaltube.com/) - 광고 영상이 재생시 나옴
+! 야동스타 (https://kr2.yastar.xyz/) - 광고 영상이 재생시 나옴
 ! - 플레이어 안보이는거 해결
-/yastar|ddaltube/#@#[class*="-ad-" i]
-! - 광고 영상 진행시 실수로 팝업 뜨는거 방지
+!/yastar|ddaltube/#@#[class*="-ad-" i]
+! - 광고 영상 진행시 실수로 클릭하여 팝업 뜨는거 방지
 !/yastar|ddaltube/#%#//scriptlet('prevent-window-open')
+! - 굉고 진행 중 플레이어 클릭하여 정지 및 음소거 가능하게
+!/yastar|ddaltube/##.vjs-video-ad-click-overlay - ##[class*="-overlay" i]로 대체
 !
 !
 ! https://www.similarweb.com/
@@ -6650,7 +6660,7 @@ kidd.co.kr##.product--register
 !
 ! https://www51.eyny.com/
 ! - 기타
-||eyny.com/data/cache/js_show_ads.js
+!||eyny.com/data/cache/js_show_ads.js  - _ads.로 대체
 !
 !
 ! https://ljh.sisurl.com/
@@ -6910,7 +6920,7 @@ vexfile.com##center
 ! https://www.winmy20.com/
 ! - 팝업 차단 후 뿌연화면 해결 - 스크롤 잠긴거 풀 필요없음 / 도박 사이트인듯
 ! - - - 라채티비 (https://lctv2019.com/)
-##[class$="modal-overlay"]
+!##[class$="modal-overlay"] - ##[class*="-overlay" i]로 대체
 ! - 오른쪽 팝업?
 ##promo-widget
 !
@@ -7028,7 +7038,7 @@ soccerline.kr##[class*="Bann"]
 ! https://avgle.net/
 ! - 영상 위 박스?
 !##.js-video-overlay
-##[class*="video-overlay" i]
+!##[class*="video-overlay" i] - ##[class*="-overlay" i]로 대체
 !
 !
 ! 일로아 (https://iloa.gg/)
@@ -7066,6 +7076,18 @@ ajunews.com/##.related_news
 ! - - - 망가 이미지까지 안보이므로 재변경
 !k-hentai.org##[class*="container"]:has([style*="width: 300px"])
 k-hentai.org##[class*="hidden"]:has([style*="width: 300px"])
+!
+!
+! https://dokoan.com/
+! https://www.nanith.com/
+! https://lhjhhlykq.jsjytz.net/
+! - 배너
+||cdn.sgvafs.*/resource/*aw.js$3p
+!
+!
+! https://www.주소파티.com/
+! 배너
+##[class*="img_box"]
 
 
 
