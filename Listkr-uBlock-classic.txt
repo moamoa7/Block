@@ -4,7 +4,7 @@
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Sat Jul 25 19:05:46 UTC 2026
+! Updated: Sun Jul 26 02:44:10 UTC 2026
 
 ||api-external.adsvani.com^
 ||cdn.adsvani.com^
