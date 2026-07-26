@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.07.26.0
-! TimeUpdated: 2026-07-25T15:58:27+00:00
+! Version: 2026.07.27.2
+! TimeUpdated: 2026-07-26T15:19:20+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -211,7 +211,12 @@ search.danawa.com##li[data-itemtype='adsmart']
 seoul.co.kr###bottomScrollBox
 seoul.co.kr##[class^='ad']
 shopping.naver.com##div[class^="_carouselProductList_mobile_carousel_product_list_"]:has([class^="_adMark"])
+shopping.naver.com##div[class^="contentModuleWrapper_content_module_wrapper"]:has(> div[class^="contentModuleWrapper_common_content_size"] > div > div[class^="pagedListResponsive_button_wrap"] > [class^="adMarkResponsive"])
+shopping.naver.com##div[class^="pagedListResponsive_inner_"] > ul > li[class*="pagedListResponsive_list_item_"]:has(> div > div[class^="productCard-module_product_card_"] a[class^="adButton-module_ad_button_"])
+shopping.naver.com##div[id*="ADVERTISE"][class*="contentModuleWrapper_news_ad__"]
 shopping.naver.com##li[class*="brandCRMProductList_item__"]:has(> div[class*="miniProductCard_mini_product_card__"] > [href^="https://ader.naver.com/"])
+shopping.naver.com##ul[class^="horizontalScrollListResponsive_set_list_"] > li[class^="horizontalScrollListResponsive_list_item_"]:has(> div > div[class*="productCard-module_product_card_"] a[class*="adButton-module_"])
+snxbest.naver.com##div[class^="rankingItemResponsive_product_inner"] > ul[class^="rankingItemResponsive_set_list"] > li._nlog_impression_element[class^="threeTierProductCardResponsive"]:has(> div > a[href^="https://ader.naver.com/"])
 snxbest.naver.com##li[class^="productCardResponsive_product_card_responsive__"]:has(> div[class*="productCardResponsive_inner"] > [href^="https://ader.naver.com/"])
 soccerline.kr##.bottBann
 soccerline.kr##.rightBann
