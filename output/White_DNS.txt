@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-27 08:25:04 UTC
+! Generated: 2026-07-27 11:46:03 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,565
+! Exception Rules: 6,570
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -588,6 +588,8 @@
 @@||banquelaurentienne.ca^
 @@||banquepopulaire.fr^
 @@||banrisul.com.br^
+@@||bapi-02.moengage.com^
+@@||bapi-04.moengage.com^
 @@||barclaycard.co.uk^
 @@||barclaycard.de^
 @@||barclaycardus.com^
@@ -813,6 +815,7 @@
 @@||bytedance.com^
 @@||c.apple.com^
 @@||c.hubz.pl^
+@@||c.kakaku.com^
 @@||c.msn.com^
 @@||c.neqty.net^
 @@||c.nexinsight.com.ua^
@@ -2471,6 +2474,7 @@
 @@||internetsubesi.finansbank.enpara.com^
 @@||internetsubesi.ing.com.tr^
 @@||internetsubesi.qnbfinansbank.com^
+@@||internshala.bapi-03.moengage.com^
 @@||intesasanpaolo.com^
 @@||intvrg.gib.gov.tr^
 @@||investbank.com.ua^
@@ -3095,7 +3099,6 @@
 @@||mkto-ab540186.com^
 @@||mkto-ab550041.com^
 @@||mkto-ab550140.com^
-@@||mkto-ab550144.com^
 @@||mkto-ab550184.com^
 @@||mkto-ab560068.com^
 @@||mkto-ab560119.com^
@@ -3863,6 +3866,7 @@
 @@||pfsbank.ru^
 @@||pg.eazy2pay.com^
 @@||phoenixfinance.com.bd^
+@@||physicswallah.bapi-03.moengage.com^
 @@||pi.pardot.com^
 @@||pib.ru^
 @@||pib.ua^
@@ -5469,6 +5473,7 @@
 @@||targobank.es^
 @@||tarjetacencosud.cl^
 @@||tas24.ua^
+@@||tatacliq.bapi-03.moengage.com^
 @@||taunussparkasse.de^
 @@||tavrich.ru^
 @@||tawk.to^
