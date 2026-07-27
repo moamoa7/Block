@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260726
+! Version: 20260728
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -179,6 +179,7 @@
 ! 뽐뿌
 ! https://javgiga.com/
 ! https://k01.aving.tv/
+! https://www.ppomppu.co.kr/
 *ads.js
 !
 !
@@ -228,6 +229,7 @@ juso.one#@#[rel*="sponsor"]
 !
 !
 ! https://myfans.jp/
+! https://hsck69.com -> https://u0u0.u0u0.cc/  동일 : https://m0m0m2.mnmnmnmnmnmn.com/
 *click?*
 !
 !
@@ -343,7 +345,7 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 ! - https://www.fomos.kr/ - (댓글란) /comments/ / mediag5jvqbd.fmkorea.com/  ext.fmkorea.com/   media.fmkorea.com/
 ! - AV조아https://avjoa76.com/  |  XX조아 (https://xxjoa49.com/) -  /player-x.php?
 ! - 핑유걸 https://avpingyou20.com/ - /player/dplayer.html
-! - 야동닷컴 https://yadong8.com/ - /player.html
+! - 야동닷컴 https://yadong9.com/ - /player.html
 ! - 숲 - /embed?
 ! - 티비룸 (https://tvroom.me/) / 무비킹 (https://mvking.mov/) - player-v2.bcbc.red/player/
 ! - 콕콕티비 (https://cokcok10.com/) / 티비위키 (https://tvwiki301.com/) - cokcok.stream  //  p2p막으면 플레이 안되게 되어잇음
@@ -420,12 +422,14 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 ! - upnstreamlive.shop	(조개무비 영상 재생시 필요한 사이트)
 ! - https://sexkbj.com/ - 모바일에서 iframe 안막혀있음 - 플레이 영상이 iframe여서 embed로 막힌거 해제
 ! https://leakedzone.com/ - 모바일에서 iframe 보임 (그냥 ##iframd 하면 공간이 남아서 has 사용하면 PC에서 본문 다 날라감) - 베이스필터 대신 easylist를 사용할 경우 필요
-/leakedzone|sexkbj|upnstreamlive|missav|hanime|thisav/##iframe[src]:not([src*="embed" i])
+!/leakedzone|sexkbj|upnstreamlive|missav|hanime|thisav/##iframe[src]:not([src*="embed" i])
 !
 !
 ! https://apkmody.com/
 ! 탑걸 (https://kr44.topgirl.co/)
 ##[target] video
+! - 예외 - https://search.naver.com/ - 클립 영상 사라짐
+!naver.com#@#[target] video
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -539,10 +543,14 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 !
 !
 */banners/*
+! https://sooptore.sooplive.com/
+@@*/banners/*$domain=sooptore.sooplive.com
+
 !
 !
-! 짜딸파티 (https://jaddal38.top/) - 왼쪽 배너 이미지
-!*/admin_banner/*
+! 짜딸파티 (https://jaddal38.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
+! 야동닷컴 (https://yadong9.com/) - 상단배너
+*/admin_banner/*
 !
 !
 ! 숲
@@ -894,10 +902,9 @@ vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-b
 ! 19가이드닷컴 (https://www.19guide03.com/)
 ! 나미툰 하단 배너 (https://namee104.asia/)
 ! 무료툰 하단 배너 (https://foc116.asia/)
-! 야동닷컴 (https://yadong8.com/)
 ! AV핫 (https://avhot1.com/)
 ! 야모아 (https://yamoa48.top/)
-/yamoa|avhot|yadong|foc|namee|19guide|missav|hanime|thisav|jogaeparty/##[target*="blank"] img
+/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty/##[target*="blank"] img
 !
 !
 !
@@ -1083,6 +1090,7 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 !
 ! https://damoang.net/
 ##[id$="-ad"]
+
 
 
 
