@@ -1135,7 +1135,7 @@ mlbpark.donga.com##.btn_top01
 !@@||content-loader.com^
 !
 !
-! 루리 (https://www.ruliweb.com/)
+! 루리웹 (https://www.ruliweb.com/)
 ! - 배너 (루리웹 전체 메인 상단 배너)
 !ruliweb.com##.adrr
 !ruliweb.com##.ti_wrapper
@@ -1144,7 +1144,7 @@ mlbpark.donga.com##.btn_top01
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 !ruliweb.com##[class*="ad_"][style] - ##[class*="ad_slot" i]로 변경
 ! - 루리웹 전체 배너 (게시판 내 AD글 포함)
-##[class*="ad_slot" i]
+!##[class*="ad_slot" i]
 ! -  상단 메인 배너
 ! - 제목 공간 꽉차게 (List-KR)
 !ruliweb.com##.user_view:style(width: 100% !important;)
@@ -1163,6 +1163,12 @@ ruliweb.com##.ad_go_wrapper
 ! 게시물 댓글 파워링크 제거
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 ruliweb.com##tr:has(.nick[style^='display: inline-block'])
+! - 기타
+! - - - https://image.ruliweb.com/view/view_iframe.txt?zoneid=48&w=1014&h=254 등 다수
+zoneid=
+! - 차단 사이트
+!||ad4989.co.kr^
+!||innity.net^
 !
 !
 ! 웃대 (https://humoruniv.com/)
@@ -1556,14 +1562,6 @@ clien.net###hongboInfoList
 !humoruniv.com##.adsbygoogle
 ! - 차단 사이트
 !||compass.adop.cc^
-!
-!
-! 루리웹 (https://bbs.ruliweb.com/)
-! - 기타
-!zoneid=
-! - 차단 사이트
-!||ad4989.co.kr^
-!||innity.net^
 !
 !
 ! 가생이닷컴 (https://www.gasengi.com/)
