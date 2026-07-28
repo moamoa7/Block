@@ -46,7 +46,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodDNS.txt
 
 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter (2026년 2월 21일 폐쇄)
 <br/>
-계승 홈페이지 : https://github.com/hooray804/adguard-gallery-filter (2026년 7월 27일 폐쇄)
+계승 홈페이지 : https://github.com/hooray804/adguard-gallery-filter (2026년 7월 27일 임시 폐쇄)
 <br/><br/>
 
 - 필터
