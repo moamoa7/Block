@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260728
+! Version: 20260729
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -43,6 +43,7 @@
 !
 ! https://www.genspark.ai/ - 이미지
 ! 조개무비 (https://v24.jogemovie.net/)
+! https://www.tiktok.com/
 *-ad-*
 !
 !
@@ -67,7 +68,8 @@
 *_ad_*
 ! - 예외
 ! - - - 11번가 (https://www.11st.co.kr/) - AD광고표시 삭제됨
-@@*_ad_*$domain=11st.co.kr
+! - - - https://거지맵.com/ - 본문 안보임
+@@*_ad_*$domain=11st.co.kr|거지맵.com
 !
 !
 !
@@ -154,10 +156,12 @@
 ! 이토랜드
 ! 디시인사이드
 ! https://loawa.com/
+! https://www.tiktok.com/
 */ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
-@@||*/ad-*$domain=github.com|outstanding.kr
+! - https://거지맵.com/ - 본문 안보임
+@@||*/ad-*$domain=github.com|outstanding.kr|거지맵.com
 !
 !
 ! https://javgiga.com/
@@ -418,7 +422,7 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 ! - https://www.thisav.mom/
 ! - https://www.thisav.sbs/
 ! - https://www.hanime123.mom
-! - https://www.missav123.art/ - 제외
+! - https://www.missav123.art/ - 제외 (프레임 발생 안함) - https://missav.to/ 영상 재생 안됨 (/missav/ 삭제)
 ! - upnstreamlive.shop	(조개무비 영상 재생시 필요한 사이트)
 ! - https://sexkbj.com/ - 모바일에서 iframe 안막혀있음 - 플레이 영상이 iframe여서 embed로 막힌거 해제
 ! https://leakedzone.com/ - 모바일에서 iframe 보임 (그냥 ##iframd 하면 공간이 남아서 has 사용하면 PC에서 본문 다 날라감) - 베이스필터 대신 easylist를 사용할 경우 필요
@@ -600,7 +604,7 @@ lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([
 ! https://pickscore119.com/
 ##div[style*="banner" i]:not(body):not(html):not(main)
 ! - 예외
-deepseek.com#@#div[style*="banner" i]:not(body):not(html):not(main)
+거지맵.com,deepseek.com#@#div[style*="banner" i]:not(body):not(html):not(main)
 !
 !
 !
@@ -661,7 +665,8 @@ vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-b
 ! 주소월드 (https://wdwd12.com/)
 ! 펀비 (https://funbe659.com/)
 ! 툰코 (https://tkor137.com/)
-vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i])
+! https://거지맵.com/
+거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 /tkor|funbe|wdwd/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i])
@@ -1090,6 +1095,7 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 !
 ! https://damoang.net/
 ##[id$="-ad"]
+
 
 
 
