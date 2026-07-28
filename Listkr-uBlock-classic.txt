@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20662.0
+! Version: 2026.20662.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Tue Jul 28 02:29:49 UTC 2026
+! Updated: Tue Jul 28 08:32:42 UTC 2026
 
 ||api-external.adsvani.com^
 ||cdn.adsvani.com^
@@ -703,6 +703,7 @@ nightofpeace.com,ilovebees.io##.e-grid.e-con-full.e-con.e-child:has(a[target="_b
 /^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 /data/banner.json?$domain=~nintendo.*
 
+||handsfriend.com/mootoon-affiliate.js
 ||assets.cueknow.co.kr/script/phantomad.min.js
 ||82cook.com/imagedb/headline/nmain_banner
 ||static.viewus.co.kr/image/unse_banner_new
@@ -1927,6 +1928,7 @@ m.bustago.or.kr###safeconnectAddBox
 dundam.xyz##.instv-ad
 algumon.com##.bg-base-100:has(> div.adsense-container > ins.adsbygoogle)
 excellesports.com##.modal_contents .modal_wrap
+search.shopping.naver.com###content > div[class^="section_section__"] > div[class^="brandStoreBlock_brand_store_module__"] ul.flicking-camera > li[class^="brandStoreProductList_item__"]:has(> div > a[href^="https://ader.naver.com/"])
 m.search.naver.com##div[data-block-id^="review/prs_template_"] .sds-comps-header ~ div[data-template-type="vertical"] .sds-comps-vertical-layout.sds-comps-full-layout:has(> .sds-comps-vertical-layout a[href^="https://ader.naver.com/"])
 m.search.naver.com##div[data-block-id^="review/prs_template_"] .sds-comps-header ~ div[data-template-type="vertical"] .sds-comps-vertical-layout.sds-comps-full-layout:has(> .sds-comps-vertical-layout a[href^="https://ader.naver.com/"]) + span
 enjuso.com##.enjuso_exp > a[href^="https://"]
