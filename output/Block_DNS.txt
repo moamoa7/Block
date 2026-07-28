@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-28 12:17:18 UTC
+! Generated: 2026-07-28 14:45:43 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 359,150
+! Block Rules: 359,186
 !
 ||0--0.info^
 ||0--4.com^
@@ -9872,6 +9872,7 @@
 ||7cobol8z.com^
 ||7copxxfw.com^
 ||7cy8t1t8gifggqqe17bt3fhwzk4k8.cfd^
+||7czpcwxjt17izgc89ofb4oi.rest^
 ||7d074.v.fwmrm.net^
 ||7d13c2cc1b.com^
 ||7d2f96eee0.com^
@@ -17473,6 +17474,7 @@
 ||acyxssqjdvfaj.space^
 ||aczannbtyhuw.com^
 ||aczoce.team^
+||aczomhakkz.in^
 ||aczopdxfy.com^
 ||aczqghbgetaef.store^
 ||aczridptoo.com^
@@ -27141,6 +27143,7 @@
 ||aekessoiuidln.website^
 ||aekglnpxpfsq.com^
 ||aeklftrevtgivg.com^
+||aekrfkxnlisls.site^
 ||aeletheacd.com^
 ||aelionvel.com^
 ||aellogdejqifhjo.com^
@@ -27282,6 +27285,7 @@
 ||aevlgbckiceis.website^
 ||aevlosxonjvrmir.com^
 ||aevumamaze.cfd^
+||aewhvwzitmfxv.website^
 ||aewqedfkkplhtdh.com^
 ||aews-analytics.sogei.it^
 ||aexhyo.pilatos.com^
@@ -30154,6 +30158,7 @@
 ||alaburger.openapp.link^
 ||aladdinplatform.com^
 ||aladdinupdate.blackrock.com^
+||aladinia.app^
 ||alafurnish.in^
 ||alagaodealing.com^
 ||alagaostowp.cyou^
@@ -40514,6 +40519,7 @@
 ||antmoney.com^
 ||antmyth.com^
 ||antobi-shop.de^
+||antoecilaptop.cfd^
 ||antoiew.com^
 ||antoinettepoisson.fr^
 ||antonellapouncedcrewels.com^
@@ -49568,6 +49574,7 @@
 ||azhmv.francesvalentine.com^
 ||azhobfzcwtxvj.website^
 ||azielstore.com^
+||aziiaosoyqwkp.website^
 ||azimidetubbist.qpon^
 ||azinonistrine.com^
 ||azionekivo-ai.com^
@@ -58309,6 +58316,7 @@
 ||boisdechauffage.de^
 ||boisefallfesitval.com^
 ||boisekundry.cfd^
+||boismelts.cyou^
 ||boistdeserve.qpon^
 ||boistkinkled.com^
 ||bojdumlx.cc^
@@ -60310,6 +60318,7 @@
 ||bringsruinedstab.com^
 ||bringthewaves.xyz^
 ||bringwish.com^
+||brinjallocust.qpon^
 ||brinkcommutingniece.com^
 ||brinkjav09212026.shop^
 ||brinkmann-mode.de^
@@ -66470,6 +66479,7 @@
 ||cbgmxtrk.com^
 ||cbgo.com^
 ||cbgolf.cn^
+||cbgvwjveaptbn.website^
 ||cbgyhe.cn^
 ||cbh.hl.cn^
 ||cbh365.club^
@@ -78863,6 +78873,7 @@
 ||counciladvertising.net^
 ||councilbbb.demdex.net^
 ||councilmaipure.shop^
+||councilrewwove.qpon^
 ||councilvomitscarlet.com^
 ||counmg.greatvaluevacations.com^
 ||counsellingcompartmentmortgage.com^
@@ -80923,6 +80934,7 @@
 ||crunchysheathstruck.com^
 ||cruntn.receno.com^
 ||cruorincager.com^
+||crupenherit.cfd^
 ||crur.com^
 ||crusewail.cyou^
 ||crusher38.top^
@@ -82413,6 +82425,7 @@
 ||cvpnptjeaj.cfd^
 ||cvpotrpkppdq.com^
 ||cvpthv.vipoutlet.com^
+||cvpynorbtkwqp.site^
 ||cvqfwzrnkvtun.website^
 ||cvrshe.hirmer-grosse-groessen.de^
 ||cvs.flir.com^
@@ -82989,6 +83002,7 @@
 ||czqfp.com^
 ||czqvtn3elk64hq.rest^
 ||czr.customzonereview.com^
+||czrhkmapbrtya.website^
 ||czrlp.luxebouquet.com.au^
 ||czrqtkjxzzwtu.website^
 ||czsttsmgndlni.website^
@@ -85510,6 +85524,7 @@
 ||dagglespirates.qpon^
 ||dagglybung.qpon^
 ||dagheshweaselsbelcher.cyou^
+||dagheshwisshe.com^
 ||dagle.de^
 ||dagnar.com^
 ||dagobacotland.cyou^
@@ -91762,6 +91777,7 @@
 ||deechtebol.com^
 ||deeddrugtask.com^
 ||deedeedwinos.com^
+||deedeisasbeau.org^
 ||deedkernelhomesick.com^
 ||deedsdeesisapay.cyou^
 ||deeeparts.com^
@@ -99707,6 +99723,7 @@
 ||duiwcg72w56ze.cloudfront.net^
 ||dujgiq.trendhim.pl^
 ||dujjemkoyowwtu.com^
+||dujucrgeabijh.website^
 ||dujyhrtceg.com^
 ||dukadabrar.com^
 ||dukafu.com^
@@ -105445,6 +105462,7 @@
 ||embedplayer.cloud^
 ||embeds.beehiiv.com^
 ||embedx.name^
+||embeliapodalectypes.cyou^
 ||embellished-district.pro^
 ||embellishedchurch.pro^
 ||embellishedmeadow.com^
@@ -105564,6 +105582,7 @@
 ||emerse.com^
 ||emerson.kr^
 ||emerson.tt.omtrdc.net^
+||emeruperize.cfd^
 ||emetrics.bose.ca^
 ||emetrics.bose.com^
 ||emetrics.eastwestbank.com^
@@ -106780,6 +106799,7 @@
 ||envoymusicianpaid.com^
 ||envy.nu^
 ||envybox.io^
+||enwidenfarces.qpon^
 ||enwombssighing.com^
 ||enwraptboteinruned.cyou^
 ||enwucnw.top^
@@ -118469,6 +118489,7 @@
 ||forumjar.com^
 ||forumjav09212026.shop^
 ||forumphotovoltaique.fr^
+||forumsameboidendura.cyou^
 ||forumstriae.cfd^
 ||forunfezanttor.com^
 ||forurm-candaulisme.fr^
@@ -120181,6 +120202,7 @@
 ||frugsneeborfarset.cyou^
 ||frugstrain.qpon^
 ||fruhhieeqcgpl.com^
+||fruijxviproby.online^
 ||fruitedmataiops.cfd^
 ||fruitflan.com^
 ||fruitful-alarm.com^
@@ -130034,6 +130056,7 @@
 ||grmavj.datingllove.com^
 ||grmfa.slomins.com^
 ||grmge.gravityblankets.com^
+||grmpxwtgdspjk.online^
 ||grmtas.com^
 ||grmtech.net^
 ||grn.openapp.link^
@@ -138481,6 +138504,7 @@
 ||hepteneidolsephetic.cyou^
 ||heptenemaileplugs.qpon^
 ||heptix.net^
+||heptoicenomoty.shop^
 ||heqipjkwjhnnn.online^
 ||her.mybluehost.me^
 ||her.name^
@@ -138778,6 +138802,7 @@
 ||hfeoeekkncvic.store^
 ||hfeqomclkjxct.cn^
 ||hfeuvgkurtrkc.website^
+||hfevshxpdapei.online^
 ||hfeys8ce2403d5c8.top^
 ||hfezidhmmm.com^
 ||hffaghgebdfahcbdae.world^
@@ -141018,6 +141043,7 @@
 ||honestpartners.com^
 ||honestsweet.pro^
 ||honestybunch.com^
+||honestywildlife.com^
 ||honey-date4u.life^
 ||honey.io^
 ||honeybulb.com^
@@ -150176,6 +150202,7 @@
 ||inqikfoggojrie.com^
 ||inqjal.dickssportinggoods.com^
 ||inqmrfxxutoyp.online^
+||inqtihkcxvfqs.online^
 ||inqueritos-qa.cp.pt^
 ||inqueritos.cp.pt^
 ||inquiredmystic.com^
@@ -223900,6 +223927,7 @@
 ||pertinentking.com^
 ||pertlouv.com^
 ||pertresentmentopera.com^
+||perukedbilker.cfd^
 ||perumahanbaru.com^
 ||perungordonerasing.qpon^
 ||peruseexterminate.com^
@@ -233480,6 +233508,7 @@
 ||propositionpower.com^
 ||propositionvowelladen.com^
 ||proppellerads.ru^
+||propriaquint.cyou^
 ||proprietaryabbey.com^
 ||proprietordauntaddition.com^
 ||proprietordrapesprinkle.com^
@@ -235114,6 +235143,7 @@
 ||pupahjjwokal.in^
 ||pupandcups.com^
 ||puparazzisquad.com^
+||pupatedphratry.cyou^
 ||pupatesqueeze.com^
 ||pupbox.pxf.io^
 ||pupelojokiest.top^
@@ -278811,6 +278841,7 @@
 ||socksworlds.com^
 ||socktheboat.com^
 ||sockyzimmi.com^
+||soclefumantconed.cfd^
 ||socm.dmp.360.cn^
 ||socola.ru^
 ||socolive17.cv^
@@ -299445,6 +299476,7 @@
 ||substation.confection.io^
 ||substituteyonder.com^
 ||subsworker.bid^
+||subteenshastri.shop^
 ||subtle-doubt.com^
 ||subtle-stick.pro^
 ||subtleeffective.com^
@@ -310426,6 +310458,7 @@
 ||titel-kaufen.com^
 ||titermotty.qpon^
 ||titersprawned.shop^
+||titheanodesnumac.qpon^
 ||tithedsphagia.cfd^
 ||titian-handbag.shop^
 ||titiansfisted.cyou^
@@ -333599,6 +333632,7 @@
 ||vivatbetmobile.com^
 ||vivavgoxg.com^
 ||vivavietnam.vn^
+||vivaxweal.cyou^
 ||vivdwowvgfyllqt.com^
 ||viveenluz.com^
 ||vivelaepoque.com^
@@ -334464,6 +334498,7 @@
 ||voixsy.stargift.ro^
 ||vojolj.icu^
 ||vojxriaqujzlg.site^
+||vok1jp7qxx9hwoyt2g.cfd^
 ||vokayatus.com^
 ||vokegwzgjivii.online^
 ||vokm.top^
@@ -343828,6 +343863,7 @@
 ||wvrukp.globalcyclingnetwork.com^
 ||wvs.mybluehost.me^
 ||wvsiiidldxozb.online^
+||wvtbwnmrd.com^
 ||wvtsnyncckesw.site^
 ||wvturau.com^
 ||wvubyhnes.xyz^
