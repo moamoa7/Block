@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260728
+! Version: 20260729
 !
 !
 !
@@ -262,7 +262,7 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !discord.com##div[class*="notice"]
 ! - 기타
 !/otautoblock.js
-!/track^$from=~spotify.com|~podtrac.com|~megap.fm|~wolf359.fm|~pdst.fm|~twitch.tv
+/track^$from=~spotify.com|~podtrac.com|~megap.fm|~wolf359.fm|~pdst.fm|~twitch.tv
 !
 !
 ! X (https://x.com/)
@@ -865,7 +865,7 @@ gall.dcinside.com#@#.r_dcmedia
 ! - 디시이슈 댓글 이후 안보이게 하기
 !||ad-script.viewus.co.kr^
 ! - 기타
-/third*cookie/*
+!/third*cookie/*
 !
 !
 ! 아카라이브 (https://arca.live/)
@@ -943,7 +943,7 @@ m.fmkorea.com##script:has-text(/window\["\d+"\] = function\(\) \{ return \d+; \}
 ! - 네이버 광고 차단 (모바일)
 !etoland.co.kr##li.flex.justify-between.border-b:not(:has(a))
 ! - 게시물내 하단 공백
-etoland.co.kr##[id*="view-center"]
+!etoland.co.kr##[id*="view-center"]
 ! - 게시물 목록 상단 배너 공간 (모바일)
 ! - 개별 게시물과 댓글 사이 빈 공간 (모바일)
 !etoland.co.kr##article.w-full:has(> ul.mx-\[5px\])
@@ -956,9 +956,12 @@ etoland.co.kr##[id*="view-center"]
 !##[id*="banner" i]
 ! - 게시물내 하단 배너 공백 (모바일)
 !etoland.co.kr##div.mt-2\.5.flex
-! - 댓글 아래 배너 공백 (PC)
-!  -- - 메인 HIT 타이틀 사라짐
+! - 게시물 하단 공백/ 댓글 아래 배너 공백 (PC)
+!  -- - 메인 HIT 타이틀 사라짐으로 아래처럼 재변경
 !etoland.co.kr##.flex.mb-2\.5
+!etoland.co.kr##[class="mb-2.5 flex w-full justify-center"]
+! - - - 광역으로 사용시 https://playland01.com/ 내용본문이 사라져서 개별 도메인으로 처리
+etoland.co.kr##div.flex.w-full.justify-center:has(> .flex)
 ! - 게시물 하단 / 댓글 하단 공백 (모바일)
 ! - - - 핫딜 추천 상품 나오는 부분
 etoland.co.kr##[aria-label="토스 추천 상품"]
@@ -1557,7 +1560,7 @@ clien.net###hongboInfoList
 !
 ! 루리웹 (https://bbs.ruliweb.com/)
 ! - 기타
-zoneid=
+!zoneid=
 ! - 차단 사이트
 !||ad4989.co.kr^
 !||innity.net^
@@ -1646,7 +1649,7 @@ zum.com##[id="right_top" i]
 zum.com##[class*="coupang" i]
 ! - 기타
 !||beusable.net^
-/prebid.$domain=~prebid.org
+!/prebid.$domain=~prebid.org
 !
 !
 ! 벅스 (https://music.bugs.co.kr/)
@@ -1695,7 +1698,7 @@ zum.com##[class*="coupang" i]
 !netflix.com##div[class^=watch-video--][class*="-container "]:style(background-image: none !important)
 ! - 기타
 !||onetrust.com^
-||netflix.com/ichnaea/log
+!||netflix.com/ichnaea/log
 !
 !
 ! 티빙 (https://www.tving.com/)
@@ -2396,26 +2399,26 @@ www.donga.com#@#[class*="ad_"] [style]
 !
 ! 한국경제 (https://www.hankyung.com/)
 ! - 상단/중간/하단 배너
-##.ad-inner
+!##.ad-inner
 ! - 맨 상단 배너 / 기사 상단 배너
 !##.ad-top
 ! - 기사 오른쪽 배너 공간 (잔여물 제거) (EasyList)
 !##[class*="aside-ad" i]
-##.aside-ad
+!##.aside-ad
 ! - 메인 하단 배너
 !##.ad-bottom
 ! - 기사 상단/본문 배너
-##.ad-box
+!##.ad-box
 ! - 기사 배너 라벨
-##.ad-label
+!##.ad-label
 ! - 기사 배너 라벨 제외 모든 배너
-##.ad-wrap:not(#google_ads_iframe_checktag)
+!##.ad-wrap:not(#google_ads_iframe_checktag)
 ! - 기사 모든 베너 (라벨 포함)
-##.ad_area
+!##.ad_area
 ! - 기사 오른쪽 빈 공간
-##.ad_common
+!##.ad_common
 ! - 기사 오른쪽 빈 공간 (좀 더 많이 선택)
-##.aside-ad
+!##.aside-ad
 ! - 메인배너 및 상단 오른쪽 돌아가는 배너
 ! - - - 쿠팡에서 제품 사라짐
 !##[class^="promotion"]
@@ -2428,8 +2431,10 @@ www.donga.com#@#[class*="ad_"] [style]
 !##[class*="subscribe-banner" i]
 ! - 일부 오류 해제
 @@/ad.$domain=hankyung.com
-@@*banner*$domain=hankyung.com
+!@@*banner*$domain=hankyung.com
 !hankyung.com#@#[class*="top-banner" i]
+! - 기타
+/tracking.js^$script
 !
 !
 ! 한국일보 (https://www.hankookilbo.com/)
@@ -2490,10 +2495,10 @@ dongascience.com##.block
 ! 오마이뉴스 (https://www.ohmynews.com/)
 ! - 상단 배너
 !##[class*="adtop" i]
-##.adTop
+!##.adTop
 ! - 중간 배너
 !##[class*="adsub" i]
-##.adSub
+!##.adSub
 !##.new_ad7
 !##[class*="new_ad" i]
 ! - 기사 오른쪽 빈 공간
@@ -3042,6 +3047,13 @@ avsee.ru#@#.tabs
 !j91.asia##+js(window.open-defuser)
 ! - 영상 재생시 팝업 차단 (uBlock filters – Ads)
 !/^https:\/\/[0-9a-z]{6,12}\.(?:com|in)(?:\/[a-z]{2,10}){1,3}(?:\?id=\d+)?$/$script,3p,match-case,responseheader=etag:/^W\/"[0-9a-z]+-[0-9a-zA-Z]+(?:\/[0-9a-zA-Z]+)?"$/,from=~edu|~gov,to=com|in
+! - 광고/오버레이 차단 필터 규칙
+! - - - https://supjav.com/
+##.jw-reset-text:not(button)
+##.jw-wrapper > div[style="opacity: 0; visibility: hidden; overflow: hidden; display: block; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;"]
+! JW Player의 분석/텔레메트리(analytics telemetry) - JW Player 재생 통계 수집 차단
+! - - - https://supjav.com/
+||jwpltx.com^
 !
 !
 ! https://k01.aving.tv/ - avsee를 가져오는 사이트로 보임
@@ -3064,12 +3076,14 @@ aving.tv##.gap-lg-5
 @@tiktokcdn.com/obj/$xhr
 !nicholasbreakplan.com,fc2stream.tv#@#[class*="floating" i]
 !@@*$generichide,from=streamtape.*
+@@||streamtape.$generichide
 ! - 기타
+! - uBlock filters – Ads 다른 규칙이 커버하므로 필요없음
+!/^https:\/\/(?:[a-z]{2}\.)?[a-z]{7,14}\.[a-z]{3,7}\/[fgprst][0-9A-Za-z]{10,16}\/\d{3,6}$/$script,3p,match-case
 ! - - - https://javgg.net/
 ! - - - https://javplayer.org/ (여러 재생 스크림 중에서)
 !##[class*="ad-placement" i]
 !/log_js_error$ping
-!/^https:\/\/(?:[a-z]{2}\.)?[a-z]{7,14}\.[a-z]{3,7}\/[fgprst][0-9A-Za-z]{10,16}\/\d{3,6}$/$script,3p,match-case
 !streamtape.*##+js(remove-node-text, script, /parseInt.*push.*setTimeout.*try.*catch/)
 !streamtape.*##+js(prevent-addEventListener, contextmenu, event.dispatch.apply)
 !jessicayeahcatch.com##+js(prevent-addEventListener, contextmenu)
@@ -3087,6 +3101,8 @@ aving.tv##.gap-lg-5
 !streamtape.*##+js(trusted-replace-node-text, script, /\$\(['"]\.play-overlay['"]\)\.click.+/s, document.getElementById("mainvideo").src=srclink;player.currentTrack=0;})}), condition, srclink)
 ! - 영상 클릭안되는거 해결 (uBlock filters – Ads)
 !streamtape.*##.play-overlay
+! - 광고성 오버레이·요소들을 숨기는 코스메틱 필터
+##[class*="ad-placement"]
 !
 !
 ! https://javplayer.org/
@@ -3126,9 +3142,12 @@ javfc2.*##.row > div.text-center:has(> h5#messageAds)
 !javfc2.xyz##.isp-notice
 ! - 팝업 방지 (uBlock filters – Ads)
 !/^https?:\/\/[-a-z]{6,}\.com\/b[\/A-Z_a-z]3[.A-Za-z]V[.\/A-Z_a-z]0[.\/A-Z_a-z]P[.A-Za-z]3[-\/0-9A-Z_a-z]{59}$/$popup,match-case,to=com
-! - 기타
+! - 광고 로더 스크립트를 막는 규칙
+! - --  이 규칙대신 아래 규칙으로 적용
 !://creative.*/widget*.js$3p
-!||popcash.net^$3p,important,redirect-rule=empty
+//creative.*/widget*.js$3p
+! - 서드파티 요청 중 popcash.net으로 가는 것을 (최우선으로 강제해서) 차단하되, 완전히 막아서 오류를 내지 말고 빈 응답으로 대체하라.
+||popcash.net^$3p,important,redirect-rule=empty
 !
 !
 ! JavNeon (https://javneon.tv/)
@@ -3226,7 +3245,7 @@ javgg.*##.home_iframead
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
 ##div.set_height_250
 ! - 기타
-##.doubleclick
+!##.doubleclick
 ! - 재생 방지
 !mmsi02.com,mmvh02.com#@#[class*="floating" i]
 ! - 미리보기 영상 안나오는 문제 해결
@@ -3241,8 +3260,13 @@ javgg.*##.home_iframead
 !javgiga.com##+js(window.open-defuser)
 ! - 팝업 (새창) 방지 (adguard)
 !javgiga.com#%#//scriptlet('prevent-window-open')
-! - 기타
-!/^https?:\/\/[-a-z]{6,}\.com?\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,3p,match-case
+! - 무작위처럼 보이지만 특정 자리마다 정해진 문자 집합을 쓰는 서드파티 스크립트 URL"을 정규식으로 포착해서 차단하는 규칙
+! - - - 광고 차단 우회를 위해 매번 URL을 바꿔치기하는 광고/트래킹 스크립트를 잡는 데 쓰임
+/^https?:\/\/[-a-z]{6,}\.com?\/[a-d][-\.\/_A-Za-z][DHWXm][-\.\/_A-Za-z][59FVZ][-\.\/_A-Za-z][6swyz][-\.\/_A-Za-z][-\/_0-9a-zA-Z][-\.\/_A-Za-z][-\/_0-9a-zA-Z]{22,162}$/$script,3p,match-case
+! - 아래 2개 규칙이 같이 작용되어야 함
+||9e9cb445eb.com^
+/^https?:\/\/[0-9a-f]{10}\.[0-9a-f]{10}\.com\/[0-9a-f]{32}\.js$/$script,3p,redirect-rule=noop.js
+
 !
 !
 ! https://javhd.today/
@@ -3512,8 +3536,8 @@ minkch.com#@#.execphpwidget
 !xn--4-v10fo35av1l.com##.has-sub.menu-item-1593.menu-item-has-children.menu-item-object-custom.menu-item-type-custom.menu-item
 ! - 채팅창
 ###execphp-38
-! - 기타
-!/wp-content/plugins/popup-maker/*$~stylesheet,from=~schornsteinfeger-liv-bayern.de
+! - 대부분의 사이트에서 popup-maker로 만든 팝업이 동작하지 않게 막으면서도, 레이아웃 깨짐을 피하려고 CSS는 남겨두고, 특정 한 사이트만은 정상 동작하도록 예외 처리한 규칙
+/wp-content/plugins/popup-maker/*$~stylesheet,from=~schornsteinfeger-liv-bayern.de
 !
 !
 ! JavFinder (https://javfinder.ai/)
@@ -3648,8 +3672,8 @@ aniya24.com##section:has(img[width="1200"])
 !aniya24.com##.elementor-element-adf8da5
 ! - 영상 하단 배너 공간
 aniya24.com##.above-content-sidebar
-! 기타 차단
-!/wp-content/plugins/swiftninjapro-inspect-element-console-blocker/assets/*
+! - 일부 사이트가 방문자의 우클릭이나 F12(개발자 도구)를 막아놓는 경우가 있는데, 이 규칙은 그 차단 기능을 담당하는 스크립트 파일 자체를 로드되지 않게 막아서, 개발자 도구를 다시 정상적으로 쓸 수 있게 하려는 목적
+/wp-content/plugins/swiftninjapro-inspect-element-console-blocker/assets/*
 !
 !
 ! ManyMV (https://manymv.com/)
@@ -3808,8 +3832,8 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! MISSAV (https://missavtv.com/)
 ! MISSAV (https://missav.media/)
 ! MISSAV (https://missav.app)
-! MISSAV (https://missav.uno/)
-! MISSAV (https://missav.bz/)
+! MISSAV (https://missav.uno/) - 접속불가
+! MISSAV (https://missav.bz/) - 이미지 등 안보임
 !
 ! - - -nJAVTV (https://njavtv.com/)
 ! - 리스트별 하단 배너 및 영상 옆 배너공간
@@ -3869,14 +3893,26 @@ homejav.com,123av.*,njavtv.com##.lg\:block
 ! MISSAV (https://missav.to/)
 ! -영상 재생 가능하게
 @@/obj/ad-
+! - 1player.store 사이트에 접속했을 때는, 원래라면 광고 차단기가 막았을 구글 IMA 광고 SDK(ima3.js)를 예외적으로 허용해서 로드되게 하라.
+@@||imasdk.googleapis.com/js/sdkloader/ima3.js$from=1player.store
 ! - 기타
-!@@||imasdk.googleapis.com/js/sdkloader/ima3.js$from=1player.store
 !missav.*##+js(remove-attr, @keyup.space.window|@click, div)
 !
 !
 ! MISSAV (missav.max) (missav.cx) (https://missav.uno/) (https://avmiss34.life/)
 ! - 배너
 /avmiss|missav/##[class*="grid"][class*="mx-auto"]
+!
+!
+! MissAV (https://www.missav123.art/ㄴㄴㄴ)
+! 앱 설치하라는 하단 안내 문구 (모바일)
+##div[style]:has-text(APP)
+!
+!
+! MISSAV (https://missav.app/)
+! - 이미지 보이게
+@@||sl260630.top^
+
 !
 !
 ! MISSAV (https://missvod6.com/)
@@ -3916,13 +3952,15 @@ popjav.in##div.pop--excl
 ! - 팝업 차단
 !kissjav.*,kpop.xxx,mrdouga.com,deepfakesporn.com,jpvoyeur.com,daftsex.net,javgays.com##+js(nowoif)
 ! - 기타
-action=js_stats
+!action=js_stats
 !
 !
 ! JAVCEP.COM (https://javcep.com/)
+! - 이미지 보이게
+@@||javkd.com^
 ! - 일부 광고 차단
 !##[class*="banner-ad" i]
-##.banner-ad
+!##.banner-ad
 !
 !
 ! 야동코리아 (https://ydkorea2.com/)
@@ -4599,7 +4637,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ! - - - 여기여 (https://www.yugiyu.com/) - 카지노/토토 링크 지워진거라 그냥 둘 것
 !
 !
-! 빠른주소 (https://quickjuso.net/) (https://빠른주소7.com/)
+! 빠른주소 (https://quickjuso.net/)  (https://빠른주소.site/) -> (https://빠른주소7.com/)  (https://빠른주소9.com/)
 ! - 배너
 ![$domain=/^xn--\d+-3k1fr9j3xd8tm.com/]##[class*="pic_" i]
 ##[aria-label*="제휴업체"]
@@ -7024,8 +7062,8 @@ m.pann.nate.com##.shopBox
 !
 ! 비글루 (https://www.vigloo.com/)
 ! - 기타
-##[class$="-ad-container"]
-##[class*="skip-ad"]
+!##[class$="-ad-container"]
+!##[class*="skip-ad"]
 !
 !
 ! 최강링크 (https://최강링크10.com/)
@@ -7110,6 +7148,24 @@ k-hentai.org##[class*="hidden"]:has([style*="width: 300px"])
 ##[target] [class*="img_box"][style]
 !
 !
+! https://거지맵.com/
+! - 쿠팡 광고 빈공간 없애기
+##[aria-label="랭킹 럭키박스 쿠팡 광고"]
+! - 티끌 드로우 광고
+##[aria-label*="티끌드로우"]
+!
+!
+! https://paipancon.com/
+! - 기타
+$third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com|zinchanmanga.com|yaoimangaonline.com|tututweak.app|mangaraw.ac|eromanga-show.com|hentai-one.com|hentaipaw.com|nukibooks.com|paipancon.com|jgvdata.com|youtubevanced.com|pandamtl.com|mangaplus.shueisha.tv|shueisharaw.tv
+!
+!
+! https://pornavhd.com/
+! - 기타
+! - - - https://playrecord.biz/ad?type=90500624031 (script)
+/ad?type=
+
+
 
 
 
