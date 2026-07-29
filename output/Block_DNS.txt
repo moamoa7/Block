@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-07-29 10:22:45 UTC
+! Generated: 2026-07-29 12:25:37 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 356,864
+! Block Rules: 356,885
 !
 ||0--0.info^
 ||0--4.com^
@@ -5039,6 +5039,7 @@
 ||1win.tf^
 ||1win.yt^
 ||1win23.top^
+||1winbets.co.za^
 ||1wincdn.b-cdn.net^
 ||1winfr-app.fr^
 ||1winpb.com^
@@ -50505,7 +50506,6 @@
 ||balance-leben.at^
 ||balanceaquarid.qpon^
 ||balanceathlete.com^
-||balancebox.com^
 ||balancebreath.com^
 ||balancecentrum.eu^
 ||balancedecke.de^
@@ -116490,6 +116490,7 @@
 ||fluencymedia.com^
 ||fluencypierre.com^
 ||fluencythingy.com^
+||fluentcleaner.org^
 ||fluentconstruefeet.com^
 ||fluentdifferenceselfemployed.com^
 ||fluentlyfairytalesleep.com^
@@ -155734,7 +155735,6 @@
 ||jqhpcggbaxqctlb.com^
 ||jqilyjagezcqk.site^
 ||jqjauhkkylyj.com^
-||jqjfomk.com^
 ||jqjpdxlywnqam.site^
 ||jqjq81nrbe.cfd^
 ||jqjyj.com^
@@ -158725,7 +158725,6 @@
 ||kekrouwi.xyz^
 ||kektds.com^
 ||kelansu.com^
-||kelascinta.com^
 ||kelbrant.online^
 ||keld-digitholm-app.com^
 ||keld-digitholm-pl.click^
@@ -161861,6 +161860,7 @@
 ||ktllgtab.com^
 ||ktlrv.hotelcollection.no^
 ||ktlwulkjhxmhb.space^
+||ktlztpx8f.com^
 ||ktmvzffnawzug.space^
 ||ktn.mybluehost.me^
 ||ktndgryjzyqiw.online^
@@ -202117,7 +202117,6 @@
 ||nbedwwb.in^
 ||nbeelx.angeliebe.co.jp^
 ||nbekirowekzaq.space^
-||nbet.com^
 ||nbf9b5aurl.com^
 ||nbfhxoldzzydm.space^
 ||nbfieef.cn^
@@ -225069,6 +225068,7 @@
 ||pixel.innocom.vn^
 ||pixel.intensivacursos.com.br^
 ||pixel.ionos.at^
+||pixel.ionos.ca^
 ||pixel.ionos.co.uk^
 ||pixel.ionos.com^
 ||pixel.ionos.de^
@@ -292647,6 +292647,8 @@
 ||statistics.klicktel.de^
 ||statistics.kommentar.de^
 ||statistics.krohne.com^
+||statistics.kulturfalter.de^
+||statistics.lbb-bayern.de^
 ||statistics.limemotion.com^
 ||statistics.mailerlite.com^
 ||statistics.mobilistics.de^
@@ -292691,6 +292693,7 @@
 ||statistics.ultimaker.com^
 ||statistics.uni-saarland.de^
 ||statistics.vattenfall.com^
+||statistics.veendata.nl^
 ||statistics.vivition.com^
 ||statistics.volksversand.de^
 ||statistics.vov.vn^
@@ -292742,6 +292745,7 @@
 ||statistik-nrw-urban.zwex.info^
 ||statistik-tourismus.memmingen.de^
 ||statistik.112-magazin.de^
+||statistik.a7.de^
 ||statistik.abki.de^
 ||statistik.aekb.de^
 ||statistik.aekn.de^
@@ -292750,10 +292754,12 @@
 ||statistik.ahlen.eu^
 ||statistik.aktuell4u.de^
 ||statistik.alexianer.de^
+||statistik.amper-kurier.de^
 ||statistik.animate.de^
 ||statistik.anleitung24.com^
 ||statistik.antwortzeit.de^
 ||statistik.apartments-tirolerhaus.at^
+||statistik.arbeiterwohlfahrt-hessen.de^
 ||statistik.arf.at^
 ||statistik.arinet-hamburg.de^
 ||statistik.at^
@@ -292775,6 +292781,8 @@
 ||statistik.bmz.de^
 ||statistik.bobertag.de^
 ||statistik.bochum-tourismus.de^
+||statistik.boldtpub.com^
+||statistik.bostalsee.de^
 ||statistik.brasserieudden.se^
 ||statistik.brekoverband.de^
 ||statistik.building-business.de^
@@ -292785,6 +292793,8 @@
 ||statistik.ceasy.de^
 ||statistik.chairlines.de^
 ||statistik.changing-cities.org^
+||statistik.christkatholisch.org^
+||statistik.citools.de^
 ||statistik.cms21.de^
 ||statistik.co2online.de^
 ||statistik.conalco.de^
@@ -292887,6 +292897,7 @@
 ||statistik.laborumgebung.de^
 ||statistik.landkreis-bayreuth.de^
 ||statistik.landkreis-miltenberg.de^
+||statistik.lebenshilfe-cottbus.de^
 ||statistik.lebensmittelverband.de^
 ||statistik.leegebruch.info^
 ||statistik.lehrerfreund.de^
@@ -292916,10 +292927,12 @@
 ||statistik.naturpark-aukrug.com^
 ||statistik.net4you.net^
 ||statistik.neumuenster.de^
+||statistik.new.pixel-kraft.de^
 ||statistik.newit-solutions.de^
 ||statistik.next-generation99.de^
 ||statistik.nh-quadrat.de^
 ||statistik.nibis.de^
+||statistik.nordjobb.org^
 ||statistik.nykoping.se^
 ||statistik.oedp.de^
 ||statistik.offizialat-vechta.de^
@@ -292938,10 +292951,12 @@
 ||statistik.postsiedlung.de^
 ||statistik.pr24.ch^
 ||statistik.profamilia.de^
+||statistik.projektvenice.com^
 ||statistik.ptj.de^
 ||statistik.recon-cms.de^
 ||statistik.red-dot-design-museum.de^
 ||statistik.regionalverband-saarbruecken.de^
+||statistik.rehamedia-shop.de^
 ||statistik.reichsburg-cochem.de^
 ||statistik.reinsdorf.de^
 ||statistik.rosenheim.de^
@@ -292979,6 +292994,7 @@
 ||statistik.stadtreinigung-leipzig.de^
 ||statistik.stadtwerke-waiblingen.de^
 ||statistik.startup-atlas.de^
+||statistik.stiftung-naturschutz-thueringen.de^
 ||statistik.strate.net^
 ||statistik.streckeronline.com^
 ||statistik.studentenwerk-dresden.de^
@@ -292986,6 +293002,7 @@
 ||statistik.sunnesommarland.se^
 ||statistik.svenmeinecke.de^
 ||statistik.svenskaakademien.se^
+||statistik.swhd.de^
 ||statistik.therapeuten.de^
 ||statistik.therapiezentrum-jule.de^
 ||statistik.theresia-hecht-stiftung.de^
@@ -292993,6 +293010,7 @@
 ||statistik.toaserver.de^
 ||statistik.transnetbw.de^
 ||statistik.travelinspired.de^
+||statistik.turlistan.se^
 ||statistik.ullmannserver.de^
 ||statistik.ulm.de^
 ||statistik.uniglas.net^
@@ -293040,6 +293058,7 @@
 ||statowl.com^
 ||statpixe.online^
 ||statpuzty.in^
+||stats-001.easybuild.website^
 ||stats-1.storepoint.co^
 ||stats-9ccc91cf.hentioe.dev^
 ||stats-a.maxthon.com^
@@ -298792,7 +298811,6 @@
 ||sv2.biz^
 ||sv23.2cb27cb723.shop^
 ||sv6a57.lol^
-||sv88.com^
 ||svaccvettu.cyou^
 ||svanleiss.cyou^
 ||svantnacch.cyou^
@@ -331751,6 +331769,7 @@
 ||vlauqfbnfigdk.site^
 ||vlayitwuvh.com^
 ||vlbppw.keessmit.be^
+||vlc-player.net^
 ||vlc.de^
 ||vlccz.cbdforlife.us^
 ||vlcdownloads.com^
@@ -339144,6 +339163,7 @@
 ||wiredminds.de^
 ||wirelessbin.com^
 ||wirelessclarifyenthusiasm.com^
+||wirelesszone.top^
 ||wiremeshbelts.org^
 ||wirenewsletter.com^
 ||wiretournament.com^
@@ -356213,6 +356233,7 @@
 ||ztrzeciegopietraobokkreconychschodow.top^
 ||ztsfl.blnklebl.com^
 ||ztshg.cn^
+||ztshu.com^
 ||ztsjdthngoeln.space^
 ||ztsrv.com^
 ||zttsmufvcrvjw.space^
