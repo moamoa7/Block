@@ -2464,7 +2464,7 @@ joongang.co.kr##[class*="photo"]:has([target] img)
 joongang.co.kr##.ico_shortcut_plus
 ! - 기사 하단 더중앙플러스 지금 바로 시작하기
 ! - - - 광역 규칙으로 하면 숲에서 구독버튼 사라짐
-joongang.co.kr/##[class*="subscription" i]
+joongang.co.kr##[class*="subscription" i]
 ! - 기사 스크롤시 갑작스럽게 하단에 나와서 따라다니는 배너
 joongang.co.kr##.snackbar
 ! - 영상 플레이어
@@ -2475,6 +2475,7 @@ joongang.co.kr##.snackbar
 !joongang.co.kr##.contents_issue_sticky.contents > .row > .col_lg3
 ! - 팝업 차단(hello! Parents 뉴스레터를 구독하면 볼 수 있는 기사입니다.) 으로 인한 스크롤 잠금 해제
 joongang.co.kr##html,body:style(overflow: auto !important;)
+!
 !
 ! 일간스포츠 (https://isplus.com/)
 ! - 가운대 배너
