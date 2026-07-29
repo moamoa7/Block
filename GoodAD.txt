@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260729
+! Version: 20260730
 !
 !
 !
@@ -116,14 +116,19 @@
 ! https://daftsex.net
 ! https://javgays.com
 ! https://javfc2.top/
+! https://mrjav.net/
+! https://thebjav.com/
+! https://kimchi.tv/
+! https://herexxx.com/
+! https://tokyomotion.com/
 ! MISSAV 계열 사이트
 ! sendvid.com
 ! - - - ublock
 etoland.co.kr,heye.kr##+js(window.open-defuser)
-/javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
+/tokyomotion|herexxx|kimchi|thebjav|mrjav|javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
 ! - - - adguard
 etoland.co.kr,heye.kr#%#//scriptlet('prevent-window-open')
-/javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
+/tokyomotion|herexxx|kimchi|thebjav|mrjav|javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
 !
 !
 ! 카카오TV (https://tv.kakao.com/) - 서비스 종료
@@ -2449,8 +2454,8 @@ www.donga.com#@#[class*="ad_"] [style]
 joongang.co.kr##.md_hidden.sm_hidden.service
 ! - 중간 배너
 !joongang.co.kr##.house_banner:not(.goto-app-btn)
-joongang.co.kr##.sm_hidden.md_hidden.ad_wrap
-##.ad_wide
+!oongang.co.kr##.sm_hidden.md_hidden.ad_wrap
+!#.ad_wide
 ! - 오른쪽 배너
 !##.ad_wrap
 ! - 기사내 중간 광고 및 텍스트
@@ -2460,8 +2465,8 @@ joongang.co.kr##.ico_shortcut_plus
 ! - 기사 하단 더중앙플러스 지금 바로 시작하기
 ! - - - 광역 규칙으로 하면 숲에서 구독버튼 사라짐
 joongang.co.kr/##[class*="subscription" i]
-! - 기사 스크롤시 하단에서 나오는 안내문구
-!joongang.co.kr###topicSnackbar
+! - 기사 스크롤시 갑작스럽게 하단에 나와서 따라다니는 배너
+joongang.co.kr##.snackbar
 ! - 영상 플레이어
 !joongang.co.kr##.player_area
 ! - 많이 본 기사
@@ -2470,7 +2475,6 @@ joongang.co.kr/##[class*="subscription" i]
 !joongang.co.kr##.contents_issue_sticky.contents > .row > .col_lg3
 ! - 팝업 차단(hello! Parents 뉴스레터를 구독하면 볼 수 있는 기사입니다.) 으로 인한 스크롤 잠금 해제
 joongang.co.kr##html,body:style(overflow: auto !important;)
-!
 !
 ! 일간스포츠 (https://isplus.com/)
 ! - 가운대 배너
@@ -3223,6 +3227,9 @@ shirotomaster.com##[class*="entry-third"]:has([href*="https://www.pcolle.com/"])
 javgg.*##.home_iframead
 ! - 차단방지
 !jav-vids.xyz,javggvideo.xyz,javstreamhg.xyz#@#[class*="floating" i]
+! - 기타 (EasyPrivacy)
+/post-views-counter-pro/js/crawler-detect.js
+/post-views-counter-pro/js/frontend.js
 !
 !
 ! Javsubs91 (https://j91.asia/) - 이동 (https://javsubs91.uk/)
@@ -3851,9 +3858,9 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! - - - https://123av.org/
 ! - - - https://homejav.com/
 ! - - - https://123av.org/
-homejav.com,123av.*,njavtv.com##.lg\:block
-![$domain=/^missav\d+.com/]##.lg\:block
-/missav/##.lg\:block
+! - - - https://www.javdock.com/
+!homejav.com,123av.*,njavtv.com##.lg\:block
+/javdock|missav/##.lg\:block
 ! - 모든 배너
 ! - - - https://homejav.com/
 ! - - - nJAVTV (https://njavtv.com/)  하단 떠다니는 배너 포함
@@ -3893,6 +3900,12 @@ homejav.com,123av.*,njavtv.com##.lg\:block
 !/missav/#%#//scriptlet('prevent-window-open')
 ! - 기타
 !##div.flex-1.order-first > DIV.under_player
+! - 기타
+! - - - https://www.javdock.com/ 표시는 안되지만 로그내역에 있음
+! - - - https://avjb.com/ 표시는 안되지만 로그내역에 있음
+! - - - https://kbjfree.com/  표시는 안되지만 로그내역에 있음
+! - - - https://manga168x.com/  표시는 안되지만 로그내역에 있음
+##.lg\:hidden
 !
 !
 ! https://missav01.com/
@@ -3920,6 +3933,7 @@ homejav.com,123av.*,njavtv.com##.lg\:block
 !
 !
 ! MISSAV (https://missav.app/)
+! - - - https://avbro.xyz/
 ! - 이미지 보이게
 @@||sl260630.top^
 
@@ -3990,7 +4004,10 @@ popjav.in##div.pop--excl
 ! - 18세 팝업
 !javlibrary.com###adultwarningmask
 ! - 기타
+! - - - https://www.javlibrary.com/js/bnnr_stripc_2.js?1784455200
 .com/js/bnnr_
+! - - - https://www.javlibrary.com/js/advertisement.js?1784455200
+@@/advertisement*.js$script
 !
 !
 ! JavMov (https://www.javmov.com/)
@@ -6075,6 +6092,7 @@ m.anewsa.com##div[style*="width:300px"]
 ! - - - 무비킹(https://mvking12.org/)에서 영상재생시 https://player-v2.bcbc.red/player/의 notice를 차단. 재생시 문제는 없는대 /red/ 로 간결표현이 문제될 시 참고할것
 /red/##[class*="notice"]
 ! -기타
+! - - - https://red52.kr/cdn-cgi/trace
 /cdn-cgi/trace^$xhr
 !
 !
@@ -6734,12 +6752,12 @@ kidd.co.kr##.product--register
 !
 ! https://ljh.sisurl.com/
 ! - 기타
-/bbs/paypic/*.gif|
+!/bbs/paypic/*.gif|
 !
 !
-! https://www.javdock.com/
-! - 영상 오른쪽 배너 공간
-javdock.com##.ntv
+! JAVDOCK (https://www.javdock.com/)
+! - 영상 오른쪽 배너 공간 - ##.lg\:block로 통합
+!javdock.com##.ntv
 !
 !
 ! https://maxjav.com/
@@ -6748,16 +6766,46 @@ javdock.com##.ntv
 !
 !
 ! https://javfilms.com/
-! - 목록중 광고
-javfilms.com##div[class*="xs"]:has([class*="tracksub"])
+! - 목록중 광고 / 영상 옆 다운로드/세이브/자막
+!javfilms.com##[class*="col"]:has([rel*="sponsor" i])
+! - - - 이 규칙으로 하면 개별 영상이 안보이므로 아래로 재변경
+!##[class*="col"]:has([rel*="sponsor" i])
+##[class*="xs"]:has([rel*="sponsor" i])
 ! - 기타
 !||simpleanalyticscdn.com^
 !
 !
-! https://www.njav.com/
+! https://www.njav.com/ - 영상 재생 불가 (upload18.org)
+! - 영상 재생 가능하게
+@@||upload18.org^$ehide
+! - 영상 재생 가능하게 (DNS도 해제 필요)
+!@@||renamereptiliantrance.com^
+!@@||endlesshandbaglinked.com^
+@@||srvtrck.com^
+! - 팝업 차단
+upload18.org#%#//scriptlet('prevent-window-open')
 ! - 기타
+! - - - https://www.njav.com/js/piao.js?time
+! - --  https://jav.spa/
+! - - - - - https://jav.spa/js/piao.js
 /js*piao.js
-/^https:\/\/[a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-]+\.com\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\/invoke\.js/$script,3p
+!/^https:\/\/[a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-][a-z0-9-]+\.com\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\/invoke\.js/$script,3p
+!
+!
+! https://mythav.org
+! - 영상 이미지 안보이는거 해결 (EasyPrivacy 해제) - https://mythav.org에서만 해제 하는걸로 일단 제한
+! - - - /i.php?i=
+@@/i.php?i=$domain=mythav.org
+!
+!
+! JAV.spa (https://jav.spa/)
+! - 기타
+!/\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\/invoke\.js/$script,3p
+!
+!
+! https://javclick.com/
+! - 기타
+!/popunder-
 !
 !
 ! https://adblockultimate.net/
@@ -6771,15 +6819,10 @@ javfilms.com##div[class*="xs"]:has([class*="tracksub"])
 !||ethicalads.io^
 !
 !
-! https://kr.indeed.com/?r=us
+! 취업검색:인디드 (https://kr.indeed.com/)
 ! - 기타
 !||sgtm.indeed.com^
 !||ispot.tv^
-!
-!
-! JAV.spa (https://jav.spa/)
-! - 기타
-/\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\/invoke\.js/$script,3p
 !
 !
 ! https://avmeme.com/
@@ -6787,8 +6830,9 @@ javfilms.com##div[class*="xs"]:has([class*="tracksub"])
 avmeme.com##[class*="list"]:has([href*="https://t.me/"])
 !
 !
-! https://avbro.xyz/
+! AV兄弟 (tps://avbro.xyz/)
 ! - 기타
+! - - - https://avbro.xyz/api.php/timming/index?t=0.6342634252553286
 /api.php/timming/index?t=
 !
 !
@@ -6796,12 +6840,8 @@ avmeme.com##[class*="list"]:has([href*="https://t.me/"])
 ! - iframe 공간 남는거 해결
 video.dmm.co.jp##[class*="h-"]:has([class*="cds-deliver-tags"] iframe)
 ! - 기타
-!||tracking.cds.dmm.co.jp^
-!
-!
-! https://mythav.org
-! - 영상 이미지 안보이는거 해결 (EasyPrivacy 해제)
-@@/i.php?i=$domain=mythav.org
+! - - - https://video.dmm.co.jp/js/tracking.min.js?hash=20260727110235-6f3986a
+/tracking.min.js^$script
 !
 !
 ! https://pornzog.com/
@@ -6861,11 +6901,6 @@ ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
 !
 !
 ! https://code.visualstudio.com
-!
-!
-! https://javclick.com/
-! - 기타
-/popunder-
 !
 !
 ! 짭툰 (https://www.jjaptoon003.com/) - 배너 일체 없는 깨끗. 처리할게 없음
@@ -7174,14 +7209,24 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 !
 ! https://pornavhd.com/
 ! - 기타
-! - - - https://playrecord.biz/ad?type=90500624031 (script)
+! - - - - - https://playrecord.biz/ad?type=90500624031 (script)
 ! - - - .com/ad? 같은 규칙으로 보임 (javgiga.com)
-! - - - https://morencius.com/ad?type=1345031904
+! - - - - - https://morencius.com/ad?type=1345031904
+! - - - https://javhd.today/
+! - - - - - https://mycloudz.cc/ad?type=941393522
+! - - - https://javgg.net/
+! - - - - https://earnvidjav.online/ad?type=6616245113
+! - - - https://sexkbj.com/
+! - - - - - https://sexkbj.top/ad?type=6116579429
 /ad?type=
-
-
-
-
+!
+!
+! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
+!
+!
+! 퀘이사존 (https://quasarzone.com/)
+! - 최신 파트너 핫딜
+##[class*="partner" i]:has([href*="partner" i])
 
 
 
@@ -7215,6 +7260,5 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
