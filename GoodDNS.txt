@@ -30,8 +30,6 @@
 @@||sdk-api.hackle.io^
 ! - AdGuard DNS 차단됨 (성인 영상 플레이어 차단해제)
 @@||turboplays.click^
-@@||renamereptiliantrance.com^
-@@||endlesshandbaglinked.com^
 @@||srvtrck.com^
 !
 @@||07c225f3.online^
