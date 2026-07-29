@@ -31,6 +31,7 @@
 ! - AdGuard DNS 차단됨 (성인 영상 플레이어 차단해제)
 @@||turboplays.click^
 @@||renamereptiliantrance.com^
+@@||endlesshandbaglinked.com^
 !
 @@||07c225f3.online^
 @@||content-loader.com^
