@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260729
+! Version: 20260730
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -44,6 +44,7 @@
 ! https://www.genspark.ai/ - 이미지
 ! 조개무비 (https://v24.jogemovie.net/)
 ! https://www.tiktok.com/
+! https://sextb.net/  - US/PP영상
 *-ad-*
 !
 !
@@ -181,9 +182,10 @@
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
 ! 뽐뿌
-! https://javgiga.com/
-! https://k01.aving.tv/
+! https://k01.aving.tv/ - upload.js?
 ! https://www.ppomppu.co.kr/
+! AV19 (https://av19t.com/)
+! https://kav.xxx/ - https://rutood.com/js/dnsads.js?ads=1&AdType=1&cbrandom=2&clicktag=http
 *ads.js
 !
 !
@@ -431,6 +433,7 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 !
 ! https://apkmody.com/
 ! 탑걸 (https://kr44.topgirl.co/)
+! https://javhub.net/
 ##[target] video
 ! - 예외 - https://search.naver.com/ - 클립 영상 사라짐
 !naver.com#@#[target] video
@@ -666,7 +669,8 @@ vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-b
 ! 펀비 (https://funbe659.com/)
 ! 툰코 (https://tkor137.com/)
 ! https://거지맵.com/
-거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i])
+! https://www.hankyung.com/ - 모바일에서 안보임
+hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 /tkor|funbe|wdwd/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i])
