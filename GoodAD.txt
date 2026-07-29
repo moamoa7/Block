@@ -1745,7 +1745,7 @@ poooo.ml#@#.ad
 !||tns-counter.ru^
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki39.net/)  (https://tvwiki40.space/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki39.net/)  (https://tvwiki42.space/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
@@ -3117,15 +3117,19 @@ aving.tv##.gap-lg-5
 !
 ! SEXTB.NET (https://sextb.date/) (https://sextb.cc/) (https://sextb.net/)
 ! - 매인 상단 텍스트 배너
-sextb.net##div.notice
+!sextb.net##div.notice
 ! - 메인 배너 공간
-sextb.net##[style][class*="hidden-sm"]
+!sextb.net##[style][class*="hidden-sm"]
 ! -영상 오른쪽 배너 공간 3개
-sextb.net##.hidden-md.right.col-3
+!sextb.net##.hidden-md.right.col-3
 ! - 영상 하단 배너 공간 (모바일)
-sextb.net##div.col-3.right:nth-of-type(2)
+!sextb.net##div.col-3.right:nth-of-type(2)
 ! - 일부 영상 재생 차단 방지
 !turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]
+! - - - VPN도 별도 등록 필요
+@@||turboplays.click^
+! - 기타
+/log^$xhr,from=~backloggd.com|~meet.google.com|~sigstore.dev
 !
 !
 ! https://sextb.lol/
@@ -3264,7 +3268,9 @@ javgg.*##.home_iframead
 ! - 아래 2개 규칙이 같이 작용되어야 함
 ||9e9cb445eb.com^
 /^https?:\/\/[0-9a-f]{10}\.[0-9a-f]{10}\.com\/[0-9a-f]{32}\.js$/$script,3p,redirect-rule=noop.js
-
+! - 기타
+! - - - https://1note.online/jsad/8a0e1141fd37fa5b98d5bb769ba1a7cc.js
+*/jsad/*
 !
 !
 ! https://javhd.today/
@@ -3397,13 +3403,15 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 ! - 상단 배너
 !##[class="header-advertising"]
 !##[class*="advertising" i]
-! - 일부 사라지지 않은 배너 (탑걸/쏘걸)
+! - 일부 사라지지 않은 배너 (쏘걸)
 ! - - - ##.textwidget 로 하면 일부 사이트에서 텍스트영역이 사라짐
 ! - - - https://dramaday.me/ 일부 텍스트 사라짐
 ! - - - https://glamoroustube.com/ 일부 이미지 및 텍스트 사라짐
 !##[class^="textwidget" i] img
 !##[class*="widget" i][class^="textwidget" i] img
-##[class="textwidget" i][class^="textwidget" i] img
+!##[class="textwidget" i][class^="textwidget" i] img
+! - - - https://jav.guru/ 일부 이미지 사라짐으로 아래로 재변경
+##[class="textwidget" i][class^="textwidget" i] [target*="blank"] img
 ! - 젤 하단 배너
 ! - - - PC
 !##[class="happy-footer"]
@@ -3428,10 +3436,14 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 ! - 영상 차단 해제 (List-KR)
 @@||hcdn1.maxsocdn.net^$domain=sogirl.so
 ! - 기타
-!/s.js*
+! - - - https://kr87.sogirl.so/wp-content/cache/min/1/s.js?ver=1785128807
+/s.js*
 !/js/jads.js?
-!/adrotate-
-!||metrics-bunny.net^
+! - - - https://kr87.sogirl.so/wp-content/cache/min/1/wp-content/plugins/adrotate-pro/library/jquery.groups.js?ver=1785128807
+/adrotate-
+!|metrics-bunny.net^
+! - - - /plugins/wps-disclaimer/public/assets/js/disclaimer.js
+/plugins/wps-disclaimer/public/assets/js/disclaimer.js
 !
 !
 ! 딸플릭스 (https://kr.딸플릭스.net/) (https://kr16.ddal.xyz/)
@@ -6615,8 +6627,10 @@ camconsole.com##div.clearfix.block:nth-of-type(2)
 !||naiadsystems.com^
 !
 !
-! https://jav.guru/
+! Jav Guru (https://jav.guru/)
 ! - 기타
+! - - - https://maxstream.org/js/pop.js
+/pop.js^$from=~autohome.com.cn|~patch.ali213.net|~socpk.com
 !||toodlerehouse.com^
 !
 !
@@ -7161,6 +7175,8 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 ! https://pornavhd.com/
 ! - 기타
 ! - - - https://playrecord.biz/ad?type=90500624031 (script)
+! - - - .com/ad? 같은 규칙으로 보임 (javgiga.com)
+! - - - https://morencius.com/ad?type=1345031904
 /ad?type=
 
 
