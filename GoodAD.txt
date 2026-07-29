@@ -3120,13 +3120,13 @@ aving.tv##.gap-lg-5
 !sextb.net##div.notice
 ! - 메인 배너 공간
 !sextb.net##[style][class*="hidden-sm"]
-! -영상 오른쪽 배너 공간 3개
-!sextb.net##.hidden-md.right.col-3
+! -영상 오른쪽 배너 공간 (PC/모바일)
+/sextb/##.col-3
 ! - 영상 하단 배너 공간 (모바일)
 !sextb.net##div.col-3.right:nth-of-type(2)
 ! - 일부 영상 재생 차단 방지
-!turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]
-! - - - VPN도 별도 등록 필요
+!turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]ㄱ
+! - - - DNS 차단 해제 및 VPN도 별도 등록 필요
 @@||turboplays.click^
 ! - 기타
 /log^$xhr,from=~backloggd.com|~meet.google.com|~sigstore.dev
@@ -7215,5 +7215,6 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
+
 
 
