@@ -7232,6 +7232,13 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 ! 퀘이사존 (https://quasarzone.com/)
 ! - 최신 파트너 핫딜
 ##[class*="partner" i]:has([href*="partner" i])
+!
+!
+! 뉴시스 (https://www.newsis.com/)
+! - 기사내 빈 공간
+##li:has(> iframe)
+! - 기사내 빈 공간 추가 (모바일)
+mobile.newsis.com##.listStyle04
 
 
 
