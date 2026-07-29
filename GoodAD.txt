@@ -367,8 +367,9 @@ mypikpak.com##.operation-container
 !mypikpak.com##+js(set-cookie, allow_analysis, false)
 ! - 재생 안되는거 해결
 !@@||cdn.adjust.com^$script,3p,domain=mypikpak.com
-! - 기타
-!/gtag.js
+! - 기타 (EasyPrivacy)
+! - - - https://mypikpak.com/scripts/gtag.js?f25e4f63
+/gtag.js
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -2445,6 +2446,11 @@ www.donga.com#@#[class*="ad_"] [style]
 !hankookilbo.com##.end-top-ad-wrap
 ! - 기사 상단 배너
 !hankookilbo.com##.rounded-t-lg
+! - 기사내 상단 및 하단 빈 공간
+hankookilbo.com##[class*="min-h-["]
+hankookilbo.com##.sm\:gap-40.gap-24.flex-col.flex.no-print
+! - 기사 하단 따라다니는 광고 빈 배너
+hankookilbo.com##[class*="bg"]:has([aria-label*="광고"])
 !
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
@@ -4251,7 +4257,7 @@ javmov.com##.spot
 !##[class*="popup-pc"]:not(html):not(body):not(article):not(main):not(section)
 !##[class*="popup-pc" i]
 ! - - - 모바일
-##.w-80.relative
+!##.w-80.relative
 !
 !
 !  빨간비디오 (https://redvi84.com/)
@@ -6784,8 +6790,9 @@ kidd.co.kr##.product--register
 ! - 영상 재생 가능하게
 @@||upload18.org^$ehide
 ! - 영상 재생 가능하게 (DNS도 해제 필요)
-!@@||renamereptiliantrance.com^
-!@@||endlesshandbaglinked.com^
+@@||renamereptiliantrance.com^
+@@||endlesshandbaglinked.com^
+@@||adligature.com^
 @@||srvtrck.com^
 ! - 팝업 차단
 upload18.org#%#//scriptlet('prevent-window-open')
