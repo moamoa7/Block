@@ -2,7 +2,7 @@
 ! Title: GoodDNS
 ! Description: 공개 DNS 리스트(HaGeZi Pro/Pro++, AdGuard DNS filter, Filter-KR 등)에
 !              없거나 거의 안 잡히는 항목만 남긴 순수 보충 필터.
-! Version: 20260715-supplement-v1
+! Version: 20260729-supplement-v1
 !
 ! [원칙] 유명 공개 리스트 아무거나 깔면 이미 커버될 도메인은 넣지 않는다.
 !        남기는 것: (1) 개인 예외/badfilter  (2) 개인 판단 차단 도메인
@@ -28,6 +28,8 @@
 @@||pincrux.com^
 ! - SDK 설정 조회는 허용 (기능 플래그 동작)
 @@||sdk-api.hackle.io^
+! - AdGuard DNS 차단됨 (성인 영상 플레이어 차단해제)
+@@||turboplays.click^
 !
 @@||07c225f3.online^
 @@||content-loader.com^
