@@ -539,7 +539,7 @@ sooplive.com##.message_player_wrap
 !!sooplive.com##.da_area
 !sooplive.com###da_video
 ! - 방송요약 팝업
-!!sooplive.com###sarsa_btn
+sooplive.com###sarsa_btn
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
 sooplive.com##.tuneout
 ! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
@@ -998,7 +998,7 @@ etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
 ! - 애드블럭 감지 해제 (출석체크 랜덤포인트 얻을려면 필요)
 @@||doubleclick.net^$domain=etoland.co.kr
 ! 팝업 차단
-!etoland.co.kr#%#//scriptlet('prevent-window-open')
+etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단
 !etoland.co.kr##+js(window.open-defuser)
@@ -5631,8 +5631,8 @@ issuya.com##body:style(pointer-events: auto !important; overflow: auto !importan
 ! - 상단 배너
 !##.ddnad
 ! - 왼쪽. 오른쪽 배너
-dogdrip.net##[class$="left-ad"]
-dogdrip.net##[class$="right-ad"]
+!dogdrip.net##[class$="left-ad"]
+!dogdrip.net##[class$="right-ad"]
 ! - 오류 해결
 !@@||css-load.com
 !
@@ -5837,6 +5837,8 @@ svrforum.com##html,body:style(overflow: auto !important;)
 ! - adsbygoogle 삭제 후 남은 공간
 ggoorr.net##.code-list-middle
 ! - 기타
+! - - - https://www.dogdrip.net/
+! - - - - - https://www.dogdrip.net/common/js/x.js?t=1728779518
 /x.js*
 !
 !
@@ -5981,7 +5983,7 @@ heye.kr##td.menu-item:nth-of-type(3)
 !||pandalive.co.kr^$document,domain=heye.kr
 !||pandalive.co.kr/evt/heye01&5&iframe$document
 ||pandalive.co.kr/evt/$document
-!heye.kr##+js(nowoif)
+heye.kr#%#//scriptlet('prevent-window-open')
 !*banner.js
 !*banner*.js
 !
@@ -7255,6 +7257,7 @@ mobile.newsis.com##.listStyle04
 
 
 
+
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 
 
@@ -7281,6 +7284,5 @@ mobile.newsis.com##.listStyle04
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
-
 
 
