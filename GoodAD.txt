@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260730
+! Version: 20260731
 !
 !
 !
@@ -1753,7 +1753,7 @@ poooo.ml#@#.ad
 !||tns-counter.ru^
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki39.net/)  (https://tvwiki42.space/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki39.net/)  (https://tvwiki49.space/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
@@ -3902,23 +3902,27 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! - 이미지 복원
 ! -  DNS에서 차단되어 있을 수 있으므로 확인 필요 (Threat Intelligence Feeds)
 !@@||fourhoi.com^
+! - 영상 하단 배너 (모바일)
+! - - - ##[class="relative"] [class="mx-auto"]에 포함되므로 규칙 주석 처리
+! - - - https://www.javdock.com/ 표시는 안되지만 로그내역에 있음
+! - - - https://avjb.com/ 표시는 안되지만 로그내역에 있음
+! - - - https://kbjfree.com/  표시는 안되지만 로그내역에 있음
+! - - - https://manga168x.com/  표시는 안되지만 로그내역에 있음
+!##.lg\:hidden
+! - 예외 - https://getmodsapk.com/ - 상단 부분 사라짐
+!getmodsapk.com#@#.lg\:hidden
+!##div[class*="lg:hidden"] > .mx-auto
 ! - 기타
 ! - 공간 남으며 위의 규칙으로 이미 다 지워진거라 필요가 없음
 !##[src*="//ads.adxadserv.com/" i]
 ! - 하단 배너
-/missav/###b-a-b
+!/missav/###b-a-b
 ! - 팝업 차단 (ublock)
 !/missav/##+js(window.open-defuser)
 ! - 팝업 차단 (adguard)
 !/missav/#%#//scriptlet('prevent-window-open')
 ! - 기타
 !##div.flex-1.order-first > DIV.under_player
-! - 기타
-! - - - https://www.javdock.com/ 표시는 안되지만 로그내역에 있음
-! - - - https://avjb.com/ 표시는 안되지만 로그내역에 있음
-! - - - https://kbjfree.com/  표시는 안되지만 로그내역에 있음
-! - - - https://manga168x.com/  표시는 안되지만 로그내역에 있음
-##.lg\:hidden
 !
 !
 ! https://missav01.com/
@@ -7250,6 +7254,18 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 ##li:has(> iframe)
 ! - 기사내 빈 공간 추가 (모바일)
 mobile.newsis.com##.listStyle04
+!
+!
+! 티켓링크 (https://www.ticketlink.co.kr/)
+!- 기타 (EasyPrivacy)
+! - - - https://www.ticketlink.co.kr/resources/js/aceCounter/aceCounter.js
+/acecounter/*
+! - - - https://www.ticketlink.co.kr/resources/js/google/gaScript.js
+/gascript.js
+! - 기타
+! - - - https://www.ticketlink.co.kr/resources/js/nhn_ad/index.js
+_ad/*.js*$domain=~mp.weixin.qq.com
+
 
 
 
