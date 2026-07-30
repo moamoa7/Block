@@ -3916,6 +3916,7 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! - 공간 남으며 위의 규칙으로 이미 다 지워진거라 필요가 없음
 !##[src*="//ads.adxadserv.com/" i]
 ! - 하단 배너
+! - - - https://missav.media/
 !/missav/###b-a-b
 ! - 팝업 차단 (ublock)
 !/missav/##+js(window.open-defuser)
@@ -3944,9 +3945,12 @@ javlemon.com##style\=\"text-align\:center\;\"
 /avmiss|missav/##[class*="grid"][class*="mx-auto"]
 !
 !
-! MissAV (https://www.missav123.art/ㄴㄴㄴ)
+! MissAV (https://www.missav123.art/)
+! - - - https://missav.media/
 ! 앱 설치하라는 하단 안내 문구 (모바일)
-##div[style]:has-text(APP)
+!##div[style]:has-text(/App|APP/)
+!##div[id][style]:has-text(/App|APP/)
+##div[style^="position: fixed; bottom:"]
 !
 !
 ! MISSAV (https://missav.app/)
