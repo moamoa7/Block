@@ -123,12 +123,14 @@
 ! https://tokyomotion.com/
 ! MISSAV 계열 사이트
 ! sendvid.com
+! streamtape.com - https://sexkbj.com/ 영상 재생 등
+! q8y5z.com - https://thebjav.com/ 영상 재생 등
 ! - - - ublock
-etoland.co.kr,heye.kr##+js(window.open-defuser)
-/tokyomotion|herexxx|kimchi|thebjav|mrjav|javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
+!q8y5z.com,streamtape.com,etoland.co.kr,heye.kr##+js(window.open-defuser)
+!/tokyomotion|herexxx|kimchi|thebjav|mrjav|javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
 ! - - - adguard
-etoland.co.kr,heye.kr#%#//scriptlet('prevent-window-open')
-/tokyomotion|herexxx|kimchi|thebjav|mrjav|javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
+!q8y5z.com,streamtape.com,etoland.co.kr,heye.kr#%#//scriptlet('prevent-window-open')
+!/tokyomotion|herexxx|kimchi|thebjav|mrjav|javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
 !
 !
 ! 카카오TV (https://tv.kakao.com/) - 서비스 종료
@@ -1708,7 +1710,7 @@ zum.com##[class*="coupang" i]
 ! 티빙 (https://www.tving.com/)
 @@||tving.com^$generichide,image
 ! - 시청기록 남기기 (DNS에서 차단하면 해제 필요)
-!@@||log.tving.com
+@@||log.tving.com
 ! - 배너 광고
 !tving.com##.lists__slides-single
 ! - 흘려다니는 가운데 배너
@@ -2260,7 +2262,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - 보안 검증 통과를 위한 조치
 !!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴
 ! - - - ublock
-@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/
+!@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/
 ! - - - adguard
 @@/ad/*$from=/^toki\d+\.[a-z.]+\$/|/^sbxh\d+\.[a-z.]+\$/
 !
@@ -7279,5 +7281,6 @@ mobile.newsis.com##.listStyle04
 ! - - -  하지만 같은 스크립트가 봇 방어/접속 챌린지 처리에도 관여하기 때문에, 이걸 차단하면 Cloudflare 챌린지를 켜둔 사이트에서 "사람인지 확인 중" 화면을 통과하지 못하거나 무한 루프에 빠져 접속이 막힐 수 있으니 주의
 !  - -- 문제가 생기면 그 사이트만 예외(allow) 처리하는 방식으로 대응 필요
 /cdn-cgi/challenge-platform/scripts/jsd/main.js^$script,1p
+
 
 
