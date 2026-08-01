@@ -217,7 +217,7 @@
 !
 ! https://bada.us/ iframe 배너  (backstage.bada.us/vueController/getAmazonCustomAds?asin=)
 !##iframe[src*="ads" i]
-##[src*=ads i]
+##[src*="ads" i]:not([src*="loads" i])
 !
 !
 !
@@ -1144,7 +1144,6 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 !
 ! https://damoang.net/
 ##[id$="-ad"]
-
 
 
 
