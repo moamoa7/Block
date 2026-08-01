@@ -1,10 +1,14 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260731
+! Version: 20260801
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
+!
+!
+!
+||warning.or.kr^
 !
 !
 ! https://jjtv.kr/
@@ -16,6 +20,8 @@
 ! 옥션
 ! 빨간오이 (https://red52.kr/)
 ||ad-*
+! - 예외 - https://www.auction.co.kr/
+@@||ad-*$domain=auction.co.kr
 !
 !
 ! https://toon.at/
@@ -27,6 +33,10 @@
 !
 ! 퀘이사존
 ||ads.*
+!
+!
+! 홍보글 링크 주의
+||event.
 !
 !
 *-ad*:not(-ad-)
@@ -205,6 +215,11 @@
 *##.adbox
 !
 !
+! https://bada.us/ iframe 배너  (backstage.bada.us/vueController/getAmazonCustomAds?asin=)
+!##iframe[src*="ads" i]
+##[src*=ads i]
+!
+!
 !
 *videoad*
 !
@@ -328,6 +343,11 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !
 !
 !
+! - 쿠팡 광고
+##[href*="link.coupang.com"]
+!
+!
+!
 ! 숲 메인 이벤트 팝업 및 왼쪽 이벤트 링크
 ! 마이민트(https://www.mimint.co.kr/) - 당첨자 제외 /eventwin
 ##[href*="/event" i]:not([href*="/eventwin" i])
@@ -434,6 +454,14 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 ! - upnstreamlive.shop	(조개무비 영상 재생시 필요한 사이트)
 ! https://leakedzone.com/ - 모바일에서 iframe 보임 (그냥 ##iframd 하면 공간이 남아서 has 사용하면 PC에서 본문 다 날라감) - 베이스필터 대신 easylist를 사용할 경우 필요
 !/leakedzone|upnstreamlive|hanime|thisav/##iframe[src]:not([src*="embed" i])
+!
+!
+! https://crassiang.com/
+! - 기타
+!||cre.ma^
+!||datarize.io^
+! - - - https://map.naver.com/ 등
+##iframe[width="0"][height="0"]
 !
 !
 ! https://apkmody.com/
@@ -560,7 +588,7 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 
 !
 !
-! 짜딸파티 (https://jaddal38.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
+! 짜딸파티 (https://jaddal39.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
 ! 야동닷컴 (https://yadong9.com/) - 상단배너
 */admin_banner/*
 !
@@ -574,7 +602,7 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 @@*banner.js$domain=sooptore.sooplive.com
 !
 !
-! 자딸파티 (https://jaddal38.top/)
+! 자딸파티 (https://jaddal39.top/)
 ! https://tcafe21.com/
 *banner*.php
 !
@@ -811,6 +839,18 @@ hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html
 ##[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 ! - nid.naver.com - 멤버쉽 결제시 나오는 화면 안보임
 !nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
+!
+!
+!
+! - 일부 이미지도 지워질수 잇어 개별 처리
+! KBS광주방송 (https://www.ikbc.co.kr/)
+!##[alt*="배너"]
+! 헝그리앱 (https://hungryapp.co.kr/)
+##.banner:not(body):not(html):not(main)
+!
+!
+!
+##.banners:not(body):not(html):not(main)
 !
 !
 !
