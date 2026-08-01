@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-01 12:44:46 UTC
+! Generated: 2026-08-01 14:17:41 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 352,918
+! Block Rules: 352,942
 !
 ||0--0.info^
 ||0--4.com^
@@ -15414,6 +15414,7 @@
 ||abdadde321.com^
 ||abdadv.com^
 ||abdalhamed.com^
+||abdalhealing.cyou^
 ||abdalminhag.com^
 ||abdbox.com^
 ||abdct.com^
@@ -16181,6 +16182,7 @@
 ||acam-2.com^
 ||acanthglynbarger.cyou^
 ||acanthishoving.com^
+||acaogzgoplhnk.website^
 ||acaox.com^
 ||acararithetic.com^
 ||acaribleep.com^
@@ -31534,6 +31536,7 @@
 ||amishgoknopite.com^
 ||amisorx.com^
 ||amistr.net^
+||amitaratelsdivvied.cyou^
 ||amixiamediatesparage.cyou^
 ||amjbc.com^
 ||amjllwbrjljbj.top^
@@ -42192,6 +42195,7 @@
 ||aplu.io^
 ||aplus.alibaba.com^
 ||aplus.gmarket.co.kr^
+||aplytazqgfoup.online^
 ||apm-api.mihoyo.com^
 ||apm-collector.daumkakao.io^
 ||apm-fe.rnote.com^
@@ -57856,6 +57860,7 @@
 ||boodaisi.xyz^
 ||boodhseatersspecks.cyou^
 ||boodiecilice.rest^
+||boodkfcdgaaiy.website^
 ||boodle.ai^
 ||boodper.com^
 ||boodsprank.cfd^
@@ -61857,6 +61862,7 @@
 ||by1ppyymvny4cljjr4j6.rest^
 ||by2.uservoice.com^
 ||by2lc7429r.com^
+||by2oqlvofw3iuceu.rest^
 ||by3rw1xh7j6c.top^
 ||by666.com^
 ||by8428.com^
@@ -81726,6 +81732,7 @@
 ||cydontopply.shop^
 ||cydoor.com^
 ||cyeabs.luxyhair.com^
+||cyecmyrbfvvcy.website^
 ||cyegz.com^
 ||cyeitxjzgsmef.online^
 ||cyetechmedia.g2afse.com^
@@ -98662,6 +98669,7 @@
 ||dutabuz.com^
 ||dutalonflameer.com^
 ||dutatoto.com^
+||dutchedkaildil.cyou^
 ||dutchmadameraised.com^
 ||dutchnewstoday.com^
 ||dutchrelay.com^
@@ -101717,6 +101725,7 @@
 ||eergithi.com^
 ||eergortu.net^
 ||eeriepleased.com^
+||eeriestcallboy.qpon^
 ||eerkidsdjsdiwoeolsdoweksdo.site^
 ||eero-e0.ingest.us.sentry.io^
 ||eers0cy.com^
@@ -101734,6 +101743,7 @@
 ||eevfstl1n.com^
 ||eevhqgeudnqeg.space^
 ||eevifrenxkyui.website^
+||eevzcz43grf22c7eko.cfd^
 ||eew-karriere.de^
 ||eewdrt.fashiontofigure.com^
 ||eewhapseepoo.net^
@@ -105628,6 +105638,7 @@
 ||eplnbkzoxypz.com^
 ||eplproseason25.com^
 ||eplrhascktu.com^
+||eplukorxrmfvy.site^
 ||epm.mailperformance.com^
 ||epmads.com^
 ||epnfoq.cyberpowersystem.co.uk^
@@ -118627,6 +118638,7 @@
 ||ftgd3.com^
 ||ftgqp.mybeautyexchange.com^
 ||ftgsxcponsrcc.site^
+||ftgxpnpzdcuvi.website^
 ||ftheusysianeduk.org^
 ||fthqzxq.cn^
 ||fthsw.com^
@@ -121943,6 +121955,7 @@
 ||genesismedia.com^
 ||genesjarveys.shop^
 ||geneticallydetection.com^
+||geneticallypineredden.com^
 ||geneticnormalthou.com^
 ||geneticpocketsdouble.com^
 ||geneticrypto.com^
@@ -140123,6 +140136,7 @@
 ||hsqtcuxfrglgq.site^
 ||hsrasysmobara.space^
 ||hsrdkt.com^
+||hsrffnltjlzus.website^
 ||hsrgnac.cn^
 ||hsrkdkrxjtaeq.website^
 ||hsrvu.com^
@@ -140256,6 +140270,7 @@
 ||htnykujbhbmeu.site^
 ||htnyyejj.shop^
 ||htodiwqzyj.com^
+||htozqutwbhxkq.website^
 ||htpanel.com^
 ||htplayground.com^
 ||htqaumcmsqrtl.com^
@@ -141012,6 +141027,7 @@
 ||hvvmslekmyomk.site^
 ||hvwgbj.wikinger-reisen.de^
 ||hvwoeavjjemhq.site^
+||hvwsecjtqnbkv.online^
 ||hvxymx.tui.pl^
 ||hvzbn.humbler.com^
 ||hw-ad.de^
@@ -158999,6 +159015,7 @@
 ||knutenegros.pro^
 ||knv.konovo.rs^
 ||knvyzx.h201shift.com^
+||knwfgadwqvenk.com^
 ||knwjmjujhadoo.site^
 ||knwucnd.top^
 ||knx.mybluehost.me^
@@ -160945,6 +160962,7 @@
 ||kzwogbeq.astrocenter.co.il^
 ||kzwygwjshlbk.com^
 ||kzx.mybluehost.me^
+||kzxk7xixz.com^
 ||kzxwkvkvdyzus.online^
 ||kzymlc.msccroisieres.fr^
 ||kzzuaq.liberotech.it^
@@ -174849,6 +174867,7 @@
 ||loxantrums.cyou^
 ||loxavariumkapiloq-nl.live^
 ||loxavariumkapiloq.live^
+||loxicsprungdashpot.cyou^
 ||loxitdat.com^
 ||loxo2.top^
 ||loxodo-analytics.ext.nile.works^
@@ -197254,6 +197273,7 @@
 ||muenzenangebot24.com^
 ||muenzenexpertshop.com^
 ||mueoh.besynchro.com^
+||muepkdedxoeik.space^
 ||muermoabject.shop^
 ||muermomogo.cyou^
 ||muersi.com^
@@ -218244,6 +218264,7 @@
 ||parurcellu.cyou^
 ||parusdon.ru^
 ||parves.doctorshopbd.com^
+||parviscostate.qpon^
 ||parviz.ehost.tj^
 ||parvulephrenol.qpon^
 ||parynical.com^
@@ -232904,6 +232925,7 @@
 ||qhhse.themillionroses.com^
 ||qhhwsnuajqkwsaa.com^
 ||qhiacvgk.com^
+||qhiajzlpo.in^
 ||qhicumg.cn^
 ||qhidmuoczzky.com^
 ||qhigh.com^
@@ -348192,6 +348214,7 @@
 ||yr.lawmanbevor.com^
 ||yr.setousprivets.com^
 ||yr2spd4ucy.com^
+||yr7unl1qs.com^
 ||yraexzjnxasnz.site^
 ||yrahtcugcxusw.com^
 ||yralpspdvnqaqv.com^
@@ -350028,6 +350051,7 @@
 ||zdos.ru^
 ||zdpjg.tiffany.com^
 ||zdpjl.com^
+||zdpmdemowt.com^
 ||zdpnxx.cn^
 ||zdpsve.scrapbook.com^
 ||zdqdtgoydrlzw.site^
