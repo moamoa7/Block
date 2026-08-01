@@ -694,7 +694,7 @@ vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-b
 ! 마이민트 (https://www.mimint.co.kr/)
 ! FapHouse (https://ko.fhcontent.com/)
 ! 쿠팡 (https://www.coupang.com/)
-##[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i])
+##[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://vexfile.com/
@@ -703,10 +703,10 @@ vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-b
 ! 툰코 (https://tkor137.com/)
 ! https://거지맵.com/
 ! https://www.hankyung.com/ - 모바일에서 안보임
-hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i])
+hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-/tkor|funbe|wdwd/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i])
+/tkor|funbe|wdwd/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 !
 !
