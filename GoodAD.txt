@@ -1473,7 +1473,7 @@ ppomppu.co.kr##tr.baseNotice:has-text(AD)
 !slrclub.com##div[class^="ad"]
 !##.ad
 ! - 왼쪽 배너
-###ad1[style^="position:"]
+!###ad1[style^="position:"]
 ###ad1
 ! -예외 - 토렌트씨 (https://torrentsee347.com/) - 일부 이미지 지워짐
 /torrentsee/#@##ad1
@@ -3418,7 +3418,7 @@ fingerprint.
 !
 !
 ! 썸티비 (https://tzip.top/)  (https://sometv136.top/)
-! - 개별 목록 상단 빈 공간
+! - 상단 배너 빈 공간
 /sometv/##.mt-8
 !
 !
@@ -3876,7 +3876,7 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^ssg\d+\.torrentssg\d+\.com$/]##.post-img
 !/torrentssg/##.post-img
 ! - 오른쪽 작은 배너
-##[href*="link.php"]
+!##[href*="link.php"]
 !
 !
 ! 토렌트알지 ((https://tzip.top/) (https://torrentrj263.com/)
@@ -3897,7 +3897,7 @@ joatoon-oa.com##.bg-opacity-50
 ! 토렌트와이 (https://www.토와이.xyz/) (https://www.torrentwhy188.xyz/)
 !
 !
-! AVseeTV (https://09.avsee.ru/) - 배너가 없어졋음
+! AVseeTV (https://09.avsee.ru/)
 ! - 배너 이미지
 !||avsee.ru/imgs/$image
 ! - 메인 배너
@@ -7272,16 +7272,6 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 ! https://avgood.com/
 ! - 기타 (EasyPrivacy)
 /count.php?
-!
-!
-! 주소 365 (https://juso365.com/) - 링크가 제대로 된것이 없음
-! 상단배너
-! - - - https://tcafe21.com/ 일부 이미지 사라짐으로 아래 내용 추가
-!##[class*="item"]:has([class*="img-item"])
-! - - - 고릴라TV (https://visitorstv.com/) 배너
-! - - - - - 토렌트쓱 (https://ssg1.torrentssg9.com/) - 일부 이미지 사라짐으로 아래 규칙 재변경
-!##li[class*="item"]:has([class*="img-item"])
-##li[class="item"]:has(div[class^="img-item"] img)
 !
 !
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
