@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260801
+! Version: 20260802
 !
 !
 !
@@ -3257,6 +3257,7 @@ welfarehello.com##[class*="ad-" i]
 ! 더라비린스 (https://thelabyrinth.co.kr/)
 ! - 광고해제 안내 팝업
 thelabyrinth.co.kr##[class*="_overlay_" i]
+
 
 
 
@@ -7278,6 +7279,11 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 ! - - - https://sexkbj.com/
 ! - - - - - https://sexkbj.top/ad?type=6116579429
 /ad?type=
+!
+!
+! https://avgood.com/
+! - 기타 (EasyPrivacy)
+/count.php?
 !
 !
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
