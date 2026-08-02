@@ -1,7 +1,7 @@
-
+! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260801
+! Version: 20260802
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -459,9 +459,12 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 ##iframe[width="0"][height="0"]
 !
 !
-!
 ! https://bada.us/ iframe 배너  (backstage.bada.us/vueController/getAmazonCustomAds?asin=)
 ! - https://pornogking.com/ - ##[src*="ads" i]:not([src*="loads" i])로 하면 반영이 안되어야하는데도 (동적인지..) 이미지가 사라짐으로 iframe 로 한정지음
+!##.iframe_amazon
+!##iframe[src*="AmazonCustomAds"]
+!##iframe[src$="ads" i]
+!##iframe[src$="?asin=" i]
 ##iframe[src*="ads" i]
 !
 !
@@ -641,7 +644,8 @@ lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([
 ! https://pickscore119.com/
 ##div[style*="banner" i]:not(body):not(html):not(main)
 ! - 예외
-거지맵.com,deepseek.com#@#div[style*="banner" i]:not(body):not(html):not(main)
+! https://www.threads.com/ -  개별 게시물 열람시 뿌연거 해결
+threads.com,거지맵.com,deepseek.com#@#div[style*="banner" i]:not(body):not(html):not(main)
 !
 !
 !
@@ -1016,6 +1020,20 @@ ad.co.kr#@#[href*="/ad/" i]
 !
 !
 !
+! - 일단 해보고 아니다 싶으면 삭제 예정 - 개별 처리 요망
+! https://bada.us/ iframe 배너  (backstage.bada.us/vueController/getAmazonCustomAds?asin=)
+!##[src*="ads" i]:not([src*="loads" i])
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+!
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! - https://pornogking.com/ - ##[src*="ads" i]:not([src*="loads" i])로 하면 반영이 안되어야하는데도 (동적인지..) 이미지가 사라짐
+! - https://supjav.com/ 검색시에도 이미지 안보임 (경로에 ads가 아예 없는대도 그러네) - - 주석처리 해야함
+!pornogking.com#@#[src*="ads" i]:not([src*="loads" i])
+!
+!
+!
 !  개별 작업하는걸로
 ! 주간경향
 ! 스포츠경향
@@ -1145,7 +1163,6 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 !
 ! https://damoang.net/
 ##[id$="-ad"]
-
 
 
 
