@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260802
+! Version: 20260803
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -967,6 +967,11 @@ hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html
 !
 !
 !
+! 토렌트쓱 (https://ssg1.torrentssg9.com/)
+##[target*="blank"]:has([style*="background-image"])
+!
+!
+!
 ##[id*="pop_" i]:not(body):not(html):not(main)
 !
 !
@@ -1136,7 +1141,8 @@ adguard-dns.io,avdbs.com#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="
 ! - https://뉴토끼우회.com/
 ! - https://balbums.st/
 ! - https://bunkr.cr/
-/bunkr|balbums/,뉴토끼우회.com#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i])
+! - 토렌트씨 (https://torrentsee347.com/)
+/torrentsee|bunkr|balbums/,뉴토끼우회.com#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i])
 !
 !
 !
@@ -1163,6 +1169,7 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 !
 ! https://damoang.net/
 ##[id$="-ad"]
+
 
 
 
