@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260802
+! Version: 20260803
 !
 !
 !
@@ -1473,8 +1473,10 @@ ppomppu.co.kr##tr.baseNotice:has-text(AD)
 !slrclub.com##div[class^="ad"]
 !##.ad
 ! - 왼쪽 배너
-!###ad1[style^="position:"]
+###ad1[style^="position:"]
 ###ad1
+! -예외 - 토렌트씨 (https://torrentsee347.com/) - 일부 이미지 지워짐
+/torrentsee/#@##ad1
 ! - 게시글 상단 텍스트 광고 (PC) - 다른 사이트에서 지워지는 부분이 있어 사이트 주소 붙임
 slrclub.com##[class="notice" i]
 !slrclub.com##.notice
@@ -3415,6 +3417,11 @@ fingerprint.
 /tvroom/##.mq-notice
 !
 !
+! 썸티비 (https://tzip.top/)  (https://sometv136.top/)
+! - 개별 목록 상단 빈 공간
+/sometv/##.mt-8
+!
+!
 ! 누누티비 (https://www.nnuutv2.tv/)
 ! - 배너
 ![$domain=/^www.nnuutv\d+.tv/]###comp-lhh974mf2
@@ -3858,62 +3865,41 @@ joatoon-oa.com##.bg-opacity-50
 !##[class*="banner" i]:has([target]:not([class*="logo"]))
 !
 !
-! 토렌토씨(https://torrentsee342.com/)
+! 토렌토씨 (https://torrentsee347.com/)
 ! - 팝업 잔여물
 ![$domain=/^torrentsee\d+.com/]##.flex
-/torrentsee/##.flex
+!/torrentsee/##.flex
 !
 !
-! 토렌트봇 (https://torrentbot248.site/)
-! - 팝업 잔여물
-![$domain=/^torrentbot\d+.com/]##.flex2
-/torrentbot/##.flex2
-!
-!
-! 토렌트 큐큐 (https://torrentqq366.com)
-! - 상단 배너
-![$domain=/^torrentqq\d+.com/]##.header
-! - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/refs/heads/main/filter.txt
-![$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[alt*='광고'], [alt*='배너']
-![$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[class*='carousel'][id]
-![$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[href*='/ad'][target='_blank']:has(img)
-! - - - - - 토렌트 제이 (https://torrentj165.com/) 에서 하단 내용 안나와서 제외
-![$domain=/torrent[a-zA-Z0-9]*.[a-zA-Z]{2,}$/]##[target='_blank']:has([src$='.gif']):upward(1)
-!
-!
-! 토렌트G (https://ttg-36.com/)
-! - 상단 배너 공간
-!###topbanner_1 - ##[id*="topbanner" i]로 대체
-! - 제휴/동맹 안보이게
-![$domain=/^ttg-\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
-!
-!
-! 토렌트쓱 (https://ssg11.torrentssg8.com)
+! 토렌트쓱 (http://토렌트쓱.org/) (https://ssg1.torrentssg9.com/)
 ! - 배너
 ![$domain=/^ssg\d+\.torrentssg\d+\.com$/]##.post-img
-/torrentssg/##.post-img
+!/torrentssg/##.post-img
+! - 오른쪽 작은 배너
+##[href*="link.php"]
 !
 !
-! 토렌트 RJ (https://torrentrj199.com/)
+! 토렌트알지 ((https://tzip.top/) (https://torrentrj263.com/)
 ! - 배너 이미지
 !||rj.filesbest.xyz/r/up67*.png
 ! - AD 아이콘
 ![$domain=/^torrentrj\d+.com/]##.fa-ad.fas
 !
 !
-! 토렌트하하 (https://torrenthaha08.com/)
-! - 제휴/동맹
-![$domain=/^torrenthaha\d+.com/]##li.me-li.p-0.float-left:nth-of-type(10)
-!
-!
-! 토렌트파이 (https://go3.xn--sm2bu5zfuhb6a9l.com/) (https://t72.torrentpi150.com/) - 접속불가
-! - 왼쪽 메뉴 텍스트 배너
-!/torrentpi[0-9]+\.com/##.sero1
+! 토렌트다이아 (https://telegra.ph/torrentdia-url-06-13) (https://kx.torrentdia.org/)
+! 토렌트썸 (https://tzip.top/) (https://torrentsome256.com/)
+! 토렌트티티 (https://tzip.top/) (https://torrenttt242.top/)
+! 토렌트팁 (https://tzip.top/) (https://torrenttip237.top/)
+! 토렌트밤 (https://tzip.top/) (https://torrentbam241.top/)
+! 토렌트모바일 (https://tzip.top/) (https://torrentmobile263.top/)
+! 토렌트좋다 ((https://github.com/zotaandtop/guide) (https://torrentzota195.com/)
+! 토렌트탑 (https://github.com/zotaandtop/guide) (https://torrenttop215.com/)
+! 토렌트와이 (https://www.토와이.xyz/) (https://www.torrentwhy188.xyz/)
 !
 !
 ! AVseeTV (https://09.avsee.ru/) - 배너가 없어졋음
 ! - 배너 이미지
-||avsee.ru/imgs/$image
+!||avsee.ru/imgs/$image
 ! - 메인 배너
 !##[class="title"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
 !##[class="title"]:has(a[target*="blank"] img[src*=".gif"])
@@ -4042,8 +4028,8 @@ aving.tv##.gap-lg-5
 /log^$xhr,from=~backloggd.com|~meet.google.com|~sigstore.dev
 !
 !
-! https://sextb.lol/
-! - 일부 규칙 깨짐 방지
+! SEXTB (https://sextb.lol/)
+! - 타 규칙에 의한 깨짐 방지
 @@||cdncja.semuadisini.xyz^
 !
 !
@@ -6004,6 +5990,7 @@ of996.com##[class*="-fixed-" i]
 !||linklove*.com/data/apms/background/*$image
 ! - - - 인생도박 (https://dobaklife03.com/)
 ! - - - 주소야 (https://jusoya.com/)
+! - - - 토렌트쓱 (https://ssg1.torrentssg9.com/)
 /data/apms/background/*$image
 ! - 상단 배너 공간
 ![$domain=/^linklove\d+.com/]##.w-box
@@ -7066,6 +7053,7 @@ katfile.space##[style="position: fixed; bottom: 25px; right: 25px; z-index: 9999
 ! https://www.njav.com/ - 영상 재생 불가 (upload18.org)
 ! - 영상 재생 가능하게
 @@||upload18.org^$ehide
+!@@||www.njav.com^$script,3p
 ! - 영상 재생 가능하게 (DNS도 해제 필요)
 @@||renamereptiliantrance.com^
 @@||endlesshandbaglinked.com^
@@ -7286,7 +7274,18 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 /count.php?
 !
 !
+! 주소 365 (https://juso365.com/) - 링크가 제대로 된것이 없음
+! 상단배너
+! - - - https://tcafe21.com/ 일부 이미지 사라짐으로 아래 내용 추가
+!##[class*="item"]:has([class*="img-item"])
+! - - - 고릴라TV (https://visitorstv.com/) 배너
+! - - - - - 토렌트쓱 (https://ssg1.torrentssg9.com/) - 일부 이미지 사라짐으로 아래 규칙 재변경
+!##li[class*="item"]:has([class*="img-item"])
+##li[class="item"]:has(div[class^="img-item"] img)
+!
+!
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
+
 
 
 
