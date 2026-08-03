@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260803
+! Version: 20260804
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -66,6 +66,7 @@
 @@*_ad*$domain=github.com
 !
 !
+! https://alohafind.com/search/ - _ads?query=
 *_ads*:not(_ads_)
 !
 !
@@ -199,12 +200,12 @@
 *ads.js
 !
 !
-! 야동존 (https://xxzone26.top/)
+! 야동존 (https://xxzone27.top/)
 !_ads.php? - _ads.로 대체
 !
 !
 ! https://www.tiktok.com/
-! 야동존 (https://xxzone26.top/)
+! 야동존 (https://xxzone27.top/)
 *_ads.*
 !
 !
@@ -323,7 +324,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 /popups/*
 !
 !
-! 아동존 (https://xxzone26.top/) - /assets/popup_banner.php?
+! 아동존 (https://xxzone27.top/) - /assets/popup_banner.php?
 *popup*.php
 !
 !
@@ -560,7 +561,7 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 ! https://www.ubisoft.com/
 ! 오늘의 중계 (https://today-sports10.com/)
 ! https://diconofficial.com/
-! 야동존 (https://xxzone26.top/)
+! 야동존 (https://xxzone27.top/)
 ! 지니파일
 ! https://www.avdbs.com/
 ! 헬스조선
@@ -589,7 +590,6 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 */banners/*
 ! https://sooptore.sooplive.com/
 @@*/banners/*$domain=sooptore.sooplive.com
-
 !
 !
 ! 짜딸파티 (https://jaddal39.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
@@ -669,7 +669,7 @@ clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_ban
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! -  숲 (https://www.sooplive.com) - 개인 페이지 상단이 날라감
-sooplive.com#@#[class*="banner_" i]:not(body):not(html):not(main):not([class*="_banner_" i])
+!sooplive.com#@#[class*="banner_" i]:not(body):not(html):not(main):not([class*="_banner_" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
@@ -704,8 +704,8 @@ vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-b
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://vexfile.com/
 ! 주소월드 (https://wdwd12.com/)
-! 펀비 (https://funbe659.com/)
-! 툰코 (https://tkor137.com/)
+! 펀비 (https://funbe662.com/)
+! 툰코 (https://tkor140.com/)
 ! https://거지맵.com/
 ! https://www.hankyung.com/ - 모바일에서 안보임
 hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
@@ -762,6 +762,13 @@ hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html
 ! https://iloa.gg/
 ##[alt*="banner" i]
 !
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+!
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! https://getmodsapk.com/ - 일부 이미지 사라짐
+getmodsapk.com#@#[alt*="banner" i]
+!
 !
 ! t-browser.com - fullwidthbanner
 ! vexfile.com- hero-banner
@@ -816,8 +823,8 @@ hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html
 !trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소월드 (https://wdwd12.com/)
-! 펀비 (https://funbe659.com/)
-! 툰코 (https://tkor128.com/)
+! 펀비 (https://funbe662.com/)
+! 툰코 (https://tkor140.com/)
 ! 주소핑 (https://www.jusoping3.com/)
 !/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 !
@@ -826,7 +833,7 @@ hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html
 ! 픽팍
 ! 씨네스트
 ! 이토랜드
-! 야동존 (https://xxzone26.top/)
+! 야동존 (https://xxzone27.top/)
 ! https://jable.tv/
 ! https://www.lezhinsnack.com/
 !##[href*="banner" i]
@@ -860,6 +867,12 @@ hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html
 !
 !
 ##[target]:has([src*="/background/" i])
+!
+!
+!
+! - 개별적으로 필요시에만 적용
+! https://philgo.com/
+philgo.com##[alt*="배너"]
 !
 !
 */background/*
@@ -968,6 +981,7 @@ hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html
 !
 !
 ! 토렌트쓱 (https://ssg1.torrentssg9.com/)
+! 얼리어답터뉴스 (https://eanews.kr/)
 ##[target*="blank"]:has([style*="background-image"])
 !
 !
@@ -988,7 +1002,8 @@ hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html
 ! https://www.sooplive.com/ - 즐겨찾기 삭제시 팝업 안보임. 어쩔수없이 모든 곳에 팝업 허용
 ! https://www.lezhinsnack.com/
 ! https://www.joongang.co.kr/ - 기사검색 클릭시 반응 없음
-joongang.co.kr,lezhinsnack.com,sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
+!joongang.co.kr,lezhinsnack.com,sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
+joongang.co.kr,lezhinsnack.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://clothoff.net/
@@ -1061,7 +1076,8 @@ ad.co.kr#@#[href*="/ad/" i]
 ! https://www.dcinside.com/
 ! https://play.sooplive.com/
 ! https://adguard-vpn.com/
-adguard-vpn.com,play.sooplive.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
+!adguard-vpn.com,play.sooplive.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
+adguard-vpn.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://www.avdbs.com/
@@ -1116,6 +1132,7 @@ goodgag.net##[class$="ad" i]:not(body):not(html):not(main)
 !
 ! 링크사랑 (https://linklove18.com/) - 스폰서 배너
 ##[class$="-ad"]:not(body):not(html):not(main)
+!
 !
 !
 ! 개별 도메인별로 필요시 할 것
