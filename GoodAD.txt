@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260803
+! Version: 20260804
 !
 !
 !
@@ -180,6 +180,7 @@
 !##[id*="adsbygoogle" i] - ##[class*="adsby" i]로 대체
 !##[data-google-av-ad-container]
 ! 구글 광고 차단 (추가)
+! - - - https://alohafind.com/search/
 /adsense/*
 ! - 문단 태그 존재 여부(:not(:has(p)))만 체크해서 본문이 날아가는 걸 방지하는 절충안
 !##[class*="adsense" i]:not(:has(p))
@@ -482,6 +483,14 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 !tv.naver.com#@#[class*="popup_modal" i]
 !
 !
+! 실시간 방송 도메인 로딩 최적화
+@@||sooplive.com^$generichide
+@@||chzzk.naver.com^$generichide
+!@@||twitch.tv^$generichide - EasyList / AdGuard Base filter + EasyList 있어서 제외
+@@||kick.com^$generichide
+@@||pandalive.co.kr^$generichide
+!
+!
 ! 숲 (https://www.sooplive.com/)
 ! - 메인페이지 이벤트 팝업
 !!sooplive.com##[class*="img"]:has([src*="event"])
@@ -678,7 +687,7 @@ chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([clas
 chzzk.naver.com##[class^="live_chatting_guide" i]
 ! - 영상내 치지직 로딩 이미지 삭제
 !chzzk.naver.com##.pzp-pc__loading-indicator
-chzzk.naver.com##[class*="loading" i]
+!chzzk.naver.com##[class*="loading" i]
 ! - 채팅 하단 무료 치즈 뽑기 이벤트 팝업
 !chzzk.naver.com##[class*="_floating_"]
 ! - 로그인 팝업 안뜨는거 해결
@@ -910,7 +919,7 @@ arca.live##[class*="row"]:has-text(광고)
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe659.com/) - 이미지 목록 사라짐
+! 펀비 (https://funbe662.com/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -1146,7 +1155,7 @@ mlbpark.donga.com##.btn_top01
 !ruliweb.com##.adrr
 !ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe659.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe662.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 !ruliweb.com##[class*="ad_"][style] - ##[class*="ad_slot" i]로 변경
 ! - 루리웹 전체 배너 (게시판 내 AD글 포함)
@@ -1432,12 +1441,10 @@ lol.inven.co.kr#@#article > div[style].banner
 !##.ad-banner
 ! - 게시물 위 상단 공간
 !ppomppu.co.kr##.main.container > div>[style]
-! - 오른쪽 배너
+! - 오른쪽 배너 - 딱히 먼가 잇는 공간은 아님
 ppomppu.co.kr##.sidebar
 ! - 뽐쿠폰 배너
 ppomppu.co.kr##.ppomCou
-! - 모바일 하단 배너 공간 삭제
-!m.ppomppu.co.kr##div:nth-of-type(7)
 ! - 인기/HOT 게시글 삭제 (모바일)
 !ppomppu.co.kr##.hot-imgBoard
 m.ppomppu.co.kr##div:nth-of-type(7)
@@ -1451,8 +1458,9 @@ m.ppomppu.co.kr###ask_app_usage_popup
 !ppomppu.co.kr#@#[class^="ad" i]
 ! - 본문 내용 하단 공백 (모바일)
 !##.js-ad_slot
+m.ppomppu.co.kr##[class*="ad_" i]
 ! - 사이트 최하단 공백 (모바일) - 인기/HOT 게시글을 없애면 안보이긴함
-m.ppomppu.co.kr###m_view_bottom_f_1
+!m.ppomppu.co.kr###m_view_bottom_f_1
 ! - 포럼내 AD 공지글 삭제
 ! - -  일부 광고글 삭제
 !ppomppu.co.kr##tr[id*="_list_ad_"]
@@ -3137,12 +3145,14 @@ tiendeo.co.kr##[class*="justify"]:has([data-testid*="ad_"])
 !
 !
 ! 로아와 (https://loawa.com/)
-! - 배너
-##[alt*="후원"]
+! - 배너 - 개별 도메인 처리로 변경 (웹툰 제목에서 문제 발생)
+loawa.com##[alt*="후원"]
 ! - 예외 - 숲 - 별풍선 후원 이미지 복원
 ! - 예외 - 야동갤러리 - 게시물 제목 이미지
-play.sooplive.com#@#[alt*="후원"]
-/yagall/#@#[alt*="후원"]
+! - 예외 - 툰코 (https://tkor140.com/) - 일부 게시물 제목에 의해 사라짐
+! - 예외 - 펀비 (https://funbe662.com/) - 일부 게시물 제목에 의해 사라짐
+!play.sooplive.com#@#[alt*="후원"]
+!funbe|tkor|yagall/#@#[alt*="후원"]
 ! - 배너 빈 공간
 loawa.com##.mb-4
 !
@@ -3169,7 +3179,7 @@ villain.city##[target] img[class*="object-cover"]
 ##[class="event" i]
 !##[alt*="이벤트"]
 ! - 예외 - 팬더티비 - 영상 이미지 복원
-pandalive.co.kr#@#[alt*="이벤트"]
+!pandalive.co.kr#@#[alt*="이벤트"]
 !##[href*="/event" i]
 villain.city##[class*="hot-deal"]
 villain.city##[style*="background-image:url"]
@@ -3188,7 +3198,7 @@ m.pann.nate.com##.shopBox
 !
 ! 사커라인 (https://soccerline.kr/)
 ! - 게시물 내 빈공간
-soccerline.kr##[class*="Bann"]
+soccerline.kr##[class*="bann" i]
 !
 !
 ! 일로아 (https://iloa.gg/)
@@ -3259,6 +3269,23 @@ welfarehello.com##[class*="ad-" i]
 ! 더라비린스 (https://thelabyrinth.co.kr/)
 ! - 광고해제 안내 팝업
 thelabyrinth.co.kr##[class*="_overlay_" i]
+!
+!
+! 메가박스 (https://megabox.co.kr/)
+@@||megabox.co.kr^$generichide
+!
+!
+! 얼리어답터뉴스 (https://eanews.kr/)
+! - 연합 회원사 / 협력사 리스트
+eanews.kr##[class*="box" i]:has([class*="banner" i])
+!
+!
+! 이코노미스트 (https://economist.co.kr/)
+! 메인 오른쪽 배너 빈 공간
+economist.co.kr##div.txt_park.on:has([class="banner" i])
+! 개벌 기사 모든 빈 공간
+economist.co.kr##[class*="_ad" i]
+
 
 
 
@@ -3405,7 +3432,7 @@ fingerprint.
 ! 후후티비 (https://hoohootv1.org/) - 티비위키 그대로 가져오는듯 / p2p차단하면 영상재생 안됨
 !
 !
-! 티비룸  (https://티비룸.com/) (https://tvroom.one/) (https://tvroom24.org/)
+! 티비룸  (https://티비룸.com/) (https://tvroom.one/) (https://tvroom25.org/)
 ! - 팝업
 ![$domain=/^tvroom\d+.org/]##.popup
 ! - 화면 뿌옇게 변한거 해결
@@ -3586,8 +3613,8 @@ anilife.app##.duration-300
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://t.me/s/toonkor_com) (https://tkor137.com/) - 텔레그램 주소 사라짐
-! 펀비 (https://t.me/s/funbe_next) (https://funbe659.com/)
+! 툰코 (https://t.me/s/toonkor_com) (https://tkor140.com/)
+! 펀비 (https://t.me/s/funbe_next) (https://funbe662.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -5207,7 +5234,7 @@ javmov.com##.spot
 ||mediadelivery.net/rum.js
 !
 !
-! 야동존 (https://t.me/s/ydzone19)  (https://ydzone.cc/)  (https://xxzone26.top/) - x.videist.com is blocked 영상 재생 안됨
+! 야동존 (https://t.me/s/ydzone19)  (https://ydzone.cc/)  (https://xxzone27.top/) - x.videist.com is blocked 영상 재생 안됨
 ! - 영상 광고 차단
 */data/file/admin_banner/*.mp4
 ! - 팝업 일부
@@ -5599,7 +5626,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ![$domain=/^hjtime\d+.com/]##.at-banner
 !
 !
-! 싸나이 (https://sanai13.com/)
+! 싸나이 (https://싸나이.net/) (https://sanai18.com/)
 ! - 제휴사이트 글자
 ![$domain=/^sanai\d+.com/]##li:nth-of-type(9)
 !
@@ -5848,9 +5875,9 @@ jusogall.com#@#[class*="rainbow-text" i]
 !
 ! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl14.com/)
 ! - 전체 배너
-! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl3.com/)
+! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl7.com/)
 ! - - - 야동닷컴 (https://ydong.net/ (https://yadong9.com/)
-! - - -  싸나이 (https://xn--910bl26apid.net/) (https://sanai17.com/)
+! - - -  싸나이 (https://싸나이.net/) (https://sanai18.com/)
 ! - - - 언리샷 (https://unlishot.top/) (https://unlishot56cc/) - 영상 안나오는듯
 !||darkg*.com/data/file/admin_banner/*
 !||ydong*.com/data/file/admin_banner/*
@@ -6191,7 +6218,7 @@ jusojula.com##.slide-container
 !
 ! 주소꼬마 (https://www.jusokm.com/)
 ! - 배너 이미지
-||www.jusokm.com/data/file/*$image
+!||www.jusokm.com/data/file/*$image
 !
 !
 ! 먹튀슈퍼맨 (https://mt-superman.net/)
@@ -6246,13 +6273,13 @@ zeta-ai.io##.pointer-events-none
 ! 링크천국 (https://hotword.site/)
 !  - 오류 수정
 hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
-! - 배너 공간
-hotword.site##div.col-md-6:nth-of-type(5)
-hotword.site##div.col-md-6:nth-of-type(6)
-hotword.site##div.widget-box:nth-of-type(1)
-!- 게시물내 배너공간
-hotword.site##div.col-md-6:nth-of-type(1)
-hotword.site##div.col-md-6:nth-of-type(2)
+! - 빈 공간
+! - - - FM코리아 (https://www.fmkorea.com/) - 게시물내 하단 포텐/방출 아래 빈공간
+! - - - 링크천국 (https://hotword.site/) 빈 공간
+! - - - 뽐뿌 (https://www.ppomppu.co.kr/ ) - 게시물 내 최상단 및 최하단 - 공간이 사라지지는 않음
+! - - - https://gall.dcinside.com/ - 메안 왼쪽/하단 공간 및  게시물내 빈 공간
+! - - - 더쿠 (https://theqoo.net/) - 매안 상단 및 하단 공간
+##[style]:has([class*="adsbygoogle"])
 !
 !
 ! 주소콘 (https://t.me/s/jusoconcom) (https://www.jusocon.com/) (https://jusocon101.com/)
@@ -6367,16 +6394,26 @@ theporndude.com##.shop-link
 !||ipinfo.be^
 !
 !
-! https://liteapks.com/
+! LITEAPKS (https://liteapks.com/)
 ! - 게시물 열람 후 중간 빈 공간
-liteapks.com###ad-unit-1
+!liteapks.com###ad-unit-1
 ! - 타 규칙으로 인한 다운로드 버튼 사라짐 방지
 liteapks.com#@#.app-cta:not(html, body, :empty)
 !
 !
-! https://getmodsapk.com/
+! GETMODSAPK.COM (https://getmodsapk.com/)
 ! - 게시물 열람 후 중간 빈 공간
-getmodsapk.com##.m-2.items-center
+!getmodsapk.com##.m-2.items-center
+!
+!
+! APKMODY (https://apkmody.com/)
+! - 메인 Trending 🔥 빈 공간
+apkmody.com##.invisible-horizontal-scroll.flex-container-3
+!
+!
+! GameDVA (https://gamedva.com/)
+! - 본문 안보이는거 해결
+@@||gamedva.com^$generichide,xhr
 !
 !
 ! https://modded-1.com/
@@ -6860,12 +6897,15 @@ patreon.com##body:style(overflow: auto !important;)
 !
 !
 ! https://ko.javfc2.live/
+! https://myavlive.com/
+! https://ko.chattb.net/
 ! - 기타
 !@@||strpst.com^
 !||doppiocdn.com^
 !@@||doppiocdn.org^
 !||sc-apps.com^
 !/mobile.js$3p
+! - EasyPrivacy
 /fingerprint2.min.js
 /api/front/v2/observability$ping
 !
@@ -7045,6 +7085,8 @@ katfile.space##[style="position: fixed; bottom: 25px; right: 25px; z-index: 9999
 !javfilms.com##[class*="col"]:has([rel*="sponsor" i])
 ! - - - 이 규칙으로 하면 개별 영상이 안보이므로 아래로 재변경
 !##[class*="col"]:has([rel*="sponsor" i])
+! - - - https://missav.ws/ - 차단되는건 없는대 차단로그에 나옴
+! - - - https://missav01.com/ - 차단되는건 없는대 차단로그에 나옴
 ##[class*="xs"]:has([rel*="sponsor" i])
 ! - 기타
 !||simpleanalyticscdn.com^
