@@ -2088,8 +2088,9 @@ sports.donga.com##.view_center
 ! 뉴스엔미디어 (https://www.newsen.com/)
 ! - 배너 - href="https://www.betman.co.kr/"
 ##img[src*="betman"]
-! - 빈공간 (PC/모바일)
-newsen.com##[style]:has(script[src*="adsbygoogle"])
+! - 빈공간 (PC/모바일) - 광역규칙으로 하면 본문이 안보이는 도메인들이 많아서 개별 도메인으로 처리
+! - - - 링크천국 (https://hotword.site/) 빈공간
+hotword.site,newsen.com##[style]:has([class*="adsbygoogle"])
 !
 !
 !
@@ -6312,8 +6313,6 @@ zeta-ai.io##.pointer-events-none
 ! 링크천국 (https://hotword.site/)
 !  - 오류 수정
 hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
-! - 빈공간
-hotword.site##[style]:has([class*="adsbygoogle"])
 !
 !
 ! 주소콘 (https://t.me/s/jusoconcom) (https://www.jusocon.com/) (https://jusocon101.com/)
@@ -7351,6 +7350,7 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 !
 !
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
+
 
 
 
