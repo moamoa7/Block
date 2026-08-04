@@ -2089,7 +2089,7 @@ sports.donga.com##.view_center
 ! - 배너 - href="https://www.betman.co.kr/"
 ##img[src*="betman"]
 ! - 빈공간 (PC/모바일)
-##[style]:has(script[src*="adsbygoogle"])
+newsen.com##[style]:has(script[src*="adsbygoogle"])
 !
 !
 !
