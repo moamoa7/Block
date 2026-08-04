@@ -2096,9 +2096,9 @@ www.spojoy.com###TopAdv250
 sports.donga.com##[class*="subcont_ad"]
 sports.donga.com##.view_center
 !##[class*="ad_aside" i] - ##[class^="ad" i]로 통합
-! - 하단 따라다니는 광고 배너 (모바일)
+! - 하단 따라다니는 광고 배너 (모바일)  -  광역 규칙으로 하면 https://link.inpock.co.kr/ 등 제품광고가 보이지 않음으로 도메인별로 할 것
 !sports.donga.com###rtbx-bottom-anchor
-##[style]:has(img[src*="coupangcdn.com/thumbnails/"])
+sports.donga.com##[style]:has(img[src*="coupangcdn.com/thumbnails/"])
 !
 !
 ! 뉴스엔미디어 (https://www.newsen.com/)
