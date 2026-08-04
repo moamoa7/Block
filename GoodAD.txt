@@ -1027,6 +1027,8 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 !
 !
 ! 인벤 (https://www.inven.co.kr/)
+! - 로딩 속도 향상
+@@||inven.co.kr^$generichide
 ! - 상단 검색어 내 텍스트
 ! - - - 상단 검색어 외 다른 부분도 지워져서 주석처리
 !inven.co.kr##.text
