@@ -782,14 +782,20 @@ issuelink.co.kr##.text-center
 !
 !
 ! 디시인사이드 (https://gall.dcinside.com)
+! - 로딩 속도 향상
+@@||dcinside.com^$generichide
 ! - 게시물내 배너 이미지
 !##[src*="/ad/" i]
 ! - 예외
 !ad.co.kr,auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
+! - 갤러리 하단 빈공간
+dcinside.com##.ad_bottom_list
+! - 갤러리 게시물 하단 빈 공간
+dcinside.com##[class="adsbygoogle"]
 ! - 오른쪽 배너 공간
 ! - - - 유니콘Pro에 없는거 (List-KR)
 !##[class*="rightbanner" i]
-dcinside.com##.stickyunit
+!dcinside.com##.stickyunit
 ! - 게시물 하단 배너
 !||dctrend.ai/widget/widget.html
 !gall.dcinside.com##.dctrend_ranking
@@ -7380,6 +7386,7 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 !
 !
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
+
 
 
 
