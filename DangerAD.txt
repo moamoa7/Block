@@ -618,6 +618,13 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 !
 ##[data-testid*="banner" i]:not(body):not(html):not(main)
 !
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://bsky.app/
+bsky.app#@#[data-testid*="banner" i]:not(body):not(html):not(main)
+!
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+!
 !
 ! https://ko.fhcontent.com/
 ##[data-el*="banner" i]:not(body):not(html):not(main)
@@ -1189,6 +1196,7 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 !
 !
 !
+
 
 
 
