@@ -3351,7 +3351,7 @@ economist.co.kr##div.txt_park.on:has([class="banner" i])
 economist.co.kr##[class*="_ad" i]
 !
 !
-! https://manpower.co.kr/
+! 맨파워코리아 (https://manpower.co.kr/)
 @@||manpower.co.kr^$generichide
 
 
@@ -7380,7 +7380,6 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 !
 !
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
-
 
 
 
