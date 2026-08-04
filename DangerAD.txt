@@ -466,7 +466,8 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 !##iframe[src*="AmazonCustomAds"]
 !##iframe[src$="ads" i]
 !##iframe[src$="?asin=" i]
-##iframe[src*="ads" i]
+! - - - https://01.avovo.net/ 등 예외 적용
+##iframe[src*="ads" i]:not([src*="loads" i])
 !
 !
 ! https://apkmody.com/
