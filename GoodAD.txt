@@ -1952,6 +1952,8 @@ ohmynews.com##body > div
 !###randomBanner
 ! - 오른쪽 작은 배너
 !fnnews.com##.bnr_main_wrap
+! - 기사내 빈 공간 (PC/모바일)
+fnnews.com/##.content-area-html
 !
 !
 ! MTN 머니투데이 (https://www.mtn.co.kr/)
@@ -1999,7 +2001,6 @@ edaily.co.kr##.special_area
 ! - 상단 배너
 !##[class*="top_event" i]
 ##.top_event
-
 !
 !
 ! 한국경제TV (https://www.wowtv.co.kr/)
@@ -2046,10 +2047,15 @@ news.jtbc.co.kr##.my-71ad6y
 !jtbc.co.kr##.set_contents_video_ad
 !
 !
-! https://www.topstarnews.net/
+! 톱스타뉴스 (https://www.topstarnews.net/)
 ! - 배너
 !##[class*="ad-view" i]
-##.ad-view
+!##.ad-view
+! - 오른쪽 투표 관련
+topstarnews.net##.poll-content-wrap
+topstarnews.net##[class*="poll"]:has-text(투표)
+! - 기사 하단 후원 관련
+topstarnews.net##div.clearfix:has(> script)
 ! - 차단 사이트
 !||aedi.ai^$3p
 !||piclick.kr^
@@ -2074,11 +2080,85 @@ www.spojoy.com###TopAdv250
 sports.donga.com##[class*="subcont_ad"]
 sports.donga.com##.view_center
 !##[class*="ad_aside" i] - ##[class^="ad" i]로 통합
+! - 하단 따라다니는 광고 배너 (모바일)
+!sports.donga.com###rtbx-bottom-anchor
+##[style]:has(img[src*="coupangcdn.com/thumbnails/"])
+!
+!
+! 뉴스엔미디어 (https://www.newsen.com/)
+! - 배너 - href="https://www.betman.co.kr/"
+##img[src*="betman"]
+! - 빈공간 (PC/모바일)
+##[style]:has(script[src*="adsbygoogle"])
+!
+!
+!
+! 머니투데이 (https://www.mt.co.kr/)
+! - 기타
+!||mtgroup.kr^
+!
+!
+! 논현일보 (https://tenbizt.com/)
+! - 본문 css 문제 해결 (List-LR)
+tenbizt.com#@#body:style(overflow: initial !important; position: initial !important; top: initial !important;)
+!
+!
+! 산업일보 (https://kidd.co.kr/)
+! - 기사내 오른쪽 배너
+!kidd.co.kr##slidebanner
+! - 기사내 오른쪽 추천제품
+kidd.co.kr##.product-recommendations
+! - 기사내 따라다니는 홍보문구
+kidd.co.kr##.product--register
+! - 기타
+!||ads.daara.co.kr^
+!||counter.daara.kr^
+!
+!
+! 스포츠조선 (https://www.sportschosun.com/)
+! - 배너 (영문버젼)
+! - ##[aria-label*="advert" i]:not(body):not(html):not(main) 이 규칙이 상위라 주석 처리
+!##[data-ad-sizes]
+!
+!
+! MK스포츠 (https://www.mksports.co.kr)
+! - 메인 오른쪽 빈공간
+!mksports.co.kr##[class*="wrap"]:has([class*="adsbygoogle"])
+!
+!
+! - TV리포터 (https://tvreport.co.kr)
+! - 모바일에서 상단부분 공백처럼 공간이 많은거 제거 (padding 110을 0으로)
+tvreport.co.kr##.main-body:style(padding-top: 0 !important)
+!
+!
+! 엑스포츠뉴스 (https://www.xportsnews.com/)
+! - 기사내 오른쪽 배너공간
+xportsnews.com##[id*="_ad_"]
+!
+!
+! 아시아투데이 (https://www.asiatoday.co.kr/)
+! 빈공간 (모바일)|
+m.asiatoday.co.kr##[class$="_ad"]
+!
+!
+! 스타 패션 (https://www.kstarfashion.com/)
+! - 기사내 상단 빈 공간 (모바일)
+kstarfashion.com##[style="width:320px;height:100px;"]
+!
+!
+! 중도일보 (https://www.joongdo.co.kr/)
+! - 빈 공간 (모바일)
+##div:has(> script[src*="/ad."])
 !
 !
 ! 아이즈 IZE (https://www.ize.co.kr/)
 ! - 하단 카카오페이포인트 쌓아보세요 메시지 창 (모바일)
 !##.box_floating
+!
+!
+! 비즈엔터 (https://enter.etoday.co.kr/)
+! 빈공간 (모바일)
+enter.etoday.co.kr##[style*="height:200px"]
 !
 !
 ! 쿠팡 (https://www.coupang.com/)
@@ -2898,11 +2978,6 @@ linkareer.com##[class*="PopularActivity" i]
 !##[id*="scrollbox" i]
 !
 !
-! 머니투데이 (https://www.mt.co.kr/)
-! - 기타
-!||mtgroup.kr^
-!
-!
 ! 환산주스탯 (https://maplescouter.com/)
 ! - 팝업
 !###popup
@@ -2949,11 +3024,6 @@ hmstory.net##script:contains(detect-message-shown):remove()
 /analytics.js^$script,domain=~encar.com
 !
 !
-! 논현일보 (https://tenbizt.com/)
-! - 본문 css 문제 해결 (List-LR)
-tenbizt.com#@#body:style(overflow: initial !important; position: initial !important; top: initial !important;)
-!
-!
 ! https://www.pixiv.net/
 ! -  빈 공간 (user공간)
 pixiv.net##[class*="sc-"][class*="-ca"]
@@ -2988,18 +3058,6 @@ alba.co.kr##[id*="layerpromotion" i]
 ! https://www.kaspersky.ru/
 ! - 기타
 !||kameleoon.io^
-!
-!
-! 산업일보 (https://kidd.co.kr/)
-! - 기사내 오른쪽 배너
-!kidd.co.kr##slidebanner
-! - 기사내 오른쪽 추천제품
-kidd.co.kr##.product-recommendations
-! - 기사내 따라다니는 홍보문구
-kidd.co.kr##.product--register
-! - 기타
-!||ads.daara.co.kr^
-!||counter.daara.kr^
 !
 !
 ! https://adblockultimate.net/
@@ -3059,27 +3117,6 @@ ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
 !
 ! https://ktmmobile.com/
 @@||ktmmobile.com^$generichide,image
-!
-!
-! 스포츠조선 (https://www.sportschosun.com/)
-! - 배너 (영문버젼)
-! - ##[aria-label*="advert" i]:not(body):not(html):not(main) 이 규칙이 상위라 주석 처리
-!##[data-ad-sizes]
-!
-!
-! MK스포츠 (https://www.mksports.co.kr)
-! - 메인 오른쪽 빈공간
-mksports.co.kr##[class*="wrap"]:has([class*="adsbygoogle"])
-!
-!
-! - TV리포터 (https://tvreport.co.kr)
-! - 모바일에서 상단부분 공백처럼 공간이 많은거 제거 (padding 110을 0으로)
-tvreport.co.kr##.main-body:style(padding-top: 0 !important)
-!
-!
-! 엑스포츠뉴스 (https://www.xportsnews.com/)
-! - 기사내 오른쪽 배너공간
-xportsnews.com##[id*="_ad_"]
 !
 !
 ! https://outstanding.kr
@@ -3285,6 +3322,8 @@ eanews.kr##[class*="box" i]:has([class*="banner" i])
 economist.co.kr##div.txt_park.on:has([class="banner" i])
 ! 개벌 기사 모든 빈 공간
 economist.co.kr##[class*="_ad" i]
+
+
 
 
 
@@ -6273,13 +6312,8 @@ zeta-ai.io##.pointer-events-none
 ! 링크천국 (https://hotword.site/)
 !  - 오류 수정
 hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
-! - 빈 공간
-! - - - FM코리아 (https://www.fmkorea.com/) - 게시물내 하단 포텐/방출 아래 빈공간
-! - - - 링크천국 (https://hotword.site/) 빈 공간
-! - - - 뽐뿌 (https://www.ppomppu.co.kr/ ) - 게시물 내 최상단 및 최하단 - 공간이 사라지지는 않음
-! - - - https://gall.dcinside.com/ - 메안 왼쪽/하단 공간 및  게시물내 빈 공간
-! - - - 더쿠 (https://theqoo.net/) - 매안 상단 및 하단 공간
-##[style]:has([class*="adsbygoogle"])
+! - 빈공간
+hotword.site##[style]:has([class*="adsbygoogle"])
 !
 !
 ! 주소콘 (https://t.me/s/jusoconcom) (https://www.jusocon.com/) (https://jusocon101.com/)
