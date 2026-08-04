@@ -3349,6 +3349,10 @@ eanews.kr##[class*="box" i]:has([class*="banner" i])
 economist.co.kr##div.txt_park.on:has([class="banner" i])
 ! 개벌 기사 모든 빈 공간
 economist.co.kr##[class*="_ad" i]
+!
+!
+! https://manpower.co.kr/
+@@||manpower.co.kr^$generichide
 
 
 
