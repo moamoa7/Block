@@ -1186,6 +1186,10 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 !
 ! https://damoang.net/
 ##[id$="-ad"]
+!
+!
+!
+
 
 
 
