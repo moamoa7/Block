@@ -1990,6 +1990,14 @@ edaily.co.kr##.special_area
 !edaily.co.kr##.article_newsetc
 !edaily.co.kr##.list_gg
 !edaily.co.kr##.boxshow_footer_dable
+! - 빈 공간 (모바일)
+m.edaily.co.kr##div:has(> .slot01)
+m.edaily.co.kr##[class="closeDiv"]
+!
+!
+! 헤럴드경제 (https://mbiz.heraldcorp.com/)
+! - 하단 이벤트 박스 (닫기 버튼 안사라지는거 해결)
+mbiz.heraldcorp.com##[class*="event_" i]
 !
 !
 ! 서울경제 (https://www.sedaily.com/)
@@ -2149,7 +2157,23 @@ kstarfashion.com##[style="width:320px;height:100px;"]
 !
 ! 중도일보 (https://www.joongdo.co.kr/)
 ! - 빈 공간 (모바일)
+! - - - https://www.edaily.co.kr/
 ##div:has(> script[src*="/ad."])
+!
+!
+! 데일리메디 (https://www.dailymedi.com/)
+! - 기사내 상단 채용 공고 (PC / 모바일)
+dailymedi.com##[class*="cruit" i]:has-text(채용)
+! - 기사내 하단 빈 공간 (PC / 모바일) - 특히 모바일
+dailymedi.com##.pagination
+!
+!
+! 텐아시아 (https://www.tenasia.co.kr/)
+! - 빈공간 - 광역으로 하면 일부 사이트에서 본문 안보임
+tenasia.co.kr##[style]:has(iframe[src*="iframe"])
+! - 빈공간 (모바일)
+tenasia.co.kr##[style="height:500px"]
+tenasia.co.kr##[class="article-comment"]
 !
 !
 ! 아이즈 IZE (https://www.ize.co.kr/)
