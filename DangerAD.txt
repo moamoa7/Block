@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260805
+! Version: 20260806
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -238,7 +238,9 @@
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소닷컴 (https://juso.one/)
-juso.one#@#[rel*="sponsor"]
+! https://javfilms.com/ - 영상플레이가 같이 사라짐
+! https://majorlink2.com/ - 이미지 복원
+/majorlink/,javfilms.com,juso.one#@#[rel*="sponsor"]
 !
 !
 !
@@ -352,7 +354,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! https://trand.co.kr/ - 아이콘 사라짐
 ! 만개의 레시피 (https://www.10000recipe.com/)
 ! https://www.joongang.co.kr/ - 이미지와 그 하단 텍스트까지 지워야해서(공간까지 없애야함) 변경처리
-joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eventwin" i])
+! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
+hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eventwin" i])
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -376,7 +379,7 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 ! - 야동닷컴 https://yadong9.com/ - /player.html
 ! - 숲 - /embed?
 ! - 티비룸 (https://tvroom.me/) / 무비킹 (https://mvking.mov/) - player-v2.bcbc.red/player/
-! - 콕콕티비 (https://cokcok10.com/) / 티비위키 (https://tvwiki301.com/) - cokcok.stream  //  p2p막으면 플레이 안되게 되어잇음
+! - 콕콕티비 (https://cokcok15.com/) - cokcok.stream  //  p2p막으면 플레이 안되게 되어잇음
 ! - 고구마티비 (https://gogumatv80.com/) /티비조타 (https://tvzota170.com/) - ply.catopolice.com/dplayer
 ! - 뷰티비 (https://vitv81.com/) / 냥티비 (https://nortv82.com/) - xiaoca.top/one/onet.php?url=
 ! - 티비착 (https://tvchak208.com/) - /chak/chaktt.php?url=
@@ -438,6 +441,11 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 !##iframe[src]
 !
 !
+! 뉴시스 (https://www.newsis.com/) - 기사내 빈공간
+! 헝그리앱
+##li:has(> iframe)
+!
+!
 ! - 개별 사이트마다 하는걸로
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 !
@@ -473,6 +481,7 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 ! https://apkmody.com/
 ! 탑걸 (https://kr44.topgirl.co/)
 ! https://javhub.net/
+! https://xingbokep.tv/
 ##[target] video
 ! - 예외 - https://search.naver.com/ - 클립 영상 사라짐
 !naver.com#@#[target] video
@@ -609,7 +618,12 @@ joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eve
 !
 ! 자딸파티 (https://jaddal39.top/)
 ! https://tcafe21.com/
+! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
 *banner*.php
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
 !
 !
@@ -662,11 +676,11 @@ threads.com,거지맵.com,deepseek.com#@#div[style*="banner" i]:not(body):not(ht
 !
 !
 !  치지직 (https://chzzk.naver.com/)
-##[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i])
+##[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.clien.net/ - 클리앙 검색 부분 / 댓글
-clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i])
+clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
@@ -863,7 +877,8 @@ getmodsapk.com#@#[alt*="banner" i]
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.korea.com/ - 본문 안보임
-www.korea.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
+! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/) - 검색 폼에 입력 안됨 해결
+hungryapp.co.kr,hungapp.com,www.korea.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
@@ -872,7 +887,7 @@ www.korea.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo
 ! - 일부 이미지도 지워질수 잇어 개별 처리
 ! KBS광주방송 (https://www.ikbc.co.kr/)
 !##[alt*="배너"]
-! 헝그리앱 (https://hungryapp.co.kr/)
+! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
 ##.banner:not(body):not(html):not(main)
 !
 !
@@ -995,9 +1010,34 @@ philgo.com##[alt*="배너"]
 !
 !
 !
+! 콕콕티비 (https://cokcok15.com/)
+! 티비위키 / 티비몬
+! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
+! 메이저리그 (https://majorlink2.com/)
+! 이토랜드 - 왼쪽 메뉴에서 파일토리 / 러브포유 / 조이엔조이 / 하드래빗 / 쏘당몰 / 오나미몰 / 바나나몰 링크 삭제
+##li:has([target*="blank"] img)
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://trand.co.kr/
+trand.co.kr#@#li:has([target*="blank"] img)
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+!
+!
+!
 ! 토렌트쓱 (https://ssg1.torrentssg9.com/)
 ! 얼리어답터뉴스 (https://eanews.kr/)
 ##[target*="blank"]:has([style*="background-image"])
+!
+!
+! https://porntasia.app/
+##[target*="blank"][style*="background-image"]
+!
+!
+!
+! 야동투어 (https://ydtour57.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
+##img[src*="/ads/"]
+##[onclick*="window.open"] img
 !
 !
 !
@@ -1021,9 +1061,10 @@ philgo.com##[alt*="배너"]
 joongang.co.kr,lezhinsnack.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! - https://clothoff.net/
-! - https://javgiga.com/
-clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i])
+! https://clothoff.net/
+! https://javgiga.com/
+! https://javfilms.com/
+javfilms.com,clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
 !
 !
 ##[id*="popup" i]:not(body):not(html):not(main)
