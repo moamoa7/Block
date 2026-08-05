@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260805
+! Version: 20260806
 !
 !
 !
@@ -50,9 +50,9 @@
 !
 !
 !@@|or.kr^$generichide,image,css,font,script,xhr,frame,other
-@@||or.kr^$generichide,css,image,script,xhr
+@@||or.kr^$generichide,image,xhr,script
 !@@|go.kr^$generichide,image,css,font,script,xhr,frame,other
-@@||go.kr^$generichide,css,image,script,xhr
+@@||go.kr^$generichide,image,xhr,script
 
 
 ! - 타규칙 오탐방지
@@ -425,7 +425,7 @@ search.shopping.naver.com##[class*="product" i]:has([class*="Ad_label"])
 !
 !
 ! 네이버 (https://nid.naver.com/)
-@@||nid.naver.com^$generichide
+@@||nid.naver.com^$generichide,image,xhr
 !
 !
 ! 네이버 블로그 (blog.naver.com)
@@ -1531,11 +1531,15 @@ clien.net##.active.button_sidemenu
 clien.net###hongboInfoList
 !
 !
-! 헝그리앱 (https://hungryapp.co.kr/)  (https://hungapp.com/)
+! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
 ! - 상단 빈 공간
-!hungryapp.co.kr##.bannersww
+hungryapp.co.kr,hungapp.com##.bannersww
+! - 상단 일부 배너 빈 공간
+!hungapp.com##div:has(> .banner2_1)
+! - 상단 오른쪽 배너 공간
+hungryapp.co.kr,hungapp.com##.right_top1
 ! - 팝업 차단으로 인한 스크롤 차단 해제
-hungryapp.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
+!/hungryapp/,hungapp.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! - 게시물 중 이미지 차단되는거 해결
 !hungryapp.co.kr#@#[src*="/ad/" i]
 !
@@ -2381,7 +2385,7 @@ c.appstory.co.kr###modalPreventExit
 !
 !
 ! 와디즈 (https://www.wadiz.kr/)
-@@||wadiz.kr^$generichide
+@@||wadiz.kr^$generichide,image,xhr
 ! - 상단 배너 나오게 하기 (List-KR 무력화)
 !@@||service.wadiz.kr/api/*/wadizad/host/keyvisual
 ! - 오픈예정 / 펀딩+ / 실시간베스트 / 같이보면 좋을 프로젝트  광고 품목
@@ -2395,7 +2399,7 @@ wadiz.kr##[data-testid="store-keyvisual"]
 !
 !
 ! 다나와 (https://danawa.com/)
-@@||danawa.com^$generichide,image
+@@||danawa.com^$generichide,image,xhr
 ! - 오늘 그만보기 및 뿌연거 해결 (모바일)
 danawa.com##div.layer-bottom-sheet.show:has(> .box__banner)
 danawa.com###mdnw-main-dimm
@@ -2921,7 +2925,7 @@ gemini.google.com##.input-area-container:style(max-width:1600px!important)
 !
 !
 ! StackSocial (https://www.stacksocial.com/)
-@@||stacksocial.com^$generichide
+@@||stacksocial.com^$generichide,image,xhr
 ! - 기타
 !||cdn.gladly.com^
 !||lightboxcdn.com^
@@ -3160,7 +3164,7 @@ ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
 !
 !
 ! https://ktmmobile.com/
-@@||ktmmobile.com^$generichide,image
+@@||ktmmobile.com^$generichide,image,xhr
 !
 !
 ! https://outstanding.kr
@@ -3251,7 +3255,7 @@ edu.chosun.com###indexBlock2
 !
 !
 ! 무비블록 (https://www.moviebloc.com/)
-@@||moviebloc.com^$generichide,image,xhr
+@@||moviebloc.com^$generichide
 !
 !
 ! 빌런 18+ (https://villain.city/)
@@ -3321,7 +3325,7 @@ ajunews.com/##.related_news
 !
 ! 뉴시스 (https://www.newsis.com/)
 ! - 기사내 빈 공간
-##li:has(> iframe)
+!##li:has(> iframe)
 ! - 기사내 빈 공간 추가 (모바일)
 mobile.newsis.com##.listStyle04
 !
@@ -3383,7 +3387,7 @@ economist.co.kr##div.txt_park.on:has([class="banner" i])
 musinsa.com##[href="/main/musinsa/brand_ad"]
 !
 !
-! SBS (! https://www.sbs.co.kr/)
+! SBS (https://www.sbs.co.kr/)
 @@||www.sbs.co.kr^$generichide
 ! - 배너 등 공간
 sbs.co.kr##[class^="ad" i]
@@ -3410,7 +3414,7 @@ sbs.co.kr##[class^="ad" i]
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki39.net/)  (https://tvwiki49.space/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki42.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
@@ -3480,7 +3484,7 @@ sbs.co.kr##[class^="ad" i]
 ! - - - https://javgiga.com/
 ! - - - https://embed.streamxx.net/player/js/p2p-media-loader-core.min.js
 ! - - - https://embed.streamxx.net/player/js/p2p-media-loader-hlsjs.min.js
-/p2p
+!/p2p - 스크립트 실행 전제로 해지 / 풀어도 ||tracker.$websocket 규칙이 작동
 ! - 핑거프린팅 스크립트가 수집한 데이터를 전송하는 바로 그 서버 측 엔드포인트 차단
 ! - -  https://tvwiki35.net/bbs/ajax.fingerprint.php
 fingerprint.
@@ -3492,14 +3496,16 @@ fingerprint.
 ! - 팝업
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 ![$domain=/^tvchak\d*\./]##[class*="popup_mdd" i]
-! - 상단 배너 필요없는 부분
-##[class*="card"]:has(> style):not(body):not(html):not(main)
+! - 상단 배너 필요없는 부분 (보증 어찌구~)
+!/tvchak/##[class*="card"]:has(> style)
+!##[class*="border-shadow"]:has(> style) - 타 사이트(https://noonnu.cc/)에서 차단 발생하여 개별로 아래와 같이 변경
+/tvchak/##[class*="border"]:has(> style)
 ! - 보증 안내 문구
 ![$domain=/^tvchak\d*\./]##.hezuo_div1
 !/tvchak/##.hezuo_div1
 ! - 배너 공간
 ![$domain=/^tvchak\d+\.com$/],tvchak.live###advertiseMain
-##[id*="advert" i]
+!##[id*="advert" i]
 ! - 각 프로그램 내용 안보이는거 해결 (List-KR 규칙 해제)
 !/^tvchak[0-9]+\.com/#@#div[style].border-shadow
 /tvchak/#@#div[style].border-shadow
@@ -3527,7 +3533,7 @@ fingerprint.
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! - - - 후후티비 (https://telegra.ph/%ED%9B%84%ED%9B%84%ED%8B%B0%EB%B9%84-%EC%B5%9C%EC%8B%A0-%EC%A3%BC%EC%86%8C-09-03)  (https://cx.hoohootv435.xyz/)
+! - - - 후후티비 (https://telegra.ph/후후티비-최신-주소-09-03)  (https://fy.hoohootv439.xyz/)
 ! - 배너 빈 공간
 ![$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 /hoohootv/###img_row_container
@@ -3558,15 +3564,18 @@ fingerprint.
 ![$domain=/^www.nnuutv\d+.tv/]###comp-lhh974mf2
 !
 !
-! 콕콕티비 (https://콕콕티비.com/) (https://cokcok14.com/) - p2p 해제해야 시청 가능
-! - -  티비위키 (https://tvwiki301com/) - p2p 해제해야 시청 가능
+! 콕콕티비 (https://콕콕티비.com/) (https://cokcok15.com/) - p2p 해제해야 시청 가능
 ! - 팝업 - ##[class*="popup-banner" i]으로 대체
 !##[class*="popup-banners" i]
 ! - 상단 배너 공간
 ![$domain=/^cokcok\d+.com/],tvwiki.app##.custom_banner_wrap
 !##[class*="custom_banner" i]
 !  -- - 다른 규칙으로 해도 공간이 생겨서 따로 만듬
-/cokcok/##.feature-grid
+!/cokcok/##.feature-grid
+! - 광고 영상 차단
+*/assets/videos/*
+! - 영상 클릭시 팝업 차단
+/cokcok/#%#//scriptlet('prevent-window-open')
 !
 !
 ! 콕콕티비 (https://cokcoktv1.org/) - 반응이 없는 링크 (만들다가 말앗나)
@@ -4047,7 +4056,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
 ! - - - 오늘의 중계 (https://today-sports10.com/)
 ! - - - 야동망고 (https://mango57.com/)
-! - - -  밍키넷 (https://mingky05.live/)
+! - - -  밍키넷 (https://mingky06.live/)
 !##[target='_blank']:has([src*='.gif'])
 !##[target='_blank']:has([src$='.gif'])
 ! - - - - - 예외
@@ -4060,8 +4069,16 @@ joatoon-oa.com##.bg-opacity-50
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 남는 배너 이미지 공간
-avsee.ru##div.title:nth-of-type(1)
-avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
+!avsee.ru##div.title:nth-of-type(1)
+!avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
+! - 메인 상단
+avsee.ru##div.title > div:has([target] img)
+! - 메인 오른쪽
+avsee.ru##div.at-side > div:has([target] img)
+! - 기타 상단
+avsee.ru###at-main > [target] > img
+! - 기타 오른쪽 - List-KR의 다른 규칙이 있어 주석 처리
+!!##div.widget-side-box > div:has([target] img)
 ! - - - 개인 스크립트가 ui 탭 을 막아서 해제
 avsee.ru#@#.tabs
 ! - - - https://j91.asia/
@@ -4460,6 +4477,8 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 @@||hcdn1.maxsocdn.net^$domain=sogirl.so
 ! - 기타
 ! - - - https://kr87.sogirl.so/wp-content/cache/min/1/s.js?ver=1785128807
+! - https://bunkr.cr/
+! - - - https://northstar.cr/js/s.js
 /s.js*
 !/js/jads.js?
 ! - - - https://kr87.sogirl.so/wp-content/cache/min/1/wp-content/plugins/adrotate-pro/library/jquery.groups.js?ver=1785128807
@@ -4755,7 +4774,7 @@ avdbs.com###bnotice-wrap
 !||apologiesoccursdepressed.com^$popup
 !
 !
-! 123AV (https://123av.com/)
+! 123AV (https://123av.com/)  (https://njav.tv/에서 이전)
 ! - 지저분한거
 ! - - - https://today-sports10.com/ - 상단 검색란 등 사라짐으로 도메인 한정으로 변경
 !123av.com##.d-lg-block
@@ -5758,22 +5777,30 @@ jusogall.com#@#[class*="rainbow-text" i]
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 야동투어 (https://야동투어.com/) (https://ydtour53.sbs/) - /p2p* 해제해야 영상재생 가능
+! 야동투어 (https://야동투어.com/) (https://ydtour57.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
 !##[id*="-ads" i]
+! - 팝업 남은것들
+!/ydtour/##.p-2:has(> .px-2)
 ! - 배너 이미지
 !##[src*="/ads/" i]
 ! - 영상 하단 텍스트 배너
 !##[class*=-ads-]
 ! - 상단 배너 공간 (메인)
 ![$domain=/^ydtour\d*\./]##.m-4
-[$domain=/ydtour/]##.m-4
+![$domain=/ydtour/]##.m-4
+/ydtour/##.p-1:has(> div)
 ! - 상단 배너 공간 (개별)
 ![$domain=/^ydtour\d*\./]##.mt-3
-[$domain=/ydtour/]##.mt-3
+![$domain=/ydtour/]##.mt-3
 ! - 광고 영상 차단
 ||media.goatanalytics.xyz/videos/*
+! - 스크롤 막힌거 해결 (팝업 남는것도 같이 해결됨)
+!/ydtour/##[class*="overscroll"]
+##[class*="overscroll"]
+! - 영상 하단 텍스트 박스 광고
+/ydtour/##[aria-label*="광고"]
 !
 !
 ! 일구핫 (https://01.19hot.net/)
@@ -5862,7 +5889,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ##[class^="videoad" i]
 !
 !
-! 밍키넷 (https://밍키주소.net/) (https://mingky05.live/)
+! 밍키넷 (https://밍키주소.net/) (https://mingky06.live/)
 ! - 배너 이미지
 ||img.imagedive.net/assets/*
 ! - 배너 공간
@@ -6980,7 +7007,7 @@ patreon.com##body:style(overflow: auto !important;)
 ! 메이저 링크 (https://majorlink2.com/)
 ! - 이미지 복원
 !/^(www\.)?majorlink/#@#[rel*="sponsor"]
-/majorlink/#@#[rel*="sponsor"]
+!/majorlink/#@#[rel*="sponsor"]
 !
 !
 ! https://streamtape.com/
