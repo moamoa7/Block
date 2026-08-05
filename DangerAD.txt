@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260804
+! Version: 20260805
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -716,7 +716,8 @@ vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-b
 ! 툰코 (https://tkor140.com/)
 ! https://거지맵.com/
 ! https://www.hankyung.com/ - 모바일에서 안보임
-hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+! https://www.womaneconomy.co.kr/ - banner 잘못 지워짐 수정 (상단 검색 부분 지워짐 방지)
+womaneconomy.co.kr,hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 /tkor|funbe|wdwd/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
@@ -859,6 +860,12 @@ getmodsapk.com#@#[alt*="banner" i]
 ##[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 ! - nid.naver.com - 멤버쉽 결제시 나오는 화면 안보임
 !nid.naver.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://www.korea.com/ - 본문 안보임
+www.korea.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
 !
 !
