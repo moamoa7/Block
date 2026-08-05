@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    https://github.com/moamoa7
-// @version      70.2.2
-// @description  유튜브 PIP 수정
+// @version      70.2.3
+// @description  모바일 영상 제스처 (더블탭 탐색/전체화면, 핀치 줌, 롱프레스 배속, PIP)
 // @author       Gemini & Claude
 // @license      MIT
 // @match        *://*/*
@@ -167,7 +167,9 @@
     const unlockOrientation = () => { if (screen.orientation?.unlock) screen.orientation.unlock(); };
     const getVideoOrientationDir = (v) => (v && v.videoWidth > 0 && v.videoWidth < v.videoHeight) ? 'portrait' : 'landscape';
 
-    const VIP_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], [data-testid="video-container"], .player-wrapper, .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, iframe';
+    // ★ [수정 1] VIP_SELECTORS: 맨 앞에 '.jwplayer' 추가, 맨 끝의 ', iframe' 제거
+    //   → 부모 문서에서 iframe이 전체화면 대상으로 잡히는 것을 방지
+    const VIP_SELECTORS = '.jwplayer, .video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], [data-testid="video-container"], .player-wrapper, .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft';
 
     const IGNORE_TOUCH_SELECTORS = '.gt-btn-base, .ytp-chrome-bottom, .ytp-chrome-top, .ytp-button, .dplayer-controller, .dplayer-bar-wrap, .vjs-control-bar, .art-bottom, .art-controls, .bpx-player-control-wrap, .plyr__controls, .xgplayer-controls, .tcplayer-controls, .prism-controlbar, .mui-player-controls, .wrapper-bottom, [data-testid="player_controls"], [data-testid="progress_bar"], [data-testid="volume-slider"], input[type="range"], .buttons-bar, .progress-bar-container';
 
@@ -203,7 +205,12 @@
         return null;
     };
 
+    // ★ [수정 2] getValidPlayerRoot: JWPlayer 등 알려진 최상위 컨테이너를 우선 탐색
+    //   → iframe 내부에서 jw-media(하위 영상 레이어)가 아닌 .jwplayer(#player)를 잡도록
     const getValidPlayerRoot = (video) => {
+        const known = findUp(video, '.jwplayer, .video-js, .plyr, .dplayer, .artplayer-app');
+        if (known) return known;
+
         let current = video.parentNode || (video.getRootNode && video.getRootNode().host) || video;
         let bestMatch = null, fallbackMatch = null, depth = 0;
         while (current && current !== document.body && current !== document.documentElement && depth < 15) {
@@ -271,7 +278,13 @@
         if (video.dataset.gtOrigObjectFit === undefined) video.dataset.gtOrigObjectFit = video.style.objectFit || '';
     };
 
+    // ★ [수정 3] toggleNativeFullscreen: 잡힌 container가 iframe이거나 jw-media(하위 레이어)면
+    //   올바른 플레이어 컨테이너로 보정한 뒤 전체화면을 건다.
     const toggleNativeFullscreen = (container, video) => {
+        if (container && (container.tagName === 'IFRAME' || (container.className || '').includes('jw-media'))) {
+            const fixed = findUp(video, '.jwplayer, .video-js, .plyr, .dplayer, .artplayer-app') || video.parentElement || container;
+            container = fixed;
+        }
         const isFS = !!getFS() || container.classList.contains('gt-fullscreen-active');
         const fsBtn = container.querySelector(FS_BTN_SELECTORS);
         if (isFS) {
@@ -950,17 +963,4 @@
             }
         });
     });
-
-    // ★★★ 여기에 디버깅용 임시 코드 추가 (확인 끝나면 삭제) ★★★
-  document.addEventListener('fullscreenchange', () => {
-    const el = document.fullscreenElement;
-    if (el) {
-      alert(
-        'tag: ' + el.tagName +
-        '\nid: ' + (el.id || '(없음)') +
-        '\nclass: ' + (el.className || '(없음)') +
-        '\n크기: ' + el.offsetWidth + 'x' + el.offsetHeight
-      );
-    }
-  });
 })();
