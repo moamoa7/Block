@@ -950,4 +950,17 @@
             }
         });
     });
+
+    // ★★★ 여기에 디버깅용 임시 코드 추가 (확인 끝나면 삭제) ★★★
+  document.addEventListener('fullscreenchange', () => {
+    const el = document.fullscreenElement;
+    if (el) {
+      alert(
+        'tag: ' + el.tagName +
+        '\nid: ' + (el.id || '(없음)') +
+        '\nclass: ' + (el.className || '(없음)') +
+        '\n크기: ' + el.offsetWidth + 'x' + el.offsetHeight
+      );
+    }
+  });
 })();
