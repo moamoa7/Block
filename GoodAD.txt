@@ -50,9 +50,9 @@
 !
 !
 !@@|or.kr^$generichide,image,css,font,script,xhr,frame,other
-@@||or.kr^$generichide,image,xhr,script
+@@||or.kr^$ehide
 !@@|go.kr^$generichide,image,css,font,script,xhr,frame,other
-@@||go.kr^$generichide,image,xhr,script
+@@||go.kr^$ehide
 
 
 ! - 타규칙 오탐방지
