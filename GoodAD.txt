@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260804
+! Version: 20260805
 !
 !
 !
@@ -1335,15 +1335,18 @@ ygosu.com##tr:has([href*="/ad/" i])
 !
 !
 ! 안스티즈 (https://www.instiz.net/)
-! - 게시물 상단 배너
-instiz.net##.view_top
+! - 게시물내 상단 배너
+! - - - 뉴덕 (https://newduck.net/) - 더 보기 하단 빈 공간
+##tr:has([class*="adsbygoogle"])
+! - 하단 빈 공간 - 광역 규칙시 뉴덕 등 본문 보이지 않음
+instiz.net##div:has([id*="powerlink" i])
 !
 !
 ! 유머픽 (https://humorpick.com/)
 ! -게시글 내 상단 배너
 ##[href*="https://open.kakao.com/"]
-! - 게시글 내 상단 배너 공간
-humorpick.com##.ie-center.ie-zone > p
+! - 게시글 내 상단 배너 공간 - 굳이 안해도 무방할듯
+!humorpick.com##.ie-center.ie-zone > p
 !
 !
 ! 다나와 디피지 (https://dpg.danawa.com/)
@@ -1363,10 +1366,10 @@ humorpick.com##.ie-center.ie-zone > p
 namu.wiki##div:has(> div > div[id]:empty:only-child)
 ! - 오른쪽 나무뉴스 포함 삭제
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
-namu.wiki##div[class]:matches-css(position: sticky)
+!!namu.wiki##div[class]:matches-css(position: sticky)
 ! - 오른쪽 최근 변경 삭제
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
-namu.wiki##li:has(a > time):not(:has([href*='/raw/'])):upward(2)
+!!namu.wiki##li:has(a > time):not(:has([href*='/raw/'])):upward(2)
 ! - 파워링크 삭제
 ! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 !namu.wiki#$#div[class][id]:is(:empty, :has(> iframe[id^='google_ads_iframe'])) { display: none !important; }
@@ -1375,7 +1378,7 @@ namu.wiki##li:has(a > time):not(:has([href*='/raw/'])):upward(2)
 !namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
 ! - 실시간 검색어 삭제 (3개 다 가능하므로 3중 1개만 실행해도 됨)
 ! 1. SVG 글리프 기반 (디자인 리뉴얼 전까지 안정)
-namu.wiki#?#div:has(> div > span > svg > path[d^="M12.2031"])
+!!namu.wiki#?#div:has(> div > span > svg > path[d^="M12.2031"])
 ! 2. 구조 기반 (HTML 구조 바뀌기 전까지 안정)
 !namu.wiki#?#div.cyq09wvn > div.h84rqJaJ
 ! 3. data-v 기반 (빌드 단위로 바뀜, 임시방편)
@@ -1389,7 +1392,14 @@ namu.wiki##div:has(> ins.adsbygoogle)
 ! - 검색 후 나오는 메인 중간 배너 공간 (모바일)
 !namu.wiki##div[class][data-v-2c28122a]
 ! - 검색 후 하단 광고
-namu.wiki##div:has(> div > div > table a[href^="#s-"] img[data-doc])
+!!namu.wiki##div:has(> div > div > table a[href^="#s-"] img[data-doc])
+!
+!
+! 나무뉴스 (https://namu.news/)
+! - 오른쪽 배너 공간
+namu.news###main-sidebar-strip
+! - 기사 내 왼쪽 배너 공간
+namu.news###left-top-sidebar
 !
 !
 ! 모두의 후방 (https://data.pureugong.com/)
@@ -1399,13 +1409,6 @@ namu.wiki##div:has(> div > div > table a[href^="#s-"] img[data-doc])
 data.pureugong.com##.vue-back-to-top
 ! - 기타
 !||embeds.beehiiv.com^
-!
-!
-! 나무뉴스 (https://namu.news/)
-! - 오른쪽 배너 공간
-namu.news###main-sidebar-strip
-! - 기사 내 왼쪽 배너 공간
-namu.news###left-top-sidebar
 !
 !
 ! 일베 (https://www.ilbe.com/)
@@ -1998,6 +2001,8 @@ edaily.co.kr##.special_area
 !edaily.co.kr##.article_newsetc
 !edaily.co.kr##.list_gg
 !edaily.co.kr##.boxshow_footer_dable
+! - 투표?
+edaily.co.kr##[class*="poll"]
 ! - 빈 공간 (모바일)
 m.edaily.co.kr##div:has(> .slot01)
 m.edaily.co.kr##[class="closeDiv"]
@@ -2106,7 +2111,8 @@ sports.donga.com##[style]:has(img[src*="coupangcdn.com/thumbnails/"])
 ##img[src*="betman"]
 ! - 빈공간 (PC/모바일) - 광역규칙으로 하면 본문이 안보이는 도메인들이 많아서 개별 도메인으로 처리
 ! - - - 링크천국 (https://hotword.site/) 빈공간
-hotword.site,newsen.com##[style]:has([class*="adsbygoogle"])
+! - - - 마이민트 (https://www.mimint.co.kr/)
+mimint.co.kr,hotword.site,newsen.com##[style]:has([class*="adsbygoogle"])
 !
 !
 !
@@ -2166,7 +2172,9 @@ kstarfashion.com##[style="width:320px;height:100px;"]
 ! 중도일보 (https://www.joongdo.co.kr/)
 ! - 빈 공간 (모바일)
 ! - - - https://www.edaily.co.kr/
-##div:has(> script[src*="/ad."])
+! - - - https://www.anewsa.com/
+!##div:has(> script[src*="/ad."])
+##div[style]:has(> script[src*="/ad."])
 !
 !
 ! 데일리메디 (https://www.dailymedi.com/)
@@ -2637,16 +2645,19 @@ algumon.com##[class*="pb-3"]:has([aria-label*="광고"])
 !
 !
 ! 뉴덕 (https://newduck.net/)
+! - 상단 빈 공간
+! - - - 이코노미스트 (https://economist.co.kr/) - 개벌 기사 모든 빈 공간
+economist.co.kr,newduck.net##[class*="_ad" i]
 ! - 상단 / 중간 / 왼쪽 하단 배너
 !newduck.net##.code-content-top
 !##[class*="kakao_ad_area" i]
 ##.kakao_ad_area
 ! - 공지사항 아래 빈공간
-newduck.net##.code-list-top
+!newduck.net##.code-list-top
 ! - 게시물 하단 배너 (댓글 바로 위)
 !##.custom-banner
 ! - 최하단 파워링크
-##[class*="powerlink" i]
+##[id*="powerlink" i]
 !##.powerlink
 !
 !
@@ -2809,17 +2820,17 @@ coinpan.com##[class*="widget"]:has([href="https://aigreem.com"])
 ! 아시아뉴스통신(https://www.anewsa.com/)
 ! - 기사글내 배너 공간
 ! - - - 상단 배너 공간
-anewsa.com###contents_body > div:nth-of-type(2)
-anewsa.com###contents_body > div:nth-of-type(3)
+!!anewsa.com###contents_body > div:nth-of-type(2)
+!!anewsa.com###contents_body > div:nth-of-type(3)
 ! - - - 오른쪽 배너 빈 공간
 !anewsa.com###subBanner01
-anewsa.com###subAside > div:nth-of-type(4)
-anewsa.com###subAside > div:nth-of-type(8)
+!!anewsa.com###subAside > div:nth-of-type(4)
+!!anewsa.com###subAside > div:nth-of-type(8)
 !anewsa.com###right_banner_top
 ! - - - 기사 본문과 댓글 쓰기 사이 작은 빈 공간
-anewsa.com###subSec01 > div:nth-of-type(4)
+!!anewsa.com###subSec01 > div:nth-of-type(4)
 ! - - - 모바일 본문내 빈공간
-m.anewsa.com##div[style*="width:300px"]
+!m.anewsa.com##div[style*="width:300px"]
 !
 !
 ! 교보문고 (https://www.kyobobook.co.kr/)
@@ -2844,16 +2855,16 @@ m.anewsa.com##div[style*="width:300px"]
 !
 ! 여성경제신문 (https://www.womaneconomy.co.kr/)
 ! - banner 잘못 지워짐 수정 (상단 검색 부분 지워짐 방지)
-womaneconomy.co.kr##[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]):not([class*="user-banner"])
+!womaneconomy.co.kr##[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]):not([class*="user-banner"])
 !
 !
 ! 마이민트 (https://www.mimint.co.kr/)
 ! - 게시물 하단 배너 공간
 !##.ads-container - ##[class*="ads" i]로 대체
-! - 게시물 목록 사이 공간
+! - 게시물 목록 사이 공간 - ##[id*="powerlink" i]로 하면 공간이 생겨서 안됨
 mimint.co.kr##[class*="row"]:has([id="powerLinkList"])
 ! - 게시물과 인기 게시물 사이 배너 공간
-mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
+!mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
 ! - 실시간 인기 TOP / 최근 등록된 게시물 내 빈 줄
 mimint.co.kr##ul > .adline-v2-slot
 ! - 이벤트
@@ -2874,7 +2885,7 @@ m.mimint.co.kr###anchor-layer
 !
 ! 노션 (https://www.notion.so/)
 ! - 기타
-||notion.so/api/v3/etclient
+!||notion.so/api/v3/etclient
 !notion.so##+js(prevent-fetch, http-inputs-notion.splunkcloud.com)
 !notion.so##+js(set-cookie, notion_cookie_consent, 0)
 !
@@ -2896,7 +2907,7 @@ m.mimint.co.kr###anchor-layer
 !
 !
 ! 제미나이 (https://gemini.google.com/)
-! - 기타
+! - 제미나이에게 물어보기 칸이 넓게
 gemini.google.com##.input-area-container:style(max-width:1600px!important)
 !
 !
@@ -2914,8 +2925,8 @@ gemini.google.com##.input-area-container:style(max-width:1600px!important)
 ! - 기타
 !||cdn.gladly.com^
 !||lightboxcdn.com^
-||typekit.net^$3p
-||lightboxcdn.com/vendor/$script,3p
+!||typekit.net^$3p
+!||lightboxcdn.com/vendor/$script,3p
 !stacksocial.com##+js(set-cookie, sc_cookie_consent, 0)
 !stacksocial.com##body:style(overflow: auto !important;)
 !stacksocial.com##html > body:not(#style_important):style(overflow: visible !important;)
@@ -3354,11 +3365,28 @@ eanews.kr##[class*="box" i]:has([class*="banner" i])
 ! 메인 오른쪽 배너 빈 공간
 economist.co.kr##div.txt_park.on:has([class="banner" i])
 ! 개벌 기사 모든 빈 공간
-economist.co.kr##[class*="_ad" i]
+!economist.co.kr##[class*="_ad" i]
 !
 !
 ! 맨파워코리아 (https://manpower.co.kr/)
 @@||manpower.co.kr^$generichide
+!
+!
+! 코리아닷컴 (https://www.korea.com/)
+! - 양쪽 배너
+##div[id*="RpopBanner" ]
+!
+!
+! 무신사 (https://www.musinsa.com/)
+@@||musinsa.com^$generichide
+! - AD 메뉴
+musinsa.com##[href="/main/musinsa/brand_ad"]
+!
+!
+! SBS (! https://www.sbs.co.kr/)
+@@||www.sbs.co.kr^$generichide
+! - 배너 등 공간
+sbs.co.kr##[class^="ad" i]
 
 
 
@@ -7385,8 +7413,16 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 /count.php?
 !
 !
+! https://katfile.biz/
+@@||katfile.biz^$generichide
+! - 뿌옇게 되는거 해결
+katfile.biz##[id*="ad-overlay"]
+! - 오른쪽 하단 sale 팝업
+katfile.biz##a:has(> div)
+! 
+!
+!
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
-
 
 
 
