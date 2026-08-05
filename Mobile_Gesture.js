@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mobile Gesture
-// @namespace    http://tampermonkey.net/
-// @version      70.2.1
+// @namespace    https://github.com/moamoa7
+// @version      70.2.2
 // @description  유튜브 PIP 수정
 // @author       Gemini & Claude
 // @license      MIT
@@ -10,8 +10,6 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @run-at       document-start
-// @updateURL    https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Mobile_Gesture.js
-// @downloadURL  https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Mobile_Gesture.js
 // ==/UserScript==
 
 (function() {
@@ -60,6 +58,25 @@
             if (el.shadowRoot) { v = findDeepVid(el.shadowRoot); if (v) return v; }
         }
         return null;
+    };
+
+    // ★ [3번 수정용 신규 헬퍼] 포인터 좌표가 실제 영상 rect 내부에 있는지 확인
+    // 좌표를 얻을 수 없는 이벤트(합성 등)에서는 false를 반환하여 오탐을 막는다.
+    const getEventPoint = (e) => {
+        if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        if (e.changedTouches && e.changedTouches.length > 0) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+        if (typeof e.clientX === 'number' && typeof e.clientY === 'number') return { x: e.clientX, y: e.clientY };
+        return null;
+    };
+
+    const isPointInVideo = (e, video) => {
+        if (!video || !video.getBoundingClientRect) return false;
+        const pt = getEventPoint(e);
+        if (!pt) return false;
+        const r = video.getBoundingClientRect();
+        if (r.width < 10 || r.height < 10) return false;
+        // 경계 오차 10px 허용
+        return pt.x >= r.left - 10 && pt.x <= r.right + 10 && pt.y >= r.top - 10 && pt.y <= r.bottom + 10;
     };
 
     const updateTouchAction = (video, root) => {
@@ -356,7 +373,6 @@
         return document.documentElement || document.body;
     };
 
-    // ★ 핵심: 전체화면 상태를 uiLayer에 클래스로 직접 반영
     const syncFsClass = (video) => {
         if (!video || !video.gtUI) return;
         const isFS = isFullscreenActive(video.gtRoot);
@@ -525,7 +541,6 @@
             if (document.pictureInPictureElement) {
                 document.exitPictureInPicture();
             } else {
-                // ★ 유튜브 등이 걸어둔 PIP 차단 해제
                 try {
                   video.removeAttribute('disablepictureinpicture');
                   video.disablePictureInPicture = false;
@@ -606,8 +621,6 @@
 
     const scanAndInitCore = () => document.querySelectorAll('video').forEach(initVideoCore);
 
-    // ★★★ [변경됨] MutationObserver 400ms 디바운스 적용 ★★★
-    // 고빈도 DOM 변경(광고/무한 스크롤 등) 시 즉시 스캔으로 인한 CPU 폭주를 방지
     let moTimer = null;
     const domObserver = new MutationObserver((mutations) => {
         let hasNew = false;
@@ -850,7 +863,8 @@
             isTouch = false; return;
         }
         if (!isTouch) return;
-        if (e.touches.length > 0) { if (action === 'pinch') action = 'pinch_wait'; return; }
+        // ★ [1번 수정] e.touches 존재 여부를 먼저 확인하여 예외를 방지
+        if (e.touches && e.touches.length > 0) { if (action === 'pinch') action = 'pinch_wait'; return; }
 
         if (action === 'seek' && virtualTime !== null && targetV) { targetV.currentTime = virtualTime; virtualTime = null; }
         clearTimeout(lpTimer);
@@ -873,8 +887,16 @@
     ['pointerdown', 'pointerup', 'pointercancel', 'click', 'dblclick'].forEach(evt => {
         document.addEventListener(evt, (e) => {
             const isEx = isExcludedZone(e);
-            if (evt === 'dblclick' && !isEx && identify(e)) {
-                e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); return;
+            // ★ [3번 수정] dblclick 가로채기 조건을 강화:
+            // 영상이 식별되고 + (전체화면이거나 || 포인터가 실제 영상 rect 안일 때)만 가로챈다.
+            if (evt === 'dblclick' && !isEx) {
+                const hit = identify(e);
+                if (hit && hit.video) {
+                    const isFS = isFullscreenActive(hit.root);
+                    if (isFS || isPointInVideo(e, hit.video)) {
+                        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); return;
+                    }
+                }
             }
             if (Date.now() < blockGestureUntil) {
                 if (!isEx) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
