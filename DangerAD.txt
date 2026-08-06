@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260806
+! Version: 20260807
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -240,7 +240,8 @@
 ! 주소닷컴 (https://juso.one/)
 ! https://javfilms.com/ - 영상플레이가 같이 사라짐
 ! https://majorlink2.com/ - 이미지 복원
-/majorlink/,javfilms.com,juso.one#@#[rel*="sponsor"]
+! https://shiroto-navi.com/ - 영상 하단 텍스트 등 사라짐
+/majorlink/,javfilms.com,juso.one,shiroto-navi.com#@#[rel*="sponsor"]
 !
 !
 !
