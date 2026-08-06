@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7/Block
-// @version      16.2.2
+// @version      16.2.3
 // @description  라이브 방송의 딜레이를 자동 감지·제어
 // @author       moamoa7
 // @match        *://*.youtube.com/*
@@ -19,8 +19,8 @@
 // @grant        GM_registerMenuCommand
 // @license      MIT
 // @run-at       document-start
-// @updateURL    https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Delay-meter.js
-// @downloadURL  https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Delay-meter.js
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 // ==/UserScript==
 
 (function () {
@@ -40,7 +40,7 @@
   const PLATFORM_DEFAULTS = {
     youtube: { target: 10, min: 2,   max: 30, barMax: 35 },
     chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15 },
-    soop:    { target: 3,  min: 1,   max: 10, barMax: 15 },
+    soop:    { target: 3.2,  min: 1,   max: 10, barMax: 15 },
     twitch:  { target: 3,  min: 1,   max: 10, barMax: 15 },
     default: { target: 3,  min: 1,   max: 10, barMax: 15 },
   };
@@ -52,9 +52,14 @@
   const WARMUP_MS = 4000;
   const GEAR_HOLD_MS = 3000;
 
+  /* ── readyState 순간 하락 완충 유예(ms) ──
+   *  CHZZK가 텔레메트리 차단 여파로 플레이어를 재로딩할 때
+   *  readyState가 잠깐 떨어져도 이 시간 동안은 UI를 유지 */
+  const HIDE_GRACE_MS = 2500;
+
   const R_NORM = 1.00;
-  const R_MED  = IS_SOOP ? 1.05 : 1.10;
-  const R_HIGH = IS_SOOP ? 1.15 : 1.50;
+  const R_MED  = IS_SOOP ? 1.02 : 1.15;
+  const R_HIGH = IS_SOOP ? 1.20 : 2.00;
 
   /* ================================================================
    *  §2. 유틸리티
@@ -99,7 +104,8 @@
   let cfg;
   try { cfg = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { cfg = {}; }
 
-  const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch {} };
+  // 위치 키(dx/dy/px/py)는 저장에서 제외 → 항상 CSS 좌표값으로 시작
+  const save = () => { try { const { dx, dy, px, py, ...rest } = cfg; localStorage.setItem(STORE_KEY, JSON.stringify(rest)); } catch {} };
   let _saveId = 0;
   const saveLazy = () => { clearTimeout(_saveId); _saveId = setTimeout(save, 400); };
   const setCfg = (k, v) => { cfg[k] = v; saveLazy(); };
@@ -136,6 +142,40 @@
   const live = {
     isCurrent: false,
     falseCount: -1,
+    lastGoodTime: 0,   // ← 마지막으로 정상(라이브+readyState OK)이던 시각
+  };
+
+  /* ================================================================
+   *  §4.5. 라이브 감지 디버그 로그
+   * ================================================================
+   *  필요 없어지면 DEBUG_LIVE 를 false 로만 바꾸면 됨.
+   */
+  const DEBUG_LIVE = true;
+  let _lastLiveLog = null;
+
+  const logLive = (isLiveNow, vid) => {
+    if (!DEBUG_LIVE) return;
+    if (_lastLiveLog === isLiveNow) return;
+    const prev = _lastLiveLog;
+    _lastLiveLog = isLiveNow;
+
+    const src = vid ? (vid.currentSrc || vid.src || '') : '';
+    const buf = vid ? getBuf(vid) : -1;
+    const dur = vid ? (vid.duration === Infinity ? 'Infinity' : (vid.duration ?? '-')) : '-';
+    const arrow = prev === null ? 'INIT→' : (prev ? 'TRUE→' : 'FALSE→');
+    const tag = `%c[DM] live ${arrow}${isLiveNow ? 'TRUE' : 'FALSE'}`;
+    const style = isLiveNow ? 'color:#00E696;font-weight:bold' : 'color:#FF5555;font-weight:bold';
+
+    console.log(
+      tag, style,
+      '| buf=' + (buf < 0 ? '-' : buf.toFixed(2)),
+      'dur=' + dur,
+      'rs=' + (vid?.readyState ?? -1),
+      'ct=' + (vid ? vid.currentTime.toFixed(2) : '-'),
+      'seekable=' + (vid && vid.seekable.length ? `${vid.seekable.start(0).toFixed(1)}~${vid.seekable.end(vid.seekable.length-1).toFixed(1)}` : '-'),
+      'hls=' + isHlsSrc(src),
+      'src=' + (src.length > 60 ? src.slice(0, 60) + '…' : src)
+    );
   };
 
   /* ================================================================
@@ -261,6 +301,7 @@
     control.lastStallTime = 0;
     live.isCurrent = false;
     live.falseCount = -1;
+    live.lastGoodTime = 0;
   };
 
   const attach = v => {
@@ -321,12 +362,7 @@
 
   /* ================================================================
    *  §7. 제어 엔진 (절충 트리거)
-   * ================================================================
-   *  변경: 트리거 임계값을 느슨하게 조정
-   *    - MED:  초과분 > target × 0.7  (기존 0.4)
-   *    - HIGH: 초과분 > target × 1.2  (기존 0.8)
-   *  감속(HIGH/MED→NORM)은 GEAR_HOLD_MS 무시 (즉시)
-   */
+   * ================================================================ */
 
   const computeDesiredGear = buf => {
     const ex = buf - target;
@@ -361,6 +397,7 @@
 
   const tick = () => {
     const vid = getVid();
+    const now = performance.now();
 
     if (!vid) {
       if (_needScan) { scan(); startObserver(); }
@@ -368,13 +405,22 @@
       scheduleRender(); return;
     }
 
+    /* ── readyState 순간 하락 완충 ──
+     *  직전까지 정상(lastGoodTime)이었고 유예시간 이내면 UI 유지 */
     if (!isCandidate(vid) || vid.readyState < 3) {
       lastBuf = -1;
+      const withinGrace = live.lastGoodTime > 0 && (now - live.lastGoodTime < HIDE_GRACE_MS);
+      if (withinGrace) {
+        // 잠깐 끊긴 것으로 보고 UI는 그대로 유지 (숨기지 않음)
+        scheduleRender(); return;
+      }
       if (live.falseCount < 0) live.isCurrent = false;
       scheduleRender(); return;
     }
 
     const isLiveNow = LiveDetect.check(vid);
+    logLive(isLiveNow, vid);
+
     if (!isLiveNow) {
       if (IS_YOUTUBE) _scanRetry = 0;
       if (live.falseCount >= 0) {
@@ -389,11 +435,11 @@
       scheduleRender(); return;
     }
     live.isCurrent = true; live.falseCount = 0;
+    live.lastGoodTime = now;   // ← 정상 시각 갱신
 
     const buf = getBuf(vid);
     lastBuf = buf;
 
-    const now = performance.now();
     lastTickStall = (now - control.lastStallTime < STALL_COOLDOWN);
 
     scheduleRender();
@@ -495,12 +541,12 @@
   const injectStyles = () => {
     GM_addStyle(`
 #dm-root{--ac:#00E696;--bg:rgba(12,14,20,.92);--bg2:rgba(255,255,255,.04);--bg3:rgba(255,255,255,.07);--border:rgba(255,255,255,.06);--t1:#f0f0f0;--t2:rgba(255,255,255,.45);--rad:16px;font:12px/1.5 'SF Pro Text',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--t1)}
-#dm-fab{position:fixed;bottom:20px;right:20px;z-index:10000;width:40px;height:40px;border-radius:50%;background:var(--bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1.5px solid var(--ac);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .4s,box-shadow .4s,transform .15s;contain:strict;box-shadow:0 0 12px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.04);will-change:transform,box-shadow}
+#dm-fab{position:fixed;bottom:5px;right:70px;z-index:10000;width:40px;height:40px;border-radius:50%;background:var(--bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1.5px solid var(--ac);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .4s,box-shadow .4s,transform .15s;contain:strict;box-shadow:0 0 12px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.04);will-change:transform,box-shadow}
 #dm-fab:hover{transform:scale(1.08)}#dm-fab:active{transform:scale(.95)}
 .dm-dot{width:10px;height:10px;border-radius:50%;background:var(--ac);transition:background .4s;box-shadow:0 0 8px var(--ac)}
 @keyframes dm-pulse{0%,100%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 0 var(--ac)}50%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 6px transparent}}
 #dm-fab{animation:dm-pulse 2.5s ease-in-out infinite}
-#dm-pn{position:fixed;bottom:20px;right:20px;z-index:10000;background:var(--bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--rad);padding:0;color:var(--t1);width:256px;box-shadow:0 12px 48px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03);user-select:none;opacity:0;transform:translateY(8px) scale(.97);pointer-events:none;transition:opacity .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);contain:content;will-change:opacity,transform,visibility}
+#dm-pn{position:fixed;bottom:0px;left:00px;z-index:10000;background:var(--bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--rad);padding:0;color:var(--t1);width:256px;box-shadow:0 12px 48px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03);user-select:none;opacity:0;transform:translateY(8px) scale(.97);pointer-events:none;transition:opacity .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);contain:content;will-change:opacity,transform,visibility}
 #dm-pn.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;visibility:visible}
 #dm-pn:not(.open){visibility:hidden;transition:opacity .25s,transform .25s,visibility 0s .25s}
 .dm-hdr{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;cursor:grab}
@@ -634,46 +680,33 @@
       setCfg('target', target);
     };
 
-    makeDrag(fab, fab, () => { cfg.dx = fab.style.left; cfg.dy = fab.style.top; saveLazy(); });
+    // 드래그는 세션 중에만 유효 (저장 안 함)
+    makeDrag(fab, fab);
     hdr._ignoreTarget = t => t === closeBtn || closeBtn.contains(t);
-    makeDrag(hdr, pn, () => { cfg.px = pn.style.left; cfg.py = pn.style.top; saveLazy(); });
+    makeDrag(hdr, pn);
 
-    if (cfg.px) { const x = parseFloat(cfg.px); if (x >= 0 && x < innerWidth - 50) Object.assign(pn.style, { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' }); }
-    if (cfg.dx) { const x = parseFloat(cfg.dx); if (x >= 0 && x < innerWidth - 36) Object.assign(fab.style, { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' }); }
     if (panelOpen) openP(true);
   };
 
   /* ================================================================
-   *  §11. 패널 열기/닫기
+   *  §11. 패널 열기/닫기 (항상 CSS 좌표값 기준)
    * ================================================================ */
 
   const openP = instant => {
     if (panelOpen && !instant) return;
     panelOpen = true; setCfg('open', true);
-
-    if (!cfg.px && els.fab?.style.display !== 'none') {
-      const r = els.fab.getBoundingClientRect();
-      if (r.width > 0) {
-        Object.assign(els.pn.style, {
-          left: clamp(r.right - 256 + 24, 0, innerWidth - 256) + 'px',
-          top: clamp(r.top - 6, 0, innerHeight - 180) + 'px',
-          right: 'auto', bottom: 'auto'
-        });
-        cfg.px = els.pn.style.left; cfg.py = els.pn.style.top;
-      }
-    }
-
-    els.fab.style.display = 'none'; els.pn.classList.add('open');
+    els.fab.style.display = 'none';
+    els.pn.classList.add('open');
     Renderer.invalidate();
   };
 
   const closeP = () => {
     if (!panelOpen) return; panelOpen = false; setCfg('open', false);
-    const r = els.pn.getBoundingClientRect(); els.pn.classList.remove('open');
+    els.pn.classList.remove('open');
     setTimeout(() => {
-      if (panelOpen) return; els.fab.style.display = 'flex';
-      Object.assign(els.fab.style, { left: clamp(r.right - 24, 0, innerWidth - 40) + 'px', top: clamp(r.top + 6, 0, innerHeight - 40) + 'px', right: 'auto', bottom: 'auto' });
-      cfg.dx = els.fab.style.left; cfg.dy = els.fab.style.top; saveLazy();
+      if (panelOpen) return;
+      els.fab.style.display = 'flex';
+      Object.assign(els.fab.style, { left: '', top: '', right: '', bottom: '' });
     }, 260);
     _prev.dot = '';
   };
@@ -709,6 +742,7 @@
       _scanRetry = 0;
       _needScan = true;
       LiveDetect.resetYT();
+      _lastLiveLog = null;
 
       setTimeout(scan, 500); setTimeout(scan, 1500);
     }, 100);
@@ -746,13 +780,8 @@
 
   document.addEventListener('fullscreenchange', () => requestAnimationFrame(() => {
     if (!els.pn) return;
-    const def = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
-    if (document.fullscreenElement) {
-      Object.assign(els.pn.style, def); Object.assign(els.fab.style, def);
-    } else {
-      Object.assign(els.pn.style, cfg.px ? { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' } : def);
-      Object.assign(els.fab.style, cfg.dx ? { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' } : def);
-    }
+    Object.assign(els.pn.style, { left: '', top: '', right: '', bottom: '' });
+    Object.assign(els.fab.style, { left: '', top: '', right: '', bottom: '' });
   }));
 
   window.addEventListener('beforeunload', save);
@@ -765,7 +794,7 @@
     const vid = getVid();
     const buf = vid ? getBuf(vid) : -1;
     const gl = control.gear > 1.2 ? 'HIGH' : control.gear > 1 ? 'MED' : 'NORM';
-    const txt = `[${PLATFORM}] t=${target}s hyst=${getHyst().toFixed(2)} rM=${R_MED} rH=${R_HIGH} stall=${STALL_COOLDOWN}ms trig=0.7/1.2 | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
+    const txt = `[${PLATFORM}] t=${target}s hyst=${getHyst().toFixed(2)} rM=${R_MED} rH=${R_HIGH} stall=${STALL_COOLDOWN}ms grace=${HIDE_GRACE_MS}ms | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
     const toast = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 5000);
