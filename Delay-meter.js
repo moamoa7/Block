@@ -36,7 +36,7 @@
 
   const PLATFORM_DEFAULTS = {
     chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15 },
-    soop:    { target: 3.5,  min: 1,   max: 10, barMax: 15 },
+    soop:    { target: 3,  min: 1,   max: 10, barMax: 15 },
     twitch:  { target: 3,  min: 1,   max: 10, barMax: 15 },
     default: { target: 3,  min: 1,   max: 10, barMax: 15 },
   };
@@ -54,8 +54,8 @@
   const HIDE_GRACE_MS = 2500;
 
   const R_NORM = 1.00;
-  const R_MED  = IS_SOOP ? 1.02 : 1.15;
-  const R_HIGH = IS_SOOP ? 1.20 : 2.00;
+  const R_MED  = IS_SOOP ? 1.01 : 1.10;
+  const R_HIGH = IS_SOOP ? 1.11 : 2.00;
 
   /* ================================================================
    *  §2. 유틸리티
