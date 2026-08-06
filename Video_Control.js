@@ -19,8 +19,8 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @allFrames    true
-// @updateURL    https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Video_Control.js
-// @downloadURL  https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Video_Control.js
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 // ==/UserScript==
 
 (function () {
@@ -147,13 +147,13 @@
     { n: '밝게*',  v: [ 0,  0,  0,  0,  0,  0,  14,  14,  14] },
     { n: '선명+밝게*', v: [ 0,  0, 10,  0,  0,  4,   0,  18,  12] },
     { n: '저비트영상#', v: [6, 4, 4, 0, 0, -2, 4, 8, 4] },
-    { n: '라이브선명*', v: [0, 0, 6, 0, 0, 4, -4, 18, 6] },
+    { n: '라이브선명#', v: [0, 0, 6, 0, 0, 4, -4, 18, 6] },
     { n: '광명', v: [ 0,  0,  0,  0,  0,  0,  -24,  24,  24] },
     { n: '저조도영상*', v: [20, 8, 8, 0, 0, -4, 10, 4, 12] },
     { n: '또렷하게#', v: [0, 0, 0, 0, 0, 6, 4, 10, 10] },
     { n: '(모바일1)', v: [0, 0, 8, 0, 0, -8, -8, -4, 4] },
     { n: '(모바일2)', v: [0, 0, 4, 0, 0, -4, 4, -4, 4] },
-    { n: '(모바일3)', v: [0, 0, 16, 0, 0, 0, 8, 0, 8] },
+    { n: '(모바일3)', v: [0, 0, 6, 0, 0, 0, 7, 4, 1] },
     { n: '게임', v: [8, 0, 0, 0, 0, -2, -6, 14, 4] },
     { n: '생동감', v: [0, 0, 10, 0, 0, 16, -4, 10, 8] },
     { n: '역광보정', v: [40, 0, 15, 0, 0, 0, 12, 8, -8] },
