@@ -36,7 +36,7 @@
 
   const PLATFORM_DEFAULTS = {
     chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15 },
-    soop:    { target: 3.2,  min: 1,   max: 10, barMax: 15 },
+    soop:    { target: 3.5,  min: 1,   max: 10, barMax: 15 },
     twitch:  { target: 3,  min: 1,   max: 10, barMax: 15 },
     default: { target: 3,  min: 1,   max: 10, barMax: 15 },
   };
