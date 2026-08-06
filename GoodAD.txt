@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260806
+! Version: 20260807
 !
 !
 !
@@ -676,7 +676,7 @@ chzzk.naver.com##+js(json-prune, *.dab)
 chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
 !##[class*="_tooltip_" i]
 ! 치트키 구매하기 툴팁
-!chzzk.naver.com##.tooltip - ##[class$="tooltip" i] 로 대체
+chzzk.naver.com##.tooltip
 !##[class$="tooltip" i]
 ! - - - 예외 - 차단리스트 내용 안나옴
 !my.nextdns.io#@#.tooltip
@@ -2803,9 +2803,12 @@ a-ha.io##body:style(overflow: auto !important;)
 !
 ! 번개장터 (https://m.bunjang.co.kr/)
 ! - 배너 빈공간
-bunjang.co.kr##[class*="boxrecipe_overflow_hidden" i]
+!bunjang.co.kr##[class*="boxrecipe_overflow_hidden" i]
 ! - 검색시 나오는 광고 물건
 bunjang.co.kr##a:has([class*="bottomContainer" i]):upward(1)
+! - 기타
+! - - - https://api.bunjang.co.kr/api/pms/v1/external-ads/422654500
+/*-ads^$xhr
 !
 !
 ! 침하하 (https://chimhaha.net/)
@@ -3358,6 +3361,10 @@ thelabyrinth.co.kr##[class*="_overlay_" i]
 !
 ! 메가박스 (https://megabox.co.kr/)
 @@||megabox.co.kr^$generichide
+!
+!
+! 롯데시네마 (https://lottecinema.co.kr/)
+@@||lottecinema.co.kr^$generichide
 !
 !
 ! 얼리어답터뉴스 (https://eanews.kr/)
@@ -6699,22 +6706,26 @@ litt.ly#@#[href*="link.coupang.com"]
 ![$domain=/^dobakland\d+.org/]##[class*="cursor"]
 !
 !
-! 코티비씨 (https://korsite.net/)  (https://m181.kotbc2.com/)
+! 코티비씨 (https://korsite.net/)  (https://m184.kotbc2.com/)
 ! - 배너
-! - - - 코무비 (https://m320.kormovie.com/)
-! - - - 코왓챠 (https://m269.kowatcha.com/)
-! - - - 왓챠KR (https://m269.watchakr.com/)
+! - - - 코무비 (https://m323.kormovie.com/)
+! - - - 코왓챠 (https://m272.kowatcha.com/)
+! - - - 왓챠KR (https://m272.watchakr.com/)
 ! - - - 애니위크 (https://aniweek.com/)
 ! - - - 딸타임 (https://ddaltime188.com/)
 ! - --  개조아 (https://dogjoa97.net/)
-!##[class*="col"] [target] img
-!##[class*="col"]:has([target] img)
-##.at-title > .at-container
+! - - - 아래 규칙으로 하면 시네스트 출석부 일부 사라짐으로 규칙 재변경
+!##.at-title > .at-container
+! - - - https://javfilms.com/ - ! - 목록중 광고 / 영상 옆 다운로드/세이브/자막
+! - - - https://missav.ws/ - 차단되는건 없는대 차단로그에 나옴
+! - - - https://missav01.com/ - 차단되는건 없는대 차단로그에 나옴
+! - -- https://cineaste.co.kr/ - 차단되는건 없는대 차단로그에 나옴
+##[class*="xs"]:has([target] img)
 ! - 기타
 ##script[src$="/ad-provider.js"] + ins
 !
 !
-! 코무비 (https://korsite.net/) (https://m320.kormovie.com/)
+! 코무비 (https://korsite.net/) (https://m323.kormovie.com/)
 ! - 배너 이미지
 !||*.kormovie.com/img/*.jpg
 ! - 배너 빈 공간
@@ -6726,7 +6737,7 @@ litt.ly#@#[href*="link.coupang.com"]
 !/watchakr|kowatcha|kormovie.com/###mnxo2
 !
 !
-! 코왓챠(https://korsite.net/)  (https://m269.kowatcha.com/)
+! 코왓챠(https://korsite.net/)  (https://m272.kowatcha.com/)
 ! - 배너 이미지
 !||*.kowatcha.com/img/*.jpg
 ! - 배너 빈공간
@@ -6735,7 +6746,7 @@ litt.ly#@#[href*="link.coupang.com"]
 !/watchakr|kowatcha/##.h20
 !/watchakr|kowatcha/##.h30
 !
-! 왓챠KR(https://korsite.net/)  (https://m269.watchakr.com/)
+! 왓챠KR(https://korsite.net/)  (https://m272.watchakr.com/)
 ! - 배너 이미지
 !||*.watchakr.com/img/*.jpg
 !
@@ -7205,13 +7216,6 @@ katfile.space##[style="position: fixed; bottom: 25px; right: 25px; z-index: 9999
 !
 !
 ! https://javfilms.com/
-! - 목록중 광고 / 영상 옆 다운로드/세이브/자막
-!javfilms.com##[class*="col"]:has([rel*="sponsor" i])
-! - - - 이 규칙으로 하면 개별 영상이 안보이므로 아래로 재변경
-!##[class*="col"]:has([rel*="sponsor" i])
-! - - - https://missav.ws/ - 차단되는건 없는대 차단로그에 나옴
-! - - - https://missav01.com/ - 차단되는건 없는대 차단로그에 나옴
-##[class*="xs"]:has([rel*="sponsor" i])
 ! - 기타
 !||simpleanalyticscdn.com^
 !
