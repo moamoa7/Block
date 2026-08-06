@@ -54,8 +54,8 @@
   const HIDE_GRACE_MS = 2500;
 
   const R_NORM = 1.00;
-  const R_MED  = IS_SOOP ? 1.01 : 1.10;
-  const R_HIGH = IS_SOOP ? 1.11 : 2.00;
+  const R_MED  = IS_SOOP ? 1.03 : 1.10;
+  const R_HIGH = IS_SOOP ? 1.15 : 1.50;
 
   /* ================================================================
    *  §2. 유틸리티
