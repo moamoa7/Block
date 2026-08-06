@@ -612,7 +612,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v16.3.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v' + GM_info.script.version }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
