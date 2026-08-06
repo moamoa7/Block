@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Pokkok
 // @namespace    https://github.com/moamoa7/Block
-// @version      1.4.2
-// @description  uBlock을 못 쓰는 모바일 브라우저용 가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 슬라이더 계층 탐색, 유사 요소 찾기, 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, self-healing, Trusted Types 대응
+// @version      1.4.5
+// @description  가벼운 요소 숨김기 — 손가락으로 짚고 탭 한 번에 차단, 슬라이더 계층 탐색, 유사 요소 찾기, 차단 동일 미리보기, iframe 박스 선택, :where 차단 엔진, :has 강화(복합/속성존재), self-healing, Trusted Types 대응
 // @author       moamoa7
 // @license      MPL-2.0
 // @homepage     https://github.com/moamoa7/Block
@@ -11,8 +11,8 @@
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
 // @run-at       document-start
-// @updateURL    https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Pokkok.js
-// @downloadURL  https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Pokkok.js
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Pokkok.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Pokkok.js
 // ==/UserScript==
 
 (function () {
@@ -75,6 +75,12 @@
     })();
 
     const HAS_MAX_MATCH = 200; // :has() 후보가 이보다 많으면 너무 광범위 → 사용 안 함
+
+    // :has() 자식 조건에서 무시할 범용 경로 조각 (광고 단서가 아님)
+    const HAS_GENERIC_PATH_RE = /^\/?(?:imgs?|images?|assets?|static|cdn|media|uploads?|files?|content|thumb|thumbs|photo|photos|pic|pics|resource|resources|data|public|dist|build|src)\/?$/i;
+
+    // :has() 자식 조건에 붙일 만한 "뚜렷한 광고 힌트" (class / id / url 공통)
+    const AD_HINT_RE = /(?:adsbygoogle|doubleclick|googlesyndication|googleadservices|adservice|amazon-adsystem|adsystem|adnxs|criteo|taboola|outbrain|sponsor|adsense|banner|(?:^|[^a-z])ads?(?:[^a-z]|$)|advert|promo)/i;
 
     const esc = (s) => String(s ?? '')
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -327,9 +333,7 @@
                 this._vv = () => {
                     if (!card) return;
                     const vh = window.visualViewport.height;
-                    // 위치를 드래그로 고정했든 안 했든 높이 제한은 항상 갱신
                     card.style.maxHeight = Math.min(vh - 16, vh * 0.95) + 'px';
-                    // 드래그로 옮긴 카드가 새 뷰포트 밖으로 나가지 않도록 클램프
                     if (this._pos) {
                         const vw = window.visualViewport.width;
                         const w = card.offsetWidth, h = card.offsetHeight;
@@ -390,7 +394,6 @@
             };
             const onUp = () => {
                 if (!active) return; active = false;
-                // 드래그로 인식된 경우, 직후 발생하는 click을 무시하도록 플래그 설정
                 if (moved) { this._suppressClick = true; setTimeout(() => { this._suppressClick = false; }, 60); }
                 try { head.releasePointerCapture?.(pid); } catch (_) {}
                 pid = null; setTimeout(() => { moved = false; }, 50);
@@ -400,7 +403,6 @@
             head.addEventListener('pointerup', onUp, { passive: false });
             head.addEventListener('pointercancel', onUp, { passive: false });
 
-            // 드래그 직후의 클릭(닫기/확인 등)을 캡처 단계에서 차단
             this.node.addEventListener('click', (e) => {
                 if (this._suppressClick) { e.stopPropagation(); e.preventDefault(); }
             }, true);
@@ -537,28 +539,125 @@
             return idx ? `${tag}:nth-of-type(${idx})` : tag;
         }
 
-        // 의미 있는 직계 자식 클래스 후보 (:has(> .child)용)
+        // 특징적 자식 후보 (:has()용) — 슬라이더로 고른 현재 컨테이너에 붙일
+        // 이식 가능한 표준 :has() 조건을 생성한다.
+        // 원칙: 기본은 태그만(:has(img)), 뚜렷한 광고 힌트가 있을 때만 속성 부착.
+        //       /imgs/·/assets/ 같은 범용 경로 조각은 무시.
+        //       형제 컨테이너가 같은 태그/이미지를 공유하면 복합 :has()로 구별.
         static childHasParts(el) {
             if (!el || !el.children || !SUPPORTS_HAS) return [];
             const out = [];
             const seen = new Set();
-            for (const child of Array.from(el.children)) {
-                if (child.id === ROOT_ID || child.id === SHIELD_ID) continue;
-                if (child.closest && (child.closest(`#${ROOT_ID}`) || child.closest(`#${SHIELD_ID}`))) continue;
-                const ctag = child.tagName ? child.tagName.toLowerCase() : '';
-                const ccls = this.meaningfulClasses(child);
-                for (const c of ccls.slice(0, 2)) {
-                    const part = `> .${CSS.escape(c)}`;
-                    if (seen.has(part)) continue;
-                    seen.add(part);
-                    out.push({ part, label: `> .${c}` });
+            const add = (part, label) => {
+                if (seen.has(part)) return;
+                seen.add(part);
+                out.push({ part, label });
+            };
+            const isOurs = (n) => n.id === ROOT_ID || n.id === SHIELD_ID ||
+                (n.closest && (n.closest(`#${ROOT_ID}`) || n.closest(`#${SHIELD_ID}`)));
+
+            // 광고성 URL 조각만 골라낸다. 범용 경로(/imgs/ 등)는 버린다.
+            const adUrlParts = (val) => {
+                const hits = [];
+                for (const part of this.urlParts(val)) {
+                    const bare = part.replace(/^\/|\/$/g, '');
+                    if (HAS_GENERIC_PATH_RE.test(bare)) continue; // 범용 경로 제외
+                    if (AD_HINT_RE.test(bare)) hits.push(part);   // 광고 힌트만
                 }
-                if (!ccls.length && ctag) {
-                    const part = `> ${ctag}`;
-                    if (!seen.has(part)) { seen.add(part); out.push({ part, label: `> ${ctag}` }); }
+                return hits;
+            };
+            // 광고성 클래스 하나를 골라 `tag.cls` 형태로 반환 (없으면 null)
+            const adClassSel = (node) => {
+                const tag = node.tagName ? node.tagName.toLowerCase() : '';
+                for (const c of this.meaningfulClasses(node)) {
+                    if (AD_HINT_RE.test(c)) return `${tag}.${CSS.escape(c)}`;
+                }
+                return null;
+            };
+
+            // 1) 직계 자식: 태그 기본, 광고 힌트(class) 있으면 좁힌다
+            for (const child of Array.from(el.children)) {
+                if (isOurs(child)) continue;
+                const ctag = child.tagName ? child.tagName.toLowerCase() : '';
+                if (!ctag) continue;
+                const adCls = adClassSel(child);
+                if (adCls) add(`> ${adCls}`, `> ${adCls}`);
+                else       add(`> ${ctag}`, `> ${ctag}`);
+            }
+
+            // 2) 후손: 광고성 클래스를 가진 것만 (묻혀 있는 광고 컨테이너)
+            let scanned = 0;
+            for (const d of el.querySelectorAll(':scope *')) {
+                if (++scanned > 60) break;
+                if (isOurs(d) || d.parentElement === el) continue;
+                const adCls = adClassSel(d);
+                if (adCls) add(adCls, `${adCls} (후손)`);
+            }
+
+            // 3) 미디어/링크 후손: 태그 기본, URL이 광고 힌트일 때만 속성 부착
+            let urlScanned = 0;
+            for (const d of el.querySelectorAll('a[href], img[src], iframe[src], ins, embed')) {
+                if (++urlScanned > 30) break;
+                if (isOurs(d)) continue;
+                const dtag = d.tagName.toLowerCase();
+
+                const adCls = adClassSel(d);
+                if (adCls) { add(adCls, `${adCls}`); continue; }
+
+                const attr = d.hasAttribute('href') ? 'href'
+                           : d.hasAttribute('src')  ? 'src' : null;
+                if (attr) {
+                    const parts = adUrlParts(d.getAttribute(attr));
+                    if (parts.length) {
+                        for (const part of parts) {
+                            add(`${dtag}[${attr}*="${CSS.escape(part)}"]`, `${dtag} ${attr}⊃"${part}"`);
+                        }
+                        continue;
+                    }
+                }
+                add(dtag, dtag);
+            }
+
+            // 4) 복합 :has() — 미디어(img/iframe)를 품은 "특징적 조상"으로 구별
+            //    예: <a target=_blank><img></a> → :has([target] img)
+            //    형제 컨테이너가 같은 태그·이미지를 공유할 때 하나만 집어낸다.
+            const COMPOUND_ATTRS = ['target', 'rel', 'type', 'role'];
+            let mediaScanned = 0;
+            for (const media of el.querySelectorAll('img, iframe, video, embed')) {
+                if (++mediaScanned > 8) break;
+                if (isOurs(media)) continue;
+                const mtag = media.tagName.toLowerCase();
+
+                let anc = media.parentElement;
+                let up = 0;
+                while (anc && anc !== el.parentElement && up < 3) {
+                    if (isOurs(anc)) break;
+
+                    // (a) 존재만으로 의미 있는 속성: [target] 등
+                    for (const at of COMPOUND_ATTRS) {
+                        if (anc.hasAttribute(at)) {
+                            add(`[${at}] ${mtag}`, `[${at}] ${mtag}`);
+                        }
+                    }
+                    // (b) data-* 존재 조건 (동적 값은 이름만 사용).
+                    //     Pokkok이 심는 data-pokkok* 는 오염이므로 무시.
+                    for (const attr of anc.attributes) {
+                        if (attr.name.startsWith('data-pokkok')) continue;
+                        if (attr.name.startsWith('data-') && attr.name.length <= 24) {
+                            add(`[${attr.name}] ${mtag}`, `[${attr.name}] ${mtag}`);
+                            break;
+                        }
+                    }
+                    // (c) 광고 힌트 class를 가진 조상
+                    const adCls = adClassSel(anc);
+                    if (adCls) add(`${adCls} ${mtag}`, `${adCls} ${mtag}`);
+
+                    anc = anc.parentElement;
+                    up++;
                 }
             }
-            return out.slice(0, 8);
+
+            return out.slice(0, 20);
         }
 
         static best(el) {
@@ -626,7 +725,7 @@
                 if (onlyHits(tagNth)) return tagNth;
             }
 
-            if (SUPPORTS_HAS) {
+                        if (SUPPORTS_HAS) {
                 const base = classes.length
                     ? `${tag}.${classes.map(c => CSS.escape(c)).join('.')}`
                     : (attrs.length ? `${tag}${attrs.join('')}` : tag);
@@ -638,6 +737,8 @@
                     if (onlyHits(cand)) return cand;
                 }
             }
+
+
 
             const selfSeg = this._segOf(el, classes.length, true);
             const narrowed = this._narrowByPath(el, selfSeg, onlyHits);
@@ -715,57 +816,13 @@
                 .slice(0, 6);
         }
 
-        // 한 번의 DOM 순회로 h / w / wh 세 모드의 매칭 결과를 모두 수집
-        static findAllDimensions(ref, tol = 0.12) {
-            const empty = { h: [], w: [], wh: [] };
-            if (!ref) return empty;
-            const r = ref.getBoundingClientRect();
-            if (r.width < 8 || r.height < 8) return empty;
-            const res = { h: [], w: [], wh: [] };
-            let scanned = 0;
-            const all = document.body ? document.body.querySelectorAll('*') : [];
-            for (const el of all) {
-                if (++scanned > 6000) break;
-                if (el.id === ROOT_ID || el.id === SHIELD_ID) continue;
-                if (el.closest && (el.closest(`#${ROOT_ID}`) || el.closest(`#${SHIELD_ID}`))) continue;
-                const b = el.getBoundingClientRect();
-                if (b.width < 8 || b.height < 8) continue;
-                const dw = Math.abs(b.width - r.width) / r.width;
-                const dh = Math.abs(b.height - r.height) / r.height;
-                const okW = dw <= tol;
-                const okH = dh <= tol;
-                if (okH) res.h.push(el);
-                if (okW) res.w.push(el);
-                if (okW && okH) res.wh.push(el);
-            }
-            return res;
-        }
-
-        // 단일 모드 조회 — findAllDimensions의 캐시를 재사용 (없으면 1회 계산)
-        static findByDimension(ref, mode, tol = 0.12) {
-            const dims = this._dimCacheFor(ref, tol);
-            return dims[mode] || [];
-        }
-
-        // 같은 ref/tol에 대한 findAllDimensions 결과를 짧게 캐싱
-        static _dimCacheFor(ref, tol = 0.12) {
-            if (this._dimCacheRef === ref && this._dimCacheTol === tol && this._dimCache) {
-                return this._dimCache;
-            }
-            const dims = this.findAllDimensions(ref, tol);
-            this._dimCacheRef = ref;
-            this._dimCacheTol = tol;
-            this._dimCache = dims;
-            return dims;
-        }
-
         static similarOptions(el) {
             if (!el || !el.tagName) return [];
             const tag = el.tagName.toLowerCase();
             const opts = [];
             const seen = new Set();
             const push = (o) => {
-                const key = o.sel ? 's:' + o.sel : 'd:' + o.dim;
+                const key = 's:' + o.sel;
                 if (seen.has(key)) return;
                 seen.add(key);
                 opts.push(o);
@@ -782,17 +839,22 @@
                 const sel = `#${CSS.escape(el.id)}`;
                 push({ label: `id · #${el.id}`, sel, count: this.countMatches(sel) });
             }
-            if (SUPPORTS_HAS) {
+                        if (SUPPORTS_HAS) {
                 const base = this.meaningfulClasses(el).length
                     ? `${tag}.${this.meaningfulClasses(el).map(c => CSS.escape(c)).join('.')}`
                     : tag;
                 for (const ch of this.childHasParts(el)) {
                     const sel = `${base}:has(${ch.part})`;
-                    const count = this.countMatches(sel);
-                    if (count > HAS_MAX_MATCH) continue;
-                    push({ label: `has ${ch.label}`, sel, count });
+                    let matched;
+                    try { matched = Array.from(document.querySelectorAll(sel)); } catch (_) { continue; }
+                    // 찍은 범위(el 자신 + 후손)를 벗어나는 노드가 하나라도 있으면 제외
+                    const inScope = matched.length > 0 &&
+                        matched.every(n => n === el || el.contains(n));
+                    if (!inScope) continue;
+                    push({ label: `has ${ch.label}`, sel, count: matched.length });
                 }
             }
+
             for (const attr of ['src', 'href', 'data-src', 'data-original', 'poster']) {
                 const v = el.getAttribute?.(attr);
                 if (!v) continue;
@@ -840,20 +902,12 @@
                     }
                 }
             }
-            // 치수 기반 후보 — DOM을 1회만 순회하여 h/w/wh 개수를 한꺼번에 산출
-            const r = el.getBoundingClientRect();
-            const w = Math.round(r.width), h = Math.round(r.height);
-            const dims = this._dimCacheFor(el);
-            if (h >= 8) push({ label: `높이 ≈ ${h}px`, dim: 'h', count: dims.h.length });
-            if (w >= 8) push({ label: `너비 ≈ ${w}px`, dim: 'w', count: dims.w.length });
-            if (w >= 8 && h >= 8) push({ label: `크기 ≈ ${w}×${h}`, dim: 'wh', count: dims.wh.length });
 
             return opts;
         }
 
         static resolveSimilar(opt, ref) {
-            if (!opt) return [];
-            if (opt.dim) return this.findByDimension(ref, opt.dim);
+            if (!opt || !opt.sel) return [];
             try {
                 return Array.from(document.querySelectorAll(opt.sel))
                     .filter(n => n.id !== ROOT_ID && !(n.closest && (n.closest(`#${ROOT_ID}`) || n.closest(`#${SHIELD_ID}`))));
@@ -882,7 +936,6 @@
 
         resolveParent(el) { return el?.parentElement || null; }
 
-        // 선택 요소 기준 조상 체인 구성 (최상위 조상 → 선택 요소 순)
         _buildHierarchy(el) {
             const chain = [];
             let cur = el;
@@ -896,7 +949,6 @@
             this.state.originTarget = el;
         }
 
-        // 슬라이더 한계/현재값: 0 = 최상위 조상, max = 가장 깊은(선택) 요소
         _sliderLimits() {
             const chain = this.state.hierarchy;
             if (!chain.length) return { min: 0, max: 0, val: 0 };
@@ -991,7 +1043,7 @@
             const stats = Blocker.getStats();
             return `
             <div class="pokkok-hdr" data-drag="1">
-                <span class="pokkok-title">Pokkok <small>v1.4.2</small></span>
+                <span class="pokkok-title">Pokkok <small>v1.4.5</small></span>
                 <div class="pokkok-hdr-btns">
                     <button class="pokkok-btn pokkok-btn-icon" data-act="rules" title="이 사이트 규칙">📋</button>
                     <button class="pokkok-btn pokkok-btn-icon" data-act="settings" title="설정">${ICON_SET}</button>
@@ -1013,7 +1065,7 @@
                 </div>
 
                 <div class="pokkok-act">
-                    <button class="pokkok-btn pokkok-similar" data-act="findSimilar" data-ref="simBtn" title="비슷한 속성·치수를 가진 요소 찾기">
+                    <button class="pokkok-btn pokkok-similar" data-act="findSimilar" data-ref="simBtn" title="비슷한 속성을 가진 요소 찾기">
                         ${ICON_SIMILAR}<span>유사 요소</span>
                     </button>
                     <button class="pokkok-btn" data-act="toggleHide" data-ref="hideBtn" title="페이지에서 임시로 숨겨 미리보기">
@@ -1208,7 +1260,7 @@
             setHTML(body, `
                 <div style="opacity:.75;font-size:12px;margin-bottom:8px;line-height:1.5">
                     선택한 요소(<code>${esc(ref.tagName.toLowerCase())}</code>)와 공통점이 있는 요소들을 찾습니다.
-                    기준을 누르면 후보가 열립니다. 목록이 길면 스크롤하세요. 치수 기준은 화면에 보이는 크기로 매칭합니다.
+                    기준을 누르면 후보가 열립니다. 목록이 길면 스크롤하세요.
                 </div>
                 <div class="pokkok-sim-opts">${rows}</div>`);
             body.querySelectorAll('.pokkok-sim-opt').forEach(b => {
@@ -1223,14 +1275,12 @@
         _renderSimCandidates(ref, opt, nodes) {
             this._clearSimPreview();
             for (const n of this.state.simNodes) n.classList.remove('pokkok-hl-sim');
-            nodes.forEach((n, i) => { n.classList.add('pokkok-hl-sim'); n.dataset.pokkokSim = i; });
+            nodes.forEach(n => { n.classList.add('pokkok-hl-sim'); });
             this.state.simNodes = nodes;
             this.state.simSelected = new Set(nodes.map((_, i) => i));
             this.state.simOpt = opt;
 
-            const saveHint = opt.sel
-                ? '전체를 그대로 두면 공통 셀렉터 1개로 저장됩니다(가볍고 self-healing). 일부만 체크하면 그것들만 개별 저장됩니다.'
-                : '치수 기준은 CSS로 표현할 수 없어 선택한 요소마다 개별 셀렉터로 저장됩니다.';
+            const saveHint = '전체를 그대로 두면 공통 셀렉터 1개로 저장됩니다(가볍고 self-healing). 일부만 체크하면 그것들만 개별 저장됩니다.';
 
             const body = this.modal.display(`후보 ${nodes.length}개`, '', true);
             const itemHtml = nodes.length ? nodes.map((n, i) => {
@@ -1693,7 +1743,7 @@
                     <div class="pokkok-settings-row"><span>:has() 지원</span><span style="font-size:11px;opacity:0.7">${SUPPORTS_HAS ? '예' : '아니오'}</span></div>
                     <div class="pokkok-settings-row"><span>Trusted Types</span><span style="font-size:11px;opacity:0.7">${ttState}</span></div>
                     <div class="pokkok-settings-row"><button class="pokkok-btn" data-ref="resetPos">버튼 위치 초기화</button><button class="pokkok-btn" data-ref="clearPreview">미리보기 정리</button></div>
-                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 슬라이더로 범위 조절(← 상위 / 선택 요소 →) → 차단. 레코드 영역의 복사 버튼으로 "도메인##셀렉터" 필터를 떠서 데스크톱 uBlock에 붙여넣을 수 있습니다. "유사 요소 찾기"로 같은 종류 요소를 한꺼번에 잡고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). "강화 모드"는 끈질긴 광고를 공간·잔여 스타일까지 강제 제거합니다. 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다. Trusted Types를 요구하는 사이트에서도 동작합니다.</small></div>
+                    <div class="pokkok-settings-row" style="border-top:1px solid rgba(255,255,255,0.06);"><small style="opacity:0.6;line-height:1.5">요소 선택 → 슬라이더로 범위 조절(← 상위 / 선택 요소 →) → 차단. 레코드 영역의 복사 버튼으로 "도메인##셀렉터" 필터를 떠서 데스크톱 uBlock에 붙여넣을 수 있습니다. "유사 요소 찾기"로 같은 종류 요소를 한꺼번에 잡고, "숨겨서 미리보기"로 실제 차단과 동일한 화면을 확인할 수 있습니다(전체 선택 시 공통 셀렉터 1개로 저장). :has()는 컨테이너 안의 자식 태그·광고 힌트(class·URL), 그리고 [target] img 같은 복합 조건으로 형제 중 하나만 골라냅니다. "강화 모드"는 끈질긴 광고를 공간·잔여 스타일까지 강제 제거합니다. 차단은 :where()로 명시도 0 규칙을 적용해 사이트 스타일과 충돌이 적고, SPA에서 다시 나타나는 요소도 자동 재차단됩니다. Trusted Types를 요구하는 사이트에서도 동작합니다.</small></div>
                 </div>`);
             body.querySelector('[data-ref="resetPos"]').addEventListener('click', () => { this.state.iconPos = null; this.state.panelPos = null; this.applyPosition(); this.flashToast('위치 초기화됨'); });
             body.querySelector('[data-ref="clearPreview"]').addEventListener('click', () => { this.clearPinned(); this.clearHide(); this.clearSimHighlight(); this.flashToast('미리보기 정리됨'); this._syncHideLabel(); });
