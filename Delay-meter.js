@@ -1,15 +1,13 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7/Block
-// @version      16.2.3
-// @description  라이브 방송의 딜레이를 자동 감지·제어
+// @version      16.3.0
+// @description  라이브 방송의 딜레이를 자동 감지·제어 (CHZZK/SOOP/Twitch)
 // @author       moamoa7
-// @match        *://*.youtube.com/*
 // @match        *://*.chzzk.naver.com/*
 // @match        *://*.play.sooplive.com/*
 // @match        *://*.play.sooplive.co.kr/*
 // @match        *://*.twitch.tv/*
-// @exclude      *://*.youtube.com/live_chat*
 // @exclude      *://challenges.cloudflare.com/*
 // @exclude      *://*.challenges.cloudflare.com/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,14 +29,12 @@
    * ================================================================ */
 
   const HOST = location.hostname.replace(/^www\./, '');
-  const PLATFORM = [['youtube','youtube'],['chzzk','chzzk'],['sooplive','soop'],['twitch','twitch']]
+  const PLATFORM = [['chzzk','chzzk'],['sooplive','soop'],['twitch','twitch']]
     .find(([k]) => HOST.includes(k))?.[1] || 'default';
-  const IS_YOUTUBE = PLATFORM === 'youtube';
   const IS_SOOP = PLATFORM === 'soop';
-  const PLATFORM_LABEL = { youtube: 'YouTube', chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
+  const PLATFORM_LABEL = { chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
 
   const PLATFORM_DEFAULTS = {
-    youtube: { target: 10, min: 2,   max: 30, barMax: 35 },
     chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15 },
     soop:    { target: 3.2,  min: 1,   max: 10, barMax: 15 },
     twitch:  { target: 3,  min: 1,   max: 10, barMax: 15 },
@@ -185,39 +181,6 @@
   const LiveDetect = (() => {
     const cache = new WeakMap();
     const tracker = new WeakMap();
-    let ytPlayerEl = null, ytPlayerTs = 0, ytResult = false, ytTs = 0;
-
-    const getYTPlayer = () => {
-      const now = performance.now();
-      if (ytPlayerEl && now - ytPlayerTs < 5000) return ytPlayerEl;
-      ytPlayerEl = document.getElementById('movie_player');
-      ytPlayerTs = now;
-      return ytPlayerEl;
-    };
-
-    const youtube = vid => {
-      if (vid.duration === Infinity || vid.duration >= 1e6) return true;
-      if (location.pathname.includes('/live')) return true;
-      const now = performance.now();
-      const ttl = ytResult ? 3000 : 1000;
-      if (now - ytTs < ttl) return ytResult;
-      let result = false;
-      const p = getYTPlayer();
-      if (p) {
-        try {
-          if (typeof p.getVideoData === 'function') { const d = p.getVideoData(); if (d?.isLive) result = true; }
-          if (!result && typeof p.getPlayerResponse === 'function') {
-            const r = p.getPlayerResponse();
-            if (r?.videoDetails?.isLiveContent && r?.videoDetails?.isLive) result = true;
-          }
-        } catch {}
-      }
-      if (!result && document.querySelector('.ytp-live-badge[disabled],.ytp-live,ytd-badge-supported-renderer .badge-style-type-live-now')) {
-        result = true;
-      }
-      ytResult = result; ytTs = now;
-      return result;
-    };
 
     const generic = vid => {
       if (vid.duration === Infinity || vid.duration >= 1e6) return true;
@@ -258,8 +221,7 @@
     };
 
     return {
-      check: vid => vid ? (IS_YOUTUBE ? youtube(vid) : generic(vid)) : false,
-      resetYT() { ytTs = 0; ytPlayerTs = 0; },
+      check: vid => vid ? generic(vid) : false,
       clearCache: vid => { if (vid) cache.delete(vid); },
     };
   })();
@@ -422,7 +384,6 @@
     logLive(isLiveNow, vid);
 
     if (!isLiveNow) {
-      if (IS_YOUTUBE) _scanRetry = 0;
       if (live.falseCount >= 0) {
         live.falseCount++;
         live.isCurrent = false;
@@ -651,7 +612,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v16.2.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v16.3.0' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -741,7 +702,6 @@
       resetControlState();
       _scanRetry = 0;
       _needScan = true;
-      LiveDetect.resetYT();
       _lastLiveLog = null;
 
       setTimeout(scan, 500); setTimeout(scan, 1500);
