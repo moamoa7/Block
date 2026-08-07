@@ -2595,20 +2595,20 @@ function togglePanel(force) {
   buildPanel();
   panelOpen = force !== undefined ? force : !panelOpen;
   if (panelOpen) {
-    const target = getMountTarget();
-    if (target && panelHost.parentNode !== target) {
-      try { target.appendChild(panelHost); } catch (_) {}
-    }
     const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    panelHost.classList.toggle('vsc-fs', isFs);
+    if (isFs) {
+      // 모바일 전체화면 재생 중 backdrop-filter가 합성 갱신을 막는 문제 회피
+      panelEl.style.backdropFilter = 'none';
+      panelEl.style.webkitBackdropFilter = 'none';
+      panelEl.style.background = 'rgba(12,12,18,0.96)';
+    } else {
+      panelEl.style.backdropFilter = '';
+      panelEl.style.webkitBackdropFilter = '';
+      panelEl.style.background = '';
+    }
     panelEl.classList.add('open');
     renderTab();
-    // opacity 트랜지션이 완료되지 않는 문제 방지
-    panelEl.style.transition = 'none';
-    panelEl.style.opacity = '1';
   } else {
-    panelEl.style.opacity = '';
-    panelEl.style.transition = '';
     panelEl.classList.remove('open');
     tabSignalCleanups.forEach(c => c());
     tabSignalCleanups.length = 0;
