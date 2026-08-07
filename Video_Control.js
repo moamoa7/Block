@@ -2595,6 +2595,13 @@
       buildPanel();
       panelOpen = force !== undefined ? force : !panelOpen;
       if (panelOpen) {
+        // 패널을 아이콘과 동일한 부모(전체화면이면 전체화면 요소)로 강제 이동
+        const target = getMountTarget();
+        if (target && panelHost.parentNode !== target) {
+          try { target.appendChild(panelHost); } catch (_) {}
+        }
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        panelHost.classList.toggle('vsc-fs', isFs);
         panelEl.classList.add('open');
         renderTab();
       } else {
@@ -2604,6 +2611,7 @@
         tabFns.length = 0;
       }
     }
+
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
