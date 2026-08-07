@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.1.3)
+// @name         Video_Control (v33.1.2)
 // @namespace    https://github.com/moamoa7
-// @version      33.1.3
-// @description  v33.1.3: 모바일 iframe 내 UI/필터 유지 (전체화면 아니어도 iframe이면 동작)
+// @version      33.1.2
+// @description  v33.1.2: 톤보정 일부 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,7 +33,6 @@
 
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
-  const IN_IFRAME = (() => { try { return window.top !== window.self; } catch (_) { return true; } })();
 
     const IS_GECKO = (() => {
     try {
@@ -51,7 +50,7 @@
   })();
 
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.1.3';
+  const VSC_VERSION = '33.1.2';
   const DEBUG = true;
 
   const log = {
@@ -1844,6 +1843,7 @@
 
     return { setActive, isActive: () => active, onTargetChange, updateTime, showAudioWarning };
   }
+
   function createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio, Persist) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
@@ -2009,7 +2009,7 @@
 
     function updateQuickBarVisibility() {
       if (!quickBarHost) return;
-      if (IS_MOBILE && !IN_IFRAME && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         if (_qbarHasVideo) { _qbarHasVideo = false; quickBarHost.classList.add('vsc-hidden'); if (panelOpen) togglePanel(false); }
         return;
       }
@@ -2595,21 +2595,8 @@
       buildPanel();
       panelOpen = force !== undefined ? force : !panelOpen;
       if (panelOpen) {
-        // 패널을 아이콘과 동일한 부모(전체화면이면 전체화면 요소)로 강제 이동
-        const target = getMountTarget();
-        if (target && panelHost.parentNode !== target) {
-          try { target.appendChild(panelHost); } catch (_) {}
-        }
-        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-        panelHost.classList.toggle('vsc-fs', isFs);
         panelEl.classList.add('open');
         renderTab();
-
-        // ★ 진단용: 전체화면에서 패널 상태를 화면에 표시
-        try {
-          const r = panelEl.getBoundingClientRect();
-          OSD.show(`fs=${isFs} 부모=${panelHost.parentNode?.tagName} 위치=${Math.round(r.left)},${Math.round(r.top)} 크기=${Math.round(r.width)}x${Math.round(r.height)}`, 4000);
-        } catch (_) {}
       } else {
         panelEl.classList.remove('open');
         tabSignalCleanups.forEach(c => c());
@@ -2685,7 +2672,7 @@
         return;
       }
 
-      if (IS_MOBILE && !IN_IFRAME && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         for (const v of Registry.videos) Filters.clear(v);
         Audio.setTarget(null);
         __internal._activeVideo = null;
