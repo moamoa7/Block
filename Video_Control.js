@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.1.3)
+// @name         Video_Control (v33.1.2)
 // @namespace    https://github.com/moamoa7
-// @version      33.1.3
-// @description  v33.1.3: 모바일 iframe 내 UI/필터 유지 (전체화면 아니어도 iframe이면 동작)
+// @version      33.1.2
+// @description  v33.1.2: 톤보정 일부 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,7 +33,6 @@
 
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
-  const IN_IFRAME = (() => { try { return window.top !== window.self; } catch (_) { return true; } })();
 
     const IS_GECKO = (() => {
     try {
@@ -51,7 +50,7 @@
   })();
 
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.1.3';
+  const VSC_VERSION = '33.1.2';
   const DEBUG = true;
 
   const log = {
@@ -1844,6 +1843,7 @@
 
     return { setActive, isActive: () => active, onTargetChange, updateTime, showAudioWarning };
   }
+
   function createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio, Persist) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
@@ -2009,7 +2009,7 @@
 
     function updateQuickBarVisibility() {
       if (!quickBarHost) return;
-      if (IS_MOBILE && !IN_IFRAME && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         if (_qbarHasVideo) { _qbarHasVideo = false; quickBarHost.classList.add('vsc-hidden'); if (panelOpen) togglePanel(false); }
         return;
       }
@@ -2601,14 +2601,16 @@ function togglePanel(force) {
     }
     const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
     panelHost.classList.toggle('vsc-fs', isFs);
-    // 재생 중 video 오버레이 위에 패널이 그려지도록 자체 합성 레이어 강제
+    // 전체화면 재생 중 video 오버레이 승격을 억제: video에 미세 트랜스폼 강제
     if (isFs) {
-      panelHost.style.transform = 'translateZ(0)';
-      panelHost.style.willChange = 'transform';
-      panelHost.style.zIndex = '2147483647';
-    } else {
-      panelHost.style.transform = '';
-      panelHost.style.willChange = '';
+      try {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        const vid = (fsEl && fsEl.tagName === 'VIDEO') ? fsEl : (fsEl && fsEl.querySelector('video'));
+        if (vid) {
+          vid.style.transform = 'translateZ(0.001px)';
+          vid.style.willChange = 'transform';
+        }
+      } catch (_) {}
     }
     panelEl.classList.add('open');
     renderTab();
@@ -2687,7 +2689,7 @@ function togglePanel(force) {
         return;
       }
 
-      if (IS_MOBILE && !IN_IFRAME && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         for (const v of Registry.videos) Filters.clear(v);
         Audio.setTarget(null);
         __internal._activeVideo = null;
