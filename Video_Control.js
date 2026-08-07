@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v33.1.3)
+// @name         Video_Control (v33.1.2)
 // @namespace    https://github.com/moamoa7
-// @version      33.1.3
-// @description  v33.1.3: 모바일 iframe 내 UI/필터 유지 (전체화면 아니어도 iframe이면 동작)
+// @version      33.1.2
+// @description  v33.1.2: 톤보정 일부 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,7 +33,6 @@
 
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
-  const IN_IFRAME = (() => { try { return window.top !== window.self; } catch (_) { return true; } })();
 
     const IS_GECKO = (() => {
     try {
@@ -51,7 +50,7 @@
   })();
 
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '33.1.3';
+  const VSC_VERSION = '33.1.2';
   const DEBUG = true;
 
   const log = {
@@ -140,36 +139,36 @@
 
   const MANUAL_PRESETS = [
     { n: 'OFF',  v: [ 0,  0,  0,  0,  0,  0,   0,   0,   0] },
+    { n: '눈편함',    v: [ 0,  0,  0,  0,  0, -8,   4,  -6,  -6] },
     { n: '자연(중립)',    v: [ 0,  0,  2,  0,  0, -4,   4,   2,   0] },
     { n: '만능보정',    v: [ 0,  0,  6,  0,  0,  0,   6,   6,   6] },
     { n: '편하게', v: [0, 0, 0, 0, 0, -5, 7, -2, 8] },
     { n: '피부톤', v: [0, 0, 6, 4, 2, 2, 3, -2, 8] },
-    { n: '밝게',  v: [ 0,  0,  0,  0,  0,  0,  14,  14,  14] },
     { n: '라이브다크*', v: [0, 0, 30, 0, 0, 0, -30, 6, 5] },
     { n: '라이브선명*', v: [0, 0, 6, 0, 0, 4, -4, 18, 6] },
     { n: '생동감', v: [0, 0, 10, 0, 0, 16, -4, 10, 8] },
     { n: '광명#', v: [ 0,  0,  0,  0,  0,  0,  -24,  24,  24] },
     { n: '선명+밝게#', v: [ 0,  0, 10,  0,  0,  4,   0,  18,  12] },
-    { n: '게임', v: [8, 0, 0, 0, 0, -2, -6, 14, 4] },
-    { n: '저비트영상', v: [6, 4, 4, 0, 0, -2, 4, 8, 4] },
-    { n: '영화/드라마', v: [0, 0, 10, 0, 0, 6, 6, -4, 8] },
-    { n: '은은하게', v: [0, 0, 0, 0, 0, 6, 4, 10, 10] },
-    { n: '저조도영상', v: [20, 8, 8, 0, 0, -4, 10, 4, 12] },
-    { n: '(모바일1)', v: [0, 0, 8, 0, 0, -8, -8, -4, 4] },
-    { n: '(모바일2)', v: [0, 0, 4, 0, 0, -4, 4, -4, 4] },
-    { n: '(모바일3)', v: [0, 0, 6, 0, 0, 0, 7, 4, 1] },
-    { n: '역광보정', v: [40, 0, 15, 0, 0, 0, 12, 8, -8] },
-    { n: '담백', v: [ 0,  0, 10, 0,  0, -8,  -6, -12,  12] },
-    { n: '눈편함',    v: [ 0,  0,  0,  0,  0, -8,   4,  -6,  -6] },
     { n: '애니(컬러팝)', v: [  0,  0,  6,  0,  0,  8,  4,  10,  3] },
-    { n: '블버(일반)', v: [ 0,  0,  8, -4,  0, -6,  4,  12,   6] },
-    { n: '블버(다크)', v: [ 0,  0,  10, -5,  0, -5,  10,  10,   10] },
+    { n: '저비트영상', v: [6, 4, 4, 0, 0, -2, 4, 8, 4] },
+    { n: '은은하게', v: [0, 0, 0, 0, 0, 6, 4, 10, 10] },
+    { n: '영화/드라마', v: [0, 0, 10, 0, 0, 6, 6, -4, 8] },
+    { n: '밝게',  v: [ 0,  0,  0,  0,  0,  0,  14,  14,  14] },
+    { n: '역광보정', v: [40, 0, 15, 0, 0, 0, 12, 8, -8] },
+    { n: '(모바일1)', v: [0, 0, 8, 0, 0, -8, -8, -4, 4] },
+    { n: '(모바일2)', v: [0, 0, 6, 0, 0, 0, 7, 4, 1] },
+    { n: '(모바일3)', v: [0, 0, 4, 0, 0, -4, 4, -4, 4] },
+    { n: '담백', v: [ 0,  0, 10, 0,  0, -8,  -6, -12,  12] },
     { n: '과노출영상', v: [ 0,  0,  0,  0,  0,  0,   4,  10, -18] },
     { n: '강한직사광', v: [ 0, 0, 0, 0, 0, -12, -8, 24, 0] },
+    { n: '게임', v: [8, 0, 0, 0, 0, -2, -6, 14, 4] },
+    { n: '블버(일반)', v: [ 0,  0,  8, -4,  0, -6,  4,  12,   6] },
+    { n: '블버(다크)', v: [ 0,  0,  10, -5,  0, -5,  10,  10,   10] },
     { n: '안개제거', v: [ 0, 0, 0, -8, 0, -6,  0, 28, 0] },
     { n: '텍스트선명', v: [ 0, 0, 0, -4, 0,  0, -6, 20, 0] },
+    { n: '저조도영상', v: [20, 8, 8, 0, 0, -4, 10, 4, 12] },
     { n: '뽀샤시', v: [0, 0, 12, 0, 0, 0,  4,  -6, 16] },
-    { n: '복구', v: [100, 0, 10,  0,  0,  0,  0, 10,  20] },
+    { n: '복구', v: [100, 0, 16,  0,  0,  0,  0, -10,  20] },
   ];
 
   // ★ 10밴드 EQ 정의 (31Hz ~ 16kHz)
@@ -1844,6 +1843,7 @@
 
     return { setActive, isActive: () => active, onTargetChange, updateTime, showAudioWarning };
   }
+
   function createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio, Persist) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
@@ -2009,7 +2009,7 @@
 
     function updateQuickBarVisibility() {
       if (!quickBarHost) return;
-      if (IS_MOBILE && !IN_IFRAME && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         if (_qbarHasVideo) { _qbarHasVideo = false; quickBarHost.classList.add('vsc-hidden'); if (panelOpen) togglePanel(false); }
         return;
       }
@@ -2603,25 +2603,18 @@ function togglePanel(force) {
     panelHost.classList.toggle('vsc-fs', isFs);
     panelEl.classList.add('open');
     renderTab();
-try {
-  const ir = quickBarHost.getBoundingClientRect();
-  const pr = panelEl.getBoundingClientRect();
-  const cs = getComputedStyle(panelEl);
-  OSD.show(
-    `아이콘 ${Math.round(ir.left)},${Math.round(ir.top)} ${Math.round(ir.width)}x${Math.round(ir.height)} | ` +
-    `패널 ${Math.round(pr.left)},${Math.round(pr.top)} ${Math.round(pr.width)}x${Math.round(pr.height)} | ` +
-    `pos=${cs.position} disp=${cs.display} vis=${cs.visibility} op=${cs.opacity} z=${cs.zIndex}`,
-    6000
-  );
-} catch (_) {}
+    // opacity 트랜지션이 완료되지 않는 문제 방지
+    panelEl.style.transition = 'none';
+    panelEl.style.opacity = '1';
   } else {
+    panelEl.style.opacity = '';
+    panelEl.style.transition = '';
     panelEl.classList.remove('open');
     tabSignalCleanups.forEach(c => c());
     tabSignalCleanups.length = 0;
     tabFns.length = 0;
   }
 }
-
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
     setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
@@ -2689,7 +2682,7 @@ try {
         return;
       }
 
-      if (IS_MOBILE && !IN_IFRAME && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (IS_MOBILE && !(document.fullscreenElement || document.webkitFullscreenElement)) {
         for (const v of Registry.videos) Filters.clear(v);
         Audio.setTarget(null);
         __internal._activeVideo = null;
