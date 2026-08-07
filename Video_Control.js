@@ -2603,14 +2603,15 @@ function togglePanel(force) {
     panelHost.classList.toggle('vsc-fs', isFs);
     panelEl.classList.add('open');
     renderTab();
-    try {
-  const fs = document.fullscreenElement || document.webkitFullscreenElement;
-  const iconP = quickBarHost && quickBarHost.parentNode;
-  const panelP = panelHost && panelHost.parentNode;
-  const inFs = (n) => fs && n ? (fs.contains(n) ? 'FS안' : 'FS밖') : '?';
+try {
+  const ir = quickBarHost.getBoundingClientRect();
+  const pr = panelEl.getBoundingClientRect();
+  const cs = getComputedStyle(panelEl);
   OSD.show(
-    `fs=${fs?fs.tagName:'X'} | 아이콘부모=${iconP?iconP.tagName:'X'}(${inFs(iconP)}) | 패널부모=${panelP?panelP.tagName:'X'}(${inFs(panelP)})`,
-    5000
+    `아이콘 ${Math.round(ir.left)},${Math.round(ir.top)} ${Math.round(ir.width)}x${Math.round(ir.height)} | ` +
+    `패널 ${Math.round(pr.left)},${Math.round(pr.top)} ${Math.round(pr.width)}x${Math.round(pr.height)} | ` +
+    `pos=${cs.position} disp=${cs.display} vis=${cs.visibility} op=${cs.opacity} z=${cs.zIndex}`,
+    6000
   );
 } catch (_) {}
   } else {
