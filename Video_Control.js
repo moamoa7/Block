@@ -2591,20 +2591,29 @@
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) tabFns.forEach(f => f()); }));
     }
 
-    function togglePanel(force) {
-      buildPanel();
-      panelOpen = force !== undefined ? force : !panelOpen;
-      if (panelOpen) {
-        panelEl.classList.add('open');
-        renderTab();
-      } else {
-        panelEl.classList.remove('open');
-        tabSignalCleanups.forEach(c => c());
-        tabSignalCleanups.length = 0;
-        tabFns.length = 0;
-      }
+function togglePanel(force) {
+  buildPanel();
+  panelOpen = force !== undefined ? force : !panelOpen;
+  if (panelOpen) {
+    const target = getMountTarget();
+    if (target && panelHost.parentNode !== target) {
+      try { target.appendChild(panelHost); } catch (_) {}
     }
-
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    panelHost.classList.toggle('vsc-fs', isFs);
+    panelEl.classList.add('open');
+    renderTab();
+    try {
+      const fs = document.fullscreenElement || document.webkitFullscreenElement;
+      OSD.show(`fsEl=${fs ? fs.tagName : '없음'} 부모=${panelHost.parentNode?.tagName}`, 4000);
+    } catch (_) {}
+  } else {
+    panelEl.classList.remove('open');
+    tabSignalCleanups.forEach(c => c());
+    tabSignalCleanups.length = 0;
+    tabFns.length = 0;
+  }
+}
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
     setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
