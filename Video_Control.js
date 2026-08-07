@@ -2597,7 +2597,16 @@ function togglePanel(force) {
   if (panelOpen) {
     const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
     if (isFs) {
-      // 모바일 전체화면 재생 중 backdrop-filter가 합성 갱신을 막는 문제 회피
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      const bringToFront = () => {
+        try {
+          if (fsEl && panelHost.parentNode !== fsEl) fsEl.appendChild(panelHost);
+          else if (fsEl && fsEl.lastElementChild !== panelHost) fsEl.appendChild(panelHost);
+        } catch (_) {}
+      };
+      bringToFront();
+      setTimeout(bringToFront, 50);
+      setTimeout(bringToFront, 300);
       panelEl.style.backdropFilter = 'none';
       panelEl.style.webkitBackdropFilter = 'none';
       panelEl.style.background = 'rgba(12,12,18,0.96)';
@@ -2615,6 +2624,7 @@ function togglePanel(force) {
     tabFns.length = 0;
   }
 }
+
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
     setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
