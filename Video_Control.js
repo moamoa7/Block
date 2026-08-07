@@ -2601,12 +2601,17 @@ function togglePanel(force) {
     }
     const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
     panelHost.classList.toggle('vsc-fs', isFs);
+    // 재생 중 video 오버레이 위에 패널이 그려지도록 자체 합성 레이어 강제
+    if (isFs) {
+      panelHost.style.transform = 'translateZ(0)';
+      panelHost.style.willChange = 'transform';
+      panelHost.style.zIndex = '2147483647';
+    } else {
+      panelHost.style.transform = '';
+      panelHost.style.willChange = '';
+    }
     panelEl.classList.add('open');
     renderTab();
-    try {
-      const fs = document.fullscreenElement || document.webkitFullscreenElement;
-      OSD.show(`fsEl=${fs ? fs.tagName : '없음'} 부모=${panelHost.parentNode?.tagName}`, 4000);
-    } catch (_) {}
   } else {
     panelEl.classList.remove('open');
     tabSignalCleanups.forEach(c => c());
@@ -2614,6 +2619,7 @@ function togglePanel(force) {
     tabFns.length = 0;
   }
 }
+
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
     setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
