@@ -2591,39 +2591,19 @@
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) tabFns.forEach(f => f()); }));
     }
 
-function togglePanel(force) {
-  buildPanel();
-  panelOpen = force !== undefined ? force : !panelOpen;
-  if (panelOpen) {
-    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    if (isFs) {
-      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-      const bringToFront = () => {
-        try {
-          if (fsEl && panelHost.parentNode !== fsEl) fsEl.appendChild(panelHost);
-          else if (fsEl && fsEl.lastElementChild !== panelHost) fsEl.appendChild(panelHost);
-        } catch (_) {}
-      };
-      bringToFront();
-      setTimeout(bringToFront, 50);
-      setTimeout(bringToFront, 300);
-      panelEl.style.backdropFilter = 'none';
-      panelEl.style.webkitBackdropFilter = 'none';
-      panelEl.style.background = 'rgba(12,12,18,0.96)';
-    } else {
-      panelEl.style.backdropFilter = '';
-      panelEl.style.webkitBackdropFilter = '';
-      panelEl.style.background = '';
+    function togglePanel(force) {
+      buildPanel();
+      panelOpen = force !== undefined ? force : !panelOpen;
+      if (panelOpen) {
+        panelEl.classList.add('open');
+        renderTab();
+      } else {
+        panelEl.classList.remove('open');
+        tabSignalCleanups.forEach(c => c());
+        tabSignalCleanups.length = 0;
+        tabFns.length = 0;
+      }
     }
-    panelEl.classList.add('open');
-    renderTab();
-  } else {
-    panelEl.classList.remove('open');
-    tabSignalCleanups.forEach(c => c());
-    tabSignalCleanups.length = 0;
-    tabFns.length = 0;
-  }
-}
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
@@ -2825,20 +2805,6 @@ function togglePanel(force) {
     // 페이지 언로드 시 설정 저장
     window.addEventListener('beforeunload', () => {
       try { Persist.saveNow(); } catch (_) {}
-    }, true);
-
-    // 풀스크린 변경 시 UI 호스트 재배치
-    document.addEventListener('fullscreenchange', () => {
-      try {
-        const fsEl = document.fullscreenElement;
-        const host = __internal._uiHost;
-        if (host && fsEl && !fsEl.contains(host)) {
-          fsEl.appendChild(host);
-        } else if (host && !fsEl && host.parentNode !== document.body) {
-          document.body.appendChild(host);
-        }
-      } catch (e) { log.warn('fs relocate fail', e); }
-      Scheduler.request();
     }, true);
 
     log.info(`[VSC] v${VSC_VERSION} booted on ${location.hostname}`);
