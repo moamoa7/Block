@@ -2604,6 +2604,12 @@
         panelHost.classList.toggle('vsc-fs', isFs);
         panelEl.classList.add('open');
         renderTab();
+
+        // ★ 진단용: 전체화면에서 패널 상태를 화면에 표시
+        try {
+          const r = panelEl.getBoundingClientRect();
+          OSD.show(`fs=${isFs} 부모=${panelHost.parentNode?.tagName} 위치=${Math.round(r.left)},${Math.round(r.top)} 크기=${Math.round(r.width)}x${Math.round(r.height)}`, 4000);
+        } catch (_) {}
       } else {
         panelEl.classList.remove('open');
         tabSignalCleanups.forEach(c => c());
@@ -2611,7 +2617,6 @@
         tabFns.length = 0;
       }
     }
-
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
