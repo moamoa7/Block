@@ -1,15 +1,15 @@
 DNS Blocklist Build Report
-Generated: 2026-08-08 12:17:58 UTC
+Generated: 2026-08-08 13:22:49 UTC
 ============================================================
 
 [1] Reference Filters
-[Primary (AdRules DNS List)] 183,505 domains
+[Primary (AdRules DNS List)] 183,574 domains
 [Secondary (HaGeZi Pro)] 217,545 domains
 [Tertiary (1Hosts Lite)] 104,189 domains
-[Union] 355,783 domains
-  - Only in AdRules      : 101,263
+[Union] 355,840 domains
+  - Only in AdRules      : 101,320
   - Only in HaGeZi Pro   : 121,404
-  - Only in 1Hosts Lite  : 31,112
+  - Only in 1Hosts Lite  : 31,100
   - In all three sources : 47,452
 
 [2] External Whitelist Sources
@@ -113,8 +113,8 @@ Generated: 2026-08-08 12:17:58 UTC
 [Personal Whitelist Total] 13 domains
 
 [5] Apply Priority Rules
-  Step 1 (base - external whitelist): 355,393
-  Step 2 (+ personal block): 355,410  (forced added: 17)
-  Step 3 (- personal white): 355,410  (whitelist override: 0)
+  Step 1 (base - external whitelist): 355,450
+  Step 2 (+ personal block): 355,467  (forced added: 17)
+  Step 3 (- personal white): 355,467  (whitelist override: 0)
 
 [6] Final Whitelist: 6,590 domains
