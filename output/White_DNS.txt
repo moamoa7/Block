@@ -1,6 +1,6 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-08 08:04:54 UTC
+! Generated: 2026-08-08 09:05:36 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
 ! Exception Rules: 6,590
 !
@@ -32,6 +32,8 @@
 @@||2ip.ua^
 @@||2performant.com^
 @@||3-aclk.net^
+@@||341676991.group0.sites.hscoscdn-na3.net^
+@@||341850582.group0.sites.hscoscdn-na3.net^
 @@||3cinteractive.com^
 @@||3ds.bankofbaku.com^
 @@||3ds.mdmbank.ru^
@@ -589,7 +591,6 @@
 @@||banquelaurentienne.ca^
 @@||banquepopulaire.fr^
 @@||banrisul.com.br^
-@@||bapi-01.moengage.com^
 @@||bapi-02.moengage.com^
 @@||bapi-04.moengage.com^
 @@||barclaycard.co.uk^
@@ -2849,6 +2850,7 @@
 @@||m-4wovq.custobar.com^
 @@||m-5fwyg.custobar.com^
 @@||m-6pyms.custobar.com^
+@@||m-7huqs.custobar.com^
 @@||m-7ihcs.custobar.com^
 @@||m-7uz3v.custobar.com^
 @@||m-ax.custobar.com^
@@ -3059,7 +3061,6 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
-@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -4794,7 +4795,6 @@
 @@||sitecheck7.opera.com^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
-@@||sites.hscoscdn-na3.net^
 @@||sites.hscoscdn00.net^
 @@||sites.hscoscdn10.net^
 @@||sites.hscoscdn20.net^
