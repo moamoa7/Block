@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260809
+! Version: 20260810
 !
 !
 !
@@ -4095,6 +4095,10 @@ avsee.ru##div.at-side > div:has([target] img)
 avsee.ru###at-main > [target] > img
 ! - 기타 오른쪽 - List-KR의 다른 규칙이 있어 주석 처리
 !!##div.widget-side-box > div:has([target] img)
+! 공지 게시판내 보증 관련 광고글
+avsee.ru##.list-item:has-text(보증)
+! - - - 메인 공지에 보이는 부분
+avsee.ru##div.media:has-text(보증)
 ! - - - 개인 스크립트가 ui 탭 을 막아서 해제
 avsee.ru#@#.tabs
 ! - - - https://j91.asia/
@@ -5793,7 +5797,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 야동투어 (https://야동투어.com/) (https://ydtour57.sbs/) - /p2p* 해제해야 영상재생 가능
+! 야동투어 (https://야동투어.com/) (https://ydtour58.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
 !##[id*="-ads" i]
@@ -6731,9 +6735,10 @@ litt.ly#@#[href*="link.coupang.com"]
 ! - -- https://cineaste.co.kr/ - 차단되는건 없는대 차단로그에 나옴
 ##div[class*="-xs"]:has([target*="blank"])
 ! - 예외 - https://trand.co.kr/
-! - 예외 - https://www.reddit.com/
 ! - 예외 - https://chuchu.gg/
+! - 예외 - 로얄tv (https://rytv01.com/)
 chuchu.gg,trand.co.kr#@#div[class*="-xs"]:has([target*="blank"])
+/rytv/#@#div[class*="-xs"]:has([target*="blank"])
 ! - 기타
 ##script[src$="/ad-provider.js"] + ins
 !
@@ -6804,7 +6809,8 @@ rou.video##div.md\:col-span-1
 /11toon|spotv/##[class="new_quit"]
 !
 !
-! 쿡마나 (https://cookmana56.com/)
+! 쿡마나 (https://cookmana.com/)
+! 쿡마나 (https://cookmana50.com/) - 50부터 55까지 가능
 ! - 배너
 !##[class*="advert" i]
 !
@@ -6901,12 +6907,12 @@ rou.video##div.md\:col-span-1
 /coktv/##.text-marquee_allopen_container
 !
 !
-! 로얄TV (https://royaltv01.com/)
+! 로얄TV (https://xn--2o2b21id2c79elydbpw.com/) (https://t.me/s/royaltvinfo) (https://rytv01.com/) - 스포츠 중계 안됨
 ! - 필요없는 부분 안보이게
 !/^(www\.)?royaltv/##.image
 !/^(www\.)?royaltv/##.add-to-cart
-/royaltv/##.image
-/royaltv/##.add-to-cart
+!/royaltv/##.image
+!/royaltv/##.add-to-cart
 !
 !
 ! 스포착 (https://spochak.com/)
@@ -6954,7 +6960,7 @@ spochak.com##.modal_item
 ##.tjtagmanager[data-ad_id]
 ! - 가운대 안지워지는 배너
 ##[class*="post-card"]:has([style*="data:image/gif"])
-! - ! - 가운대 안지워지는 배너 그 아래부분 배너
+! - 가운대 안지워지는 배너 그 아래부분 배너
 ##[class*="post-card"]:has([style*="/9j/4QBORXhpZgAATU0AKgAAAAgAAwEaAAUAAAABAAAAMgEbAAUAAAABAAAAOgEoAAMAAAABAAIAAAAAAAAACvyAAAAnEAAK/IAAACcQAAAAAP"])
 ! -기타
 !||addtoany.com^
@@ -7063,26 +7069,29 @@ patreon.com##body:style(overflow: auto !important;)
 !uploadrar.com###gdpr-cookie-notice
 !
 !
-! AV플릭스 (https://av플릭스평생도메인.com) (https://kr2.avflix.co/)
+! AV플릭스 (https://av플릭스평생도메인.com) (https://kr3.avflix.co/)
 ! - 배너 이미지
-||*.avflix.co/download/*$image
+!||*.avflix.co/download/*$image
 ! 링크없는 배너 (아래 2규칙은 없어도 배너 이미지가 사라져서 상관없음)
 !##[alt*="가상계좌"]
 !##[alt*="솔루션"]
 !  배너 공간 남는거 해결
-/avflix/##[class*="py-6"]
+!/avflix/##[class*="py-6"]
+! - 배너 공간
+##[class*="grid"]:has([data-banner-code])
 ! 기타
 /banners^$xhr
 !
 !
-! 딸튜브 (https://딸튜브.com/) (https://kr12.ddaltube.com/) - 광고 영상이 재생시 나옴
-! 야동스타 (https://kr2.yastar.xyz/) - 광고 영상이 재생시 나옴
+! 딸튜브 (https://딸튜브.com/) (https://kr14.ddaltube.com/) - 광고 영상이 재생시 나옴 (음소거 필요)
+! 야동스타 (https://kr2.yastar.xyz/) - 광고 영상이 재생시 나옴 (음소거 필요)
 ! - 플레이어 안보이는거 해결
 !/yastar|ddaltube/#@#[class*="-ad-" i]
 ! - 광고 영상 진행시 실수로 클릭하여 팝업 뜨는거 방지
 !/yastar|ddaltube/#%#//scriptlet('prevent-window-open')
 ! - 굉고 진행 중 플레이어 클릭하여 정지 및 음소거 가능하게
-/yastar|ddaltube/##.vjs-video-ad-click-overlay
+!/yastar|ddaltube/##.vjs-video-ad-click-overlay
+##[class*="ad-click"]
 !
 !
 ! 꽃밤 (https://꽃밤주소.com/) (https://ggbam16.com/)
@@ -7092,13 +7101,13 @@ patreon.com##body:style(overflow: auto !important;)
 /bet\d+-kr\.com/$popup
 !
 !
-! 레드걸 야동 (https://redgirl-now.cc/) (https://adultredgirl.top/) (https://redgg76.top/) - 사이트 죽었나?
+! 레드걸 야동 (https://redgirl-now.cc/) (https://adultredgirl.top/) (https://redgg76.top/) - 연결 불가
 ! - 필요없는거 (사이트 죽은것으로 판단하고 아래 2개 규칙 주석 처리)
 ![$domain=/redgg/]##li:has([id*="strike"])
 ![$domain=/redgg/]##li.menu_blank.menu_item_.gnb_1dli_ > .gnb_1da > .btn-12.custom-btn
 !
 !
-! 자딸파티 (https://jaddal.top/) (https://jaddal39.top) - 영상 재생시 오류로 재생불가
+! 자딸파티 (https://jaddal.top/) (https://jaddal40.top)
 ! - 맨 왼쪽 작은 배너
 /jaddal/##[class*="-ad-"]
 ! - 필요없는거 (자딸 평생주소 / 텔레그램)
@@ -7156,7 +7165,9 @@ cam69.com##[id*="slider-ad"]
 ##[href*="/premium"]
 !
 !
-! https://www.camconsole.com/ - 채팅영상이 막혀있음 (HaGeZi's Pro Blocklist)
+! https://www.camconsole.com/
+! - 영상 안보이는거 해결 (DNS 해제 필요할수도 있음)
+@@||naiadsystems.com^
 ! - 오른쪽 배너
 camconsole.com###hot-offers
 camconsole.com##div.clearfix.block:nth-of-type(2)
@@ -7352,12 +7363,10 @@ vexfile.com##center
 ! - 팝업 차단 후 뿌연화면 해결 - 스크롤 잠긴거 풀 필요없음 / 도박 사이트인듯
 ! - - - 라채티비 (https://lctv2019.com/)
 ##[class$="modal-overlay"]
-! - 오른쪽 팝업?
-##promo-widget
 !
 !
-! https://www.x1hub.com/
-! - 영상 옆 배너 - 제거됨으로써 영상 플레이어가 커짐
+! X1Hub (https://www.x1hub.com/)
+! - 영상 옆 배너 - 제거됨으로써 영상 플레이어 크기가 커짐
 x1hub.com##.table
 ! - 기타
 ##script[src$="/js/jads.js"] + ins[id]
@@ -7383,11 +7392,12 @@ jable.tv##[class*="video"]:has([href*="banner"])
 !
 ! 최강링크 (https://최강링크10.com/)
 ! - 배너
-##img[src][onclick*="window.open"]
+!##img[src][onclick*="window.open"]
+!##[onclick^="window.open"]
 ! - 예외
-gall.dcinside.com#@#img[src][onclick*="window.open"]
-! - 빈 공간
-##div.mb-sm-4.mb-3 > .hr
+!gall.dcinside.com#@#img[src][onclick*="window.open"]
+! - 배너 공간
+##div.mb-3.mb-sm-4
 !
 !
 ! https://manko.fun/
