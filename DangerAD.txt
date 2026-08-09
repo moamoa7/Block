@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260807
+! Version: 20260809
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -726,16 +726,17 @@ vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-b
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://vexfile.com/
-! 주소월드 (https://wdwd12.com/)
-! 펀비 (https://funbe662.com/)
-! 툰코 (https://tkor140.com/)
+! 주소월드 (https://wdwd13.com/)
+! 펀비 (https://funbe664.com/)
+! 툰코 (https://tkor142.com/)
 ! https://거지맵.com/
 ! https://www.hankyung.com/ - 모바일에서 안보임
 ! https://www.womaneconomy.co.kr/ - banner 잘못 지워짐 수정 (상단 검색 부분 지워짐 방지)
+! 주소핑 (https://jusoping6.com/)
 womaneconomy.co.kr,hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-/tkor|funbe|wdwd/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+/jusoping|tkor|funbe|wdwd/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 !
 !
@@ -846,9 +847,9 @@ getmodsapk.com#@#[alt*="banner" i]
 ! https://trand.co.kr/ - 메인에서 로그인 박스 사라짐
 !trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! 주소월드 (https://wdwd12.com/)
-! 펀비 (https://funbe662.com/)
-! 툰코 (https://tkor140.com/)
+! 주소월드 (https://wdwd13.com/)
+! 펀비 (https://funbe664.com/)
+! 툰코 (https://tkor142.com/)
 ! 주소핑 (https://www.jusoping3.com/)
 !/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 !
@@ -1011,18 +1012,49 @@ philgo.com##[alt*="배너"]
 !
 !
 !
+! 필요시 개별로 할 것
 ! 콕콕티비 (https://cokcok15.com/)
 ! 티비위키 / 티비몬
 ! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
-! 메이저리그 (https://majorlink2.com/)
 ! 이토랜드 - 왼쪽 메뉴에서 파일토리 / 러브포유 / 조이엔조이 / 하드래빗 / 쏘당몰 / 오나미몰 / 바나나몰 링크 삭제
-##li:has([target*="blank"] img)
+! 야동닷컴 (https://yadong9.com/)
+! 링크사랑 (https://linklove55.com/)
+! 여기여 (https://yugiyu3.com/)
+! 주소요 (https://jusoyo03.com/)
+!/cokcok/##li:has([target*="blank"] img)
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://trand.co.kr/
-trand.co.kr#@#li:has([target*="blank"] img)
+! https://seoul.co.kr/
+!seoul.co.kr,trand.co.kr#@#li:has([target*="blank"] img)
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! 주소코리아 (https://jusokorea10.com/)
+! https://platinmods.com/ - 댓글 이미지 사라짐
+! https://mlbpark.donga.com/ - 일부 이미지 사라짐
+!/jusokorea/,platinmods.com,mlbpark.donga.com#@#li:has([target*="blank"] img)
+!
+!
+!
+! - 개별 도메인으로 취급
+! 티비착 (https://tvchak208.com/) - 상단 배너 필요없는 부분 (보증 어찌구~) 포함
+! 후후티비 (https://be.hoohootv441.xyz/)
+/tvchak|hoohootv/##[style]:has([target] img)
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://etoland.co.kr/
+! https://web.humoruniv.com/
+! https://damoang.net/
+! https://hatzze.fun/
+!hatzze.fun,damoang.net,web.humoruniv.com#@#[style]:has([target] img)
+!
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+!
+!
+! 개별적으로 해야함
+! https://www.mule.co.kr/
+mule.co.kr##[target] img
 !
 !
 !
