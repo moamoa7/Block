@@ -1,5 +1,5 @@
 DNS Blocklist Build Report
-Generated: 2026-08-09 22:54:41 UTC
+Generated: 2026-08-09 23:16:34 UTC
 ============================================================
 
 [1] Reference Filters
@@ -21,13 +21,13 @@ Generated: 2026-08-09 22:54:41 UTC
   - AdGuard HTTPS Firefox: 18 extracted
   - AdGuard HTTPS Windows: 7 extracted
   - AdGuard HTTPS Mac: 11 extracted
-  - HaGeZi DNS Pro: 1,589 extracted
+  - HaGeZi DNS Pro: 0 extracted
   - Discord Official Domains: 43 extracted
   - anudeepND Whitelist: 191 extracted
   - DandelionSprout AGH Whitelist: 285 extracted
-[External Whitelist Total] 6,793 domains
+[External Whitelist Total] 5,241 domains
 
-[Tracker Auto-Filter] Removed 206 trackers from external whitelist
+[Tracker Auto-Filter] Removed 71 trackers from external whitelist
   [Blacklist hits] 8 base domains:
     - amazonaws.com
     - apple.com
@@ -71,38 +71,37 @@ Generated: 2026-08-09 22:54:41 UTC
     - visualwebsiteoptimizer.com
     - xg4ken.com
     - zdbb.net
-  [Pattern hits] 165 domains (sample first 30):
+  [Pattern hits] 30 domains (sample first 30):
     - 2mdn.net
-    - a1.adform.net
-    - ad.admitad.com
-    - ad.doubleclick.net
-    - adform.com
     - adjust.com
     - admitad.com
     - adobedtm.com
-    - adobetarget.data.adobedc.net
-    - adservice.google.at
-    - adservice.google.bg
-    - adservice.google.ca
-    - adservice.google.ch
-    - adservice.google.co.ao
-    - adservice.google.co.bw
-    - adservice.google.co.cr
-    - adservice.google.co.id
-    - adservice.google.co.in
-    - adservice.google.co.jp
-    - adservice.google.co.ke
-    - adservice.google.co.kr
-    - adservice.google.co.ls
-    - adservice.google.co.ma
-    - adservice.google.co.mz
-    - adservice.google.co.nz
-    - adservice.google.co.th
-    - adservice.google.co.tz
-    - adservice.google.co.ug
-    - adservice.google.co.uk
-    - adservice.google.co.uz
-    ... and 135 more
+    - adswizz.com
+    - adtechus.com
+    - amplitude.com
+    - analytics.pinterest.com
+    - analytics.twitter.com
+    - api.amplitude.com
+    - app.adjust.net.in
+    - appsflyer-report.honkaiimpact3.com
+    - auditude.com
+    - avantlink.com
+    - bkrtx.com
+    - cbsinteractive.hb.omtrdc.net
+    - disneyplus.com.ssl.sc.omtrdc.net
+    - generalmotorscorporation.sc.omtrdc.net
+    - host-tracker.com
+    - ip-tracker.org
+    - mediametrics.ru
+    - msmetrics.ws.sonos.com
+    - npr-news.streaming.adswizz.com
+    - pladform.ru
+    - s0.2mdn.net
+    - stats.appsflyer.com
+    - t.appsflyer.com
+    - tags.bkrtx.com
+    - telemetry.mozilla.org
+    - viglink.com
 
 [3] Personal Blocklist
   - Personal Blocklist: 51 domains
@@ -113,8 +112,8 @@ Generated: 2026-08-09 22:54:41 UTC
 [Personal Whitelist Total] 13 domains
 
 [5] Apply Priority Rules
-  Step 1 (base - external whitelist): 353,950
-  Step 2 (+ personal block): 353,967  (forced added: 17)
-  Step 3 (- personal white): 353,967  (whitelist override: 0)
+  Step 1 (base - external whitelist): 354,141
+  Step 2 (+ personal block): 354,158  (forced added: 17)
+  Step 3 (- personal white): 354,158  (whitelist override: 0)
 
-[6] Final Whitelist: 6,594 domains
+[6] Final Whitelist: 5,177 domains
