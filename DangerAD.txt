@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260809
+! Version: 20260810
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -603,7 +603,7 @@ hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*=
 @@*/banners/*$domain=sooptore.sooplive.com
 !
 !
-! 짜딸파티 (https://jaddal39.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
+! 짜딸파티 (https://jaddal40.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
 ! 야동닷컴 (https://yadong9.com/) - 상단배너
 */admin_banner/*
 !
@@ -612,12 +612,13 @@ hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*=
 ! https://javgiga.com/
 ! 지니파일
 ! 헬스조선
-*banner.js
+!*banner.js
 ! - 숲스토어 - 해제해야 본문 보임
-@@*banner.js$domain=sooptore.sooplive.com
+! - 쿡마나 (https://cookmana.com/) (https://cookmana53.com/)
+!@@*banner.js$domain=sooptore.sooplive.com|cookmanacom
 !
 !
-! 자딸파티 (https://jaddal39.top/)
+! 자딸파티 (https://jaddal40.top/)
 ! https://tcafe21.com/
 ! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
 *banner*.php
@@ -1068,9 +1069,12 @@ mule.co.kr##[target] img
 !
 !
 !
-! 야동투어 (https://ydtour57.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
+! 야동투어 (https://ydtour58.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
 ##img[src*="/ads/"]
-##[onclick*="window.open"] img
+! - - -  자딸파티 (https://jaddal40.top/) - 텔레그램 고객센터 버튼
+! - - - 최강링크 (https://xn--10-9t1it56b78wq9d.com/)
+!##[onclick^="window.open"] img
+##[onclick^="window.open"]
 !
 !
 !
