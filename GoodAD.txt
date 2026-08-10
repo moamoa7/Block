@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260810
+! Version: 20260811
 !
 !
 !
@@ -1123,6 +1123,7 @@ m.inven.co.kr##.goto_top_arrow
 !inven.co.kr#@#div[class^="swiper-"] > ul > li > a[target="_blank"]
 ! -기타
 /js/float*.js
+@@/js/float*.js$domain=m.bunjang.co.kr
 !
 !
 ! 엠팍 (https://mlbpark.donga.com/)
@@ -2804,9 +2805,10 @@ a-ha.io##body:style(overflow: auto !important;)
 ! 번개장터 (https://m.bunjang.co.kr/)
 ! - 배너 빈공간
 !bunjang.co.kr##[class*="boxrecipe_overflow_hidden" i]
-! - 검색시 나오는 광고 물건
-bunjang.co.kr##a:has([class*="bottomContainer" i]):upward(1)
-! - 기타
+! - 검색시 나오는 광고 물건 - ##a:has-text(광고):upward(1)로 재 변경 (반드시 도메인을 같이 넣어야 적용됨)
+!bunjang.co.kr##a:has([class*="bottomContainer" i]):upward(1)
+bunjang.co.kr##a:has-text(광고):upward(1)
+! - 제품 하단 비슷한 새 상품 보기 (전부 광고) 안보이게
 ! - - - https://api.bunjang.co.kr/api/pms/v1/external-ads/422654500
 /*-ads^$xhr
 !
