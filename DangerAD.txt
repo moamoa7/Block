@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260810
+! Version: 20260811
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -253,16 +253,16 @@
 *click?*
 !
 !
-##[class$="tooltip" i]:not(body):not(html):not(main)
+!##[class$="tooltip" i]:not(body):not(html):not(main)
 !
 !
-##[class*="-tooltip_" i]:not(body):not(html):not(main)
+!##[class*="-tooltip_" i]:not(body):not(html):not(main)
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://mypikpak.com/ - 영상 정렬 등 도구 사라짐
-mypikpak.com#@#[class*="-tooltip_" i]:not(body):not(html):not(main)
+!mypikpak.com#@#[class*="-tooltip_" i]:not(body):not(html):not(main)
 !
 !
 ##[data-testid*="advert" i]:not(body):not(html):not(main)
