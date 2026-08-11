@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260811
+! Version: 20260812
 !
 !
 !
@@ -186,6 +186,8 @@
 !##[class*="adsense" i]:not(:has(p))
 !##[class*="adsense" i]
 ##[id*="adsense" i]
+! - 예외 - https://www.thecall.co.kr/
+thecall.co.kr#@#[id*="adsense" i]
 !##[class*="google-ads" i]
 ##.google-ads
 !##ins[data-adsbygoogle-status]
@@ -269,7 +271,7 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !discord.com##div[class*="notice"]
 ! - 기타
 !/otautoblock.js
-/track^$from=~spotify.com|~podtrac.com|~megap.fm|~wolf359.fm|~pdst.fm|~twitch.tv
+/track^$domain=~spotify.com|~podtrac.com|~megap.fm|~wolf359.fm|~pdst.fm|~twitch.tv
 !
 !
 ! X (https://x.com/)
@@ -294,7 +296,7 @@ www.youtube.com#@#.ytd-yoodle-renderer
 ! - 하단 Reddit 앱에서 보기 팝업 (모바일) - PC 가입/로그인/설정메뉴열기를 지워서 다른걸로 찾아야함
 !reddit.com##.justify-end
 ! - 기타
-!@@||redditstatic.com/shreddit$from=reddit.com
+!@@||redditstatic.com/shreddit$domain=reddit.com
 !
 !
 ! GitHub (https://github.com/)
@@ -417,11 +419,11 @@ m.naver.com##script#MM_search_disaster ~*
 ||cc.naver.com/cc$ping
 ! - 기타 해제
 ! - - - 네이버 사이트(naver.com)에 접속해 있을 때, 네이버 정적 서버(ssl.pstatic.net)에서 불러오는 이미지나 스크립트가 광고로 오인되어 차단되는 일이 없도록 무조건 허용하라
-!@@||ssl.pstatic.net^$from=naver.com
+!@@||ssl.pstatic.net^$domain=naver.com
 ! - 가격비교시 나오는 광고 상품 (https://search.shopping.naver.com/)
 search.shopping.naver.com##[class*="product" i]:has([class*="Ad_label"])
 ! - 기타
-!||ntm.pstatic.net/scripts/ntm_$from=naver.com
+!||ntm.pstatic.net/scripts/ntm_$domain=naver.com
 !
 !
 ! 네이버 (https://nid.naver.com/)
@@ -1336,9 +1338,6 @@ ygosu.com##tr:has([href*="/ad/" i])
 !
 !
 ! 안스티즈 (https://www.instiz.net/)
-! - 게시물내 상단 배너
-! - - - 뉴덕 (https://newduck.net/) - 더 보기 하단 빈 공간
-##tr:has([class*="adsbygoogle"])
 ! - 하단 빈 공간 - 광역 규칙시 뉴덕 등 본문 보이지 않음
 instiz.net##div:has([id*="powerlink" i])
 !
@@ -1755,7 +1754,7 @@ zum.com##[class*="coupang" i]
 !
 ! POOOO (https://poooo.ml/)
 ! - 메인 상단 여백 공간
-poooo.ml##.h30
+!poooo.ml##.h30
 ! - ##.ad 복원 - 채팅창 아이콘 사라짐
 poooo.ml#@#.ad
 ! 기타
@@ -2114,10 +2113,6 @@ sports.donga.com##[style]:has(img[src*="coupangcdn.com/thumbnails/"])
 ! 뉴스엔미디어 (https://www.newsen.com/)
 ! - 배너 - href="https://www.betman.co.kr/"
 ##img[src*="betman"]
-! - 빈공간 (PC/모바일) - 광역규칙으로 하면 본문이 안보이는 도메인들이 많아서 개별 도메인으로 처리
-! - - - 링크천국 (https://hotword.site/) 빈공간
-! - - - 마이민트 (https://www.mimint.co.kr/)
-mimint.co.kr,hotword.site,newsen.com##[style]:has([class*="adsbygoogle"])
 !
 !
 !
@@ -2241,7 +2236,7 @@ coupang.com##li:has-text(광고)
 ! - 제품 안보이는거 해결
 !coupang.com#@#[id*="product" i]
 ! - 로그인 안되는 문제 해결
-!@@||asset*.coupangcdn.com/customjs/coupang-web-log/*/web-log.umd.min.js$from=login.coupang.com
+!@@||asset*.coupangcdn.com/customjs/coupang-web-log/*/web-log.umd.min.js$domain=login.coupang.com
 ! - 기타
 ! - - - https://www.coupangplay.com/
 ! - - - - - https://www.coupangplay.com/akam/13/6b393716
@@ -3405,6 +3400,11 @@ sbs.co.kr##[class^="ad" i]
 ! 포스타입 (https://www.postype.com/)
 ! - 빈 공간
 ##[data-sentry-component*="googlead" i]
+!
+!
+! 머야 이번호 (https://moyaweb.com/)
+! - 하단 이미지
+##A > IMG[alt][src*="resources/images/"]
 
 
 
@@ -3916,12 +3916,19 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^sbxh\d*\./]#@#[data-brs][data-br]
 ! - - - 굳이 추가하지 않아도 기능엔 문제가 없음
 ! - - - 외부 anti-adblock 추적 서버 차단 (DNS에 등록 필요)
+! ////////////////////
+! - https://toki31.com/ List-KR 미등록으로 개별 추가
+/toki/##[data-brs][data-br]
+! - 차단 도메인
 ||whoas.xyz^
 ! - 팝업 및 이용 안내 팝업
+! - - - https://sbxh9.com/
+! - - - https://newtoki1.org/
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##[data-pm-ov="1"]
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##.vw-swipe-hint
-/sbxh|toki/##[data-pm-ov="1"]
-/sbxh|toki/##.vw-swipe-hint
+!/sbxh|toki/##[data-pm-ov="1"]
+##div[role*="dialog"]
+##.vw-swipe-hint
 ! - p2p 차단 (애니 등 영상 시청시)
 !wss://tracker.
 ! - 상단 배너
@@ -3946,25 +3953,25 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - left: -9999px - 500px / top: -9999px - 600px 변경 (26.05.30) - -9999로 재변경 (특별한 이상없음)
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
 ![$domain=/sbxh/],[$domain=/toki/]#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
-/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
+!/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
 ! - 보안 검증 통과를 위한 조치
 !!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴
 ! - - - ublock
-!@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/
+@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
 ! - - - adguard
-@@/ad/*$from=/^toki\d+\.[a-z.]+\$/|/^sbxh\d+\.[a-z.]+\$/
+!@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/toki_ch)  (https://평생토끼.net/)
+! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/toki_ch)  (https://최신토끼.com/)
 ! - 뉴토끼평생 팝업
 !뉴토끼평생.net##.show.op_popup_overlay
 ! - 이미지
-! - - - 뉴토끼 (https://newto23.com/)
-||newto*.com/data/apms/*
-! - - - 마나토끼 (https://mato23.com/)
-||mato*.com/data/apms/*
-! - - - 북토끼 (https://bookto23com/)
-||bookto*.com/data/apms/*
+! - - - 뉴토끼 (https://newto27.com/)
+!||newto*.com/data/apms/*
+! - - - 마나토끼 (https://mato27.com/)
+!||mato*.com/data/apms/*
+! - - - 북토끼 (https://bookto27com/)
+!||bookto*.com/data/apms/*
 !
 !
 ! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon417.com/)
@@ -4986,7 +4993,7 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! -영상 재생 가능하게
 @@/obj/ad-
 ! - 1player.store 사이트에 접속했을 때는, 원래라면 광고 차단기가 막았을 구글 IMA 광고 SDK(ima3.js)를 예외적으로 허용해서 로드되게 하라.
-@@||imasdk.googleapis.com/js/sdkloader/ima3.js$from=1player.store
+@@||imasdk.googleapis.com/js/sdkloader/ima3.js$domain=1player.store
 ! - 기타
 !missav.*##+js(remove-attr, @keyup.space.window|@click, div)
 !
@@ -5947,7 +5954,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ! - 예외 - https://www.coupang.com/ - 일부 이미지 사라짐
 ! - 예외 - https://linkareer.com/ - 일부 이미지 사라짐
 !coupang.com#@#[src*="advert" i]
-/advertise/*$from=~legl.co|~payju.ir
+/advertise/*$domain=~legl.co|~payju.ir
 ! - 상단 배너 공간
 ![$domain=/^www.bamgad\d+.com/]##.new-top.container
 /bamgad/##.new-top.container
@@ -6423,6 +6430,9 @@ zeta-ai.io##.pointer-events-none
 !
 !
 ! 링크천국 (https://hotword.site/)
+! - 빈공간
+! - - - 광역규칙으로 하면 본문이 안보이는 도메인들이 많아서 개별 도메인으로 처리
+hotword.site##[style]:has([class*="adsbygoogle"])
 !  - 오류 수정
 hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-width:"])
 !
@@ -7180,7 +7190,7 @@ camconsole.com##div.clearfix.block:nth-of-type(2)
 ! Jav Guru (https://jav.guru/)
 ! - 기타
 ! - - - https://maxstream.org/js/pop.js
-/pop.js^$from=~autohome.com.cn|~patch.ali213.net|~socpk.com
+/pop.js^$domain=~autohome.com.cn|~patch.ali213.net|~socpk.com
 !||toodlerehouse.com^
 !
 !
@@ -7475,6 +7485,13 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 katfile.biz##[id*="ad-overlay"]
 ! - 오른쪽 하단 sale 팝업
 katfile.biz##a:has(> div)
+!
+!
+! SLBK (https://skbj.tv/) - 프리미엄 필요 - 굳이 필요한가.. 유료서비스인대 (보류)
+! - 데일리 래플 오픈 메시지
+!skbj.tv##[class*="card"]:has(> div)
+! - 오늘의 특가 / 데일리 래픗 배너
+!skbj.tv##section>:has-text(/할인|래플/)
 ! 
 !
 !
