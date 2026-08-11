@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260811
+! Version: 20260812
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -232,7 +232,7 @@
 !
 !
 !
-##[rel*="sponsor"]
+!##[rel*="sponsor"]
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 !
@@ -241,7 +241,7 @@
 ! https://javfilms.com/ - 영상플레이가 같이 사라짐
 ! https://majorlink2.com/ - 이미지 복원
 ! https://shiroto-navi.com/ - 영상 하단 텍스트 등 사라짐
-/majorlink/,javfilms.com,juso.one,shiroto-navi.com#@#[rel*="sponsor"]
+!/majorlink/,javfilms.com,juso.one,shiroto-navi.com#@#[rel*="sponsor"]
 !
 !
 !
@@ -1259,8 +1259,9 @@ adguard-dns.io,avdbs.com#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="
 ##[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! - https://adguard-dns.io/
-adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads" i])
+! https://adguard-dns.io/
+! https://www.thecall.co.kr/
+thecall.co.kr,adguard-dns.io#@#[id*="ads" i]:not(body):not(html):not(main):not([id*="downloads" i])
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -1281,8 +1282,44 @@ chzzk.naver.com,inven.co.kr##[class*="float" i]:not(body):not(html):not(main)
 ##[id$="-ad"]
 !
 !
+! - 빈공간 (PC/모바일) - 광역규칙으로 하면 본문이 안보이는 도메인들이 많아서 개별 도메인으로 처리
+! 안스티즈 (https://www.instiz.net/) - 게시물내 상단 배너
+! 뉴덕 (https://newduck.net/) - 더 보기 하단 빈 공간
+instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 !
-
+!
+!
+! AVsee.tv (https://09.avsee.ru/)
+! 씨네스트 (https://cineaste.co.kr/)
+! 뉴토끼 / 마나토끼 / 북토끼
+! 코무비 (https://m324.kormovie.com/)
+! 코왓챠 (https://m273.kowatcha.com/)
+! 왓챠KR (https://m273.watchakr.com/)
+! 딸타임 (https://ddaltime188.com/)
+! 개조아 (https://dogjoa97.net/)
+##.h10
+!
+!
+! AVsee.tv (https://09.avsee.ru/)
+! 씨네스트 (https://cineaste.co.kr/)
+! 뉴토끼 / 마나토끼 / 북토끼
+!  코무비 (https://m324.kormovie.com/)
+! 코왓챠 (https://m273.kowatcha.com/)
+! 왓챠KR (https://m273.watchakr.com/)
+! 애니위크 (https://aniweek.com/)
+! 개조아 (https://dogjoa97.net/)
+! 현자타임 (https://hjtime112.com/)
+##.h20
+!
+!
+! POOOO (https://poooo.ml/)
+! 씨네스트 (https://cineaste.co.kr/)
+! 뉴토끼 / 마나토끼 / 북토끼
+! 코왓챠 (https://m273.kowatcha.com/)
+! 왓챠KR (https://m273.watchakr.com/)
+! 딸타임 (https://ddaltime188.com/)
+! 개조아 (https://dogjoa97.net/)
+##.h30
 
 
 
