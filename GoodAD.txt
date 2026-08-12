@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260812
+! Version: 20260813
 !
 !
 !
@@ -3927,7 +3927,7 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##[data-pm-ov="1"]
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##.vw-swipe-hint
 !/sbxh|toki/##[data-pm-ov="1"]
-##div[role*="dialog"]
+!##div[role*="dialog"]
 ##.vw-swipe-hint
 ! - p2p 차단 (애니 등 영상 시청시)
 !wss://tracker.
