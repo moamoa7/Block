@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260812
+! Version: 20260813
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -1320,6 +1320,14 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
 ##.h30
+!
+!
+!
+! 뉴토끼 (https://뉴토끼우회.com) (https://toki31.com/) (https://sbxh9.com) 등 팝업 발생시
+##div[role*="dialog"]
+! - 예외 - www.google.com - /recaptcha/ 안보임
+! - 예외 - https://mypikpak.com/ - 출첵 후 팝업메시지 안보임
+mypikpak.com,google.com#@#div[role*="dialog"]
 
 
 
