@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260813
+! Version: 20260814
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -536,7 +536,7 @@ hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*=
 ! 네이버스토어
 ! 애니라이프
 ! 풍투데이
-! 다크걸 (https://darkgirl14.com/)
+! 다크걸 (https://darkgirl16.com/)
 ! https://dasdas.jp/
 !*/banner*
 !
@@ -591,7 +591,7 @@ hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*=
 !
 !
 ! X
-! 다크걸 (https://darkgirl14.com/)
+! 다크걸 (https://darkgirl16.com/)
 !/*banner*/*
 ! - 예외  - 이미지 안보임
 !@@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
@@ -1069,7 +1069,7 @@ mule.co.kr##[target] img
 !
 !
 !
-! 야동투어 (https://ydtour58.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
+! 야동투어 (https://ydtour60.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
 ##img[src*="/ads/"]
 ! - - -  자딸파티 (https://jaddal40.top/) - 텔레그램 고객센터 버튼
 ! - - - 최강링크 (https://xn--10-9t1it56b78wq9d.com/)
@@ -1083,6 +1083,7 @@ mule.co.kr##[target] img
 !
 ! https://www.javbangers.com/ - class*="age-popup" 예외
 ##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
+!
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.clien.net/
@@ -1325,9 +1326,15 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 !
 ! 뉴토끼 (https://뉴토끼우회.com) (https://toki31.com/) (https://sbxh9.com) 등 팝업 발생시
 ##div[role*="dialog"]
-! - 예외 - www.google.com - /recaptcha/ 안보임
-! - 예외 - https://mypikpak.com/ - 출첵 후 팝업메시지 안보임
-mypikpak.com,google.com#@#div[role*="dialog"]
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! www.google.com - /recaptcha/ 안보임
+! https://mypikpak.com/ - 출첵 후 팝업메시지 안보임
+! https://trand.co.kr/ - 팝업으로 나오는 창 생성 불가
+trand.co.kr,mypikpak.com,google.com#@#div[role*="dialog"]
+!
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
 
 
 
