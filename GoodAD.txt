@@ -6319,9 +6319,7 @@ jusotw.com##section:has([target] img[width="294"])
 ! - - - 링크랭킹 (https://www.lkrk1.com/)
 ! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.xn--365-938mx02g.com/)
 ! -- - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
-##[role*="list"]:has([target] img)
-! - 예외 - https://okky.kr/
-okky.kr#@#[role*="list"]:has([target] img)
+##div[role="list"]>:has([target] img[style])
 !
 !
 ! 링크봇 (https://linkbot3.com/)
