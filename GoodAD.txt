@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260813
+! Version: 20260814
 !
 !
 !
@@ -144,6 +144,8 @@
 !
 !
 ! 구글 (https://www.google.com/)
+! EasyPrivacy
+/collect?v=
 ! - 기타
 !/gen_204^
 !||accounts.google.com/gsi/log
@@ -433,6 +435,13 @@ search.shopping.naver.com##[class*="product" i]:has([class*="Ad_label"])
 ! 네이버 블로그 (blog.naver.com)
 ! - 기타
 !||ssl.pstatic.net/t.static.blog/nmobile/versioning/ntmbalog-*.js
+!
+!
+! 파파고번역 (https://papago.naver.com/)
+! - 팝업 차단으로 인한 뿌연거 해결
+papago.naver.com##[class*="-popup"]
+! - 10주년? 뱃지 - 임시일거 같음. 추후 주석처리 예정
+papago.naver.com##[class*="badge"]
 !
 !
 ! 네이버 스토어 (https://shopping.naver.com/)
@@ -882,7 +891,7 @@ m.dcinside.com##+js(set-cookie, m_dcinside_externalLink, OFF)
 ! - 본문 하단 이상한 따라다니는거
 dcinside.com##.refresher-toast
 ! - 이모티콘 댓글  없애기
-dcinside.com##li:has([class*="comment_dccon"])
+!dcinside.com##li:has([class*="comment_dccon"])
 ! - 디시미디어 / 디시이슈  복원 (일부 필터규칙 해제)
 gall.dcinside.com#@#.r_dcmedia
 ! - 디시이슈 댓글 이후 안보이게 하기
@@ -1893,7 +1902,7 @@ joongang.co.kr##.md_hidden.sm_hidden.service
 ! - 오른쪽 배너
 !##.ad_wrap
 ! - 기사내 중간 광고 및 텍스트
-joongang.co.kr##[class*="photo"]:has([target] img)
+!joongang.co.kr##[class*="photo"]:has([target] img)
 ! - 기사 오른쪽 플러스 아이콘
 joongang.co.kr##.ico_shortcut_plus
 ! - 기사 하단 더중앙플러스 지금 바로 시작하기
@@ -2064,10 +2073,14 @@ munhwa.com###close-bottom-sticky
 !
 !
 ! JTBC뉴스 (https://news.jtbc.co.kr/)
+! - 메인 상단 빈 공간 및 기사내 빈 공간
+news.jtbc.co.kr##div.MuiBox-root:has(> script)
 ! - 기사내 빈 공간
-news.jtbc.co.kr##.my-mjkjc3
-news.jtbc.co.kr##.my-1403259
-news.jtbc.co.kr##.my-71ad6y
+news.jtbc.co.kr##.print-hide:has(iframe)
+!news.jtbc.co.kr##.my-71ad6y
+!news.jtbc.co.kr##.my-mjkjc3
+!news.jtbc.co.kr##.my-1403259
+!news.jtbc.co.kr##.my-71ad6y
 ! 광고 영역
 !jtbc.co.kr##.set_contents_video_ad
 !
@@ -2684,7 +2697,7 @@ issuya.com##body:style(pointer-events: auto !important; overflow: auto !importan
 !###top_banner
 ! - 게시물내 빈 공간들
 ! - - - 침하하 (https://chimhaha.net/)
-##[id*="slot-"]
+##[id^="slot" i]
 ! - 왼쪽 하단 배너
 !dvdprime.com##.menu_left_banner
 !
@@ -3283,7 +3296,7 @@ m.pann.nate.com##.shopBox
 !
 ! 사커라인 (https://soccerline.kr/)
 ! - 게시물 내 빈공간
-soccerline.kr##[class*="bann" i]
+!soccerline.kr##[class*="bann" i]
 !
 !
 ! 일로아 (https://iloa.gg/)
@@ -3405,6 +3418,11 @@ sbs.co.kr##[class^="ad" i]
 ! 머야 이번호 (https://moyaweb.com/)
 ! - 하단 이미지
 ##A > IMG[alt][src*="resources/images/"]
+!
+!
+! Manga Million (https://mangamillion.shueisha.co.jp/)
+! - 쿠키 팝업
+||onetrust.com^
 
 
 
@@ -3559,7 +3577,7 @@ fingerprint.
 ! 후후티비 (https://hoohootv1.org/) - 티비위키 그대로 가져오는듯 / p2p차단하면 영상재생 안됨
 !
 !
-! 티비룸  (https://티비룸.com/) (https://tvroom.one/) (https://tvroom25.org/)
+! 티비룸  (https://티비룸.com/) (https://tvroom.one/) (https://tvroom26.org/)
 ! - 팝업
 ![$domain=/^tvroom\d+.org/]##.popup
 ! - 화면 뿌옇게 변한거 해결
@@ -5806,7 +5824,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 야동투어 (https://야동투어.com/) (https://ydtour58.sbs/) - /p2p* 해제해야 영상재생 가능
+! 야동투어 (https://야동투어.com/) (https://ydtour60.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
 !##[id*="-ads" i]
@@ -5826,8 +5844,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ! - 광고 영상 차단
 ||media.goatanalytics.xyz/videos/*
 ! - 스크롤 막힌거 해결 (팝업 남는것도 같이 해결됨)
-!/ydtour/##[class*="overscroll"]
-##[class*="overscroll"]
+/ydtour/##[class*="z-[9999]"]
 ! - 영상 하단 텍스트 박스 광고
 /ydtour/##[aria-label*="광고"]
 !
@@ -6033,7 +6050,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl14.com/)
+! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl16.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl7.com/)
 ! - - - 야동닷컴 (https://ydong.net/ (https://yadong9.com/)
@@ -6303,6 +6320,8 @@ jusotw.com##section:has([target] img[width="294"])
 ! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.xn--365-938mx02g.com/)
 ! -- - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
 ##[role*="list"]:has([target] img)
+! - 예외 - https://okky.kr/
+okky.kr#@#[role*="list"]:has([target] img)
 !
 !
 ! 링크봇 (https://linkbot3.com/)
@@ -6749,7 +6768,8 @@ litt.ly#@#[href*="link.coupang.com"]
 ! - 예외 - https://trand.co.kr/
 ! - 예외 - https://chuchu.gg/
 ! - 예외 - 로얄tv (https://rytv01.com/)
-chuchu.gg,trand.co.kr#@#div[class*="-xs"]:has([target*="blank"])
+! - 예외 - https://crepe.cm/
+crepe.cm,chuchu.gg,trand.co.kr#@#div[class*="-xs"]:has([target*="blank"])
 /rytv/#@#div[class*="-xs"]:has([target*="blank"])
 ! - 기타
 ##script[src$="/ad-provider.js"] + ins
