@@ -16,7 +16,7 @@ jobs:
 
       - name: Fetch & convert
         run: |
-          SRC="https://cdn.jsdelivr.net/npm/@list-kr/filterslists@latest/dist/filterslist-uBlockOrigin-classic.txt"
+          SRC="https://cdn.jsdelivr.net/npm/@filteringdev/filterslists-ko@latest/dist/filterslist-uBlockOrigin-classic.txt"
 
           # 원본을 한 번만 받아서 임시 파일로 저장
           curl -fsSL "$SRC" | sed 's/\r$//' > src.txt
