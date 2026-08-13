@@ -4,7 +4,7 @@
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Thu Aug 13 13:08:03 UTC 2026
+! Updated: Thu Aug 13 14:13:46 UTC 2026
 
 ||api-external.adsvani.com^
 ||cdn.adsvani.com^
@@ -3566,8 +3566,6 @@ aniya24.com#$?#div[class*="-player-wrapper"] > .play-media-control ~ div[class^=
 ||amazon-adsystem.com/aax2/apstag.js$script,redirect=amazon_apstag.js
 ||googletagservices.com/tag/js/gpt.js$script,redirect=googletagservices_gpt.js
 ||securepubads.g.doubleclick.net/tag/js/gpt.js$script,redirect=googletagservices_gpt.js
-namu.wiki#?#div:has(> table a[href^="#s-"]:has-text(/^(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/\S*)?$/i)):upward(1):remove()
-namu.wiki#?##_gad_article_top:upward(2):remove()
 m.bunjang.co.kr##main > section:has(> div[class^="_titleContainer_"] > span:has-text(AD))
 lottecinema.co.kr##.main_movie_list .owl-carousel .owl-item:has(> .item > .top_info > .poster_info > .num_info:has-text(AD))
 m.ytn.co.kr#?#div:has(> h2:has-text(실시간 정보))
