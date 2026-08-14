@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-14 03:03:09 UTC
+! Generated: 2026-08-14 05:10:39 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 345,682
+! Block Rules: 345,712
 !
 ||0--0.info^
 ||0--4.com^
@@ -4797,6 +4797,7 @@
 ||1o1nuqbjea.com^
 ||1oavsblobprodcus350.blob.core.windows.net^
 ||1odi7j43c.de^
+||1oj5rl27u51hmeccbpw8kr4h8wtyg3m.cfd^
 ||1on56nkjbu3gx432gz9.cfd^
 ||1onlinejobs.com^
 ||1osb.com^
@@ -5033,6 +5034,7 @@
 ||1y4bxlz6ub7welnn14uwmqlf.rest^
 ||1y55vfy87.com^
 ||1yqtbvw36nwc11w3eb1vcmpyqbbctz461kz9kwk.rest^
+||1z5nj2zxn7pc7l.rest^
 ||1zdorov.ru^
 ||1zdywcgmlt.com^
 ||1zkxrq5iuy.data.adobedc.net^
@@ -6019,6 +6021,7 @@
 ||2om93s33n.de^
 ||2omfz9ygz2.com^
 ||2orln75bry.com^
+||2ormhhabgb.com^
 ||2osb.com^
 ||2osq127yy.com^
 ||2p1kreiqg.de^
@@ -44842,6 +44845,7 @@
 ||arplatform-engine.com^
 ||arpoyoiriphet.space^
 ||arpprolcesofiscalmx.top^
+||arpsrquygqpdh.site^
 ||arptmtclftdy.com^
 ||arptrade.com^
 ||arpun.com^
@@ -52822,6 +52826,7 @@
 ||besacon.fr^
 ||besaieltense.com^
 ||besandileom.com^
+||besantdecuria.cfd^
 ||besaucekuchean.cyou^
 ||besaviking.com^
 ||beschlaege-markt.de^
@@ -56010,6 +56015,7 @@
 ||blowbycringed.cfd^
 ||blowingwind.xyz^
 ||blowjob-xxx.com^
+||blowlamp38.top^
 ||blowlamp65.com^
 ||blownalbertjustification.com^
 ||blowpostage.com^
@@ -61025,6 +61031,7 @@
 ||byclothes.com^
 ||bycvdrvphznyr.site^
 ||byd.mybluehost.me^
+||byddtrfqckxqs.online^
 ||bydeia.com^
 ||bydpbpjtbsfta.online^
 ||bydst.com^
@@ -67192,6 +67199,7 @@
 ||charmstroy.info^
 ||charmsvision.com^
 ||charmtoniesde.com^
+||charnudorask.shop^
 ||chart.dk^
 ||chartaca.com^
 ||chartactiveuncertain.com^
@@ -71471,6 +71479,7 @@
 ||cngrztjuivlyx.online^
 ||cnhuxrpiawywk.space^
 ||cnhv.co^
+||cnhzkubzrhhks.site^
 ||cnid.condenastdigital.com^
 ||cnierscmi.pro^
 ||cnitblog.com^
@@ -77159,6 +77168,7 @@
 ||coyote.pbnbuilds.com^
 ||coyote.txet.ch^
 ||coyrty.buzz^
+||coywadlw9r.com^
 ||cozaifteghy.com^
 ||cozbxsxralcxd.website^
 ||cozeymaison.de^
@@ -77267,6 +77277,7 @@
 ||cpd.dignityhealth.org^
 ||cpdc.com.cn^
 ||cpdliftbamsxxo.com^
+||cpdnyodgckaxc.space^
 ||cpdqvdvmwlnyq.site^
 ||cpdvillousreyoke.qpon^
 ||cpeciadogfoods.com^
@@ -82996,6 +83007,7 @@
 ||dagxmuxiza.com^
 ||dagzinaw.com^
 ||dah0wv79ikn14.cloudfront.net^
+||dahaolong.top^
 ||dahdh.goodranchers.com^
 ||daheim-gut.ch^
 ||daheimgut.com^
@@ -101404,6 +101416,7 @@
 ||elymuscostate.com^
 ||elynqorevazemixtrade.com^
 ||elynsgroup.com^
+||elyqimtvppwey.site^
 ||elyra.com^
 ||elyses.fr^
 ||elysiabbtrn.shop^
@@ -109493,6 +109506,7 @@
 ||fdfghgfdd.yunqishi.net^
 ||fdfgkgziquc.com^
 ||fdfhddfss.top^
+||fdfjxhpqxxjdby.com^
 ||fdfuhymycyhuc.online^
 ||fdfyeaxthabb.com^
 ||fdgem.com^
@@ -110722,6 +110736,7 @@
 ||fifa.hb-api.omtrdc.net^
 ||fifarivals.live^
 ||fifasa.shop^
+||fifeeebyrbxlf.website^
 ||fifef.gohaus.com^
 ||fifteenfive.evergage.com^
 ||fifteenthdrawncommander.com^
@@ -112546,6 +112561,7 @@
 ||fkitfyawqx.com^
 ||fkitumbk.com^
 ||fkiuklhqe.com^
+||fkjybdjjbxpys.site^
 ||fkjzfsgkmnhdq.website^
 ||fkkewlglyayispw.com^
 ||fkkfgerggbroicp.net^
@@ -116811,6 +116827,7 @@
 ||furgaiveekaux.net^
 ||furgppujqwmwh.online^
 ||furhewrestroom.com^
+||furiantismal.cfd^
 ||furiantluckierflyted.cyou^
 ||furiousexpansion.com^
 ||furiousfar.com^
@@ -121377,6 +121394,7 @@
 ||gj.gds.mmstat.com^
 ||gj.mmstat.com^
 ||gj7.ru^
+||gj8ph3gw8z.com^
 ||gjadyyxbjdshtsy.net^
 ||gjanudhvhdqcd.online^
 ||gjapplog.uc.cn^
@@ -140726,6 +140744,7 @@
 ||ilxfndokexkxi.online^
 ||ilxhembbenvbcyj.com^
 ||ilxhsgd.com^
+||ilxzysyahibup.space^
 ||ilyaoipntdyol.space^
 ||ilyf4amifh.com^
 ||ilyonanalytics.herokuapp.com^
@@ -155195,6 +155214,7 @@
 ||kneesstrictforthcoming.com^
 ||kneestolerableadulthood.com^
 ||kneltopeningfit.com^
+||kneveletymon.qpon^
 ||knewpenny.com^
 ||knewthump.com^
 ||knewy.com^
@@ -155496,6 +155516,7 @@
 ||kokanjo.net^
 ||kokcmnqvr.com^
 ||kokilamysel.shop^
+||kokiosaanen.shop^
 ||kokmwwsshmhup.online^
 ||koko188-dk.com^
 ||kokoai-deai.com^
@@ -159604,6 +159625,7 @@
 ||legzo.casino^
 ||legzocasinoua.com^
 ||lehemhavita.club^
+||lehfnkboxqhrowt.com^
 ||lehmann-gartenmaschinen.com^
 ||lehmann-kauf.com^
 ||lehmann-versand.de^
@@ -183116,6 +183138,7 @@
 ||mengis-linden.org^
 ||mengzishiliu.com^
 ||menheotyvdzb.com^
+||menialsforpass.qpon^
 ||menily.com^
 ||menilyshop.com^
 ||meniseparcook.qpon^
@@ -199267,6 +199290,7 @@
 ||nn2d.com^
 ||nnacfikowpsjw.online^
 ||nnacoevirghpr.store^
+||nnamobkfagxaq.com^
 ||nnavigo.fr^
 ||nnblhywxxvofw.space^
 ||nnbqgxo.cc^
@@ -260472,6 +260496,7 @@
 ||shunnoodle.com^
 ||shunremarkbuddy.com^
 ||shunsashoamt.com^
+||shuntedascebcproved.qpon^
 ||shunyugc.com^
 ||shuqistat.com^
 ||shureinfluence.com^
@@ -261487,6 +261512,7 @@
 ||situshokix618jp.live^
 ||situstogelonline.com^
 ||situtippee.cfd^
+||sitztoluyllikens.cfd^
 ||siugoy.monbento.co.uk^
 ||siuqqa.link^
 ||siusmv.coraltravel.pl^
@@ -286792,6 +286818,7 @@
 ||stdirection.com^
 ||stdl.qq.com^
 ||stdm.ayudante.jp^
+||stdnelfzald.com^
 ||stdz.ksapisrv.com^
 ||stdznew.ksapisrv.com^
 ||ste-lab.com^
@@ -311155,6 +311182,7 @@
 ||tylxlypkjinfx.website^
 ||tymbalsburan.com^
 ||tymbascrim.cyou^
+||tymdtxij.com^
 ||tymh2022.xyz^
 ||tymi38ig9q6eo74vm.cfd^
 ||tympanibossetdeline.qpon^
@@ -313910,6 +313938,7 @@
 ||unbrazegestae.shop^
 ||unbrick.id^
 ||unbrownunflat.com^
+||unbunghyoid.qpon^
 ||unburntchetah.cyou^
 ||unbusytophi.cyou^
 ||unbuttonexcellentsubway.com^
@@ -322962,6 +322991,7 @@
 ||vu.veoxa.com^
 ||vuavjqnpxa.com^
 ||vub.mybluehost.me^
+||vubmzx.com^
 ||vucgxemby.com^
 ||vucmgrwiujj.com^
 ||vucve6is.icu^
