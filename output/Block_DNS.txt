@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-14 12:32:29 UTC
+! Generated: 2026-08-14 14:04:20 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 346,125
+! Block Rules: 346,150
 !
 ||0--0.info^
 ||0--4.com^
@@ -12857,6 +12857,7 @@
 ||a5dab3efa18c8ba1.com^
 ||a5f62d01a6.com^
 ||a5k0w.top^
+||a5o3pv5rsx.com^
 ||a5wlr2yplf.com^
 ||a6-remad.qm989.com^
 ||a6.smi2.ru^
@@ -50803,6 +50804,7 @@
 ||bat32.gimmeporn.xyz^
 ||batanga.com^
 ||bataraanimals.com^
+||batbwkbxpd.com^
 ||batch.com^
 ||batchgeo.com^
 ||batchlogging4-eu.truecaller.com^
@@ -51094,6 +51096,7 @@
 ||bbg6.xyz^
 ||bbgadget.de^
 ||bbges.xyz^
+||bbgfssicevqpa.space^
 ||bbggp.callashoes.co.uk^
 ||bbhgeb.imf-formacion.com^
 ||bbhktv.xyz^
@@ -57063,6 +57066,7 @@
 ||boldchat.com^
 ||boldconclusion.com^
 ||boldem.cz^
+||boldinencloud.cyou^
 ||boldlypinfall.cfd^
 ||boldmeasurement.pro^
 ||boldmetrics.io^
@@ -59591,6 +59595,7 @@
 ||bstzcs.cn^
 ||bsugars.sa.com^
 ||bsutdqdquzhhq.website^
+||bsuwaczsfertl.site^
 ||bsuzrzbpyviyv.online^
 ||bsvajclq.com^
 ||bsvhinycewtko.space^
@@ -80389,6 +80394,7 @@
 ||cymgrup.com^
 ||cymhqj.ipet-ins.com^
 ||cymlinshrovy.qpon^
+||cymmaiyhjziic.website^
 ||cymoidbaretta.cyou^
 ||cymuig.assem.nl^
 ||cymzcxuyu.com^
@@ -103533,6 +103539,7 @@
 ||eontent.streamplay.to^
 ||eonwuljgmyjep.site^
 ||eoocpp.fujiidaimaru.co.jp^
+||eoojhxzrnpqmj.site^
 ||eookanmfhqjkh.online^
 ||eooztdbueeqah.space^
 ||eopfryauyxzzpx.com^
@@ -113768,6 +113775,7 @@
 ||fnqhgazwgznjq.site^
 ||fnqhhshfbpkwp.site^
 ||fnrienddoc.com^
+||fnrrvyypkcckq.online^
 ||fnsdycspg.com^
 ||fntevbrdbjg.com^
 ||fnttu.addictivewellness.com^
@@ -116443,6 +116451,7 @@
 ||fsz1.franziskasager.de^
 ||fszjk.sterlingwhite.com^
 ||fszpzd.xyz^
+||fszuzgqojcqdf.com^
 ||fszvo.kidsfootlocker.com^
 ||ft-flower.com^
 ||ft-sentry-i.hetangsmart.com^
@@ -131149,6 +131158,7 @@
 ||gzehixpheoz.com^
 ||gzeiucbgx.com^
 ||gzejtyrwe.com^
+||gzekicodtacr.in^
 ||gzewqaxbkwijp.website^
 ||gzfdb.com^
 ||gzfuze.com^
@@ -156949,7 +156959,6 @@
 ||kuxibbprpctsb.website^
 ||kuxkddg.cn^
 ||kuyhaa-me.pw^
-||kuyhaa-me.site^
 ||kuyhaa.cc^
 ||kuyun.com^
 ||kuyy71.com^
@@ -160971,6 +160980,7 @@
 ||lifechangingthoughts.com^
 ||lifecircle.app^
 ||lifeclick.ir^
+||lifedayfrondalcippe.cyou^
 ||lifeedly.com^
 ||lifefoot.fr^
 ||lifegaugebreeze.at^
@@ -173429,6 +173439,7 @@
 ||m365log.com^
 ||m367.michigansthumb.com^
 ||m3cqjc3og6.com^
+||m3crgmeycmu51hk5hq87b4r.rest^
 ||m3ds.subarumetropolitain.com^
 ||m3h0da.ru^
 ||m3j1pkrjg3.com^
@@ -187706,6 +187717,7 @@
 ||mhieu.covermale.com^
 ||mhiiafknctopm.site^
 ||mhiiopll.net^
+||mhimgkliffsfy.website^
 ||mhittahqa.com^
 ||mhixmkuhwtbfp.space^
 ||mhizzr.eurorelais.nl^
@@ -192575,6 +192587,7 @@
 ||mqndvpogdsocdg.com^
 ||mqnrqbl.in^
 ||mqnwlxinqnxeg.website^
+||mqo60hadqz.com^
 ||mqogbojmfxtpq.space^
 ||mqojih.taschenkaufhaus.de^
 ||mqondrun.com^
@@ -199193,6 +199206,7 @@
 ||nkfyeklrvwa.com^
 ||nkfyxfssuect.com^
 ||nkgcaaejykoif.space^
+||nkgcezyw.com^
 ||nkgmodulsssiy.online^
 ||nkgptejd.studio^
 ||nkhlolwqublfcw.com^
@@ -201950,6 +201964,7 @@
 ||nyfyr.com^
 ||nygcwpskctfwq.space^
 ||nyggy.com^
+||nygidnqwvcmeu.space^
 ||nygwqtpd.com^
 ||nyhdjsn.digital^
 ||nyhed.danskespil.dk^
@@ -212617,6 +212632,7 @@
 ||palsifyeslisor.cyou^
 ||palsmeva.com^
 ||palsybecamedislike.com^
+||paltry-blind.pro^
 ||paltry-metal.pro^
 ||paltryapple25.com^
 ||paltrydish.com^
@@ -228577,6 +228593,7 @@
 ||qnzzubsgpmnpi.online^
 ||qo.errorrespan.com^
 ||qo.flinchoilcups.com^
+||qo66feqfhs.com^
 ||qoa0vy22fy.com^
 ||qoaaa.com^
 ||qoairs.scholl-shoes.com^
@@ -233813,6 +233830,7 @@
 ||rcvlink.com^
 ||rcvlinks.com^
 ||rcvobudipmrke.site^
+||rcvriqufiwtct.site^
 ||rcvwctrkfjfwf.space^
 ||rcwbox.com^
 ||rcx1.l8wo5bjkxtzmbwlnro2k4zr6z5v.cfd^
@@ -262545,6 +262563,7 @@
 ||slashsale.shop^
 ||slashstar.net^
 ||slate-assets.click^
+||slate-assets.shop^
 ||slate-gray-shoes.shop^
 ||slatebeacon.top^
 ||slatecharm.co^
@@ -270876,6 +270895,7 @@
 ||spacha2026.com^
 ||spacingbestirs.com^
 ||spaciousuniversity.com^
+||spacklepeached.cyou^
 ||spade.twitch.tv^
 ||spadedesirablereproduce.com^
 ||spadegaming.vip^
@@ -294099,6 +294119,7 @@
 ||talmyre.online^
 ||talog-eu.rebxgame.com^
 ||talog.wayagame.com^
+||talonfidgesumbers.cyou^
 ||taloseempest.com^
 ||talou.familyframe.co^
 ||talpa-analytics.com^
@@ -300401,6 +300422,7 @@
 ||tmkhirkrol.com^
 ||tmkunstinberkersheim.de^
 ||tmlfunrthtnff.online^
+||tmlhmihwqzcfmoonp9gw.cfd^
 ||tmll1.com^
 ||tmll3.com^
 ||tmll4.com^
@@ -311553,6 +311575,7 @@
 ||typobonaghtorphize.cyou^
 ||typodors.cfd^
 ||typogarynio.com^
+||typonymfloriabeffroy.cyou^
 ||typostoucans.com^
 ||typss.org^
 ||tyqwh.vitalchoice.com^
@@ -316537,6 +316560,7 @@
 ||usesuvhome.shop^
 ||usewmeukdgmnh.website^
 ||usezunna.com^
+||usfduc.com^
 ||usflicks.com^
 ||usfoods.demdex.net^
 ||usfoods.tt.omtrdc.net^
@@ -321044,6 +321068,7 @@
 ||vindicatelawfirm.com^
 ||vindicosuite.com^
 ||vindictivemopenthrone.com^
+||vineaeguacimo.shop^
 ||vinegardaring.com^
 ||vinelethoner.com^
 ||vinepixo.click^
