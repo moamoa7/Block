@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-15 08:11:34 UTC
+! Generated: 2026-08-15 08:49:49 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,597
+! Exception Rules: 6,600
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -292,7 +292,6 @@
 @@||api-02.moengage.com^
 @@||api-03.moengage.com^
 @@||api-04.moengage.com^
-@@||api-101.moengage.com^
 @@||api-ao-list.adison.co^
 @@||api-ao.adison.co^
 @@||api-ap1.hubapi.com^
@@ -317,6 +316,7 @@
 @@||api.crunchyroll.com^
 @@||api.elasticemail.com^
 @@||api.freeletics.com^
+@@||api.getsidekick.comapi.hubapi.com^
 @@||api.gm.com^
 @@||api.here.com^
 @@||api.heylink.com^
@@ -591,6 +591,7 @@
 @@||banquelaurentienne.ca^
 @@||banquepopulaire.fr^
 @@||banrisul.com.br^
+@@||bapi-01.moengage.com^
 @@||bapi-02.moengage.com^
 @@||bapi-04.moengage.com^
 @@||barclaycard.co.uk^
@@ -2024,6 +2025,7 @@
 @@||howsmyssl.com^
 @@||hpcloud.hp.com^
 @@||hpcloud.hp.net^
+@@||hpt-cdn.exponea.com^
 @@||hrblock.com^
 @@||href.li^
 @@||hs.eloqua.com^
@@ -3066,7 +3068,6 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
-@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -3108,6 +3109,7 @@
 @@||mkto-ab440025.com^
 @@||mkto-ab440026.com^
 @@||mkto-ab440032.com^
+@@||mkto-ab440076.com^
 @@||mkto-ab450015.com^
 @@||mkto-ab450037.com^
 @@||mkto-ab470119.com^
@@ -3116,6 +3118,7 @@
 @@||mkto-ab480015.com^
 @@||mkto-ab480166.com^
 @@||mkto-ab500022.com^
+@@||mkto-ab520004.com^
 @@||mkto-ab530192.com^
 @@||mkto-ab540059.com^
 @@||mkto-ab540143.com^
