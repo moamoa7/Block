@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260815
+! Version: 20260816
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -146,10 +146,11 @@
 ! 티카페 (https://tcafe21.com/)
 ! https://cloudfam.io/
 ! 짤티비
-*/ads*
+!*/ads*
 ! - 예외 - https://github.com/ - ads가 들어간 페이지 로딩 안됨
 ! - 예외 - 브레이브 검색 - 이미지 검색시 멈춤
-@@||*/ads*$domain=github.com|search.brave.com
+! - 예외 - https://gofile.io/ - 로딩 불가
+!@@||*/ads*$domain=github.com|search.brave.com|gofile.io
 !@@||*/ads*$domain=login.coupang.com
 !
 !
@@ -309,8 +310,11 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ##[data-event*="ad_click" i]
 !
 !
-/popup.
-@@/popup.$css
+!/popup.
+!@@/popup.$css
+!
+! https://gofile.io/ - 로딩 불가
+!@@/popup.$domain=gofile.io
 !
 !
 /popups.
@@ -484,8 +488,8 @@ hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*=
 ! https://javhub.net/
 ! https://xingbokep.tv/
 ##[target] video
-! - 예외 - https://search.naver.com/ - 클립 영상 사라짐
-!naver.com#@#[target] video
+! - 예외 - https://search.naver.com/ - 클립 영상 등 사라짐
+naver.com#@#[target] video
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -1016,6 +1020,7 @@ philgo.com##[alt*="배너"]
 ! 애니위크 (https://aniweek.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
+! 티비착 (https://tvchak208.com/)
 /yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa/##[target*="blank"] img
 !
 !
@@ -1047,7 +1052,7 @@ philgo.com##[alt*="배너"]
 ! - 개별 도메인으로 취급
 ! 티비착 (https://tvchak208.com/) - 상단 배너 필요없는 부분 (보증 어찌구~) 포함
 ! 후후티비 (https://be.hoohootv441.xyz/)
-/tvchak|hoohootv/##[style]:has([target] img)
+!/tvchak|hoohootv/##[style]:has([target] img)
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://etoland.co.kr/
@@ -1360,6 +1365,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 cineaste.co.kr#@#.h30
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
+
 
 
 
