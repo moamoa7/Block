@@ -1088,28 +1088,28 @@ mule.co.kr##[target] img
 ##[id*="-pop" i]:not(body):not(html):not(main)
 !
 !
-##[class*="-pop" i]:not(body):not(html):not(main)
+!##[class*="-pop" i]:not(body):not(html):not(main)
 !
 !
 !
 ##[id*="_pop" i]:not(body):not(html):not(main)
 !
 !
-##[class*="_pop" i]:not(body):not(html):not(main)
+!##[class*="_pop" i]:not(body):not(html):not(main)
 !
 !
 !
 ##[id*="pop-" i]:not(body):not(html):not(main)
 !
 !
-##[class*="pop-" i]:not(body):not(html):not(main)
+!##[class*="pop-" i]:not(body):not(html):not(main)
 !
 !
 !
 ##[id*="pop_" i]:not(body):not(html):not(main)
 !
 !
-##[class*="pop_" i]:not(body):not(html):not(main)
+!##[class*="pop_" i]:not(body):not(html):not(main)
 !
 !
 !
