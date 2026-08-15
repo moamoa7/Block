@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260814
+! Version: 20260815
 !
 !
 !
@@ -396,6 +396,8 @@ mypikpak.com##.operation-container
 ! -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
 m.naver.com##script#MM_search_disaster ~*
+! - 메인 추천/카테크/웹툰~ 내  AD 광고글 빈공간 지우기
+##li:has([id*="-ad-"])
 ! - 기타
 ! - - - 사용자의 행동을 제한하는 '복사 방지/드래그 방지' 기능을 강제로 무력화
 ! - - - uBlock filters – Annoyances
@@ -798,7 +800,7 @@ issuelink.co.kr##.text-center
 ! - 게시물내 배너 이미지
 !##[src*="/ad/" i]
 ! - 예외
-!ad.co.kr,auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
+!ad.co.kr,auction.co.kr,avsee.is,linkareer.com#@#[src*="/ad/" i]
 ! - 갤러리 하단 빈공간
 dcinside.com##.ad_bottom_list
 ! - 갤러리 게시물 하단 빈 공간
@@ -936,7 +938,7 @@ arca.live##[class*="row"]:has-text(광고)
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe664.com/) - 이미지 목록 사라짐
+! 펀비 (https://funbe666.com/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -1175,7 +1177,7 @@ mlbpark.donga.com##.btn_top01
 !ruliweb.com##.adrr
 !ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe664.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe666.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 !ruliweb.com##[class*="ad_"][style] - ##[class*="ad_slot" i]로 변경
 ! - 루리웹 전체 배너 (게시판 내 AD글 포함)
@@ -1367,6 +1369,7 @@ instiz.net##div:has([id*="powerlink" i])
 !
 !
 ! 나무위키 (https://namu.wiki/)
+@@||namu.wiki^$generichide
 ! - 상단 및 오른쪽 공간(배너?)
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 !namu.wiki#$#div[class][id]:is(:empty, :has(> iframe[id^='google_ads_iframe'])) { display: none !important; }
@@ -3247,8 +3250,8 @@ tiendeo.co.kr##[class*="justify"]:has([data-testid*="ad_"])
 loawa.com##[alt*="후원"]
 ! - 예외 - 숲 - 별풍선 후원 이미지 복원
 ! - 예외 - 야동갤러리 - 게시물 제목 이미지
-! - 예외 - 툰코 (https://tkor142.com/) - 일부 게시물 제목에 의해 사라짐
-! - 예외 - 펀비 (https://funbe664.com/) - 일부 게시물 제목에 의해 사라짐
+! - 예외 - 툰코 (https://tkor144.com/) - 일부 게시물 제목에 의해 사라짐
+! - 예외 - 펀비 (https://funbe666.com/) - 일부 게시물 제목에 의해 사라짐
 !play.sooplive.com#@#[alt*="후원"]
 !funbe|tkor|yagall/#@#[alt*="후원"]
 ! - 배너 빈 공간
@@ -3762,8 +3765,8 @@ anilife.app##.duration-300
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://t.me/s/toonkor_com) (https://tkor142.com/)
-! 펀비 (https://t.me/s/funbe_next) (https://funbe664.com/)
+! 툰코 (https://t.me/s/toonkor_com) (https://tkor144.com/)
+! 펀비 (https://t.me/s/funbe_next) (https://funbe666.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -3945,7 +3948,7 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##[data-pm-ov="1"]
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##.vw-swipe-hint
 !/sbxh|toki/##[data-pm-ov="1"]
-!##div[role*="dialog"]
+/toki|sbxh|newtoki/##div[role="dialog"][aria-modal="true"]
 ##.vw-swipe-hint
 ! - p2p 차단 (애니 등 영상 시청시)
 !wss://tracker.
@@ -4080,9 +4083,9 @@ joatoon-oa.com##.bg-opacity-50
 ! 토렌트와이 (https://www.토와이.xyz/) (https://www.torrentwhy188.xyz/)
 !
 !
-! AVseeTV (https://09.avsee.ru/)
+! AVseeTV (https://01.avsee.is/)
 ! - 배너 이미지
-!||avsee.ru/imgs/$image
+!||avsee.is/imgs/$image
 ! - 메인 배너
 !##[class="title"]:has(a[target*="blank"] img[width='100%'][src*=".gif"])
 !##[class="title"]:has(a[target*="blank"] img[src*=".gif"])
@@ -4112,26 +4115,26 @@ joatoon-oa.com##.bg-opacity-50
 !- - - 일반식으로 차단
 !||ru/imgs/*
 ! - 남는 배너 이미지 공간
-!avsee.ru##div.title:nth-of-type(1)
-!avsee.ru##div.main-box:has(> div.main-head):nth-of-type(1)
+!avsee.is##div.title:nth-of-type(1)
+!avsee.is##div.main-box:has(> div.main-head):nth-of-type(1)
 ! - 메인 상단
-avsee.ru##div.title > div:has([target] img)
+avsee.is##div.title > div:has([target] img)
 ! - 메인 오른쪽
-avsee.ru##div.at-side > div:has([target] img)
+avsee.is##div.at-side > div:has([target] img)
 ! - 기타 상단
-avsee.ru###at-main > [target] > img
+avsee.is###at-main > [target] > img
 ! - 기타 오른쪽 - List-KR의 다른 규칙이 있어 주석 처리
 !!##div.widget-side-box > div:has([target] img)
 ! 공지 게시판내 보증 관련 광고글
-avsee.ru##.list-item:has-text(보증)
+avsee.is##.list-item:has-text(보증)
 ! - - - 메인 공지에 보이는 부분
-avsee.ru##div.media:has-text(보증)
+avsee.is##div.media:has-text(보증)
 ! - - - 개인 스크립트가 ui 탭 을 막아서 해제
-avsee.ru#@#.tabs
+avsee.is#@#.tabs
 ! - - - https://j91.asia/
 !/^https:\/\/[0-9a-z]{6,12}\.in(?:\/[a-z]{2,10}){1,3}$/$script,third-party,match-case
 ! - 영상 재생 방지
-!avsee.ru#@#[class*="floating" i]
+!avsee.is#@#[class*="floating" i]
 ! - 팝업 (새창) 방지
 !j91.asia##+js(window.open-defuser)
 ! - 영상 재생시 팝업 차단 (uBlock filters – Ads)
@@ -4755,8 +4758,8 @@ javtiful.com##.front-feature-placement-side
 !aniya24.com##section:has([target] img[src*="/wp-content/uploads/"])
 ! - 예외 - https://apkmody.com/ - 본문 안보임
 !apkmody.com#@#section:has([target] img[src*="/wp-content/uploads/"])
-! -예외 - https://07.avsee.ru/ - 일부 게시판내 링크를 사용할경우 이미지 등 본문 안보임
-!avsee.ru#@#section:has([target] img[src*="/wp-content/uploads/"])
+! -예외 - https://07.avsee.is/ - 일부 게시판내 링크를 사용할경우 이미지 등 본문 안보임
+!avsee.is#@#section:has([target] img[src*="/wp-content/uploads/"])
 ! - 예외 - https://emuokunmaster.com/ - 본문 안보임
 !emuokunmaster.com#@#section:has([target] img[src*="/wp-content/uploads/"])
 aniya24.com##section:has(img[width="1200"])
@@ -6747,33 +6750,12 @@ litt.ly#@#[href*="link.coupang.com"]
 ![$domain=/^dobakland\d+.org/]##[class*="cursor"]
 !
 !
-! 코티비씨 (https://korsite.net/)  (https://m185.kotbc2.com/)
-! - 배너
-! - - - 코무비 (https://m324.kormovie.com/)
-! - - - 코왓챠 (https://m273.kowatcha.com/)
-! - - - 왓챠KR (https://m273.watchakr.com/)
-! - - - 애니위크 (https://aniweek.com/)
-! - - - 딸타임 (https://ddaltime188.com/)
-! - --  개조아 (https://dogjoa97.net/)
-! - - - 현자타임 (https://hjtime112.com/)
-! - - - 아래 규칙으로 하면 시네스트 출석부 일부 사라짐으로 규칙 재변경
-!##.at-title > .at-container
-! - - - https://javfilms.com/ - 목록중 광고 / 영상 옆 다운로드/세이브/자막
-! - - - https://missav.ws/ - 차단되는건 없는대 차단로그에 나옴
-! - - - https://missav01.com/ - 차단되는건 없는대 차단로그에 나옴
-! - -- https://cineaste.co.kr/ - 차단되는건 없는대 차단로그에 나옴
-##div[class*="-xs"]:has([target*="blank"])
-! - 예외 - https://trand.co.kr/
-! - 예외 - https://chuchu.gg/
-! - 예외 - 로얄tv (https://rytv01.com/)
-! - 예외 - https://crepe.cm/
-crepe.cm,chuchu.gg,trand.co.kr#@#div[class*="-xs"]:has([target*="blank"])
-/rytv/#@#div[class*="-xs"]:has([target*="blank"])
+! 코티비씨 (https://korsite.net/)  (https://m187.kotbc2.com/)
 ! - 기타
 ##script[src$="/ad-provider.js"] + ins
 !
 !
-! 코무비 (https://korsite.net/) (https://m324.kormovie.com/)
+! 코무비 (https://korsite.net/) (https://m326.kormovie.com/)
 ! - 배너 이미지
 !||*.kormovie.com/img/*.jpg
 ! - 배너 빈 공간
@@ -6785,7 +6767,7 @@ crepe.cm,chuchu.gg,trand.co.kr#@#div[class*="-xs"]:has([target*="blank"])
 !/watchakr|kowatcha|kormovie.com/###mnxo2
 !
 !
-! 코왓챠(https://korsite.net/)  (https://m273.kowatcha.com/)
+! 코왓챠(https://korsite.net/)  (https://m275.kowatcha.com/)
 ! - 배너 이미지
 !||*.kowatcha.com/img/*.jpg
 ! - 배너 빈공간
@@ -6794,7 +6776,7 @@ crepe.cm,chuchu.gg,trand.co.kr#@#div[class*="-xs"]:has([target*="blank"])
 !/watchakr|kowatcha/##.h20
 !/watchakr|kowatcha/##.h30
 !
-! 왓챠KR(https://korsite.net/)  (https://m273.watchakr.com/)
+! 왓챠KR(https://korsite.net/)  (https://m275.watchakr.com/)
 ! - 배너 이미지
 !||*.watchakr.com/img/*.jpg
 !
@@ -6880,9 +6862,9 @@ rou.video##div.md\:col-span-1
 !popkontv.com#@#[class*="img-box" i]
 !
 !
-! AVovo (https://t.me/s/avovo_url) (https://01.avovo.net/)
+! AVovo (https://t.me/s/avovo_url) (https://01.avovo.tv/)
 ! - 영상 재생 가능하게
-@@||play.vcdnplayer.com^$ehide
+@@||play.cdnvplay.com^$ehide
 ! - 상단 배너 공간 (별도의 이미지가 아직 없는 공간)
 ![$domain=/^\d+.avovo.net/]##.h-auto.w-full
 ![$domain=/^\d+.avovo.net/]##a[rel*="noopener\ noreferrer"]
@@ -6937,7 +6919,7 @@ rou.video##div.md\:col-span-1
 /coktv/##.text-marquee_allopen_container
 !
 !
-! 로얄TV (https://xn--2o2b21id2c79elydbpw.com/) (https://t.me/s/royaltvinfo) (https://rytv01.com/) - 스포츠 중계 안됨
+! 로얄TV (https://xn--2o2b21id2c79elydbpw.com/) (https://t.me/s/royaltvinfo) (https://rytv01.com/) - 스포츠 중계 시청 안됨
 ! - 필요없는 부분 안보이게
 !/^(www\.)?royaltv/##.image
 !/^(www\.)?royaltv/##.add-to-cart
@@ -7270,6 +7252,8 @@ katfile.space##[style="position: fixed; bottom: 25px; right: 25px; z-index: 9999
 !
 !
 ! https://javfilms.com/
+! -목록중 광고 / 영상 옆 다운로드/세이브/자막
+javfilms.com##div[class*="-xs"]:has([target*="blank"])
 ! - 기타
 !||simpleanalyticscdn.com^
 !
