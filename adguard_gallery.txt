@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.08.13.3
-! TimeUpdated: 2026-08-13T13:54:07+00:00
+! Version: 2026.08.14.0
+! TimeUpdated: 2026-08-14T05:44:46+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, wBlock, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -137,6 +137,8 @@ instiz.net##.view_top
 instiz.net##div[class^='hot_u']
 inven.co.kr##div[style="width: 100%; height: 250px"]:has(.ad-right2)
 jjtv.kr##div[style^="text-align: center"]:has(> iframe[src*="//ad.adnmore.co.kr/"])
+joongdo.co.kr##div.right_content > div[style^="text-align:center;padding-bottom:50px;min-height"]:has(> script[src])
+joongdo.co.kr##div.view-news-wrap div[style*="min-height:"]:has(> script[src])
 k-hentai.org##.my-3.container
 kgirls.net##.layout_pc_banner
 khan.co.kr##[class^="ad-art-"]
@@ -189,6 +191,8 @@ mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mmzone.co.kr###header_top:has(.ads-wrap)
 mmzone.co.kr##.m-center-adt-container
 mule.co.kr##[class*='-ad-']
+munhwa.com###bottom-sticky
+munhwa.com##.top-banner-area
 musinsa.com##a.gtm-click-content[href$="/main/musinsa/brand_ad"]
 musinsa.com##div[class^="TabItem__DefaultCombinationWrap-"]:has(> a.gtm-click-content[href="/main/musinsa/brand_ad"])
 namu.news##li:has(div[style*="min-height:100px"]):has(> div > div[id*="article-a"])
@@ -213,7 +217,8 @@ paxnet.co.kr##.stock-ad
 paxnet.co.kr##[class^="dv-com-m"]
 pay.naver.com##div[class^='BottomAds_article']
 postshare.co.kr##div:has(> a > img[src*="/images/banner/"])
-postype.com##div:has(> [data-sentry-component="RecommendFeedGoogleAd"])
+postype.com##div.MuiBox-root:has(> [data-sentry-component="RecommendFeedGoogleAd"])
+postype.com##div[data-sentry-component="FeedGoogleAd"]
 ppomppu.co.kr##.bottom > div[style]
 ppomppu.co.kr##tr[id*="_list_ad_"]
 ppomppu.co.kr$$tr:has-text(AD)
