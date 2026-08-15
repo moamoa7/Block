@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260815
+! Version: 20260816
 !
 !
 !
@@ -781,7 +781,7 @@ aagag.com##.bottom.center.sAlert
 aagag.com##.la.top.naver:style(width:0 !important; height:0 !important; min-width:0 !important; min-height:0 !important; margin:0 !important; padding:0 !important; display:block !important)
 ! - 일정 간격으로 게시물 사이사이 잇는 공간 없애기
 !aagag.com##.mirror_mid_ad
-aagag.com##[class$="_ad"]:not([class$="hate_ad"])
+aagag.com##[class$="_ad" i]:not([class$="hate_ad"])
 ! - 맨 하단 빈 공간
 !aagag.com##div.cwarp2
 aagag.com##[class$="naver"]
@@ -3085,7 +3085,7 @@ hmstory.net##script:contains(detect-message-shown):remove()
 !wisdomgrove.tistory.com##body
 ! - 기타
 ! - - - https://www.encar.com/ - 차 검색시 본문내용 안나와서 예외처리
-/analytics.js^$script,domain=~encar.com
+!/analytics.js^$script,domain=~encar.com|~gofile.io
 !
 !
 ! https://www.pixiv.net/
@@ -3534,10 +3534,12 @@ fingerprint.
 ! - 팝업
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 ![$domain=/^tvchak\d*\./]##[class*="popup_mdd" i]
-! - 상단 배너 필요없는 부분 (보증 어찌구~)
+! - 상단 배너 - (보증 어찌구~) 포함
+! - - - 후후티비 (https://be.hoohootv441.xyz/)
 !/tvchak/##[class*="card"]:has(> style)
 !##[class*="border-shadow"]:has(> style) - 타 사이트(https://noonnu.cc/)에서 차단 발생하여 개별로 아래와 같이 변경
 !/tvchak/##[class*="border"]:has(> style)
+/tvchak/##[style]:has([target] img)
 ! - 보증 안내 문구
 ![$domain=/^tvchak\d*\./]##.hezuo_div1
 !/tvchak/##.hezuo_div1
@@ -3571,7 +3573,7 @@ fingerprint.
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! - - - 후후티비 (https://telegra.ph/후후티비-최신-주소-09-03)  (https://be.hoohootv441.xyz/)
+! 후후티비 (https://telegra.ph/후후티비-최신-주소-09-03)  (https://ki.hoohootv444.xyz/)
 ! - 배너 빈 공간 - ##[style]:has([target] img)는 메인 배너에만 적용되고 개별 목록내 배너에는 적용이 안되서 필요함
 ![$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 /hoohootv/###img_row_container
