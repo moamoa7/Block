@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260814
+! Version: 20260815
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -96,7 +96,7 @@
 ! https://iloa.gg/
 */ad/*
 ! - 예외
-@@*/ad/*$domain=avsee.ru|linkareer.com|auction.co.kr
+@@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr
 !
 !
 ! 치지직
@@ -728,8 +728,8 @@ vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-b
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://vexfile.com/
 ! 주소월드 (https://wdwd13.com/)
-! 펀비 (https://funbe664.com/)
-! 툰코 (https://tkor142.com/)
+! 펀비 (https://funbe666.com/)
+! 툰코 (https://tkor144.com/)
 ! https://거지맵.com/
 ! https://www.hankyung.com/ - 모바일에서 안보임
 ! https://www.womaneconomy.co.kr/ - banner 잘못 지워짐 수정 (상단 검색 부분 지워짐 방지)
@@ -849,8 +849,8 @@ getmodsapk.com#@#[alt*="banner" i]
 !trand.co.kr,vexfile.com,sooplive.com,10000recipe.com,womaneconomy.co.kr#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소월드 (https://wdwd13.com/)
-! 펀비 (https://funbe664.com/)
-! 툰코 (https://tkor142.com/)
+! 펀비 (https://funbe666.com/)
+! 툰코 (https://tkor144.com/)
 ! 주소핑 (https://www.jusoping3.com/)
 !/wdwd|funbe|tkor|jusoping/#@#[class*="banner" i]:has([target]):not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i]):not([class*="comment"])
 !
@@ -1009,7 +1009,14 @@ philgo.com##[alt*="배너"]
 ! 무료툰 하단 배너 (https://foc116.asia/)
 ! AV핫 (https://avhot1.com/)
 ! 야모아 (https://yamoa48.top/)
-/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty/##[target*="blank"] img
+! 코티비씨 (https://m187.kotbc2.com/)
+! 코무비 (https://m326.kormovie.com/)
+! 코왓챠 (https://m273.kowatcha.com/)
+! 왓챠KR (https://m275.watchakr.com/)
+! 애니위크 (https://aniweek.com/)
+! 딸타임 (https://ddaltime188.com/)
+! 개조아 (https://dogjoa97.net/)
+/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa/##[target*="blank"] img
 !
 !
 !
@@ -1078,7 +1085,32 @@ mule.co.kr##[target] img
 !
 !
 !
+##[id*="-pop" i]:not(body):not(html):not(main)
+!
+!
+##[class*="-pop" i]:not(body):not(html):not(main)
+!
+!
+!
+##[id*="_pop" i]:not(body):not(html):not(main)
+!
+!
+##[class*="_pop" i]:not(body):not(html):not(main)
+!
+!
+!
+##[id*="pop-" i]:not(body):not(html):not(main)
+!
+!
+##[class*="pop-" i]:not(body):not(html):not(main)
+!
+!
+!
 ##[id*="pop_" i]:not(body):not(html):not(main)
+!
+!
+##[class*="pop_" i]:not(body):not(html):not(main)
+!
 !
 !
 ! https://www.javbangers.com/ - class*="age-popup" 예외
@@ -1130,7 +1162,7 @@ ad.co.kr#@#[href*="/ad/" i]
 !  개별 작업하는걸로
 ! https://play.sooplive.com/
 !##[src*="/ad/" i]
-!ad.co.kr,auction.co.kr,avsee.ru,linkareer.com#@#[src*="/ad/" i]
+!ad.co.kr,auction.co.kr,avsee.is,linkareer.com#@#[src*="/ad/" i]
 !
 !
 !
@@ -1167,6 +1199,7 @@ ad.co.kr#@#[href*="/ad/" i]
 ##[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://namu.wiki/ - 본문 사라짐
 ! https://www.dcinside.com/
 ! https://play.sooplive.com/
 ! https://adguard-vpn.com/
@@ -1194,7 +1227,7 @@ up-4ever.net,platinmods.com#@#[class*="ads" i]:not(body):not(html):not(main):not
 ! 개별 도메인별로 필요시 할 것
 ! https://www.hani.co.kr/
 ! https://trand.co.kr/
-! https://08.avsee.ru/
+! https://08.avsee.is/
 ! 숲 - class*="_add_"
 !##[class*="_ad"]:not(body):not(html):not(main):not([class*="_ad_"]):not([class*="_add_"])
 !
@@ -1290,7 +1323,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 !
 !
 !
-! AVsee.tv (https://09.avsee.ru/)
+! AVsee.tv (https://09.avsee.is/)
 ! 씨네스트 (https://cineaste.co.kr/)
 ! 뉴토끼 / 마나토끼 / 북토끼
 ! 코무비 (https://m324.kormovie.com/)
@@ -1301,7 +1334,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ##.h10
 !
 !
-! AVsee.tv (https://09.avsee.ru/)
+! AVsee.tv (https://09.avsee.is/)
 ! 씨네스트 (https://cineaste.co.kr/)
 ! 뉴토끼 / 마나토끼 / 북토끼
 !  코무비 (https://m324.kormovie.com/)
@@ -1322,20 +1355,11 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ! 개조아 (https://dogjoa97.net/)
 ##.h30
 !
-!
-!
-! 뉴토끼 (https://뉴토끼우회.com) (https://toki31.com/) (https://sbxh9.com) 등 팝업 발생시
-##div[role*="dialog"]
-!
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! www.google.com - /recaptcha/ 안보임
-! https://mypikpak.com/ - 출첵 후 팝업메시지 안보임
-! https://trand.co.kr/ - 팝업으로 나오는 창 생성 불가
-trand.co.kr,mypikpak.com,google.com#@#div[role*="dialog"]
-!
+! https://cineaste.co.kr/ - 출첵 로그인 화면의 윗 공백이 사라져서 조금 짤려보임
+cineaste.co.kr#@#.h30
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-
 
 
 
