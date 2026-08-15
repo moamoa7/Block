@@ -7253,7 +7253,7 @@ katfile.space##[style="position: fixed; bottom: 25px; right: 25px; z-index: 9999
 !
 ! https://javfilms.com/
 ! -목록중 광고 / 영상 옆 다운로드/세이브/자막
-javfilms.com##div[class*="-xs"]:has([target*="blank"])
+javfilms.com##div[class*="xs"]:has([target*="blank"])
 ! - 기타
 !||simpleanalyticscdn.com^
 !
