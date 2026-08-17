@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260816
+! Version: 20260817
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -52,7 +52,7 @@
 !
 !
 ! https://www.genspark.ai/ - 이미지
-! 조개무비 (https://v24.jogemovie.net/)
+! 조개무비 (https://v25.jogemovie.net/)
 ! https://www.tiktok.com/
 ! https://sextb.net/  - US/PP영상
 *-ad-*
@@ -438,7 +438,7 @@ hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*=
 !
 !
 !
-! 쏘걸 - https://kr86.sogirl.so/  -  about:blank
+! 쏘걸 - https://kr88.sogirl.so/  -  about:blank
 ! https://fd2ppv.cc/ - 프레임 이름이 없음
 !sogirl.so,fd2ppv.cc#@#div iframe:not([src*="/embed/"]):not([src*="/player.php?"]):not([src*="/h/"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="supjav"]):not([src*="stb.strp2p"]):not([src*="/v/"]):not([src*="?video"]):not([src*="captcha"]):not([src*="view.php?ch="]):not([src*="xvqz.org/content/"]):not([src*="index.php?data="]):not([src*="streamlive"]):not([src*="/avatar/"]):not([src*="/board/"]):not([src*="javhdporn"]):not([src*="my.html"]):not([src*="/ws/"]):not([src*="/lf/"]):not([src*="/st/"]):not([src*="/te/"]):not([src*="player.upn.one"]):not([src*="/comments/"]):not([src*="mediag5jvqbd.fmkorea.com/"]):not([src*="ext.fmkorea.com/"]):not([src*="media.fmkorea.com/"]):not([src*="/player-x.php"]):not([src*="/player/dplayer.html"]):not([src*="/player.html"]):not([src*="play.vcdnplayer.com/v.php"]):not([src*="/embed?"]):not([src*="player-v2.bcbc.red/player/"]):not([src*="cokcok.stream"]):not([src*="ply.catopolice.com/dplayer"]):not([src*="xiaoca.top/one/onet.php?url="]):not([src*="/chak/chaktt.php?url="]):not([src*="/static/player/artplayer/"]):not([src*=".php?&id="]):not([src*="yna.co.kr/program/"]):not([src*="stockwin.thinkpool.com/html/hktv/index.html"]):not([src*="upload18.com/play/"]):not([src*="18av.mm-cg.com/js/player/play.php?"]):not([src*="creatorofvideo.com/play/"]):not([src*="/javbraze_cdn/"]):not([src*="goodtv.co.kr/watch_banner.asp"]):not([src*="embed.streamxx.net"]):not([src*="guccihide.store/embed/"]):not([src*="play3737.com/?v="]):not([src*="streambeast.upn.one/"]):not([src*="ok.ru/videoembed/"]):not([src*="player.kick.com/"]):not([src*="kcdn.tving.com/"]):not([src*="jtbclive-cdn.jtbc.co.kr"]):not([src*="/attendance/"]):not([src*="x.videist.com/hls/"]):not([src*="llis-goodsdetail.lotteon.com"]):not([src*="itemdesc.ssg.com"]):not([src*="/comment.php?no="]):not([src*="gstatic.com/atari/embeds/"]):not([class*="nmContent"]):not([src*="nnmo0oi1.com/video/"]):not([src*="theofferwall.pincrux.com/chzzk/"]):not([src*="game.naver.com/notify?"]):not([src*="/?track=cam69_embed"]):not([src*="https://short.icu/"]):not([src*="emb.missav.to/?id="]):not([src*="1player.store/"]):not([src*="/jav.guru/searcho/?"]):not([src*="luluvid.com/"]):not([src*=".bestjavporn.com"]):not([src*="wasp.pandalive.co.kr/auth/?token="]):not([src*="/iframe/tab"]):not([src*="/video1.javdock.com/p/"]):not([src*="/vv/"]):not([src*="/static/player/videojs.html"]):not([src*="mypikpak.com/favorite-links-hub?"]):not([src*="/include/"]):not([src*="suckol-o5.asia/video/"]):not([src*="addons/dplayer/?url="]):not([data-src*="upload18.org"]):not([src*="dmm.co.jp/service/digitalapi/"]):not([src*="/player/r.php?r="]):not([src*="play.aving.tv/v.php?v="]):not([src*="rocketpay.coupang.com/rocketpay/pay/"]):not([src*="payment.coupang.com/v4/payments/payment?paymentToken="]):not([id="broadcastFrame"]):not([src*="bigwin.livenst.com/"]):not([src*="liventv.com/player?v="]):not([src*="wowtv.co.kr/ExportHTS/Index?popFrom="]):not([src*="-stream.live/"]):not([src*="/view/frame?"]):not([src*="/widget/article/"]):not([src*="/plugin/follow_button?"])
 !
@@ -484,7 +484,7 @@ hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*=
 !
 !
 ! https://apkmody.com/
-! 탑걸 (https://kr44.topgirl.co/)
+! 탑걸 (https://kr45.topgirl.co/)
 ! https://javhub.net/
 ! https://xingbokep.tv/
 ##[target] video
@@ -540,7 +540,7 @@ naver.com#@#[target] video
 ! 네이버스토어
 ! 애니라이프
 ! 풍투데이
-! 다크걸 (https://darkgirl16.com/)
+! 다크걸 (https://darkgirl17.com/)
 ! https://dasdas.jp/
 !*/banner*
 !
@@ -595,7 +595,7 @@ naver.com#@#[target] video
 !
 !
 ! X
-! 다크걸 (https://darkgirl16.com/)
+! 다크걸 (https://darkgirl17.com/)
 !/*banner*/*
 ! - 예외  - 이미지 안보임
 !@@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
