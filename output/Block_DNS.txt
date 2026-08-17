@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-17 12:14:42 UTC
+! Generated: 2026-08-17 13:11:33 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 349,071
+! Block Rules: 349,076
 !
 ||0--0.info^
 ||0--4.com^
@@ -45028,6 +45028,7 @@
 ||arihomes.com^
 ||ariidaebuoy.top^
 ||ariix.com^
+||arijhpvidfqkk.online^
 ||arikiculls.cyou^
 ||arila.de^
 ||ariledreinfer.com^
@@ -69500,6 +69501,7 @@
 ||cj.qidian.com^
 ||cj2015.drywear.dk^
 ||cj2550.com^
+||cj6rg2tyiqlte4hpxp1.cfd^
 ||cj81gcvm2.com^
 ||cj99fbulb4.com^
 ||cja0m4iew.com^
@@ -212112,6 +212114,7 @@
 ||oremark.com^
 ||ores-fixed.mno.link^
 ||orest-vlv.com^
+||oresyipqzckyl.site^
 ||oretravelsright.com^
 ||orevaparis.com^
 ||orevapariss.com^
@@ -319600,6 +319603,7 @@
 ||usybvizjdfyur.website^
 ||usync.gumgum.com^
 ||usyouthsoccerprod.112.2o7.net^
+||usyuqcezbvhqr.online^
 ||usyyzz.winparts.nl^
 ||uszalando.shop^
 ||usztct.gang.com.br^
@@ -324722,6 +324726,7 @@
 ||vk-analytics.ru^
 ||vk.justspoisure.com^
 ||vk.phonevilla.in^
+||vkaabtxifs.in^
 ||vkan.cn^
 ||vkanalytics.net^
 ||vkaocbatfbux.com^
