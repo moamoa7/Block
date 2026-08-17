@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260817
+! Version: 20260818
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -353,14 +353,14 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !
 ! 숲 메인 이벤트 팝업 및 왼쪽 이벤트 링크
 ! 마이민트(https://www.mimint.co.kr/) - 당첨자 제외 /eventwin
-##[href*="/event" i]:not([href*="/eventwin" i])
+!##[href*="/event" i]:not([href*="/eventwin" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://trand.co.kr/ - 아이콘 사라짐
 ! 만개의 레시피 (https://www.10000recipe.com/)
 ! https://www.joongang.co.kr/ - 이미지와 그 하단 텍스트까지 지워야해서(공간까지 없애야함) 변경처리
 ! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
-hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eventwin" i])
+!hungryapp.co.kr,hungapp.com,joongang.co.kr,10000recipe.com,trand.co.kr#@#[href*="/event" i]:not([href*="/eventwin" i])
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -540,7 +540,7 @@ naver.com#@#[target] video
 ! 네이버스토어
 ! 애니라이프
 ! 풍투데이
-! 다크걸 (https://darkgirl17.com/)
+! 다크걸 (https://darkg17.com/)
 ! https://dasdas.jp/
 !*/banner*
 !
@@ -595,7 +595,7 @@ naver.com#@#[target] video
 !
 !
 ! X
-! 다크걸 (https://darkgirl17.com/)
+! 다크걸 (https://darkg17.com/)
 !/*banner*/*
 ! - 예외  - 이미지 안보임
 !@@/*banner*/*$domain=/^([\w-]+\.)?18moa\d+\.com$/|toptoon.com|kick.com|coupangplay.com
@@ -718,7 +718,8 @@ clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_ban
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://vexfile.com/
-vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-banner-" i])
+! https://atlantak.com/
+atlantak.com,vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-banner-" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
@@ -751,6 +752,8 @@ womaneconomy.co.kr,hankyung.com,거지맵.com,vexfile.com#@#[class*="-banner" i]
 ##[class*="-banner-" i]:not(body):not(html):not(main)
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://atlantak.com/
+atlantak.com#@#[class*="-banner-" i]:not(body):not(html):not(main)
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -875,6 +878,12 @@ getmodsapk.com#@#[alt*="banner" i]
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://18moa028.com/
 !18moa028.com#@#[href*="banner" i]
+!
+!
+!
+! 왓챠피디아 (https://pedia.watcha.com/)
+! 링커리어 (https://linkareer.com/)
+linkareer.com,pedia.watcha.com##[class*="banner" i]
 !
 !
 !
@@ -1020,7 +1029,8 @@ philgo.com##[alt*="배너"]
 ! 애니위크 (https://aniweek.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
-/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa/##[target*="blank"] img
+! 야동코리아 (https://yadongkorea01.tv/)
+/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|yadongkorea/##[target*="blank"] img
 !
 !
 !
@@ -1072,15 +1082,18 @@ mule.co.kr##[target] img
 !
 ! 토렌트쓱 (https://ssg1.torrentssg9.com/)
 ! 얼리어답터뉴스 (https://eanews.kr/)
+! 왓챠피디아 (https://pedia.watcha.com/)
 ##[target*="blank"]:has([style*="background-image"])
 !
 !
 ! https://porntasia.app/
+! 왓챠피디아 (https://pedia.watcha.com/)
 ##[target*="blank"][style*="background-image"]
 !
 !
 !
 ! 야동투어 (https://ydtour60.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
+! - - - 무코 (https://muko.kr/) 배너
 ##img[src*="/ads/"]
 ! - - -  자딸파티 (https://jaddal40.top/) - 텔레그램 고객센터 버튼
 ! - - - 최강링크 (https://xn--10-9t1it56b78wq9d.com/)
@@ -1364,6 +1377,12 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 cineaste.co.kr#@#.h30
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
+!
+!
+!
+! DVDPrime (https://dvdprime.com/)
+! 침하하 (https://chimhaha.net/)
+##[id^="slot" i]
 
 
 
