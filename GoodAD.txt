@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260817
+! Version: 20260818
 !
 !
 !
@@ -397,10 +397,6 @@ mypikpak.com##.operation-container
 !naver.com###search-btn:style(display: block !important;)
 ! 네이버 본인 인증 페이지 일부 안보임 해결
 !nid.naver.com#@#[class^="ad" i]
-! - 모바일 간단하게 보기
-! -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
-m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
-m.naver.com##script#MM_search_disaster ~*
 ! - 메인 추천/카테크/웹툰~ 내  AD 광고글 빈공간 지우기
 ##li:has([id*="-ad-"])
 ! - 기타
@@ -431,6 +427,19 @@ m.naver.com##script#MM_search_disaster ~*
 !@@||ssl.pstatic.net^$domain=naver.com
 ! - 가격비교시 나오는 광고 상품 (https://search.shopping.naver.com/)
 search.shopping.naver.com##[class*="product" i]:has([class*="Ad_label"])
+! - 모바일 간단하게 보기
+! -  출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+!m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
+!m.naver.com##script#MM_search_disaster ~*
+! - 날씨 외 필요없는거
+m.naver.com##[data-nlog-area="homefeed.clip_ranking"]
+m.naver.com##[data-nlog-area="homefeed.promotion"]
+m.naver.com##[data-nlog-area="homefeed.single_normal"]
+m.naver.com##[data-nlog-area="homefeed.clip"]
+m.naver.com##[data-nlog-area="homefeed.webtoon"]
+m.naver.com##[data-nlog-area="homefeed.today_n"]
+! 빈껍데기 안보이게
+m.naver.com##.comp_home_feed
 ! - 기타
 !||ntm.pstatic.net/scripts/ntm_$domain=naver.com
 !
@@ -2515,8 +2524,9 @@ cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important
 !
 ! 왓챠피디아 (https://pedia.watcha.com/)
 ! - 배너
-pedia.watcha.com##.OKQiqzeA.j9pLi57W
-pedia.watcha.com##.adFixed
+!pedia.watcha.com##.OKQiqzeA.j9pLi57W
+!pedia.watcha.com##.adFixed
+!pedia.watcha.com##[class*="banner" i]
 !
 !
 ! 맥스무비 (https://www.maxmovie.com/)
@@ -2708,7 +2718,7 @@ issuya.com##body:style(pointer-events: auto !important; overflow: auto !importan
 !###top_banner
 ! - 게시물내 빈 공간들
 ! - - - 침하하 (https://chimhaha.net/)
-##[id^="slot" i]
+!##[id^="slot" i]
 ! - 왼쪽 하단 배너
 !dvdprime.com##.menu_left_banner
 !
@@ -2894,11 +2904,15 @@ mimint.co.kr##[class*="row"]:has([id="powerLinkList"])
 ! - 게시물과 인기 게시물 사이 배너 공간
 !mimint.co.kr##[id*="g-btm"]:has([class="adsbygoogle"])
 ! - 실시간 인기 TOP / 최근 등록된 게시물 내 빈 줄
-mimint.co.kr##ul > .adline-v2-slot
+!mimint.co.kr##ul > .adline-v2-slot
+! - 실시간 인기 TOP / 최근 등록된 게시물 내 빈 줄 / 본문 하단 빈 공간
+mimint.co.kr##[class*="slot" i]
 ! - 이벤트
-mimint.co.kr##.event_right_new
+!mimint.co.kr##.event_right_new
 ! - 본문 하단에 필요없는 숲 영상 첨부 안보이게
 !||sooplive.com^$domain=mimint.co.kr
+! - 본문내 프레임 삽입 방지 (전혀 상관없는 숲/치지직 영상 삽입 방지)
+mimint.co.kr##[class="media-container"]>iframe
 !mimint.co.kr###soop_player_video
 ! - 모바일 맨 밑 하단 고정되어있는 흰색 네모박스
 m.mimint.co.kr###anchor-layer
@@ -3032,7 +3046,7 @@ yozm.wishket.com#@#div[class*="border"]:has(> [target] img)
 !
 ! 링커리어 (https://linkareer.com/)
 ! - 돌아가는 배너
-linkareer.com##[class*="banner" i]:has([class="hotline-item-image"])
+!linkareer.com##[class*="banner" i]:has([class="hotline-item-image"])
 ! - 팝업 차단으로 스크롤 잠금 해제
 linkareer.com##html,body:style(overflow: auto !important;)
 ! - 인기 공고
@@ -3434,6 +3448,11 @@ sbs.co.kr##[class^="ad" i]
 ! Manga Million (https://mangamillion.shueisha.co.jp/)
 ! - 쿠키 팝업
 ||onetrust.com^
+!
+!
+! 애틀랜타 K 뉴스 (https://atlantak.com/)
+! 굉고 이미지
+##[class*="wp-block-image"]
 
 
 
@@ -3536,6 +3555,9 @@ fingerprint.
 ! - 기타 - 먼가 잡히는건 없지만 layers이라서 규칙 만들어봄
 ! - - - 티비착 (https://tvchak208.com/)
 ##[class*="-layers"]
+!
+!
+! 야동코리아 (https://yadongkorea01.tv/) - 기존 야동코리아와 동일한건가? / 티비위키 메뉴에 신설
 !
 !
 ! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak208.com/) 
@@ -4112,7 +4134,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
 ! - - - 오늘의 중계 (https://today-sports10.com/)
 ! - - - 야동망고 (https://mango57.com/)
-! - - -  밍키넷 (https://mingky06.net/)
+! - - -  밍키넷 (https://mingky08.tv/)
 !##[target='_blank']:has([src*='.gif'])
 !##[target='_blank']:has([src$='.gif'])
 ! - - - - - 예외
@@ -5101,9 +5123,6 @@ popjav.in##div.pop--excl
 !##.banner-ad
 !
 !
-! 야동코리아 (https://ydkorea2.com/)
-!
-!
 ! HOHO (https://hohoj.tv/)
 ! - 영상 옆 배너?
 !hohoj.tv##iframe[src="javascript:window.location.replace(this.frameElement.dataset.link)"]
@@ -5952,7 +5971,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ##[class^="videoad" i]
 !
 !
-! 밍키넷 (https://밍키주소.net/) (https://mingky06.net/)
+! 밍키넷 (https://밍키주소.net/) (https://mingky08.tv/)
 ! - 배너 이미지
 ||img.imagedive.net/assets/*
 ! - 배너 공간
@@ -6070,7 +6089,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸 (https://darkgirl-juso.com/) (https://www.darktt.com/) (https://darkgirl17.com/)
+! 다크걸 (https://darkgirl-juso.com/) (https://www.darktt.com/) (https://darkg17.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl7.com/)
 ! - - - 야동닷컴 (https://ydong.net/ (https://yadong9.com/)
@@ -6514,7 +6533,7 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 /dobaklife/##[class="list-col"]:has-text(/포인트|보증/)
 !
 !
-! 야동코리아 (https://www.yako14.com/)
+! 야동코리아 (https://www.yako14.com/) - 접속 안됨 --> https://yadongkorea01.tv/ 대체?
 ! - 배너
 ![$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
 !##[class="banner_grid" i]
@@ -6859,14 +6878,15 @@ rou.video##div.md\:col-span-1
 ! 빨간오이 (https://red52.co.kr/)  (https://red52.kr/)
 ! - 게시물내 상단 배너
 ![$domain=/^red\d+.kr/]##.notice-box-area
-/red/##.notice-box-area
-! - 게시물내 하단 공간
-![$domain=/^red\d+.kr/]##.integrated-ad-slot, .article-tool
-/red/##.integrated-ad-slot, .article-tool
+!/red/##.notice-box-area
 ! - 탑툰챗 및 이용안내 텍스트 배너
 ![$domain=/^red\d+.kr/]##[class*="notice"]
 ! - - - 무비킹(https://mvking12.org/)에서 영상재생시 https://player-v2.bcbc.red/player/의 notice를 차단. 재생시 문제는 없는대 /red/ 로 간결표현이 문제될 시 참고할것
 /red/##[class*="notice"]
+! - 게시물내 하단 공간
+![$domain=/^red\d+.kr/]##.integrated-ad-slot, .article-tool
+!/red/##.integrated-ad-slot, .article-tool
+/red/##.article-tool
 ! -기타
 ! - - - - - https://red52.kr/cdn-cgi/trace
 ! - - - https://apkmody.com/
