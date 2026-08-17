@@ -1,6 +1,6 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-17 08:05:49 UTC
+! Generated: 2026-08-17 09:04:23 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
 ! Exception Rules: 6,598
 !
@@ -590,7 +590,6 @@
 @@||banquelaurentienne.ca^
 @@||banquepopulaire.fr^
 @@||banrisul.com.br^
-@@||bapi-01.moengage.com^
 @@||bapi-02.moengage.com^
 @@||bapi-04.moengage.com^
 @@||barclaycard.co.uk^
@@ -3431,6 +3430,7 @@
 @@||ndirect.ppro.de^
 @@||nedbank.co.za^
 @@||neobux.com^
+@@||neoengage-va-cdn.exponea.com^
 @@||neon.com.br^
 @@||nest.com^
 @@||net.kentbank.hr^
