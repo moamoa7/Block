@@ -4,7 +4,7 @@
 ! Title: Adguard_Bad
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260607
+! Version: 20260818
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
@@ -19,15 +19,19 @@ $@$link[rel="manifest"]
 @@||ad.co.kr^$ghide
 @@||adtouch.*
 @@||arca.live^$ghide
+@@||arca.live^$stealth=push
 @@||blog.kakaocdn.net*/img.gif
+@@||cdn.cms.outstanding.kr/images/origin/2
+@@||claude.ai^$stealth=push
 @@||code-pia.com^$stealth=dpi
+@@||dcinside.com^$stealth=push
 @@||fs2.joycity.com^$stealth=dpi
 @@||glonmall.com^$stealth=dpi
 @@||hanaroetf.com^$stealth=dpi
 @@||isplus.$stealth=dpi
-@@||kamp.daum.net^$xhr
 @@||koreainvestment.com^$stealth=dpi
 @@||kr^$stealth=dpi
+@@||log1.toup.net^$app=com.nhn.android.search
 @@||nexon.com^$stealth=dpi
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 @@||shopping.naver.com^$stealth
@@ -38,24 +42,13 @@ $@$link[rel="manifest"]
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||truefriend.com^$stealth=dpi
 @@||wcs.naver.net^$domain=seorinexpress.com|naver.com
-! - 모바일에서 에펨코리아 상단 공백이 안줄어들어서 주석 처리
-!m.fmkorea.com#@$?#*.bd.bd_mobile:not(:has(#bd_capture ~ #comment)):has(form[action="./"]:matches-css(height: auto)) { remove: true; }
-m.gmarket.co.kr#@#.ReactVirtualized__Grid__innerScrollContainer .box__banner-wrap > .box__banner--today
-m.gmarket.co.kr#@#.js-impressionable
-meeco.kr#@##cCon + aside.sidebar2
-mlbpark.donga.com#@#div[class*="_ad"]
-mlbpark.donga.com#@$#div[id^="SmartPhone_"][id$="_today"] .lists > li::before { padding-top: 0px !important; border-bottom: none !important; }
-mule.co.kr#@#.ad-mobile
-sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
-www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
+
 ||api-ao.adison.co^$badfilter
-||api.mumuglobal.com^$badfilter
 ||app.appsflyer.com^$badfilter
 ||dadispapi.gmarket.co.kr^$badfilter
 ||exlogcollector.sooplive.com^$badfilter
 ||photo.jtbc.co.kr/news/cms/etc/$badfilter
 ||ssl.pstatic.net/t.static.blog/nmobile/versioning//common/lib/ntm/ntm-blog-web-*.js$badfilter
-||store-api.mumuglobal.com^$badfilter
 ||tnkfactory.com^$badfilter
 !#if (adguard && adguard_app_windows)
 @@||coupang.com^$stealth
