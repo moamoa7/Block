@@ -6840,7 +6840,7 @@ rou.video##div.md\:col-span-1
 !
 !
 ! 쿡마나 (https://cookmana.com/)
-! 쿡마나 (https://cookmana56.com/) - 50부터 55까지 가능
+! 쿡마나 (https://cookmana56.com/)
 ! - 배너
 !##[class*="advert" i]
 !
