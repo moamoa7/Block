@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260816
+! Version: 20260817
 !
 !
 !
@@ -352,6 +352,11 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !open.spotify.com##html,body:style(overflow: auto !important;)
 !
 !
+! 빙 (https://www.bing.com/)
+! - 기타 (EasyPrivacy)
+||bing.com/geolocation/write?
+!
+!
 ! 픽팍 (https://mypikpak.com/)
 ! - 쿠키 동의 (AdGuard Annoyances filter)
 ##.cookie-wrapper
@@ -697,7 +702,9 @@ chzzk.naver.com##.tooltip
 !##.streamer_shop_banner
 !##[class*="shop_banner" i]
 ! - 채팅내 안내 문구
-chzzk.naver.com##[class^="live_chatting_guide" i]
+!chzzk.naver.com##[class^="live_chatting_guide" i]
+! - 채팅 안내 문구 (쾌적한 시청 환경을 위해 일부 메시지는 필터링 됩니다. 클린 라이브 채팅 문화 만들기에 동참해 주세요.)
+chzzk.naver.com##[class*="filter"]
 ! - 영상내 치지직 로딩 이미지 삭제
 !chzzk.naver.com##.pzp-pc__loading-indicator
 !chzzk.naver.com##[class*="loading" i]
@@ -1375,7 +1382,8 @@ instiz.net##div:has([id*="powerlink" i])
 !namu.wiki#$#div[class][id]:is(:empty, :has(> iframe[id^='google_ads_iframe'])) { display: none !important; }
 !namu.wiki##div:has(img[data-doc]:not([data-doc^="/jump/"]):not([data-doc^="/w/"])):not(:has([id])), div:has(> div[id]:empty:only-child)
 ! - 상단 빈 공간
-namu.wiki##div:has(> div > div[id]:empty:only-child)
+!namu.wiki##div:has(> div > div[id]:empty:only-child)
+namu.wiki##[data-v-4b5d7464]>:has(div[id*="gad_article"])
 ! - 오른쪽 나무뉴스 포함 삭제
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 !!namu.wiki##div[class]:matches-css(position: sticky)
@@ -2527,7 +2535,7 @@ noonnu.cc##.lg\:top-8
 !goodtv.co.kr##.popup
 ! - - - 예외 (WAVVE - 스크롤이 안됨)
 !www.wavve.com#@#.popup
-! - - - 예외 (https://kr80.sogirl.so) (https://kr29.4kjav.co/) - 예전 도메인이면 안보임
+! - - - 예외 (https://kr88.sogirl.so) (https://kr29.4kjav.co/) - 예전 도메인이면 안보임
 ![$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#.popup
 ! - - - 예외 (nid.naver.com) - 네이버로 타사 회원가입시 필요
 !nid.naver.com#@#.popup
@@ -3449,7 +3457,7 @@ sbs.co.kr##[class^="ad" i]
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki44.net/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki45.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
@@ -3504,7 +3512,7 @@ sbs.co.kr##[class^="ad" i]
 !||whoas.xyz^ 차단으로 이미 해결
 !||whoas.xyz/live/track.js
 ! - p2p 차단 - Personal Privacy & Traffic Filter 규칙에 이미 있음
-! - - - 조개무비 (https://v24.jogemovie.net/)
+! - - - 조개무비 (https://v25.jogemovie.net/)
 ||tracker.$websocket
 ! -P2P 추가 차단
 ! -P2P Media Loader라는 라이브러리의 핵심(core) 스크립트입니다. jsDelivr라는 공개 CDN에서 배포되는 오픈소스 npm 패키지
@@ -3682,7 +3690,7 @@ anilife.app##.duration-300
 !##div[class^="swiper-"] > ul > li > a[target="_blank"]
 !
 !
-! 조개무비 (https://jogemovie.xyz/) (https://v24.jogemovie.net/)
+! 조개무비 (https://jogemovie.xyz/) (https://v25.jogemovie.net/)
 ! - 배너 공간
 ![$domain=/^v\d+.jogemovie.net/]##.wp-block-gallery
 ! - 영상 재생 불가 해제
@@ -4043,12 +4051,12 @@ joatoon-oa.com##.bg-opacity-50
 !
 !
 ! 링크비비기 (https://linkbbg5.com/)
-! - - - 엑스비비기 (https://21.xbbg.tv/)
-! - - - 온도티비 (https://14.ondotv.com/)
-! - - - 온도애니 (https://15.ondoani.com/)
-! - - - 온도툰 (https://19.ondotoon.com/)
-! - - - 온도마나 (https://17.ondomana.com/)
-! - - - 온도북 (https://18.ondobook.net/)
+! - - - 엑스비비기 (https://28.xbbg.tv/)
+! - - - 온도티비 (https://17.ondotv.com/)
+! - - - 온도애니 (https://17.ondoani.com/)
+! - - - 온도툰 (https://22.ondotoon.com/)
+! - - - 온도마나 (https://20.ondomana.com/)
+! - - - 온도북 (https://21.ondobook.net/)
 ! - 배너 공간 없애기
 !##[class*="banner" i]:has([target]:not([class*="logo"]))
 !
@@ -4391,7 +4399,7 @@ javgg.*##.home_iframead
 !
 ! https://www.pornhub.com/
 ! - 광고
-!##[class^="videos"] - 쏘걸 (https://kr87.sogirl.so/) - 영상 아미지 안나옴
+!##[class^="videos"] - 쏘걸 (https://kr88.sogirl.so/) - 영상 아미지 안나옴
 !
 !
 ! XNXX.COM (https://www.xnxx.com/)
@@ -4421,17 +4429,21 @@ sexkbj.com##.happy-inside-player
 !sexkbj.com#%#//scriptlet('prevent-window-open')
 ! - 기타
 !||retirementpension.cfd^
-
 !
 !
-! TK Tubo (https://tktube.com/)
+! TK Tubo (https://tktube.com/) - 사라졌나?
 ! - 상단 배너
-tktube.com##.top
+!tktube.com##.top
 ! - - - 예외
 ! - - - https://adguard-dns.io/ 도메인 클릭시 팝업 안뜸
 !adguard-dns.io#@#.top
 ! - iframe 차단
-/player/html.php?aid=*&video_id=*&referer=
+!/player/html.php?aid=*&video_id=*&referer=
+!
+!
+! PimpBunny (https://pimpbunny.com/)
+! - 기타 (EasyPrivacy)
+/player/stats.php?
 !
 !
 !
@@ -4442,7 +4454,7 @@ tktube.com##.top
 !@@||ttse.b-cdn.net^
 !
 !
-! 탑걸 (https://kr.av탑걸.com/) (https://www.탑걸.com/) (https://kr44.topgirl.co/)
+! 탑걸 (https://kr.av탑걸.com/) (https://www.탑걸.com/) (https://kr45.topgirl.co/)
 ! 자브걸 (https://kr31.javgirl.co/)
 ! - 배너
 ! - - - 딸플릭스 (https://kr16.ddal.xyz/) 
@@ -4459,7 +4471,7 @@ tktube.com##.top
 topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !
 !
-! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr87.sogirl.so/)
+! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr88.sogirl.so/)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) - 없어짐
 ! - 입장시 18세 물어보는 팝업
 ###dclm_modal_content
@@ -4528,12 +4540,12 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 ! - 영상 차단 해제 (List-KR)
 @@||hcdn1.maxsocdn.net^$domain=sogirl.so
 ! - 기타
-! - - - https://kr87.sogirl.so/wp-content/cache/min/1/s.js?ver=1785128807
+! - - - https://kr88.sogirl.so/wp-content/cache/min/1/s.js?ver=1785128807
 ! - https://bunkr.cr/
 ! - - - https://northstar.cr/js/s.js
 /s.js*
 !/js/jads.js?
-! - - - https://kr87.sogirl.so/wp-content/cache/min/1/wp-content/plugins/adrotate-pro/library/jquery.groups.js?ver=1785128807
+! - - - https://kr88.sogirl.so/wp-content/cache/min/1/wp-content/plugins/adrotate-pro/library/jquery.groups.js?ver=1785128807
 /adrotate-
 !|metrics-bunny.net^
 ! - - - /plugins/wps-disclaimer/public/assets/js/disclaimer.js
@@ -5339,7 +5351,7 @@ javmov.com##.spot
 !
 ! 야동그라운드 (https://yagro48.com/) X
 ! 빨간비디오 (https://빨간비디오.online/) (https://redvi84.com/)
-! 야동도시 (https://yadongcitylink.com/) (https://yadongred8.org/)
+! 야동도시 (https://yadongcitylink.com/) (https://yadongred14.org/)
 ! 야동공장 (https://yagong93.com/)
 ! - 배너 이미지
 !||*/storage/upload/banners/*$image
@@ -5451,7 +5463,7 @@ javmov.com##.spot
 !
 ! 야동공장 (https://yagong93.com/)
 ! - 전체 배너
-! - - -AV탑걸 (https://kr44.topgirl.co/) 전체 배너
+! - - -AV탑걸 (https://kr45.topgirl.co/) 전체 배너
 !##div[class*="mx-auto" i] a[href*="http"][target*="blank"] img[src]
 ! - 예외 - https://etoland.co.kr/ - 일부 본문 내용 사라짐
 !etoland.co.kr#@#div[class*="mx-auto" i] a[href*="http"][target*="blank"] img[src]
@@ -5500,7 +5512,7 @@ shopping.naver.com#@#div[class*="border"]:has(> [target] img)
 ![$domain=/^yagro\d+.com/]##div.sm\:w-1\/4.border.bg-white.p-2.w-1\/2:nth-of-type(12)
 !
 !
-! 야동도시 (https://yadongcitylink.com/) (https://yadongred8.org/)
+! 야동도시 (https://yadongcitylink.com/) (https://yadongred14.org/)
 ! - 제휴사이트 글자
 ![$domain=/^yacity\d+.com/]##div.text-color-for-wide.text-sm.mx-auto.py-3.px-2.relative.cursor-pointer:nth-of-type(11)
 ! - 이벤트 글자
@@ -5557,9 +5569,9 @@ shopping.naver.com#@#div[class*="border"]:has(> [target] img)
 !hanyasa.com##.gofollow
 !
 !
-! 야부리존 (https://yaburi66.com/)
+! 야부리존 (https://yaburi67.com/)
 ! - 팝업  잔상 없애기 (모바일)
-! - - -  광역규칙으로 하면 AV탑걸 이미지가 안보임 (https://kr44.topgirl.co/)
+! - - -  광역규칙으로 하면 AV탑걸 이미지가 안보임 (https://kr45.topgirl.co/)
 ![$domain=/^yaburi\d+.com/]##div.centered
 /yaburi/##div.centered
 ! - 상단 배너
@@ -5990,16 +6002,19 @@ jusogall.com#@#[class*="rainbow-text" i]
 !
 !
 !
-! 야동파티 (https://야동파티주소.net/) (https://ydparty04.tv/)
+! 야동파티 (https://야동파티주소.net/) (https://ydparty06.tv/)
 ! - 배너 이미지
 ||img.imagecoco.net/assets/*
 ! - 배너 공간
 ![$domain=/^ydparty\d*\./]##.gp
-/ydparty/##.gp
+!/ydparty/##.gp
 ![$domain=/^ydparty\d*\./]##hr.hr:nth-of-type(1)
 ![$domain=/^ydparty\d*\./]##hr.hr:nth-of-type(2)
-/ydparty/##hr.hr:nth-of-type(1)
-/ydparty/##hr.hr:nth-of-type(2)
+!/ydparty/##hr.hr:nth-of-type(1)
+!/ydparty/##hr.hr:nth-of-type(2)
+/ydparty/##.hr
+! - 영상 하단 텍스트 광고
+/ydparty/##li:has-text(비아그라)
 ! - 필요없는거
 ![$domain=/^ydparty\d*\./]##.desktop.gnb > a[href^="/u/k"]
 !/ydparty/##.desktop.gnb > a[href^="/u/k"]
@@ -6055,7 +6070,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸  (https://darkgirl-juso.com/) (https://darkgirl16.com/)
+! 다크걸 (https://darkgirl-juso.com/) (https://www.darktt.com/) (https://darkgirl17.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl7.com/)
 ! - - - 야동닷컴 (https://ydong.net/ (https://yadong9.com/)
@@ -6506,7 +6521,7 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 !##.banner_grid
 !
 !
-! 야동티비 (https://야동티비주소.org/) (https://빨간비디오.online/야코레드/) (https://yadongtv96.com/)
+! 야동티비 (https://야동티비주소.org/) (https://빨간비디오.online/야코레드/) (https://yadongtv104.com/)
 ! - 4시간동안 열람하지 않는다는 문구 및 닫기 버튼 삭제
 ![$domain=/^yadongtv\d+.com/]##[class*="popup-"]
 ! - 게시물 사이 광고 삭제
@@ -6722,8 +6737,9 @@ litt.ly#@#[href*="link.coupang.com"]
 ! - 클릭시 이동하는 페이지 안보이게 하기
 !playidol.org##.toastui-editor-contents
 ! - 배너 공간
-! - - - 야부리 (https://yaburi66.com/) 팝업
-/playland|yaburi/##[class*="hidden"]:has([target] img):not(body):not(html):not(main)
+! - - - 야부리 (https://yaburi67.com/) 팝업
+! - - - 주소야 (https://juso6.com/) 배너
+/playland|yaburi|juso/##[class*="hidden"]:has([target] img):not(body):not(html):not(main)
 ! - 예외 - 이토랜드 (https://etoland.co.kr/) - HIT 인기 사라짐
 ! - 야동도시 - 본문 안보임
 !etoland.co.kr#@#[class*="hidden"]:has([target] img):not(body):not(html):not(main)
@@ -6824,7 +6840,7 @@ rou.video##div.md\:col-span-1
 !
 !
 ! 쿡마나 (https://cookmana.com/)
-! 쿡마나 (https://cookmana50.com/) - 50부터 55까지 가능
+! 쿡마나 (https://cookmana56.com/) - 50부터 55까지 가능
 ! - 배너
 !##[class*="advert" i]
 !
