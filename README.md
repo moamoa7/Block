@@ -18,6 +18,7 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/White_DNS.txt
 
 ※ Adguard_Bad.txt
 <br/>
+
 AdGuard Gallery Filter 중 애드가드 앱 관련 규칙
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Adguard_Bad.txt
