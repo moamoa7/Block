@@ -15,13 +15,7 @@ $@$link[rel="manifest"]
 @@||192.168.$stealth=dpi
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
-@@||ad-img.gmarket.com^$image,domain=m.gmarket.co.kr|auction.co.kr|www.gmarket.co.kr
-@@||ad.co.kr^$ghide
-@@||adtouch.*
-@@||arca.live^$ghide
 @@||arca.live^$stealth=push
-@@||blog.kakaocdn.net*/img.gif
-@@||cdn.cms.outstanding.kr/images/origin/2
 @@||claude.ai^$stealth=push
 @@||code-pia.com^$stealth=dpi
 @@||dcinside.com^$stealth=push
@@ -35,21 +29,12 @@ $@$link[rel="manifest"]
 @@||nexon.com^$stealth=dpi
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 @@||shopping.naver.com^$stealth
-@@||slrclub.com/rss/today_photo.slr
 @@||smartstore.naver.com^$stealth
 @@||sofrano.com^$stealth=dpi
 @@||termeden.com^$stealth=dpi
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||truefriend.com^$stealth=dpi
-@@||wcs.naver.net^$domain=seorinexpress.com|naver.com
 
-||api-ao.adison.co^$badfilter
-||app.appsflyer.com^$badfilter
-||dadispapi.gmarket.co.kr^$badfilter
-||exlogcollector.sooplive.com^$badfilter
-||photo.jtbc.co.kr/news/cms/etc/$badfilter
-||ssl.pstatic.net/t.static.blog/nmobile/versioning//common/lib/ntm/ntm-blog-web-*.js$badfilter
-||tnkfactory.com^$badfilter
 !#if (adguard && adguard_app_windows)
 @@||coupang.com^$stealth
 !#endif
