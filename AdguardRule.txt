@@ -1,7 +1,7 @@
 ! = = = = = = = = = = = = = = = = = = = = = = = = =
 !
 !
-! Title: Adguard_Bad
+! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
 ! Version: 20260818
