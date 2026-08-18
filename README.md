@@ -16,6 +16,14 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/White_DNS.txt
 # 필터규칙
 <br/>
 
+※ Adguard_Bad.txt
+<br/>
+AdGuard Gallery Filter 중 애드가드 앱 관련 규칙
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/Adguard_Bad.txt
+```
+<br/>
+
 ※ GoodAD.txt
 <br/>
 
@@ -24,6 +32,7 @@ https://raw.githubusercontent.com/moamoa7/Block/main/output/White_DNS.txt
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br/>
+
 ※ DangerAD.txt
 <br/>
 
