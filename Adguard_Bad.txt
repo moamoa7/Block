@@ -11,7 +11,6 @@
 !!! 출처 : 애드가드 갤러리 필터 (https://github.com/hooray804/adguard-gallery-filter/blob/main/filter.txt)
 !
 !
-$@$link[rel="manifest"]
 @@||192.168.$stealth=dpi
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
@@ -34,15 +33,15 @@ $@$link[rel="manifest"]
 @@||termeden.com^$stealth=dpi
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||truefriend.com^$stealth=dpi
-
+!
 !#if (adguard && adguard_app_windows)
 @@||coupang.com^$stealth
 !#endif
-
+!
 ! 네이버 카페 (https://cafe.naver.com/)
 ! - 카페 사진 첨부 오류 해결
 @@*$stealth=dpi,app=com.nhn.android.navercafe
-
+!
 ||kamp.kakao.com^$app=com.kakao.talk
 ||shortformstats.kakao.com^$app=com.kakao.talk
 ||thumb.kakaocdn.net^$app=com.kakao.talk
