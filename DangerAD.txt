@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260819
+! Version: 20260820
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -116,8 +116,9 @@
 !
 !
 ! 루리웹
-*/ad.*
-@@*/ad.*$css
+! https://autopostkorea.com/ - 기사 본문 공백 발생으로 규칙 주석 처리
+!*/ad.*
+!@@*/ad.*$css
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -126,9 +127,10 @@
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것 (너무 많을거 같음)
 ! - https://cineaste.co.kr/skin/addon/controller-miso/widget.js - 페이지 오류는 없으나 로그인시 창분할없이 로그인됨
-*/ad*:not(/addons/)
+! https://autopostkorea.com/ - 기사 본문 공백 발생으로 규칙 주석 처리
+!*/ad*:not(/addons/)
 ! - 예외
-@@*/ad*$css
+!@@*/ad*$css
 !
 ! - 예외
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -191,7 +193,7 @@
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! -뉴토끼 (https://toki30.com/) - 페이지 오류
+! -뉴토끼 (https://toki31.com/) - 페이지 오류
 @@*ad.js$domain=/toki/
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -277,6 +279,11 @@
 !*adverts*
 !*advertising*
 !||*.advert.*
+!
+!
+!
+! https://adguard-dns.io/
+##[id*="advert" i]:not(body):not(html):not(main)
 !
 !
 ! - 레댓 홍보글
@@ -705,7 +712,7 @@ clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_ban
 !
 !
 !
-##[class*="_banner_" i]:not(body):not(html):not(main)
+!##[class*="_banner_" i]:not(body):not(html):not(main)
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! 만개의 레시피 (https://m.10000recipe.com/]
@@ -1032,7 +1039,8 @@ philgo.com##[alt*="배너"]
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
 ! 야동코리아 (https://yadongkorea01.tv/)
-/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|yadongkorea/##[target*="blank"] img
+!  Manko (https://manko.fun/)
+/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|yadongkorea|manko/##[target*="blank"] img
 !
 !
 !
@@ -1385,6 +1393,7 @@ cineaste.co.kr#@#.h30
 ! DVDPrime (https://dvdprime.com/)
 ! 침하하 (https://chimhaha.net/)
 ##[id^="slot" i]
+
 
 
 
