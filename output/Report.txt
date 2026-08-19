@@ -1,5 +1,5 @@
 DNS Blocklist Build Report
-Generated: 2026-08-19 11:45:24 UTC
+Generated: 2026-08-19 12:16:28 UTC
 ============================================================
 
 [1] Reference Filters
