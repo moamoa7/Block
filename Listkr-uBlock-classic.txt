@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20682.0
+! Version: 2026.20684.0
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Tue Aug 18 18:36:18 UTC 2026
+! Updated: Wed Aug 19 01:11:15 UTC 2026
 
 ||api-external.adsvani.com^
 ||cdn.adsvani.com^
@@ -703,6 +703,7 @@ nightofpeace.com,ilovebees.io##.e-grid.e-con-full.e-con.e-child:has(a[target="_b
 /^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 /data/banner.json?$domain=~nintendo.*
 
+||map.naver.com/p/api/ads/common-marker
 ||viewus.co.kr/image/unse_banner_
 ||photo.newsen.com/images/adba/
 ||bnt.kod.es/data/bnt/upload/save//banner/
