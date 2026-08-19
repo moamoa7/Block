@@ -712,7 +712,7 @@ clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_ban
 !
 !
 !
-!##[class*="_banner_" i]:not(body):not(html):not(main)
+##[class*="_banner_" i]:not(body):not(html):not(main)
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! 만개의 레시피 (https://m.10000recipe.com/]
