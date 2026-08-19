@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260819
+! Version: 20260820
 !
 !
 !
@@ -144,6 +144,9 @@
 !
 !
 ! 구글 (https://www.google.com/)
+! - 검색시 하단에서 튀어나오는 아이콘 (기묘한 이야기 검색시)
+!||www.gstatic.com/delight/srp/scavenger_hunt/stranger_things/testing_2/dice.png
+||www.gstatic.com/delight/srp/*
 ! EasyPrivacy
 /collect?v=
 ! - 기타
@@ -273,6 +276,8 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !discord.com##div[class*="notice"]
 ! - 기타
 !/otautoblock.js
+! - - - https://claude.ai/
+! - - - - - https://claude.ai/api/organizations/36b90dae-afaf-43e0-a5a1-eae29958f9a7/experiences/track
 /track^$domain=~spotify.com|~podtrac.com|~megap.fm|~wolf359.fm|~pdst.fm|~twitch.tv
 !
 !
@@ -466,7 +471,13 @@ papago.naver.com##[class*="badge"]
 ! 네이버 스토어 (https://shopping.naver.com/)
 @@||shopping.naver.com^$generichide,image,xhr
 ! - 배너
-##.ad-container
+!##.ad-container
+! - 광고 1 ( 패션의류 상품 어떠세요? 등)
+shopping.naver.com##[id*="advert" i]
+! - 광고 3
+shopping.naver.com##[id*="ad_"]
+! - 상단 배너 보이게 (List-KR 해제)
+@@||ssl.pstatic.net/tveta/libs/$domain=shopping.naver.com
 ! - 광고 물품 삭제
 shopping.naver.com##li:has([class*="productCard"]>[class*="adButton"])
 ! - 광고 물품 삭제 (검색어란 입력시 보이는 광고)
@@ -487,6 +498,8 @@ naver.com##[class*="product_list"]:has([class*="adMark" i])
 !
 ! 네이버 스토어 (https://snxbest.naver.com/)
 @@||snxbest.naver.com^$generichide,image,xhr
+!
+!
 ! - 광고 물품 삭제
 snxbest.naver.com##[class*="card"]:has([class*="advert"])
 !
@@ -3457,7 +3470,19 @@ sbs.co.kr##[class^="ad" i]
 !
 ! 애틀랜타 K 뉴스 (https://atlantak.com/)
 ! 굉고 이미지
-##[class*="wp-block-image"]
+atlantak.com##[class*="wp-block-image"]
+!
+!
+! 오토이슈 (https://autopostkorea.com/)
+! - 기사내 팝업 (지금 HOT🔥 콘텐츠)
+autopostkorea.com##[style*="z-index:999999999999999999"]
+!
+!
+! 소방방재신문 (https://fpn119.co.kr/)
+! - 로고 살리기 (filterslists-KO classic (uBO) 오류 해결)
+@@||fpn119.co.kr/data/fpn119_co_kr/bn_img/
+! - 빈공간 없애기
+fpn119.co.kr##[id*="-ad-" i]
 
 
 
@@ -3481,7 +3506,7 @@ sbs.co.kr##[class^="ad" i]
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki45.net/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki47.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
