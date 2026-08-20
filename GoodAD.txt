@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260820
+! Version: 20260821
 !
 !
 !
@@ -67,7 +67,7 @@
 
 ! - - - 거의 모든 사이트에서 서비스 워커 스크립트 파일(sw.js 등 변형 포함) 로딩을 차단하되, 나열된 5개 도메인은 예외로 둔다
 ! - - - 서비스 워커는 푸시 알림 스팸, 백그라운드 추적, 캐시를 이용한 우회 광고/추적, 일부 악성 스크립트 지속성 등에 악용될 수 있음
-/^https?:\/\/.*\/(\%?[235][a-fA-F3-6]|[a-f-_]{3,})?[Ss](ervice)?[-_]?[Ww](orker)?\.js(\?.*)?$/$script,match-case,from=~dagrasso.pl|~idx.google.com|~tiktok.com|~twitter.com|~youtube.com
+/^https?:\/\/.*\/(\%?[235][a-fA-F3-6]|[a-f-_]{3,})?[Ss](ervice)?[-_]?[Ww](orker)?\.js(\?.*)?$/$domain=~dagrasso.pl|~idx.google.com|~tiktok.com|~twitter.com|~youtube.com,match-case,script,xmlhttprequest
 !
 !
 ! - Cloudflare가 사이트에 심어두는 main.js(지문·행동 신호 수집에 관여하는 스크립트)를 막아서 프라이버시를 보호하려는 목적
@@ -155,10 +155,10 @@
 !
 !
 ! 구글 플레이 (https://play.google.com/)
-! - 기타
+! - 기타 (EasyPrivacy)
+/log?format=
+/gen204/*
 !||google.com/log^
-!/log?format=
-!/gen204/*
 !/browserinfo?f.sid=$xhr
 !
 !
@@ -269,6 +269,8 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !
 ! ===== 탐색 유발 요소 (선택) ===== (플레이리스트/믹스 묶음, 쇼츠 줄, 큐레이션 모음)
 !www.youtube.com##ytd-rich-section-renderer
+! - 기타 (EasyPrivacy)
+/generate_204?$image
 !
 !
 ! 디스코드 (https://discord.com/)
@@ -2797,11 +2799,15 @@ saramin.co.kr#@#[class*="banner" i]
 !
 ! 위키트리 (https://www.wikitree.co.kr/)
 ! - 기사 내 오른쪽 필요없는것들
-wikitree.co.kr##div.content_right_inner
+!wikitree.co.kr##div.content_right_inner
 ! - 메인 빈공간 (모바일)
-m.wikitree.co.kr##section.section:nth-of-type(3)
+!m.wikitree.co.kr##section.section:nth-of-type(3)
 ! - 기사내 빈공간 (모바일)
-m.wikitree.co.kr###wikitree_image1_bottom
+!m.wikitree.co.kr###wikitree_image1_bottom
+! - 기사 내 오른쪽 필요없는 광고 및 빈공간
+wikitree.co.kr##[class*="content_right_inner"]:has-text(광고)
+wikitree.co.kr##[style*="min-height"]:has([id*="-ad-"])
+wikitree.co.kr##[style*="min-height"]:has([class*="wikitree_tv"])
 !
 !
 ! 서버포럼 (https://svrforum.com/)
@@ -3317,7 +3323,7 @@ edu.chosun.com###indexBlock2
 ! 빌런 18+ (https://villain.city/)
 ! 배너 및 이벤트 / 핫딜
 villain.city##[target] img[class*="object-cover"]
-##[class="event" i]
+villain.city##[class="event" i]
 !##[alt*="이벤트"]
 ! - 예외 - 팬더티비 - 영상 이미지 복원
 !pandalive.co.kr#@#[alt*="이벤트"]
@@ -3483,6 +3489,11 @@ autopostkorea.com##[style*="z-index:999999999999999999"]
 @@||fpn119.co.kr/data/fpn119_co_kr/bn_img/
 ! - 빈공간 없애기
 fpn119.co.kr##[id*="-ad-" i]
+!
+!
+! OSEN (https://www.osen.co.kr/)
+! - 기타 (EasyPrivacy)
+&http_referer=$script,xmlhttprequest,domain=~biletomat.pl|~facebook.com|~jobscore.com
 
 
 
@@ -3687,7 +3698,7 @@ fingerprint.
 ![$domain=/^mvking\d+.org/]##div.mr-0.ml-0.row:nth-of-type(1)
 !
 !
-! 애니라이프 (https://xn--9i1b62g0yo44b910a.com/)  (https://kr1.anilife.app/)  (https://anilife.live)
+! 애니라이프 (https://xn--9i1b62g0yo44b910a.com/)  (https://kr1.anilife.app/)  (https://anilife.live) - 기존 주소 다 막힘 https://anilife1.tv/ 이 주소만 현재 가능인대 짭인지 진짜인지 모름
 ! - 배너 이미지
 !||anilife.live/assets/banner/
 ! - 상단 배너 공간 - KR 에서 처리
@@ -3696,10 +3707,9 @@ fingerprint.
 !anilife.app##.sm\:grid-cols-2
 !anilife.live##.MainBnnWrap
 ! - 앱 설치하기 팝업
-anilife.app##.duration-300
+!anilife.app##.duration-300
 ! - 기타
 !||ip-api.com^
-/^https?:\/\/.*\/(\%?[235][a-fA-F3-6]|[a-f-_]{3,})?[Ss](ervice)?[-_]?[Ww](orker)?\.js(\?.*)?$/$xhr,match-case,from=~dagrasso.pl|~idx.google.com|~tiktok.com|~twitter.com|~youtube.com
 !
 !
 !  애니조아 (https://www.anizoa.net/) - 폐쇄
@@ -5890,7 +5900,7 @@ jusogall.com#@#[class*="rainbow-text" i]
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 야동투어 (https://야동투어.com/) (https://ydtour60.sbs/) - /p2p* 해제해야 영상재생 가능
+! 야동투어 (https://야동투어.com/) (https://ydtour62.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
 !##[id*="-ads" i]
@@ -5913,6 +5923,8 @@ jusogall.com#@#[class*="rainbow-text" i]
 /ydtour/##[class*="z-[9999]"]
 ! - 영상 하단 텍스트 박스 광고
 /ydtour/##[aria-label*="광고"]
+! - 기타 (EasyPrivacy)
+/script.tagged-events.js
 !
 !
 ! 일구핫 (https://01.19hot.net/)
@@ -7472,10 +7484,9 @@ jable.tv##[class*="video"]:has([href*="banner"])
 ##[alt="ad" i]
 !
 !
-! 최강링크 (https://최강링크10.com/)
+! 최강링크 (https://최강링크11.com/)
 ! - 배너
 !##img[src][onclick*="window.open"]
-!##[onclick^="window.open"]
 ! - 예외
 !gall.dcinside.com#@#img[src][onclick*="window.open"]
 ! - 배너 공간
