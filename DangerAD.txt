@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260820
+! Version: 20260821
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -1093,7 +1093,8 @@ mule.co.kr##[target] img
 ! 토렌트쓱 (https://ssg1.torrentssg9.com/)
 ! 얼리어답터뉴스 (https://eanews.kr/)
 ! 왓챠피디아 (https://pedia.watcha.com/)
-##[target*="blank"]:has([style*="background-image"])
+##[href][target*="blank"]:has([style*="background-image"]):not([href*="youtu"])
+!
 !
 !
 ! https://porntasia.app/
@@ -1106,9 +1107,9 @@ mule.co.kr##[target] img
 ! - - - 무코 (https://muko.kr/) 배너
 ##img[src*="/ads/"]
 ! - - -  자딸파티 (https://jaddal40.top/) - 텔레그램 고객센터 버튼
-! - - - 최강링크 (https://xn--10-9t1it56b78wq9d.com/)
-!##[onclick^="window.open"] img
-##[onclick^="window.open"]
+##[onclick^="window.open"] img
+! - - - https://www.edaily.co.kr/에서 img로 안하면 일부 텍스트가 사라짐
+!##[onclick^="window.open"]
 !
 !
 !
