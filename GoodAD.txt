@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260821
+! Version: 20260822
 !
 !
 !
@@ -3494,6 +3494,21 @@ fpn119.co.kr##[id*="-ad-" i]
 ! OSEN (https://www.osen.co.kr/)
 ! - 기타 (EasyPrivacy)
 &http_referer=$script,xmlhttprequest,domain=~biletomat.pl|~facebook.com|~jobscore.com
+!
+!
+! 위플랩 WEFLAB (https://weflab.com/)
+! - 상단 공간 없애기
+weflab.com##.site_bnr_top
+weflab.com##.bnr_top:style(padding-top: 0px !important; margin-top: 0px !important;)
+weflab.com##header:style(top: 0px !important; margin-top: 0px !important;)
+!
+!
+! OshiZi (https://oshizi.com/)
+! - 쿠키 팝업
+! - - -컬러타일 (https://color-tiles.oshizi.com)
+! - - - 사과게임 플러스 (https://oshizi.com/ko/apple-game-plus/)
+##.show--consent:not(.force--consent) #cc-main
+
 
 
 
@@ -4716,6 +4731,13 @@ minkch.com#@#.execphpwidget
 ###execphp-38
 ! - 대부분의 사이트에서 popup-maker로 만든 팝업이 동작하지 않게 막으면서도, 레이아웃 깨짐을 피하려고 CSS는 남겨두고, 특정 한 사이트만은 정상 동작하도록 예외 처리한 규칙
 /wp-content/plugins/popup-maker/*$~stylesheet,from=~schornsteinfeger-liv-bayern.de
+!
+!
+! MissAV123 (https://missav123.jp/) - 영상이 잇는 사이트는 아님 (광고 사이트로 보임)
+! 광고 버튼
+##[href*="fanza.co.jp/"][class*="button"]
+! 광고 영상
+##div[style]:has(iframe[data-src*="dmm.co.jp"])
 !
 !
 ! JavFinder (https://javfinder.ai/)
@@ -7334,6 +7356,8 @@ katfile.space##[style="position: fixed; bottom: 25px; right: 25px; z-index: 9999
 ! https://javfilms.com/
 ! -목록중 광고 / 영상 옆 다운로드/세이브/자막
 javfilms.com##div[class*="xs"]:has([target*="blank"])
+! - 팝업 방지
+||al.fanza.co.jp^$popup
 ! - 기타
 !||simpleanalyticscdn.com^
 !
@@ -7470,7 +7494,8 @@ x1hub.com##.table
 ! - 영상 옆 애드블로커 끄라는 박스 및 하단 일부 공간
 javopen.co##[class="widget widget_text"]:has([class*="textwidget"])
 ! - 기타
-ab=1
+! - - - 영상 재생 불가하여 주석처리
+!ab=1
 !
 !
 ! https://jable.tv/
