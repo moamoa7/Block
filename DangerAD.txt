@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260821
+! Version: 20260822
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -1040,7 +1040,8 @@ philgo.com##[alt*="배너"]
 ! 개조아 (https://dogjoa97.net/)
 ! 야동코리아 (https://yadongkorea01.tv/)
 !  Manko (https://manko.fun/)
-/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|yadongkorea|manko/##[target*="blank"] img
+! 위플랩 WEFLAB (https://weflab.com/)
+/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|yadongkorea|manko|weflab/##[target*="blank"] img
 !
 !
 !
@@ -1093,7 +1094,7 @@ mule.co.kr##[target] img
 ! 토렌트쓱 (https://ssg1.torrentssg9.com/)
 ! 얼리어답터뉴스 (https://eanews.kr/)
 ! 왓챠피디아 (https://pedia.watcha.com/)
-##[href][target*="blank"]:has([style*="background-image"]):not([href*="youtu"])
+##[href][target*="blank"]:has([style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"])
 !
 !
 !
@@ -1103,7 +1104,7 @@ mule.co.kr##[target] img
 !
 !
 !
-! 야동투어 (https://ydtour60.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
+! 야동투어 (https://ydtour62.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
 ! - - - 무코 (https://muko.kr/) 배너
 ##img[src*="/ads/"]
 ! - - -  자딸파티 (https://jaddal40.top/) - 텔레그램 고객센터 버튼
@@ -1231,8 +1232,9 @@ ad.co.kr#@#[href*="/ad/" i]
 ! https://www.dcinside.com/
 ! https://play.sooplive.com/
 ! https://adguard-vpn.com/
+! https://chicle.oshizi.com/
 !adguard-vpn.com,play.sooplive.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
-adguard-vpn.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
+chicle.oshizi.com,adguard-vpn.com,dcinside.com#@#[class^="ad" i]:not(body):not(html):not(main):not([class^="add" i]):not([class*="ads" i]):not([class^="addon" i]):not([class^="adult" i]):not([class^="adlut" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://www.avdbs.com/
