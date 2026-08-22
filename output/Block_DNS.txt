@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-22 00:25:28 UTC
+! Generated: 2026-08-22 01:54:58 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 372,973
+! Block Rules: 373,007
 !
 ||0--0.info^
 ||0--4.com^
@@ -7359,6 +7359,7 @@
 ||4a75c45821.com^
 ||4a9.cn^
 ||4ac38e317e.com^
+||4ad4ba0610.com^
 ||4af0d54f363e9972.com^
 ||4af7c20b-7646-4fb7-b64f-ae0a8c51c1f1.register.collector.scopely.io^
 ||4afa370227.com^
@@ -9501,6 +9502,7 @@
 ||7ng6v3lu3c.execute-api.us-east-1.amazonaws.com^
 ||7nkbwdf1uq.ru^
 ||7nt9p4d4.de^
+||7nyk1xl9vwfn8vp7nc281h2g8.cfd^
 ||7offers.ru^
 ||7ooo.ru^
 ||7ouur.777269.com^
@@ -59543,6 +59545,7 @@
 ||bownow.jp^
 ||bowo666.com^
 ||bowooaoydmbvo.site^
+||bowsguaka.cfd^
 ||bowshotnonego.shop^
 ||bowsiefaces.shop^
 ||bowtech-impuls.de^
@@ -62375,6 +62378,7 @@
 ||butpromptreckon.com^
 ||butshesagirl.usesfathom.com^
 ||butstream.shop^
+||butsurestedonychin.cyou^
 ||buttcandy.com^
 ||butterbread1122.icu^
 ||butterbulb.com^
@@ -83388,6 +83392,7 @@
 ||cxrfns.gu-global.com^
 ||cxrjl.jeffreycampbellshoes.com^
 ||cxrlap.litoralulromanesc.ro^
+||cxrmx3ebk22r3fjz4qlpjh5x9r.rest^
 ||cxrpfoshmgxrs.com^
 ||cxrptu.danland.dk^
 ||cxrvilfjtbwxy.store^
@@ -108198,6 +108203,7 @@
 ||emptinessabjure.com^
 ||emptionengraff.cfd^
 ||emptionunpray.com^
+||emptorvacated.shop^
 ||empty-advantage.pro^
 ||empty-violet-63e1.maskify.workers.dev^
 ||emptyboats.com^
@@ -112350,6 +112356,7 @@
 ||everestrust.com^
 ||everesttech.net^
 ||everesttech.net.akadns.net^
+||everettthereinpleuron.cyou^
 ||evergage.com^
 ||evergreen-herne.com^
 ||evergreen-kitchen.pro^
@@ -119168,6 +119175,7 @@
 ||fixed-dump.pro^
 ||fixed-float.to^
 ||fixed-swimming.pro^
+||fixed-tie.pro^
 ||fixedcage.com^
 ||fixedfloat.at^
 ||fixedfloat.ca^
@@ -120677,6 +120685,7 @@
 ||foldingcutleryhelium.com^
 ||foldingsbikedk.com^
 ||foldoutoutbrag.qpon^
+||foldpollex.com^
 ||foldureavgas.shop^
 ||folerimu.com^
 ||folewu-ticoru.info^
@@ -131622,6 +131631,7 @@
 ||golfersrow.com^
 ||golffootjoy.com^
 ||golfingforbaretuant.cyou^
+||golfinglounge.com^
 ||golfobot.com^
 ||golfschule-maxlrain.de^
 ||golfstravismathew.com^
@@ -166054,6 +166064,7 @@
 ||kkkkkk.com^
 ||kkkmr.com^
 ||kkkwxollzyvmm.online^
+||kkl5we875kxmlqp3.cfd^
 ||kklpe.xyz^
 ||kklq05121p0i.com^
 ||kklqc.aquatruwater.com^
@@ -169289,6 +169300,7 @@
 ||laenteeming.website^
 ||laerleromeo.info^
 ||laetishimmey.cfd^
+||laetkippers.shop^
 ||laferia.cr^
 ||lafinancialsettlement.e.epiqnotification.com^
 ||laflame.mom^
@@ -172179,6 +172191,7 @@
 ||liambafaying.com^
 ||liana.cn^
 ||lianai120.com^
+||lianaslaudedenders.cyou^
 ||liangpinge.com^
 ||liangsoloing.com^
 ||liangxiangyue.com^
@@ -212713,6 +212726,7 @@
 ||nhtrw.burgerville.com^
 ||nhttvqorwq.com^
 ||nhtzj.guardsurvival.com^
+||nhu1vnbye2e6y6xz7n9l3.rest^
 ||nhuk707eex.com^
 ||nhukg.hyerboots.com^
 ||nhuxzyowsx.com^
@@ -222773,6 +222787,7 @@
 ||onitsukatigerschuhe.de^
 ||onitsukatigerschweiz.com^
 ||onitsukatigerstore.com^
+||oniumunshift.cyou^
 ||onivo.online^
 ||oniyyrgezoanj.website^
 ||onjhecwdboxld.online^
@@ -229042,6 +229057,7 @@
 ||pathwayslife.care^
 ||pathwaysyquel-app.com^
 ||pathwaysyquel.shop^
+||pathypoultry.cfd^
 ||paticableharent.com^
 ||patienceinfluxdemon.com^
 ||patient15.top^
@@ -230311,6 +230327,7 @@
 ||peppery-dance.pro^
 ||peppery-explanation.pro^
 ||pepperyconvenience.com^
+||peppinisurus.cfd^
 ||peppy2lon1g1stalk.com^
 ||pepqdycxos.com^
 ||pepscarn.com^
@@ -233701,6 +233718,7 @@
 ||pjchntkwtjdnr.online^
 ||pjcn.org^
 ||pjcummfj.svenskhandel.se^
+||pjcvnamenr.com^
 ||pjdjlrmelqxzh.site^
 ||pjdpsycbcmdns.website^
 ||pjfnn.myaroma360.in^
@@ -234057,6 +234075,7 @@
 ||placingharassment.com^
 ||placoidtobyman.com^
 ||placulabizoniapedule.cyou^
+||plagaerollers.qpon^
 ||plagaestilb.cyou^
 ||plagatesconce.cyou^
 ||plagscan.com^
@@ -237933,6 +237952,7 @@
 ||pqthctoaotsik.online^
 ||pqtrzqahglzco.website^
 ||pqudnqrlwleqr.site^
+||pqurxlh7xk.com^
 ||pqutk.anntaylor.com^
 ||pqvsgsxs.net^
 ||pqwdiwikgevnn.site^
@@ -245953,6 +245973,7 @@
 ||qyvnic.footshop.cz^
 ||qywecxnmax.com^
 ||qywjep.miniinthebox.com^
+||qywjvlavaeqkw.top^
 ||qywvefwbf.com^
 ||qyxiangr.com^
 ||qyxlypmuckbsw.online^
@@ -249319,6 +249340,7 @@
 ||ratesreact.com^
 ||ratestoward.com^
 ||ratexchange.net^
+||rathedsaws.shop^
 ||ratherpanic.com^
 ||rathmullansailing.com^
 ||rating-shave.com^
@@ -252834,6 +252856,7 @@
 ||retscopperchorook.cyou^
 ||rettornrhema.com^
 ||rettypholos.com^
+||retuckelfship.cfd^
 ||retuneprofess.com^
 ||returfhamburg.cfd^
 ||return.st^
@@ -279750,6 +279773,7 @@
 ||silirtaistepuh.net^
 ||silkbers.com^
 ||silkceasedkidney.com^
+||silkenfanny.cyou^
 ||silketoru.com^
 ||silkieawk.cyou^
 ||silklanguish.com^
@@ -313132,6 +313156,7 @@
 ||supportrecover.s3.eu-north-1.amazonaws.com^
 ||supports.amputee-coalition.org^
 ||supportsentparticle.com^
+||supportservice-dragonfly.duckdns.org^
 ||supportwaves.com^
 ||supportxmr.com^
 ||suppose84.com^
@@ -313421,6 +313446,7 @@
 ||sut.dailyfx.com^
 ||sut.iggroup.com^
 ||sutbacatd.com^
+||sutczoqkiazn.in^
 ||sute-trezr.created.app^
 ||sutean.com^
 ||sutechs.in^
@@ -317769,6 +317795,7 @@
 ||tammagkh.in^
 ||tammhdka.shop^
 ||tammycooly.com^
+||tampboddagh.shop^
 ||tampedennomic.shop^
 ||tampedirenica.com^
 ||tamping.net^
@@ -322617,6 +322644,7 @@
 ||thoapsie.net^
 ||thoaptoubsu.net^
 ||thobaimaud.com^
+||thofcodes.shop^
 ||thofteert.com^
 ||thohd.shelf-co.com^
 ||thokishbahoo.cyou^
@@ -323217,6 +323245,7 @@
 ||tillershomme.cfd^
 ||tillertag-a.akamaihd.net^
 ||tillitecarbonspianism.qpon^
+||tillmanversualperrier.cfd^
 ||tilorand.com^
 ||tilpzoaql.com^
 ||tilqwekuszfa.com^
@@ -333167,6 +333196,7 @@
 ||triangularrespond.pro^
 ||triapfog.com^
 ||triasidleful.cyou^
+||triazingoumi.cyou^
 ||tribalfusion.com^
 ||tribalfusion.net^
 ||tribanco.com.br^
@@ -339666,6 +339696,7 @@
 ||ungothoritator.com^
 ||ungrandswopped.cyou^
 ||ungreeninwrit.com^
+||ungulasesti.shop^
 ||ungulated.com^
 ||unguledsnaws.com^
 ||ungyptrvngfqp.site^
@@ -347780,6 +347811,7 @@
 ||vocationbunk.com^
 ||vocento.d3.sc.omtrdc.net^
 ||vocento.data.adobedc.net^
+||vocesplotch.shop^
 ||vocfhq.ilgiardinodeilibri.it^
 ||vociaenkid.cyou^
 ||vocrojjwugeno.website^
@@ -354774,6 +354806,7 @@
 ||windowylarvule.com^
 ||windpowerexpert.com^
 ||windscreenthomas.com^
+||windsorflavo.qpon^
 ||windsplay.com^
 ||windsurf-telemetry.codeium.com^
 ||windtre.tt.omtrdc.net^
@@ -370473,6 +370506,7 @@
 ||zeziswrbpmhez.site^
 ||zezxeuydapept.site^
 ||zezyjywaaqzke.top^
+||zezyjywrvqrae.top^
 ||zezzo.de^
 ||zf.cantorparcels.com^
 ||zf.dianantlia.com^
