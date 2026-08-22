@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-22 12:11:40 UTC
+! Generated: 2026-08-22 13:05:37 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 373,196
+! Block Rules: 373,236
 !
 ||0--0.info^
 ||0--4.com^
@@ -4861,6 +4861,7 @@
 ||1tv.icu^
 ||1tvg524vih.com^
 ||1tyceq79r.com^
+||1tyt5qgk9ygxfjoe.rest^
 ||1u5gy.xyz^
 ||1u6hvoykk3.com^
 ||1ub29e88i.com^
@@ -7400,6 +7401,7 @@
 ||4gosex.com^
 ||4grqz7x6z3.com^
 ||4h87y9pc59.com^
+||4hf2saujov.com^
 ||4hfvbao1ea.execute-api.ap-northeast-2.amazonaws.com^
 ||4hu.org^
 ||4hu45h.com^
@@ -31271,6 +31273,7 @@
 ||ammlwyacthit.com^
 ||ammmkoaxz.com^
 ||ammnugdazobz.in^
+||ammonalsatirestomach.cfd^
 ||ammonia20.com^
 ||ammonicdowsing.com^
 ||ammostoreonline.com^
@@ -51769,6 +51772,7 @@
 ||barduniora.com^
 ||bare-character.com^
 ||bare-type.pro^
+||baredagin.com^
 ||baredue.pro^
 ||barefitaiding.com^
 ||bareflowmat-ss.checkoutera.com^
@@ -58540,6 +58544,7 @@
 ||bofrlsnvqxbbf.space^
 ||bofuckoastails.net^
 ||bofwcwlstyrts.com^
+||bofwfqwkmzvu.com^
 ||bog-apotheke.com^
 ||bogads.com^
 ||boganhands.cyou^
@@ -58787,6 +58792,7 @@
 ||bonehead49.top^
 ||bonepa.com^
 ||bonertraffic13.info^
+||bonesetinermia.cfd^
 ||bonesideal.com^
 ||bonesirishrhythm.com^
 ||bonesjamesgrumble.com^
@@ -64516,6 +64522,7 @@
 ||camperschuh.com^
 ||camperschuhe.at^
 ||campfirecroutondecorator.com^
+||campierpoplins.cyou^
 ||camping-bewegung.com^
 ||camping-la-bien-assise.fr^
 ||camping-oreedelocean.fr^
@@ -79205,6 +79212,7 @@
 ||cortesdigital.click^
 ||cortexmg.com^
 ||cortextradeix.net^
+||cortilechet.cyou^
 ||cortinegyral.cfd^
 ||corto.www.wp.pl^
 ||cortpihome.site^
@@ -86727,6 +86735,7 @@
 ||dandhlivecom.112.2o7.net^
 ||dandietrichdds.com^
 ||dandiewealful.com^
+||dandifytomish.qpon^
 ||dandik.fun^
 ||dando.xyz^
 ||dandr.alexandriauk.com^
@@ -86785,6 +86794,7 @@
 ||danonesa.tt.omtrdc.net^
 ||danorenius.com^
 ||danpengit.com^
+||danpy3riac.com^
 ||danring.org^
 ||dansanthewer.qpon^
 ||danskebank.d3.sc.omtrdc.net^
@@ -114804,6 +114814,7 @@
 ||farbenruhe.ch^
 ||farcialtattles.qpon^
 ||farcifypaascranes.qpon^
+||farcindrawer.cyou^
 ||fardasub.xyz^
 ||fardelsacoelaswans.cyou^
 ||fardeshifter.cyou^
@@ -142422,6 +142433,7 @@
 ||hazgyj.netahsilat.com^
 ||hazicu.hothomefuck.com^
 ||hazingninut.shop^
+||hazingspekes.cfd^
 ||hazmatcrew.com^
 ||hazmatworkshop.com^
 ||hazobwcw.in^
@@ -145795,6 +145807,7 @@
 ||holiganbet-kayit-giris.icu^
 ||holiganbet.fr^
 ||holika.com^
+||holilymerida.com^
 ||holistavera.com^
 ||holistichero.org^
 ||holistickenko.com^
@@ -148385,6 +148398,7 @@
 ||hvrhgt.thesun.ie^
 ||hvricnk4ab.cfd^
 ||hvrzig.e-domizil.ch^
+||hvsfbiflxxx.com^
 ||hvteqk.snowleader.com^
 ||hvuihu.undiz.com^
 ||hvumtqywamn.net^
@@ -161319,6 +161333,7 @@
 ||jokfrivqogtwq.site^
 ||jokiestacuandemeans.cfd^
 ||jokingaspirant.com^
+||jokingflashlights.com^
 ||jokinglypantryprancing.com^
 ||jokingsummonyuri.com^
 ||jokiplay.com^
@@ -161885,6 +161900,7 @@
 ||jraum.highereducation.shop^
 ||jravekvyeyyvq.top^
 ||jrbbavbvqmbaz.top^
+||jrbbavkejwloz.top^
 ||jrceg.com^
 ||jrclick.jd.com^
 ||jrds.net.cn^
@@ -164730,6 +164746,7 @@
 ||keld-digitholm.com^
 ||kelder.nl^
 ||keldory.guru^
+||kelekgibleh.qpon^
 ||kelesort-norchure.com^
 ||kelfnfabbwugq.online^
 ||keliones.lt^
@@ -164948,6 +164965,7 @@
 ||keyade.ooreka.fr^
 ||keyade.uniqlo.com^
 ||keyallocationscientific.com^
+||keyavidlyspryly.qpon^
 ||keybinary.com^
 ||keyblissboutique.com^
 ||keyboard88.top^
@@ -169428,6 +169446,7 @@
 ||lambadapp.g2afse.com^
 ||lambentseewee.com^
 ||lambingsyddir.com^
+||lambliapratal.cyou^
 ||lambmotorabash.com^
 ||lamborghini.euroshop.com.pe^
 ||lamboybaioccoslave.qpon^
@@ -172810,6 +172829,7 @@
 ||limpingpick.com^
 ||limpinguniversity.pro^
 ||limpskin.com^
+||limpywildorcins.cyou^
 ||limsytarascobatussi.qpon^
 ||limuluscaliliderange.qpon^
 ||limvako.shop^
@@ -174294,6 +174314,7 @@
 ||lisvipshop.com^
 ||lit-web.net^
 ||lit.connatix.com^
+||lit5jj2yy8mcg5uoi.cfd^
 ||litags.feedblitz.com^
 ||litaidrawl.cfd^
 ||litaigcjx.com^
@@ -175435,6 +175456,7 @@
 ||lo.triarchaldrin.com^
 ||lo.v-feed.liveperson.net^
 ||lo.v.liveperson.net^
+||lo2xxp73v7.com^
 ||lo42y56tmy.com^
 ||lo928372.pro^
 ||load-drivefile.info^
@@ -184125,6 +184147,7 @@
 ||lsawards.com^
 ||lsbbtclkiwrdx.online^
 ||lsbeim.mediamart.vn^
+||lsbeltman.qpon^
 ||lsbsg.entertainmentearth.com^
 ||lsc-canfranc.es^
 ||lsc.hextom.com^
@@ -223475,6 +223498,7 @@
 ||opealleven.com^
 ||opeanresultancete.info^
 ||opecloud.com^
+||opedlyc.shop^
 ||opehs.tanx.com^
 ||opelvauxhall-g10-server-side-tagging-prod-406671236336.europe-west9.run.app^
 ||open-adsyield.com^
@@ -242941,6 +242965,7 @@
 ||pysdvwrawkwjz.space^
 ||pysesu.com^
 ||pysfn.benchclearers.com^
+||pysvfggnwzzf.com^
 ||pyt.mybluehost.me^
 ||pytgfcgsiv.com^
 ||pythagore.demdex.net^
@@ -245325,6 +245350,7 @@
 ||queensiteforapp.com^
 ||queenskart.com^
 ||queensland.demdex.net^
+||queensmission.shop^
 ||queerablative.com^
 ||queersodadults.com^
 ||queestflexostatize.qpon^
@@ -263843,6 +263869,7 @@
 ||sears.demdex.net^
 ||searsholdings.tt.omtrdc.net^
 ||seasaltlifestyle.com^
+||seasansheenie.cyou^
 ||seasideunevenbowl.com^
 ||seaskydvd.com^
 ||seaskypro.com^
@@ -286857,6 +286884,7 @@
 ||smitchbakongo.qpon^
 ||smitdeals.de^
 ||smiteanimatedbeaker.com^
+||smiterdacusalumite.cyou^
 ||smitham.org^
 ||smithamcuvee.com^
 ||smithburka.com^
@@ -315092,6 +315120,7 @@
 ||syr66.com.cn^
 ||syrcaufle.cfd^
 ||syrdgbyaktgsw.space^
+||syrhftrrhcll.com^
 ||syriacgrumose.com^
 ||syrields-trangola.com^
 ||syringeoniondeluge.com^
@@ -318548,6 +318577,7 @@
 ||tarrybelow.com^
 ||tarsan.g2afse.com^
 ||tarsan.media-412.com^
+||tarsepicard.qpon^
 ||tarsier.emitremmus.com^
 ||tarsier.kriterie.se^
 ||tarsingularsubmerge.com^
@@ -340898,6 +340928,7 @@
 ||upipege.top^
 ||upiwsqxrhnwzl.online^
 ||upiykoefg.com^
+||upjetwormer.shop^
 ||upjmnvnvb.com^
 ||upk8rvnck.com^
 ||upkmxceubeyuz.space^
@@ -343637,6 +343668,7 @@
 ||va.v-feed.liveperson.net^
 ||va3yq7si6w.com^
 ||va6test.va6prodt.test.cjmadobe.com^
+||vaagmarrefall.shop^
 ||vaali-mcs-useast1a.byteoversea.com^
 ||vaali-mcs-useast2a.byteoversea.com^
 ||vaali-mcs.byteoversea.com^
@@ -344019,6 +344051,7 @@
 ||vanqrf.pcrichard.com^
 ||vanquishnorthern.com^
 ||vanquishrc.com^
+||vanrcoanza.in^
 ||vans-osterreich.at^
 ||vansfrance.fr^
 ||vansion.de^
@@ -344973,6 +345006,7 @@
 ||vengefulswimming.pro^
 ||vengesagelaus.cyou^
 ||vengingtrental.com^
+||vengy1zzj6fi89pk8.rest^
 ||venicecanoe.com^
 ||venienceilo.fun^
 ||veninslata.com^
@@ -350521,6 +350555,7 @@
 ||warlocktoenailfantastic.com^
 ||warlog.info^
 ||warlog.ru^
+||warlybouffes.com^
 ||warm-candidate.com^
 ||warmafterthought.com^
 ||warmbreezecloud.com^
@@ -351380,6 +351415,7 @@
 ||wearblis.com^
 ||wearbreeze.de^
 ||wearbulbed.com^
+||weardogtiepirned.cfd^
 ||weare.ballymoregroup.com^
 ||wearebrew-en.com^
 ||wearehearken.com^
@@ -353106,6 +353142,7 @@
 ||weinweltgenuss.com^
 ||weipengjun.com^
 ||weirdergapes.shop^
+||weirderunwise.qpon^
 ||weirdopt.com^
 ||weirdsentence.com^
 ||weirdusual.pro^
@@ -355395,6 +355432,7 @@
 ||wjjac.com^
 ||wjjf.com^
 ||wjldfm.com^
+||wjljwqbrwllzw.top^
 ||wjmepiytpjiki.website^
 ||wjmghujaluysu.online^
 ||wjmyfp.billetdavion.be^
@@ -367630,6 +367668,7 @@
 ||yodo1.com^
 ||yoebympnetbjx.site^
 ||yoeg-protect.pro^
+||yoenutty.cfd^
 ||yofbioavbc.com^
 ||yofi-yofi.com^
 ||yofprpv.cn^
@@ -371467,6 +371506,7 @@
 ||zkdkvnzsdxge.info^
 ||zkdtpucowdlat.website^
 ||zkdx120.com^
+||zke7f34g1p2ghtl.cfd^
 ||zkebwy.copenhagenstudios.com^
 ||zkexr4458l2goqb.rest^
 ||zkfjdxlwwcilg.website^
