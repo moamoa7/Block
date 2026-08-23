@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-23 08:13:46 UTC
+! Generated: 2026-08-23 08:53:05 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,608
+! Exception Rules: 6,611
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -590,6 +590,7 @@
 @@||banquelaurentienne.ca^
 @@||banquepopulaire.fr^
 @@||banrisul.com.br^
+@@||bapi-01.moengage.com^
 @@||bapi-02.moengage.com^
 @@||bapi-04.moengage.com^
 @@||barclaycard.co.uk^
@@ -1057,6 +1058,7 @@
 @@||click.figma.com^
 @@||click.holidayinnclubemail.com^
 @@||click.icptrack.com^
+@@||click.idprotect.experian.com^
 @@||click.instantink.hpsmart.com^
 @@||click.justwatch.com^
 @@||click.klarna.de^
@@ -3071,6 +3073,7 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
+@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -3079,7 +3082,6 @@
 @@||mkto-ab290066.com^
 @@||mkto-ab290102.com^
 @@||mkto-ab290138.com^
-@@||mkto-ab300154.com^
 @@||mkto-ab310115.com^
 @@||mkto-ab320028.com^
 @@||mkto-ab320182.com^
@@ -3135,7 +3137,6 @@
 @@||mkto-ab570110.com^
 @@||mkto-ab570128.com^
 @@||mkto-ab580004.com^
-@@||mkto-ab590004.com^
 @@||mkto-ab600004.com^
 @@||mkto-ab610035.com^
 @@||mkto-ab610084.com^
@@ -3192,6 +3193,7 @@
 @@||mkto-lon050143.com^
 @@||mkto-lon050200.com^
 @@||mkto-lon060131.com^
+@@||mkto-lon060180.com^
 @@||mkto-lon060217.com^
 @@||mkto-lon070075.com^
 @@||mkto-lon070192.com^
@@ -3439,6 +3441,7 @@
 @@||ndirect.ppro.de^
 @@||nedbank.co.za^
 @@||neobux.com^
+@@||neoengage-va-cdn.exponea.com^
 @@||neon.com.br^
 @@||nest.com^
 @@||net.kentbank.hr^
