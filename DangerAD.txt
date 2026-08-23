@@ -1,7 +1,7 @@
 ! Title: DangerAD
 ! Description: Personal AdBlock List (Danger)
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260822
+! Version: 20260824
 !
 !
 !!!! 개인적으로 만든 규칙으로 적용시 페이지의 일부 혹은 전부가 안보이거나 깨질수 있음
@@ -79,6 +79,7 @@
 !
 !
 ! 디스코드
+! 팍스넷 (https://www.paxnet.co.kr) - https://image.paxnet.co.kr/rpan/common/js/mobile_ad_main.js?update=20230316
 *_ad_*
 ! - 예외
 ! - - - 11번가 (https://www.11st.co.kr/) - AD광고표시 삭제됨
@@ -96,6 +97,7 @@
 ! 티비착
 ! 조아툰
 ! https://iloa.gg/
+! 숲 - https://res.sooplive.com/data/ad/check_new_ad.js?refresh=1787443662503
 */ad/*
 ! - 예외
 @@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr
@@ -107,6 +109,8 @@
 ! 주간경향
 ! 엔카 (https://www.encar.com/)
 ! https://iloa.gg/
+! 치지직 - https://api.chzzk.naver.com/service/v1/lives/20694138/ads/current
+! 팍스넷 (https://www.paxnet.co.kr)
 */ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -187,22 +191,28 @@
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
-*ad.js:not(load.js)
+! 숲 - https://res.sooplive.com/data/ad/check_new_ad.js?refresh=1787443662503
+!*ad.js
+*ad.js?
+! - 예외
+@@||*load.js?
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! -뉴토끼 (https://toki31.com/) - 페이지 오류
-@@*ad.js$domain=/toki/
+!@@*ad.js$domain=/toki/
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
-! 뽐뿌
-! https://k01.aving.tv/ - upload.js?
-! https://www.ppomppu.co.kr/
-! AV19 (https://av19t.com/)
+! 뽐뿌 (https://www.ppomppu.co.kr/) - https://cdn2.ppomppu.co.kr/js/wtg_ads.js?v=2026081802
 ! https://kav.xxx/ - https://rutood.com/js/dnsads.js?ads=1&AdType=1&cbrandom=2&clicktag=http
-*ads.js
+!*ads.js
+*ads.js?
+! - 예외
+! AV19 (https://av19t.com/) - https://work33882.com/js/loads.js?v=1668586751
+! https://k01.aving.tv - https://k01.aving.tv/assets/src/modules/composer/uploads.js?v=18bcebda699
+@@||*loads.js?
 !
 !
 ! 야동존 (https://xxzone27.top/)
@@ -348,8 +358,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !
 !
 !
-! 숲
-! 트위치
+! 숲 - https://live.sooplive.com/api/extension.php?bj_id=뒷부분 생략
+! 트위치 - https://extension.streamstickers.com/panel/channel-top
 /extension.
 @@/extension$image
 !
@@ -402,7 +412,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - 한국경제신문 - stockwin.thinkpool.com/html/hktv/index.html
 ! - https://redgg50.cc/ - upload18.com/play/
 ! - https://18av.mm-cg.com/ - 18av.mm-cg.com/js/player/play.php?
-! - 후후티비 (https://ks.hoohootv427.xyz/) - creatorofvideo.com/play/
+! - 후후티비 (https://cc.hoohootv448.xyz) - creatorofvideo.com/play/
 ! - https://javbraze.com/ - /javbraze_cdn/
 ! - https://goodtv.co.kr/ - goodtv.co.kr/watch_banner.asp
 ! - https://javgiga.com/ - embed.streamxx.net
@@ -731,6 +741,8 @@ clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_ban
 atlantak.com,vexfile.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-banner-" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! https://t-browser.com/
+t-browser.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="-banner-" i])
 !
 !
 !
@@ -802,6 +814,7 @@ atlantak.com#@#[class*="-banner-" i]:not(body):not(html):not(main)
 !
 ! 머니툰 (https://mtoon144.asia/)
 ! https://iloa.gg/
+! 한국인포맥스 (https://www.hinfomax.co.kr)
 ##[alt*="banner" i]
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -914,6 +927,10 @@ hungryapp.co.kr,hungapp.com,www.korea.com#@#[id*="banner" i]:not(body):not(html)
 !##[alt*="배너"]
 ! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
 ##.banner:not(body):not(html):not(main)
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
 !
 !
@@ -1038,10 +1055,11 @@ philgo.com##[alt*="배너"]
 ! 애니위크 (https://aniweek.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
-! 야동코리아 (https://yadongkorea01.tv/)
+! 야동코리아 (https://yadongkorea02.tv)
 !  Manko (https://manko.fun/)
 ! 위플랩 WEFLAB (https://weflab.com/)
-/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|yadongkorea|manko|weflab/##[target*="blank"] img
+! 캐나다 한국일보 (https://koreatimes.net)
+/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|yadongkorea|manko|weflab|koreatimes/##[target*="blank"] img
 !
 !
 !
@@ -1071,7 +1089,7 @@ philgo.com##[alt*="배너"]
 !
 ! - 개별 도메인으로 취급
 ! 티비착 (https://tvchak208.com/) - 상단 배너 필요없는 부분 (보증 어찌구~) 포함
-! 후후티비 (https://be.hoohootv441.xyz/)
+! 후후티비 (https://cc.hoohootv448.xyz)
 !/tvchak|hoohootv/##[style]:has([target] img)
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -1093,8 +1111,8 @@ mule.co.kr##[target] img
 !
 ! 토렌트쓱 (https://ssg1.torrentssg9.com/)
 ! 얼리어답터뉴스 (https://eanews.kr/)
-! 왓챠피디아 (https://pedia.watcha.com/)
-##[href][target*="blank"]:has([style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"])
+! - - - 유튜브 / 숲/ 치지직 /왓챠피디아 (https://pedia.watcha.com/) 예외
+##[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"])
 !
 !
 !
@@ -1162,7 +1180,7 @@ joongang.co.kr,lezhinsnack.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.n
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://clothoff.net/
 ! https://javgiga.com/
-! https://javfilms.com/
+! https://javfilms.com
 javfilms.com,clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
 !
 !
@@ -1315,7 +1333,7 @@ adguard-dns.io,avdbs.com#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="
 ! - https://뉴토끼우회.com/
 ! - https://balbums.st/
 ! - https://bunkr.cr/
-! - 토렌트씨 (https://torrentsee347.com/)
+! - 토렌트씨 (https://torrentsee350.com/)
 /torrentsee|bunkr|balbums/,뉴토끼우회.com#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i])
 !
 !
