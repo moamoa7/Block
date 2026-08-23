@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260822
+! Version: 20260824
 !
 !
 !
@@ -44,7 +44,10 @@
 ! ═══════════════════════════════════════════
 @@|wss://$removeparam
 @@/^https?:\/\/([a-z0-9-]+\.)*?(github\.com|githubusercontent\.com|gitlab\.com|cloudflare\.com)/$removeparam
-@@/^https?:\/\/(docs|accounts|mail|drive|calendar|photos|maps)\.google(\.[a-z]{2,}){1,}/$removeparam
+!@@/^https?:\/\/(docs|accounts|mail|drive|calendar|photos|maps)\.google(\.[a-z]{2,}){1,}/$removeparam
+!@@/^https?:\/\/([a-z0-9-]+\.)*?google(\.[a-z]{2,}){1,}\/(complete\/search|setprefs|searchbyimage)/$removeparam
+! - 주석처리한 위 2개의 규칙을 하나로 합침
+@@/^https?:\/\/(?:(?:docs|accounts|mail|drive|calendar|photos|maps)\.google\.[a-z]{2,}|(?:[a-z0-9-]+\.)*?google\.[a-z]{2,}\/(?:complete\/search|setprefs|searchbyimage))/$removeparam
 !
 !
 !
@@ -186,6 +189,7 @@
 !##[data-google-av-ad-container]
 ! 구글 광고 차단 (추가)
 ! - - - https://alohafind.com/search/
+! - - - - - https://cse.google.com/adsense/search/async-ads.js
 /adsense/*
 ! - 문단 태그 존재 여부(:not(:has(p)))만 체크해서 본문이 날아가는 걸 방지하는 절충안
 !##[class*="adsense" i]:not(:has(p))
@@ -408,6 +412,7 @@ mypikpak.com##.operation-container
 ! 네이버 본인 인증 페이지 일부 안보임 해결
 !nid.naver.com#@#[class^="ad" i]
 ! - 메인 추천/카테크/웹툰~ 내  AD 광고글 빈공간 지우기
+! - - -  https://www.nzkoreapost.com - 메인 왼쪽 배너
 ##li:has([id*="-ad-"])
 ! - 기타
 ! - - - 사용자의 행동을 제한하는 '복사 방지/드래그 방지' 기능을 강제로 무력화
@@ -526,6 +531,13 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 ! 네이버TV (https://tv.naver.com/)
 ! - 로그인 팝업 안뜨는거 해걸
 !tv.naver.com#@#[class*="popup_modal" i]
+!
+!
+! 네이버 부동산 (https://fin.land.naver.com/)
+! - 기타 (EasyPrivacy)
+/?sentry_version=
+! - 기타
+bannerid=
 !
 !
 ! 실시간 방송 도메인 로딩 최적화
@@ -741,6 +753,8 @@ chzzk.naver.com##[class*="filter"]
 !chzzk.naver.com#@#[class*="popup" i]
 ! -특수기간 상단 배너
 !chzzk.naver.com##[class^="skin"]
+! - 영상 플레이어내 드롭스 버튼 없애기
+chzzk.naver.com##.player_header
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -796,10 +810,11 @@ daum.net##.wrap_trend
 !
 ! 씨네스트 (https://cineaste.co.kr/)
 ! - 메인 배너 공간
-cineaste.co.kr##[class="main-title" i]
-! - 오른쪽 배너
+!cineaste.co.kr##[class="main-title" i]
+! - 오른쪽 배너 공간
 !##.basic-banner
 !##[class*="basic-banner" i]
+cineaste.co.kr##[class="widget-main-box"]:has([style*="background-image"])
 !
 !
 ! AAGAG (https://aagag.com/)
@@ -1540,11 +1555,11 @@ ppomppu.co.kr##tr.baseNotice:has-text(AD)
 ! - 맨 오른쪽 상단 배너 / 중간 배너 / 하단 배너
 !slrclub.com##div[class^="ad"]
 !##.ad
-! - 왼쪽 배너
+! - 왼쪽 배너 - ##[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i]) 규칙에서 처리하므로 주석처리
 !###ad1[style^="position:"]
-###ad1
-! -예외 - 토렌트씨 (https://torrentsee347.com/) - 일부 이미지 지워짐
-/torrentsee/#@##ad1
+!###ad1
+! -예외 - 토렌트씨 (https://torrentsee350.com) - 일부 이미지 지워짐
+!/torrentsee/#@##ad1
 ! - 게시글 상단 텍스트 광고 (PC) - 다른 사이트에서 지워지는 부분이 있어 사이트 주소 붙임
 slrclub.com##[class="notice" i]
 !slrclub.com##.notice
@@ -1787,6 +1802,8 @@ zum.com##[class*="coupang" i]
 !pcc.siren24.com#@#[class^="ad" i]
 ! - 베너
 !wavve.com##.banner_2
+! - 기타 (EasyPrivacy)
+||t1.daumcdn.net/*/static/kp.js
 !
 !
 ! 쿠팡플레이 (https://www.coupangplay.com/)
@@ -1924,10 +1941,12 @@ www.donga.com#@#[class*="ad_"] [style]
 ! - 기사 상단 배너
 !hankookilbo.com##.rounded-t-lg
 ! - 기사내 상단 및 하단 빈 공간
-hankookilbo.com##[class*="min-h-["]
+!hankookilbo.com##[class*="min-h-["]
 hankookilbo.com##.sm\:gap-40.gap-24.flex-col.flex.no-print
 ! - 기사 하단 따라다니는 광고 빈 배너
-hankookilbo.com##[class*="bg"]:has([aria-label*="광고"])
+!hankookilbo.com##[class*="bg"]:has([aria-label*="광고"])
+! - 오른쪽 AI뉴스 트랜드 팝업
+hankookilbo.com##[class="relative h-full w-280"]
 !
 !
 ! 중앙일보 (https://www.joongang.co.kr/)
@@ -2226,6 +2245,7 @@ kstarfashion.com##[style="width:320px;height:100px;"]
 ! - 빈 공간 (모바일)
 ! - - - https://www.edaily.co.kr/
 ! - - - https://www.anewsa.com/
+! - 서울경제 (https://www.sedaily.com) 모바일
 !##div:has(> script[src*="/ad."])
 ##div[style]:has(> script[src*="/ad."])
 !
@@ -3388,6 +3408,8 @@ ajunews.com/##.related_news
 ! 뉴시스 (https://www.newsis.com/)
 ! - 기사내 빈 공간
 !##li:has(> iframe)
+! - 예외 - 네이버 메뉴 (사각형) 사라짐
+naver.com#@#li:has(> iframe)
 ! - 기사내 빈 공간 추가 (모바일)
 mobile.newsis.com##.listStyle04
 !
@@ -3492,6 +3514,9 @@ fpn119.co.kr##[id*="-ad-" i]
 !
 !
 ! OSEN (https://www.osen.co.kr/)
+! - 메인 상단 오른쪽 배너
+! - - - ##[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i]) 규칙에서 처리해서 주석 처리
+!###ad2
 ! - 기타 (EasyPrivacy)
 &http_referer=$script,xmlhttprequest,domain=~biletomat.pl|~facebook.com|~jobscore.com
 !
@@ -3508,6 +3533,68 @@ weflab.com##header:style(top: 0px !important; margin-top: 0px !important;)
 ! - - -컬러타일 (https://color-tiles.oshizi.com)
 ! - - - 사과게임 플러스 (https://oshizi.com/ko/apple-game-plus/)
 ##.show--consent:not(.force--consent) #cc-main
+!
+!
+! 씨네폭스 (https://cinefox.com/)
+@@||cinefox.com^$generichide
+!
+!
+! 비플릭스 (https://www.bflix.co.kr/)
+@@||bflix.co.kr^$generichide
+!
+!
+! 투네이션 (https://toon.at/)
+! - 기타 (EasyPrivacy)
+||sentry.io^$3p
+!
+!
+! Bitget (https://www.bitget.com/)
+! - 쿠키 팝업
+##[class*="cookie-dialog"]
+!
+!
+! 캐나다 한국일보 (https://koreatimes.net)
+! - 메인 상단배너
+koreatimes.net##[src*="banner"]
+!
+!
+! 에누리 (https://www.enuri.com)
+@@||enuri.com^$generichide
+! 기타 (EasyPrivacy)
+/fbevents.js
+!
+!
+! 오늘의 예보 (https://www.kr-weathernews.com/)
+! - 안내문구 차단으로 인한 스크롤 차단 해제
+kr-weathernews.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+!
+!
+! ArtPlayer.js (https://artplayer.org)
+! - 쿠키 팝업
+##[aria-label="Cookie notice"]
+!
+!
+! 팍스넷 (https://www.paxnet.co.kr)
+! - 기타 (EasyPrivacy)
+/^https:\/\/cdn\.jsdelivr\.net\/npm\/[-a-z_]{4,22}@latest\/dist\/script\.min\.js$/$script,third-party
+! - 기타
+_top_ad.
+!
+!
+! EBN 산업경제 (https://www.ebn.co.kr)
+! - 기타
+/admanager/*$~object,domain=~admanager.line.biz|~blog.google|~konograma.com|~sevio.com
+?impr?pageid=
+!
+!
+! 롤체지지 (https://lolchess.gg/)
+! - 팝업
+lolchess.gg##[class*="css"]:has([class*="popup"])
+! - 팝업 차단으로 인한 스크롤 차단 해제
+lolchess.gg##body:style(pointer-events: auto !important; overflow: auto !important;)
+
+
+
 
 
 
@@ -3613,7 +3700,9 @@ fingerprint.
 ##[class*="-layers"]
 !
 !
-! 야동코리아 (https://yadongkorea01.tv/) - 기존 야동코리아와 동일한건가? / 티비위키 메뉴에 신설
+! 야동코리아 (https://yadongkorea.store) (https://yadongkorea02.tv) - 기존 야동코리아와 동일한건가? / 티비위키 메뉴에 신설
+! - 팝업
+/yadongkorea/##.yako-telegram-modal
 !
 !
 ! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak208.com/) 
@@ -3621,7 +3710,7 @@ fingerprint.
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 ![$domain=/^tvchak\d*\./]##[class*="popup_mdd" i]
 ! - 상단 배너 - (보증 어찌구~) 포함
-! - - - 후후티비 (https://be.hoohootv441.xyz/)
+! - - - 후후티비 (https://cc.hoohootv448.xyz)
 !/tvchak/##[class*="card"]:has(> style)
 !##[class*="border-shadow"]:has(> style) - 타 사이트(https://noonnu.cc/)에서 차단 발생하여 개별로 아래와 같이 변경
 !/tvchak/##[class*="border"]:has(> style)
@@ -3659,7 +3748,7 @@ fingerprint.
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! 후후티비 (https://telegra.ph/후후티비-최신-주소-09-03)  (https://ki.hoohootv444.xyz/)
+! 후후티비 (https://telegra.ph/후후티비-최신-주소-09-03)  (https://cc.hoohootv448.xyz)
 ! - 배너 빈 공간 - ##[style]:has([target] img)는 메인 배너에만 적용되고 개별 목록내 배너에는 적용이 안되서 필요함
 ![$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 /hoohootv/###img_row_container
@@ -4138,7 +4227,7 @@ joatoon-oa.com##.bg-opacity-50
 !##[class*="banner" i]:has([target]:not([class*="logo"]))
 !
 !
-! 토렌토씨 (https://torrentsee347.com/)
+! 토렌토씨 (https://torrentsee350.com/)
 ! - 팝업 잔여물
 ![$domain=/^torrentsee\d+.com/]##.flex
 !/torrentsee/##.flex
@@ -6882,7 +6971,7 @@ litt.ly#@#[href*="link.coupang.com"]
 !||*.watchakr.com/img/*.jpg
 !
 !
-!  T카페 (https://tcafe21.com/)
+!  T카페 (https://tcafe21.com/) - https://lamu.club 신설
 ! - 팝업 (기존 티카페회원 가입안내)
 !tcafe21.com###migration-popup-overlay
 !##[id*="popup-overlay" i]
@@ -6979,8 +7068,8 @@ rou.video##div.md\:col-span-1
 ! Up-4ever (https://www.up-4ever.net/)
 ! - 쿠키 팝업
 !###gdpr-cookie-notice
-##[id*="cookie-notice" i]
-!##[id*="-notice" i]
+!##[id*="cookie-notice" i]
+##[id*="-notice" i]
 !
 !
 ! 테라박스 (https://www.terabox.com/) (https://www.1024tera.com/)
@@ -7520,9 +7609,9 @@ jable.tv##[class*="video"]:has([href*="banner"])
 !
 ! https://manko.fun/
 ! - 기타
-/pop-under.
-/^https?:\/\/[a-z0-9]{7,40}\.com\/([^\s]{350,400}|[a-z0-9]{8,10}(\?[a-z]{3,5}=.*)?|[a-z?]{13,}=[^\s]+)[?&]key=[a-f0-9]{32}/$popup,important
-/stat^
+!/pop-under.
+!/^https?:\/\/[a-z0-9]{7,40}\.com\/([^\s]{350,400}|[a-z0-9]{8,10}(\?[a-z]{3,5}=.*)?|[a-z?]{13,}=[^\s]+)[?&]key=[a-f0-9]{32}/$important,popunder,popup
+!/stat^
 !
 !
 ! https://javbar.com/
