@@ -4,7 +4,7 @@
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Sun Aug 23 01:16:08 UTC 2026
+! Updated: Sun Aug 23 06:38:46 UTC 2026
 
 ||go.trvdp.com^
 ||priel.co.kr^$third-party
