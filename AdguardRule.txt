@@ -35,10 +35,6 @@
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||truefriend.com^$stealth=dpi
 !
-!#if (adguard && adguard_app_windows)
-@@||coupang.com^$stealth
-!#endif
-!
 ! 네이버 카페 (https://cafe.naver.com/)
 ! - 카페 사진 첨부 오류 해결
 @@*$stealth=dpi,app=com.nhn.android.navercafe
