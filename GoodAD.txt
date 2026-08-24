@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260824
+! Version: 20260825
 !
 !
 !
@@ -52,10 +52,12 @@
 !
 !
 !
-!@@|or.kr^$generichide,image,css,font,script,xhr,frame,other
-@@||or.kr^$generichide,image,xhr,script
 !@@|go.kr^$generichide,image,css,font,script,xhr,frame,other
 @@||go.kr^$generichide,image,xhr,script
+!@@|or.kr^$generichide,image,css,font,script,xhr,frame,other
+@@||or.kr^$generichide,image,xhr,script
+@@||hs.kr^$generichide,image,xhr,script
+@@||ms.kr^$generichide,image,xhr,script
 
 
 ! - 타규칙 오탐방지
@@ -538,6 +540,16 @@ shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: au
 /?sentry_version=
 ! - 기타
 bannerid=
+!
+!
+! 네이트 뉴스 (https://news.nate.com)
+! - 기타 (EasyPrivacy)
+/stat.js?
+!
+!
+! 네이트 판 (https://m.pann.nate.com/)
+! - 필요없는거 (하단 보험회사)
+m.pann.nate.com##.shopBox
 !
 !
 ! 실시간 방송 도메인 로딩 최적화
@@ -1777,6 +1789,7 @@ zum.com##[class*="coupang" i]
 ! - 기타
 !||onetrust.com^
 !||netflix.com/ichnaea/log
+/adtech_$domain=~adtech.co.uk
 !
 !
 ! 티빙 (https://www.tving.com/)
@@ -2470,10 +2483,12 @@ wadiz.kr##[data-testid="store-keyvisual"]
 ! 다나와 (https://danawa.com/)
 @@||danawa.com^$generichide,image,xhr
 ! - 오늘 그만보기 및 뿌연거 해결 (모바일)
-danawa.com##div.layer-bottom-sheet.show:has(> .box__banner)
-danawa.com###mdnw-main-dimm
+!danawa.com##div.layer-bottom-sheet.show:has(> .box__banner)
+!danawa.com###mdnw-main-dimm
 ! - 검색란 오른쪽 광고
 danawa.com##.auto_product_list
+!- 오늘 봐야 할 추천 상품
+danawa.com##.ad-adsmart
 ! - 빈 배너 공간
 !danawa.com###t1Banner
 ! - 오른쪽 빈 배너 / 상단 텍스트
@@ -2515,6 +2530,16 @@ danawa.com##.auto_product_list
 ! - 한국경제 (https://www.hankyung.com/) 모바일
 !hankyung.com#@#*:has(> iframe[title*="광고"]):not(html):not(body)
 !danawa.com#@#*:has(> iframe[title*="광고"]):not(html):not(body)
+!
+!
+! 다나와 자동차 (https://auto.danawa.com)
+! - 배너
+auto.danawa.com##[data-categoryactionlabel*="배너"]
+auto.danawa.com##[target*="blank"] [src*="https://advimg.danawa.com/"]
+! - 차량 추천상품
+auto.danawa.com##.ad-powershopping
+! - 파워링크
+auto.danawa.com##.ad-powerlink
 !
 !
 ! 당근 (https://www.daangn.com/)
@@ -3321,7 +3346,7 @@ loawa.com##[alt*="후원"]
 !play.sooplive.com#@#[alt*="후원"]
 !funbe|tkor|yagall/#@#[alt*="후원"]
 ! - 배너 빈 공간
-loawa.com##.mb-4
+!loawa.com##.mb-4
 !
 !
 ! https://boutique.chosun.com/
@@ -3352,11 +3377,6 @@ villain.city##[class*="hot-deal"]
 villain.city##[style*="background-image:url"]
 !
 !
-! 네이트 판 (https://m.pann.nate.com/)
-! - 필요없는거 (하단 보험회사)
-m.pann.nate.com##.shopBox
-!
-!
 ! 비글루 (https://www.vigloo.com/)
 ! - 기타
 !##[class$="-ad-container"]
@@ -3366,6 +3386,8 @@ m.pann.nate.com##.shopBox
 ! 사커라인 (https://soccerline.kr/)
 ! - 게시물 내 빈공간
 !soccerline.kr##[class*="bann" i]
+! - 기타
+/\/ads\/.*\.html$/$empty,first-party,match-case,xmlhttprequest
 !
 !
 ! 일로아 (https://iloa.gg/)
@@ -3592,6 +3614,22 @@ _top_ad.
 lolchess.gg##[class*="css"]:has([class*="popup"])
 ! - 팝업 차단으로 인한 스크롤 차단 해제
 lolchess.gg##body:style(pointer-events: auto !important; overflow: auto !important;)
+!
+!
+! 아식스 (https://www.asics.co.kr/)
+@@||asics.co.kr^$generichide
+! - 색상/사이즈 등 옵션 미선택 상태로 구매하기 클릭시 선택한 옵션이 없습니다 팝업 안나오는거 해결
+!@@||t1.daumcdn.net/adfit/$domain=asics.co.kr
+@@||t1.daumcdn.net/adfit/
+! - 상품 후기 안나오는거 해결
+!@@||cre.ma^$3p,domain=asics.co.kr
+@@||cre.ma^$3p
+
+
+
+
+
+
 
 
 
@@ -7687,6 +7725,11 @@ katfile.biz##a:has(> div)
 !skbj.tv##[class*="card"]:has(> div)
 ! - 오늘의 특가 / 데일리 래픗 배너
 !skbj.tv##section>:has-text(/할인|래플/)
+!
+!
+! 품번기 (https://www.poomki.net/)
+! - 배너 (온디스크/K디스크) - 사이트명을 넣어야 적용되서 광역이 아닌 개별규칙으로 처리
+poomki.net##[rel*="sponsor"]:has-text(AD)
 ! 
 !
 !
