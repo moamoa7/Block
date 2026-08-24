@@ -4,7 +4,7 @@
 ! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260818
+! Version: 20260825
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
@@ -17,11 +17,12 @@
 @@||arca.live^$stealth=push
 @@||claude.ai^$stealth=push
 @@||code-pia.com^$stealth=dpi
-@@||dcinside.com^$stealth=push
-@@||fs2.joycity.com^$stealth=dpi
+@@||coupang.com^$stealth
+@@||gall.dcinside.com^$stealth=push
 @@||glonmall.com^$stealth=dpi
 @@||hanaroetf.com^$stealth=dpi
 @@||isplus.$stealth=dpi
+@@||joycity.com^$stealth=dpi
 @@||koreainvestment.com^$stealth=dpi
 @@||kr^$stealth=dpi
 @@||log1.toup.net^$app=com.nhn.android.search
