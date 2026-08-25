@@ -1,6 +1,6 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-25 08:24:56 UTC
+! Generated: 2026-08-25 09:03:57 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
 ! Exception Rules: 6,608
 !
@@ -32,6 +32,8 @@
 @@||2ip.ua^
 @@||2performant.com^
 @@||3-aclk.net^
+@@||341676991.group0.sites.hscoscdn-na3.net^
+@@||341850582.group0.sites.hscoscdn-na3.net^
 @@||3cinteractive.com^
 @@||3ds.bankofbaku.com^
 @@||3ds.mdmbank.ru^
@@ -1055,7 +1057,6 @@
 @@||click.figma.com^
 @@||click.holidayinnclubemail.com^
 @@||click.icptrack.com^
-@@||click.idprotect.experian.com^
 @@||click.instantink.hpsmart.com^
 @@||click.justwatch.com^
 @@||click.klarna.de^
@@ -3070,7 +3071,6 @@
 @@||mkto-ab240112.com^
 @@||mkto-ab250068.com^
 @@||mkto-ab250105.com^
-@@||mkto-ab250167.com^
 @@||mkto-ab260164.com^
 @@||mkto-ab270090.com^
 @@||mkto-ab270109.com^
@@ -3079,6 +3079,7 @@
 @@||mkto-ab290066.com^
 @@||mkto-ab290102.com^
 @@||mkto-ab290138.com^
+@@||mkto-ab300154.com^
 @@||mkto-ab310115.com^
 @@||mkto-ab320028.com^
 @@||mkto-ab320182.com^
@@ -4812,7 +4813,6 @@
 @@||sites.hscoscdn-ap1.net^
 @@||sites.hscoscdn-eu1.net^
 @@||sites.hscoscdn-na2.net^
-@@||sites.hscoscdn-na3.net^
 @@||sites.hscoscdn00.net^
 @@||sites.hscoscdn10.net^
 @@||sites.hscoscdn20.net^
