@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20689.3
+! Version: 2026.20690.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Tue Aug 25 01:12:32 UTC 2026
+! Updated: Tue Aug 25 06:44:40 UTC 2026
 
 ||go.trvdp.com^
 ||priel.co.kr^$third-party
@@ -706,6 +706,7 @@ nightofpeace.com,ilovebees.io##.e-grid.e-con-full.e-con.e-child:has(a[target="_b
 /^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 /data/banner.json?$domain=~nintendo.*
 
+||singleskorea.com/api/campaign-ads
 ||breaknews.com/data/breaknews_com/banner/
 ||beautywiki.net/banners/
 ||fin.land.naver.com/front-api/*/realtor/advertisement
@@ -1949,7 +1950,7 @@ aladin.co.kr###Ere_prod_allwrap > .Ere_prod_bannerwrap
 chimhaha.net##div[id^="slot-"][name]
 chimhaha.net##.powerLinkAdsCenter
 chimhaha.net###powerLink
-loawa.com##div[data-ad-placement]
+news.hada.io,loawa.com##div[data-ad-placement]
 inven.co.kr##div[style*="height:"]:has(> *[class^="ad-"])
 instiz.net##table[itemtype="http://schema.org/Article"] tr:has(> td[class^="view_"] ins.adsbygoogle)
 orbi.kr##div[style^="height:"]:has(ins[data-revive-zoneid])
@@ -2837,7 +2838,6 @@ kyobobook.co.kr##main div[id*="_banner"][id^="welcome_"][class$="_area"]
 steptohealth.co.kr##div[class*="-grey-"][style]
 sir.kr,steptohealth.co.kr##div[class*="-ads"]
 lawnb.com##aside[class^="banner_"]
-m.thesingle.co.kr##div[class*="Advertisement_"]
 lawtalk.co.kr##[ng-if^="premiumLawyers"]
 lawtalk.co.kr##div[class^="premium-lawyer"]
 kookje.co.kr##.box_skitter
@@ -3767,8 +3767,7 @@ m.humoruniv.com##+js(acis, $.prototype.html, /\/images\/[A-z0-9-_]+\.?(jpg|gif)/
 ! m.fmkorea.com
 m.fmkorea.com##+js(json-prune, tpl apply, tpl.[].c)
 ! chzzk.naver.com
-chzzk.naver.com##+js(json-prune-xhr-response, ads.[-].eventTracking.ackImpressions.[].url, ads.[].adInfo.responseSize, propsToMatch, 'url:api.chzzk.naver.com/service/t/')
-chzzk.naver.com##+js(json-prune-xhr-response, adBreaks.[-].adSources.[].withRemindAd, videoAdScheduleId, propsToMatch, 'url:api.chzzk.naver.com/service/t/')
+chzzk.naver.com##+js(trusted-replace-outbound-text, TextDecoder.prototype.decode, '/{"head" *: *{ *"version" *: *"[0-9.]+" *, *"description" *: *"[A-Za-z 0-9]+" *} *, *"requestId" *: *"vas-[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}" *, *"videoAdScheduleId" *: *"[A-Z_]+" *, *"adBreaks" *: *\[{[\[{\]},:" a-z0-9A-Z_-]+\\n?/', '{"head":{"version":"0.0.1","description":"GFP Video Ad Schedule"},"requestId":"vas-00000000-0000-0000-0000-000000000000","videoAdScheduleId":"","adBreaks":[}\n')
 chzzk.naver.com##+js(trusted-set-local-storage-item, homeSkinCollapsedUntil, 9999999999999)
 !
 loawa.com##+js(set-cookie, ad_popup_hide_36, 1)
