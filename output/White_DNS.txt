@@ -1,8 +1,8 @@
 ! Title: Personal Allow List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-25 12:19:01 UTC
+! Generated: 2026-08-25 13:23:41 UTC
 ! Method: External Whitelist (tracker-filtered) + Personal Whitelist - Personal Block
-! Exception Rules: 6,608
+! Exception Rules: 6,609
 !
 @@||0.client-channel.google.com^
 @@||07c225f3.online^
@@ -3366,6 +3366,7 @@
 @@||muenchner-bank.de^
 @@||mueritz-sparkasse.de^
 @@||muganbank.az^
+@@||mul-pay.jp^
 @@||musical.ly^
 @@||muypil.com^
 @@||mvb.de^
