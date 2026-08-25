@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260825
+! Version: 20260826
 !
 !
 !
@@ -737,7 +737,7 @@ chzzk.naver.com##+js(json-prune, *.dab)
 !chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
 ! 4) 최후의 폴백 (위 전부 깨졌을 때 깜빡이긴 해도 닫아줌)
 !chzzk.naver.com##div[class*="popup_layer"]:has-text(/광고 차단|확장 프로그램/)
-chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+!chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
 ! - 왼쪽 배너 (치즈 무료 수확)
 !chzzk.naver.com##[class*="banner" i]
@@ -755,8 +755,11 @@ chzzk.naver.com##.tooltip
 !##[class*="shop_banner" i]
 ! - 채팅내 안내 문구
 !chzzk.naver.com##[class^="live_chatting_guide" i]
-! - 채팅 안내 문구 (쾌적한 시청 환경을 위해 일부 메시지는 필터링 됩니다. 클린 라이브 채팅 문화 만들기에 동참해 주세요.)
-chzzk.naver.com##[class*="filter"]
+! - 채팅 안내 문구
+! - - - 채팅방에 오신 것을 환영합니다!
+! - - - 쾌적한 시청 환경을 위해 일부 메시지는 필터링 됩니다. 클린 라이브 채팅 문화 만들기에 동참해 주세요.
+! - - - 파티 후원이 시작되었습니다!  파티 후원에 참여해서 멤버들을 응원해보세요!  후원하러 가기
+chzzk.naver.com##[class*="big_padding"]
 ! - 영상내 치지직 로딩 이미지 삭제
 !chzzk.naver.com##.pzp-pc__loading-indicator
 !chzzk.naver.com##[class*="loading" i]
@@ -1079,7 +1082,7 @@ etoland.co.kr##.fixed-bottom
 !etoland.co.kr##body *[class*="list"]:has-text(/보험상담|신도림샤인컴|소명받은정화자|오늘의날씨|야나기기1/)
 !toland.co.kr##body *[class*="list"]:has-text(/내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr|캔커피/)
 ! - - - 광고 글 - List-KR에서 처리하므로 주석 처리하엿으나 li로 묶지 않아서 빈칸 발생 확인하여 재등록
-etoland.co.kr##li:has([data-inouts-click="true"])
+!etoland.co.kr##li:has([data-inouts-click="true"])
 ! - - - 히트 게시판에서 핫딜 없애기
 etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
 ! =========================
@@ -2867,6 +2870,8 @@ ggoorr.net##.code-list-middle
 ! - 기타
 ! - - - https://www.dogdrip.net/
 ! - - - - - https://www.dogdrip.net/common/js/x.js?t=1728779518
+! - - - https://eomisae.co.kr
+! - - - - https://eomisae.co.kr/common/js/x.js?t=1732023832
 /x.js*
 !
 !
@@ -3625,7 +3630,11 @@ lolchess.gg##body:style(pointer-events: auto !important; overflow: auto !importa
 ! - 상품 후기 안나오는거 해결
 !@@||cre.ma^$3p,domain=asics.co.kr
 @@||cre.ma^$3p
-
+!
+!
+! GeekNews (https://news.hada.io)
+! - 기타
+/advertising.js
 
 
 
@@ -7949,6 +7958,10 @@ ssadafile.com##[class*="wrap"]:has([id*="banner" i])
 *ad.js?
 ! - 예외
 @@||*load.js?
+! - - - www.heraldmuse.com
+@@||*sscad.js?
+! - - - https://www53.eyny.com/data/cache/forum_viewthread.js?94d
+@@||*read.js?
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 !
