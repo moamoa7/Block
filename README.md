@@ -34,15 +34,6 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br/>
 
-※ DangerAD.txt
-<br/>
-
-개인 Filter List (범용 규칙으로 페이지 일부가 안보일 수 있음) (일부 타 규칙 인용)
-```
-https://raw.githubusercontent.com/moamoa7/adblock/main/DangerAD.txt
-```
-<br/>
-
 ※ GoodDNS.txt
 <br/>
 
