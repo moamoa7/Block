@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260826
+! Version: 20260827
 !
 !
 !
@@ -67,6 +67,11 @@
 
 ! ───── WebSocket 연결은 removeparam 예외 ─────
 @@|wss://$removeparam
+
+
+! 임베드된 유튜브 동영상이 정상적으로 재생되도록 하기 위한 예외 규칙
+@@||youtube.com/embed/*$jsinject,elemhide
+@@||youtube-nocookie.com/embed/*$jsinject,elemhide
 
 
 
@@ -523,6 +528,11 @@ snxbest.naver.com##[class*="card"]:has([class*="advert"])
 shoppinglive.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
+! 네이버 지도 (https://map.naver.com/)
+! - 광고
+map.naver.com##[class*="promotion"]
+!
+!
 ! 네이버 블로그 (https://section.blog.naver.com/)
 ! - 배너 빈공간
 ! - - - https://chzzk.naver.com/ - 영상 내 보이지 않는 부분 (무엇인지는 모름)
@@ -594,6 +604,8 @@ sooplive.com##.message_player_wrap
 !##.chat_banner
 ! - 채팅 상단 배너
 !sooplive.com##.on.chat_banner2
+! - 플레이어 왼쪽 상단 유료 광고 포함 메시지
+!sooplive.com###paidPromotionNoticeBox
 ! - 로딩바
 !!sooplive.com##.loading
 ! - 예외 - https://javgiga.com/ - 이미지 사라짐
@@ -736,8 +748,13 @@ chzzk.naver.com##+js(json-prune, *.dab)
 ! 3) 배너 display:none 감지 회피
 !chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
 ! 4) 최후의 폴백 (위 전부 깨졌을 때 깜빡이긴 해도 닫아줌)
-!chzzk.naver.com##div[class*="popup_layer"]:has-text(/광고 차단|확장 프로그램/)
+!chzzk.naver.com##div[class*="dimmed_transparent"]:has-text(/광고 차단|확장 프로그램/)
 !chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+! ====================
+!== 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
+chzzk.naver.com#%#//scriptlet('trusted-replace-outbound-text', 'TextDecoder.prototype.decode', '/"skipPreRollAd":false/g', '"skipPreRollAd":true')
+chzzk.naver.com#@%#//scriptlet('prevent-xhr', '/(veta.naver.com\/vas|veta.naver.com\/gfp|veta.naver.com\/call)/ method:OPTIONS')
+chzzk.naver.com#@%#//scriptlet('trusted-suppress-native-method', 'Function.prototype.call', ' |"setRequestHeader"', 'abort')
 ! ====================
 ! - 왼쪽 배너 (치즈 무료 수확)
 !chzzk.naver.com##[class*="banner" i]
@@ -771,6 +788,10 @@ chzzk.naver.com##[class*="big_padding"]
 !chzzk.naver.com##[class^="skin"]
 ! - 영상 플레이어내 드롭스 버튼 없애기
 chzzk.naver.com##.player_header
+! - 광고 차단 관련
+chzzk.naver.com#%#//scriptlet('trusted-json-set-xhr-response', 'content.playerAdDisplayResponse', 'json:{"preRoll":false,"midRoll":false}', 'content.playerAdDisplayResponse.preRoll', '/ad/display-status')
+! - 기타 (EasyPrivacy)
+||ssl.pstatic.net/static/coreplayer/mclog/media-capable-log.js$domain=naver.com
 !
 !
 ! 트위치 (https://www.twitch.tv/)
@@ -2309,9 +2330,9 @@ enter.etoday.co.kr##[style*="height:200px"]
 ! - 카테고리별 추천 광고상품
 !coupang.com###categoryBestUnit
 ! - 지금 이 상품이 필요하신가요
-!coupang.com##[class*="personalized-widget" i]
+coupang.com##[class*="personalized-widget" i]
 ! - 좋아할만한 브랜드 상품
-!##[class*="trending_ads" i]
+coupang.com##[class*="trending_ads" i]
 !coupang.com##.trending_ads
 ! - 쿠팡 검색 결과 및 메인 광고 상품 제거
 ! - - - 같이 보면 좋은 상품
@@ -5259,12 +5280,13 @@ javlemon.com##style\=\"text-align\:center\;\"
 /avmiss|missav/##[class*="grid"][class*="mx-auto"]
 !
 !
-! MissAV (https://www.missav123.art/)
+! MissAV (https://www.missav123.art/) -> (https://www.missav888.net/)
 ! - - - https://missav.media/
 ! 앱 설치하라는 하단 안내 문구 (모바일)
 !##div[style]:has-text(/App|APP/)
 !##div[id][style]:has-text(/App|APP/)
-##div[style^="position: fixed; bottom:"]
+!##div[style^="position: fixed; bottom:"]
+##div[style^="position: fixed"]
 !
 !
 ! MISSAV (https://missav.app/)
@@ -5327,7 +5349,8 @@ popjav.in##div.pop--excl
 !hohoj.tv##iframe[src="javascript:window.location.replace(this.frameElement.dataset.link)"]
 ! - 영상과 리스트 사이 배너
 !##[class*="pc-ads" i]
-##.pc-ads
+! - - - https://www.javrate.com/
+!##.pc-ads
 !
 !
 ! JAVLibrary (https://www.javlibrary.com/)
@@ -7372,8 +7395,10 @@ patreon.com##body:style(overflow: auto !important;)
 !
 !
 ! 18AV (https://18av.mm-cg.com/)
+! -메인화면 가운대 이미지 배너
+mm-cg.com##.ut1_img_content_js
 ! - 메인화면 하단부근 빈공간
-18av.mm-cg.com##[class="ut1_img_ex"]
+mm-cg.com##[class="ut1_img_ex"]
 ! - 미리보기 영상 안나오는 문제 해결
 !18av.mm-cg.com#@#[target] video
 !
@@ -7749,6 +7774,21 @@ ssadafile.com##[id*="box"]:has([id*="banner" i])
 ##[href*="event/?"] img
 ! - 오른쪽 배너 공간
 ssadafile.com##[class*="wrap"]:has([id*="banner" i])
+!
+!
+! https://www.pornjav.icu/
+! - 빈 공간
+##div[data-item-id="spot"]
+!
+!
+! 빠링 (https://fastlinkc1.com/)
+! - 배너 공간
+/fastlinkc/##[class*="bn-"]:has([target*="blank"])
+!
+!
+! Porntasia (https://porntasia.app/)
+! - 하단 따라다니는 배너
+porntasia.app##[class*="bottom" i]:has([target*="blank"][style*="background-image"])
 ! 
 !
 !
@@ -7948,6 +7988,8 @@ ssadafile.com##[class*="wrap"]:has([id*="banner" i])
 !
 !
 ! https://javgiga.com/
+! https://www.javrate.com/
+! - - - https://www.javrate.com/build/assets/ads-ClWB59_P.js
 */ads-*
 @@*/ads-*$css
 !
@@ -8244,7 +8286,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - https://www.thisav.mom/
 ! - https://www.thisav.sbs/
 ! - https://www.hanime123.mom
-! - https://www.missav123.art/ - 제외 (프레임 발생 안함) - https://missav.to/ 영상 재생 안됨 (/missav/ 삭제)
+! - https://www.missav888.net/ - 제외 (프레임 발생 안함) - https://missav.to/ 영상 재생 안됨 (/missav/ 삭제)
 ! - upnstreamlive.shop	(조개무비 영상 재생시 필요한 사이트)
 ! https://leakedzone.com/ - 모바일에서 iframe 보임 (그냥 ##iframd 하면 공간이 남아서 has 사용하면 PC에서 본문 다 날라감) - 베이스필터 대신 easylist를 사용할 경우 필요
 !/leakedzone|upnstreamlive|hanime|thisav/##iframe[src]:not([src*="embed" i])
@@ -8808,7 +8850,7 @@ philgo.com##[alt*="배너"]
 ! 조개파티 (https://jogaeparty184.com/)
 ! https://www.thisav.sbs/
 ! https://www.hanime123.mom
-! https://www.missav123.art/
+! https://www.missav888.net/
 ! 19가이드닷컴 (https://www.19guide03.com/)
 ! 나미툰 하단 배너 (https://namee104.asia/)
 ! 무료툰 하단 배너 (https://foc116.asia/)
