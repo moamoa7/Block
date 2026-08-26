@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-08-26 12:20:50 UTC
+! Generated: 2026-08-26 13:29:13 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 373,814
+! Block Rules: 373,845
 !
 ||0--0.info^
 ||0--4.com^
@@ -15022,6 +15022,7 @@
 ||abe-beantragen-online.de^
 ||abe-beantragen.de^
 ||abeautybuffet.com^
+||abedfufmbzbyp.space^
 ||abedhoneycastle.com^
 ||abedwest.com^
 ||abedwithdrawalautograph.com^
@@ -46834,6 +46835,7 @@
 ||aspffcuvrdann.website^
 ||aspfxfnvoj.com^
 ||asphexveult.site^
+||aspicchurrip.shop^
 ||aspignitean.com^
 ||aspiranoma.pro^
 ||aspirationlocksmithsupplant.com^
@@ -47599,6 +47601,7 @@
 ||athletic-substance.com^
 ||athletpharma.com^
 ||athlg.com^
+||athodydcentro.com^
 ||athome.com.data.adobedc.net^
 ||athome.demdex.net^
 ||athortamoved.cfd^
@@ -53405,6 +53408,7 @@
 ||beautifulrope.com^
 ||beautifyshop.de^
 ||beautinow.global^
+||beautknives.com^
 ||beautorae.shop^
 ||beauty-begins-here.com^
 ||beauty-box.pxf.io^
@@ -54299,6 +54303,7 @@
 ||bertsysxmykqm.online^
 ||bertypol.com^
 ||beruhmteskajak.com^
+||berunhowbeit.cfd^
 ||berush.com^
 ||bervonik-ai.com^
 ||bervonik-pl.com^
@@ -64750,6 +64755,7 @@
 ||can-i-trust-you.ojrq.net^
 ||can.cleaningpros.ca^
 ||can2025.click^
+||canaanlungee.com^
 ||canabastrobic.cyou^
 ||canad.best^
 ||canada-pharmacy-24h.com^
@@ -72825,6 +72831,7 @@
 ||clientmetrics-augmentum.kik.com^
 ||clientmetrics-pa.googleapis.com^
 ||clientmetrics.kik.com^
+||clientpooches.cfd^
 ||clients-access.com^
 ||clients-share.com^
 ||clients.aon.com^
@@ -95599,6 +95606,7 @@
 ||devotedcoexistsuspected.com^
 ||devoteddorothybeastly.com^
 ||devoteegibberishsinister.com^
+||devotemucatefordull.cyou^
 ||devoteonese.com^
 ||devotionalclicks.amazingfacts.org^
 ||devotioncocktailbetraying.com^
@@ -128812,6 +128820,7 @@
 ||giddycoat.com^
 ||giddydam.com^
 ||giddypipe.com^
+||giddyplastic.pro^
 ||giddyrabiddaylight.com^
 ||gidonline.net^
 ||gidonline.one^
@@ -128891,6 +128900,7 @@
 ||gigazu.net^
 ||gigcount.com^
 ||gigeo.eniva.com^
+||gigeucyldxrmp.space^
 ||giggedguddle.com^
 ||gigglegrowlworrisome.com^
 ||gigglemagnetismunaired.com^
@@ -159587,6 +159597,7 @@
 ||jbbydz.icu^
 ||jbbyyryolmlvq.top^
 ||jbbyyryolqvvb.top^
+||jbbyyryywmkkb.top^
 ||jbcam.cz^
 ||jbcapitals.com^
 ||jbcapsforum.tk^
@@ -167056,6 +167067,7 @@
 ||knucklegourmet.com^
 ||knucklemonthsedifice.com^
 ||knuddelkind.com^
+||knueqofkktzpk.site^
 ||knusperwelt.com^
 ||knutecauma.cyou^
 ||knutenegros.pro^
@@ -167924,6 +167936,7 @@
 ||krovatka.su^
 ||krovdan.shop^
 ||krownlinks.com^
+||krp6o3j47gougm.rest^
 ||krpqxkttewzdu.online^
 ||krpzrjejyniif.online^
 ||krqkk.fllirtconnects.com^
@@ -169088,6 +169101,7 @@
 ||kzx6y15zwq8lcli3.rest^
 ||kzxk7xixz.com^
 ||kzxwkvkvdyzus.online^
+||kzyb5utt29fpgycpk29j5c791oyb65yoxw.cfd^
 ||kzyljd.jakshoes.com^
 ||kzymlc.msccroisieres.fr^
 ||kzzuaq.liberotech.it^
@@ -186796,6 +186810,7 @@
 ||magstag.magnalia.com.br^
 ||magtorr.com^
 ||maguan.com.cn^
+||maguarienshawl.cfd^
 ||magulo.de^
 ||maguruphreuza.store^
 ||magyar-gyogyszertar.com^
@@ -201468,6 +201483,7 @@
 ||mfbkiztixbtdj.online^
 ||mfbmc.shopmilano.com^
 ||mfboutiquestore.tools^
+||mfbvstxfenjrh.site^
 ||mfcads.com^
 ||mfcewkrob.com^
 ||mfcmapi.com^
@@ -210108,6 +210124,7 @@
 ||name.ac^
 ||name.vg^
 ||nameads.com^
+||nameaphrabagwig.qpon^
 ||namecheap.pxf.io^
 ||nameguess.com^
 ||nameinternet.com^
@@ -226692,6 +226709,7 @@
 ||oxidilevel.site^
 ||oxidizegront.cyou^
 ||oxidy.com^
+||oxietdrlrhkkq.website^
 ||oxifwsabgd.nzz.ch^
 ||oxinahpvmdpmm.space^
 ||oxioracraft.site^
@@ -232364,6 +232382,7 @@
 ||picmega.com^
 ||picnewsss.com^
 ||picoidpayout.com^
+||picotahmijl.cfd^
 ||picotedunwarn.qpon^
 ||picplayers.com^
 ||picreel.com^
@@ -234623,6 +234642,7 @@
 ||planarian.dtesta.com^
 ||planarian.fatsackfails.com^
 ||planarian.reverberate.org^
+||planchlexeme.com^
 ||plandappsb.com^
 ||plane.cat^
 ||plane.thebiblechat.com^
@@ -244175,6 +244195,7 @@
 ||qfqbznmeuztgs.website^
 ||qfqgzbbjjutfs.site^
 ||qfqze.northshoes.co.uk^
+||qfruliwdmaas.com^
 ||qfs365.com^
 ||qfsn.ivebelting.com^
 ||qft.anni.si^
@@ -245041,6 +245062,7 @@
 ||qplywkhnlfyfy.online^
 ||qpmelqzaasl.com^
 ||qpnczch.biz^
+||qpnhvgowrlfox.online^
 ||qpnippagdkadi.online^
 ||qpnnnvtyysd.com^
 ||qpoe.com^
@@ -246177,6 +246199,7 @@
 ||quvzc.com^
 ||quwsabdw.com^
 ||quwtzyadstt.com^
+||quwvafjis.in^
 ||quxgijjahdogb.site^
 ||quxime.com^
 ||quxzryrnmaqlz.online^
@@ -252141,6 +252164,7 @@
 ||relict.media^
 ||relicwippen.com^
 ||relidelyrics.qpon^
+||reliedhounder.com^
 ||reliefcommunicatelabourer.com^
 ||reliefraindues.com^
 ||relieve.trywerelieve.com^
@@ -262522,6 +262546,7 @@
 ||sber.sell2dealer.com^
 ||sbermarketing.ru^
 ||sbesuycwcjc.xyz^
+||sbfalhfrcwptz.site^
 ||sbfrnq.naturalforme.fr^
 ||sbfsdvc.com^
 ||sbfw.work^
@@ -319685,6 +319710,7 @@
 ||tcpts.nutrafol.com^
 ||tcpuxxzgbth.com^
 ||tcq.mybluehost.me^
+||tcqbelfb.com^
 ||tcragarnh.com^
 ||tcreativeideasa.com^
 ||tcrhyl5m9tt5mpovjryn.he34rm8256g72prijmq.cfd^
@@ -356180,6 +356206,7 @@
 ||wlkkta.lifewarehouse.net^
 ||wlkojk.orange.ro^
 ||wlkzz.com^
+||wlleboaomjvvm.top^
 ||wllhjebhtcrjz.space^
 ||wllqfspzytqxw.space^
 ||wllvnzb.biz^
@@ -357694,6 +357721,7 @@
 ||ws3.smartp.com^
 ||ws38.watashinonegai.ru^
 ||ws4rfx8hjk.com^
+||ws9jdpz802.com^
 ||wsa1.byside.com^
 ||wsacjdg.cn^
 ||wsaovlmqyzglj.space^
@@ -365480,6 +365508,7 @@
 ||xrff-adguard.pro^
 ||xrfophbcrlrk.com^
 ||xrgedx.art^
+||xrggwzewhf.com^
 ||xrhgg.net^
 ||xrhrrk.steepandcheap.com^
 ||xriahrofno.com^
@@ -365549,6 +365578,7 @@
 ||xruit.com^
 ||xrujmo.wallpaper-it.com^
 ||xrujupffivxxb.space^
+||xrunfmohndiuj.website^
 ||xrunpelyxplatform.com^
 ||xruulc.some-place.co.kr^
 ||xruxhakrgu.com^
@@ -372426,6 +372456,7 @@
 ||zoaclachan.cyou^
 ||zoadovachounu.com^
 ||zoaeaeucrasy.qpon^
+||zoaeafogyishunl.cfd^
 ||zoaenkekd.com^
 ||zoaisgughwyvm.space^
 ||zoanoowhooky.net^
