@@ -1,15 +1,15 @@
 DNS Blocklist Build Report
-Generated: 2026-08-27 00:53:12 UTC
+Generated: 2026-08-27 10:40:16 UTC
 ============================================================
 
 [1] Reference Filters
-[Primary (AdRules DNS List)] 196,640 domains
-[Secondary (HaGeZi Pro)] 226,066 domains
+[Primary (AdRules DNS List)] 196,772 domains
+[Secondary (HaGeZi Pro)] 225,855 domains
 [Tertiary (1Hosts Lite)] 102,701 domains
-[Union] 374,398 domains
-  - Only in AdRules      : 113,747
-  - Only in HaGeZi Pro   : 126,908
-  - Only in 1Hosts Lite  : 31,598
+[Union] 374,101 domains
+  - Only in AdRules      : 113,636
+  - Only in HaGeZi Pro   : 126,479
+  - Only in 1Hosts Lite  : 31,623
   - In all three sources : 48,864
 
 [2] External Whitelist Sources
@@ -21,13 +21,13 @@ Generated: 2026-08-27 00:53:12 UTC
   - AdGuard HTTPS Firefox: 18 extracted
   - AdGuard HTTPS Windows: 7 extracted
   - AdGuard HTTPS Mac: 11 extracted
-  - HaGeZi DNS Pro: 1,605 extracted
+  - HaGeZi DNS Pro: 1,610 extracted
   - Discord Official Domains: 43 extracted
   - anudeepND Whitelist: 191 extracted
   - DandelionSprout AGH Whitelist: 285 extracted
-[External Whitelist Total] 6,810 domains
+[External Whitelist Total] 6,815 domains
 
-[Tracker Auto-Filter] Removed 206 trackers from external whitelist
+[Tracker Auto-Filter] Removed 207 trackers from external whitelist
   [Blacklist hits] 8 base domains:
     - amazonaws.com
     - apple.com
@@ -71,7 +71,7 @@ Generated: 2026-08-27 00:53:12 UTC
     - visualwebsiteoptimizer.com
     - xg4ken.com
     - zdbb.net
-  [Pattern hits] 165 domains (sample first 30):
+  [Pattern hits] 166 domains (sample first 30):
     - 2mdn.net
     - a1.adform.net
     - ad.admitad.com
@@ -81,6 +81,7 @@ Generated: 2026-08-27 00:53:12 UTC
     - admitad.com
     - adobedtm.com
     - adobetarget.data.adobedc.net
+    - adservice.google.ae
     - adservice.google.at
     - adservice.google.bg
     - adservice.google.ca
@@ -101,8 +102,7 @@ Generated: 2026-08-27 00:53:12 UTC
     - adservice.google.co.tz
     - adservice.google.co.ug
     - adservice.google.co.uk
-    - adservice.google.co.uz
-    ... and 135 more
+    ... and 136 more
 
 [3] Personal Blocklist
   - Personal Blocklist: 51 domains
@@ -113,8 +113,8 @@ Generated: 2026-08-27 00:53:12 UTC
 [Personal Whitelist Total] 13 domains
 
 [5] Apply Priority Rules
-  Step 1 (base - external whitelist): 374,008
-  Step 2 (+ personal block): 374,025  (forced added: 17)
-  Step 3 (- personal white): 374,025  (whitelist override: 0)
+  Step 1 (base - external whitelist): 373,711
+  Step 2 (+ personal block): 373,728  (forced added: 17)
+  Step 3 (- personal white): 373,728  (whitelist override: 0)
 
-[6] Final Whitelist: 6,611 domains
+[6] Final Whitelist: 6,615 domains
