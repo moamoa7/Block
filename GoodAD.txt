@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260827
+! Version: 20260828
 !
 !
 !
@@ -336,7 +336,7 @@ www.youtube.com#@#.ytd-yoodle-renderer
 ! https://adguard-dns.io/
 ! - 기타 (타 규칙에 애드가드 추가) 추가하지 않으면 대시보드 집입 안됨
 ! - - - /stats 규칙은 "차단 결과를 세는 일"이 아니라 "차단 내역을 외부로 보고하는 일"을 막는 규칙
-/stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~letterboxd.com|~marketplace.visualstudio.com|~openrouter.ai|~youtube.com|~adguard-dns.io
+/stats^$xhr,from=~githubunwrapped.com|~jsdelivr.com|~youtube.com|~marketplace.visualstudio.com|~letterboxd.com|~openrouter.ai|~adguard-dns.io
 !
 !
 ! 덕덕고 (https://duckduckgo.com/)
@@ -472,8 +472,8 @@ m.naver.com##.comp_home_feed
 !
 !
 ! 네이버 블로그 (blog.naver.com)
-! - 기타
-!||ssl.pstatic.net/t.static.blog/nmobile/versioning/ntmbalog-*.js
+! - 기타 (EasyPrivacy)
+||ntm.pstatic.net/scripts/ntm_$domain=naver.com
 !
 !
 ! 파파고번역 (https://papago.naver.com/)
@@ -548,6 +548,8 @@ map.naver.com##[class*="promotion"]
 !
 ! 네이버 부동산 (https://fin.land.naver.com/)
 ! - 기타 (EasyPrivacy)
+! - - - 11번가
+! - - - - https://search-sentry-admin.11stcorp.com/api/9/envelope/?sentry_version=7&sentry_key=521bfbafac263e9f9785dac5c28511d7&sentry_client=sentry.javascript.react%2F10.48.0
 /?sentry_version=
 ! - 기타
 bannerid=
@@ -664,7 +666,7 @@ sooplive.com##.adballoon_icon
 !##[class*="product_banner" i]
 !##[id="sub-ceremony-banner"] - ##[id*="banner" i] 로 대체
 ! - 스토리 가이드 - 이거 하면 영상 안나옴
-!sooplive.com##.story_player_guide
+!vod.sooplive.com##.story_player_guide
 ! - 광고 차단 방어(Anti-Adblock)'를 무력화하기 위한 우회 기술
 ! - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 !sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
@@ -748,16 +750,11 @@ chzzk.naver.com##+js(json-prune, *.dab)
 ! 3) 배너 display:none 감지 회피
 !chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
 ! 4) 최후의 폴백 (위 전부 깨졌을 때 깜빡이긴 해도 닫아줌)
-!chzzk.naver.com##div[class*="dimmed_transparent"]:has-text(/광고 차단|확장 프로그램/)
+chzzk.naver.com##div[class*="dimmed_transparent"]:has-text(/광고 차단|확장 프로그램/)
 !chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
-!== 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
-chzzk.naver.com#%#//scriptlet('trusted-replace-outbound-text', 'TextDecoder.prototype.decode', '/"skipPreRollAd":false/g', '"skipPreRollAd":true')
-chzzk.naver.com#@%#//scriptlet('prevent-xhr', '/(veta.naver.com\/vas|veta.naver.com\/gfp|veta.naver.com\/call)/ method:OPTIONS')
-chzzk.naver.com#@%#//scriptlet('trusted-suppress-native-method', 'Function.prototype.call', ' |"setRequestHeader"', 'abort')
-! ====================
 ! - 왼쪽 배너 (치즈 무료 수확)
-!chzzk.naver.com##[class*="banner" i]
+chzzk.naver.com##[class*="banner" i]
 ! 놓치면 후회할 무료 치즈 툴팁
 ! - - - 치지직 아이디 / 팔로우 사라짐 방지
 chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
@@ -788,8 +785,8 @@ chzzk.naver.com##[class*="big_padding"]
 !chzzk.naver.com##[class^="skin"]
 ! - 영상 플레이어내 드롭스 버튼 없애기
 chzzk.naver.com##.player_header
-! - 광고 차단 관련
-chzzk.naver.com#%#//scriptlet('trusted-json-set-xhr-response', 'content.playerAdDisplayResponse', 'json:{"preRoll":false,"midRoll":false}', 'content.playerAdDisplayResponse.preRoll', '/ad/display-status')
+! - 영상 하단 치트키 안내 팝업
+chzzk.naver.com##[role="alert"]
 ! - 기타 (EasyPrivacy)
 ||ssl.pstatic.net/static/coreplayer/mclog/media-capable-log.js$domain=naver.com
 !
@@ -3657,6 +3654,18 @@ lolchess.gg##body:style(pointer-events: auto !important; overflow: auto !importa
 ! GeekNews (https://news.hada.io)
 ! - 기타
 /advertising.js
+!
+!
+! LG생활건강 (https://lghnhhelp.zendesk.com/)
+! - 기타 (EasyPrivacy)
+/hc/activity
+!
+!
+! 롯데마트 (https://lottemartzetta.com/)
+! - 함께 구매해보세요
+!lottemartzetta.com##[data-test="related-products-carousel"]
+! - 기타 (EasyPrivacy)
+||awswaf.com^*/report
 
 
 
@@ -3770,7 +3779,7 @@ fingerprint.
 ##[class*="-layers"]
 !
 !
-! 야동코리아 (https://yadongkorea.store) (https://yadongkorea02.tv) - 기존 야동코리아와 동일한건가? / 티비위키 메뉴에 신설
+! 야동코리아 (https://yadongkorea.store) (https://yadongkorea03.com) - 기존 야동코리아와 동일한건가? / 티비위키 메뉴에 신설
 ! - 팝업
 /yadongkorea/##.yako-telegram-modal
 !
@@ -8092,6 +8101,7 @@ porntasia.app##[class*="bottom" i]:has([target*="blank"][style*="background-imag
 ##[data-testid*="advert" i]:not(body):not(html):not(main)
 !
 !
+! https://m.blog.naver.com/ - 광고(광고/AD)글
 ##[class*="advert" i]:not(body):not(html):not(main)
 !
 ! - 위의 것이 문제가 많이 발생하면 아래것으로 세분해하자
@@ -8918,6 +8928,7 @@ mule.co.kr##[target] img
 !
 !
 !
+! https://m.blog.naver.com/ - 광고 배너
 ! 토렌트쓱 (https://ssg1.torrentssg9.com/)
 ! 얼리어답터뉴스 (https://eanews.kr/)
 ! - - - 유튜브 / 숲/ 치지직 /왓챠피디아 (https://pedia.watcha.com/) 예외
@@ -9234,6 +9245,11 @@ cineaste.co.kr#@#.h30
 ! DVDPrime (https://dvdprime.com/)
 ! 침하하 (https://chimhaha.net/)
 ##[id^="slot" i]
+!
+!
+!
+! 야동코리아 (https://yadongkorea03.com/) - 영상 하단 배너 
+##a[rel*="sponsored"][onclick]
 
 
 
