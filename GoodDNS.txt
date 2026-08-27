@@ -52,7 +52,7 @@
 !
 ! 치지직 로딩/채팅 오작동 방지 (AdGuard 모바일 광고필터·List-KR의 veta.naver.com 차단 무력화)
 ! 참고: gall.dcinside.com/adguard/10886, /10939
-@@||veta.naver.com^
+!@@||veta.naver.com^
 !
 ! ── badfilter (다른 리스트의 특정 규칙 무력화) ──
 ||adballoon.sooplive.com^$badfilter
