@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260828
+! Version: 20260829
 !
 !
 !
@@ -59,6 +59,8 @@
 @@||ac.kr^$generichide,image,xhr,script
 @@||hs.kr^$generichide,image,xhr,script
 @@||ms.kr^$generichide,image,xhr,script
+@@||org^$generichide,image,xhr,script
+
 
 
 ! - 타규칙 오탐방지
@@ -1483,6 +1485,7 @@ instiz.net##div:has([id*="powerlink" i])
 !namu.wiki##div:has(> form input[type="search"]) > div:has(svg)
 ! - 검색 후 메인 상단 빈공간
 !namu.wiki##div:has(> div > div[id^="_a"])
+namu.wiki##[class="cSihKLZ1"]
 ! - 검색 후 나오는 상단 2군대 배너 공간 (모바일) - 이걸로 모바일 빈공간은 다 해결됨
 !namu.wiki##div:has(> ins.adsbygoogle)
 ! - 검색 후 나오는 메인 중간 배너 공간들 (모바일)
@@ -2335,6 +2338,8 @@ coupang.com##[class*="trending_ads" i]
 ! - 쿠팡 검색 결과 및 메인 광고 상품 제거
 ! - - - 같이 보면 좋은 상품
 !coupang.com##[class*="bottom-carousel" i]
+! 장바구니 하단 같이 보면 좋은 상품
+coupang.com##[class*="recommendation-widget"]
 ! - - - 광고라고 나오는 제품 안보이게 하기
 coupang.com##li:has-text(광고)
 ! - 하단 안내 문구 (앱으로 보기)
@@ -3666,6 +3671,11 @@ lolchess.gg##body:style(pointer-events: auto !important; overflow: auto !importa
 !lottemartzetta.com##[data-test="related-products-carousel"]
 ! - 기타 (EasyPrivacy)
 ||awswaf.com^*/report
+!
+!
+! 한국정보기술진흥원 (https://kitpa.org/)
+! - 뉴스 기사 상단 공백
+kitpa.org##[class*="h-70"]:has([data-ad-slot])
 
 
 
@@ -3759,8 +3769,9 @@ lolchess.gg##body:style(pointer-events: auto !important; overflow: auto !importa
 ! -P2P Media Loader라는 라이브러리의 핵심(core) 스크립트입니다. jsDelivr라는 공개 CDN에서 배포되는 오픈소스 npm 패키지
 ! -영상 스트리밍을 P2P(피어 투 피어) 방식으로 분산시키는 라이브러리
 ! -P2P Media Loader를 쓰면, 같은 영상을 보고 있는 다른 시청자들끼리 영상 조각(segment)을 서로 주고받게 만듭니다. 토렌트와 비슷한 원리를 영상 스트리밍에 적용
-! - - -https://cdn.jsdelivr.net/npm/p2p-media-loader-hlsjs@3.0.1/dist/p2p-media-loader-hlsjs.es.min.js
-! - - -https://poni204.com/
+! - - - https://cdn.jsdelivr.net/npm/p2p-media-loader-core@3.0.1/dist/p2p-media-loader-core.es.min.js
+! - - - https://cdn.jsdelivr.net/npm/p2p-media-loader-hlsjs@3.0.1/dist/p2p-media-loader-hlsjs.es.min.js
+! - - - https://poni204.com/
 ! - - - https://cdn.jsdelivr.net/npm/p2p-media-loader-core@latest/build/p2p-media-loader-core.min.js
 ! - - - https://cdn.jsdelivr.net/npm/p2p-media-loader-hlsjs@latest/build/p2p-media-loader-hlsjs.min.js
 ! - - - 애니라이프
@@ -3770,7 +3781,7 @@ lolchess.gg##body:style(pointer-events: auto !important; overflow: auto !importa
 ! - - - https://embed.streamxx.net/player/js/p2p-media-loader-hlsjs.min.js
 !/p2p - 스크립트 실행 전제로 해지 / 풀어도 ||tracker.$websocket 규칙이 작동
 ! - 핑거프린팅 스크립트가 수집한 데이터를 전송하는 바로 그 서버 측 엔드포인트 차단
-! - -  https://tvwiki35.net/bbs/ajax.fingerprint.php
+! - - - https://w2.apiapi199.com/js/fingerprint.js?ver=1783568406
 fingerprint.
 @@fingerprint.$image
 @@fingerprint.$domain=github.com|fingerprint.com
@@ -4566,7 +4577,9 @@ javgg.*##.home_iframead
 ! - 차단방지
 !jav-vids.xyz,javggvideo.xyz,javstreamhg.xyz#@#[class*="floating" i]
 ! - 기타 (EasyPrivacy)
+! - - - https://javgg.net/wp-content/plugins/post-views-counter-pro/js/crawler-detect.js
 /post-views-counter-pro/js/crawler-detect.js
+! - - - https://javgg.net/wp-content/plugins/post-views-counter-pro/js/frontend.js
 /post-views-counter-pro/js/frontend.js
 !
 !
