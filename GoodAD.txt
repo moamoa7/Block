@@ -756,8 +756,8 @@ chzzk.naver.com##+js(json-prune, *.dab)
 !chzzk.naver.com##+js(no-xhr-if, /gfp/)
 ! 3) 배너 display:none 감지 회피
 !chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
-! 4) 최후의 폴백 (위 전부 깨졌을 때 깜빡이긴 해도 닫아줌)
-chzzk.naver.com##div[class*="dimmed_transparent"]:has-text(/광고 차단|확장 프로그램/)
+! 4) 최후의 폴백
+chzzk.naver.com##div[role*="alertdialog"]
 chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
 ! - 왼쪽 배너 (치즈 무료 수확)
