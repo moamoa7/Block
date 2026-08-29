@@ -5314,6 +5314,7 @@ javlemon.com##style\=\"text-align\:center\;\"
 ! 앱 설치하라는 하단 안내 문구 (모바일)
 !##div[style]:has-text(/App|APP/)
 !##div[id][style]:has-text(/App|APP/)
+! - - - https://katfile.biz/ 하단 세일 팝업
 ##div[style^="position: fixed; bottom:"]
 !
 !
@@ -7780,11 +7781,15 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 !
 !
 ! https://katfile.biz/
-@@||katfile.biz^$generichide
+!@@||katfile.biz^$generichide
 ! - 뿌옇게 되는거 해결
-katfile.biz##[id*="ad-overlay"]
-! - 오른쪽 하단 sale 팝업
-katfile.biz##a:has(> div)
+!katfile.biz##[id*="ad-overlay"]
+! - Premium
+##li>[href*="payments"]
+! - 🚀 Upgrade to Premium
+katfile.biz###delay-box
+! - 오른쪽 하단 sale 팝업 - ##div[style^="position: fixed; bottom:"] 로 대체
+!katfile.biz###container > div > div
 !
 !
 ! SLBK (https://skbj.tv/) - 프리미엄 필요 - 굳이 필요한가.. 유료서비스인대 (보류)
