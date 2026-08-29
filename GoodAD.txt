@@ -801,7 +801,7 @@ chzzk.naver.com##[role="alert"]
 ! 트위치 (https://www.twitch.tv/)
 !@@||twitch.tv^$generichide
 ! - 상단 안내 문구
-www.twitch.tv##.kfZRQZ.Layout-sc-1xcs6mc-0
+www.twitch.tv##[class="Layout-sc-1xcs6mc-0 jrblAm"]
 ! - 하단 회원가입 안내 문구
 www.twitch.tv###twilight-sticky-footer-root
 ! - 콤보 안내 문구
