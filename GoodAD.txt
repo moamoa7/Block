@@ -42,7 +42,6 @@
 ! ═══════════════════════════════════════════
 ! 토큰/세션 보호 예외 (오작동 방지, 필수)
 ! ═══════════════════════════════════════════
-@@|wss://$removeparam
 @@/^https?:\/\/([a-z0-9-]+\.)*?(github\.com|githubusercontent\.com|gitlab\.com|cloudflare\.com)/$removeparam
 !@@/^https?:\/\/(docs|accounts|mail|drive|calendar|photos|maps)\.google(\.[a-z]{2,}){1,}/$removeparam
 !@@/^https?:\/\/([a-z0-9-]+\.)*?google(\.[a-z]{2,}){1,}\/(complete\/search|setprefs|searchbyimage)/$removeparam
@@ -67,7 +66,8 @@
 
 
 ! ───── WebSocket 연결은 removeparam 예외 ─────
-@@|wss://$removeparam
+! - - - 애드가드에서만 작동함
+!@@|wss://$removeparam
 
 
 ! 임베드된 유튜브 동영상이 정상적으로 재생되도록 하기 위한 예외 규칙
@@ -310,10 +310,10 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !||facebook.com/ajax/qm/
 !||com/ads
 ||instagram.*.fna.fbcdn.net^$removeparam=ccb,domain=~instagram.com
-||cdninstagram.com^$removeparam=efg
-||cdninstagram.com^$removeparam=ccb
-||cdninstagram.com^$removeparam=_nc_sid
-$removeparam=_nc_cat,domain=~instagram.com
+!||cdninstagram.com^$removeparam=efg
+!||cdninstagram.com^$removeparam=ccb
+!||cdninstagram.com^$removeparam=_nc_sid
+!$removeparam=_nc_cat,domain=~instagram.com
 
 !
 !
@@ -1116,6 +1116,8 @@ etoland.co.kr##.fixed-bottom
 !toland.co.kr##body *[class*="list"]:has-text(/내꿈꾸면악몽|난짜리|호날두우우킴|Brrrrr|캔커피/)
 ! - - - 광고 글 - List-KR에서 처리하므로 주석 처리하엿으나 li로 묶지 않아서 빈칸 발생 확인하여 재등록
 !etoland.co.kr##li:has([data-inouts-click="true"])
+! - ([data-inouts-click="true"])로 사라진 왼쪽 메뉴중 일부 항목이 안사라짐 해결
+etoland.co.kr##[style*="grid-column"]:has([target*=blank])
 ! - - - 히트 게시판에서 핫딜 없애기
 etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
 ! =========================
