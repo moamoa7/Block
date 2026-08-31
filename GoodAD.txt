@@ -5853,7 +5853,7 @@ shopping.naver.com#@#div[class*="border"]:has(> [target] img)
 ![$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(3)
 ! - 이벤트 없애기
 ![$domain=/^yaburi\d+.com/]##div.hover\:bg-main-red.group.font-bold.p-3.relative:nth-of-type(8)
-##[target*="blank"]:has-text(이벤트)
+!/yaburi/##[target*="blank"]:has-text(이벤트)
 ! - 왼쪽 업소 정보 배너 없애기
 ![$domain=/^yaburi\d+.com/]##.sm\:block.sm\:w-full.hidden > .w-full.my-4.p-1
 ! - 하단 이벤트 바로가기 클릭 없애기
@@ -7876,6 +7876,8 @@ porntasia.app##[class*="bottom" i]:has([target*="blank"][style*="background-imag
 ||ad.*
 !
 !
+! 
+trand.co.kr - https://ads-partners.coupang.com/g.js
 ||ads-*
 !
 !
