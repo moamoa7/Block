@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260830
+! Version: 20260831
 !
 !
 !
@@ -4805,12 +4805,6 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !||waust.at^
 ! - 영상 차단 해제 (List-KR)
 @@||hcdn1.maxsocdn.net^$domain=sogirl.so
-! - 기타
-! - - - https://kr88.sogirl.so/wp-content/cache/min/1/s.js?ver=1785128807
-! - https://bunkr.cr/
-! - - - https://northstar.cr/js/s.js
-/s.js*
-!/js/jads.js?
 ! - - - https://kr88.sogirl.so/wp-content/cache/min/1/wp-content/plugins/adrotate-pro/library/jquery.groups.js?ver=1785128807
 /adrotate-
 !|metrics-bunny.net^
@@ -9306,6 +9300,17 @@ cineaste.co.kr#@#.h30
 !
 ! 야동코리아 (https://yadongkorea03.com/) - 영상 하단 배너 
 ##a[rel*="sponsored"][onclick]
+!
+!
+!
+! - 사용자의 이용 통계(어떤 버튼을 클릭했는지, 체류 시간, 시청 패턴 등)를 수집하고 분석하는 트래킹(추적) 및 텔레메트리
+! 숲 - https://static.sooplive.com/asset/service/common/common_analysis.js  / https://analysis.sooplive.com/_au.js (analysis.sooplive.com - dns에서 이미 차단 중)
+analysis.
+!
+!
+!
+! 광고 차단 프로그램을 켜고 있는지 탐지(Anti-Adblock)하기 위해 호출하는걸 차단 (사용자의 광고 차단기 사용 여부를 추적하고 수집하는 것을 차단)
+szCheckType=adblock
 
 
 
