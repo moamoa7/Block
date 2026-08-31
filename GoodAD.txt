@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260831
+! Version: 20260901
 !
 !
 !
@@ -328,6 +328,7 @@ $removeparam=_nc_cat,domain=~instagram.com
 !
 !
 ! GitHub (https://github.com/)
+!
 !
 !
 ! github.io 문제 해결 (깜빡임)
@@ -765,6 +766,8 @@ chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !imp
 ! ====================
 ! - 왼쪽 배너 (치즈 무료 수확)
 chzzk.naver.com##[class*="banner" i]
+! - 배너? - id="live_end_banner"
+chzzk.naver.com##[id*="banner"]
 ! 놓치면 후회할 무료 치즈 툴팁
 ! - - - 치지직 아이디 / 팔로우 사라짐 방지
 chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
@@ -4640,6 +4643,9 @@ javgg.*##.home_iframead
 ! - 기타
 ! - - - https://1note.online/jsad/8a0e1141fd37fa5b98d5bb769ba1a7cc.js
 */jsad/*
+! - 기타
+! - - - https://composedmom.com/bYXGV.seddG/lq0oY/W/cW/Oe/mc9Gu/ZaUclOkMPqTsc/yWNyDVIj1dMmjqkktSN-zeIT0pMxj/UkzHM/wu
+.com/b*X*.*/*O*/*O*/$third-party,~image,~media,~stylesheet
 !
 !
 ! https://javhd.today/
@@ -7771,6 +7777,8 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 ! - - - - https://earnvidjav.online/ad?type=6616245113
 ! - - - https://sexkbj.com/
 ! - - - - - https://sexkbj.top/ad?type=6116579429
+! - - - https://javgiga.com/
+! - - - - https://morencius.com/ad?type=409905946355
 /ad?type=
 !
 !
@@ -8048,8 +8056,9 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !*ad.js
 *ad.js?
 ! - 예외
+! - - - https://supjav.com/wp-content/themes/supjav2/static/js/pcmload.js?2.54.13
 @@||*load.js?
-! - - - www.heraldmuse.com
+! - - - https://static.heraldcorp.com/js/lib/sscad.js?v=202608130914
 @@||*sscad.js?
 ! - - - https://www53.eyny.com/data/cache/forum_viewthread.js?94d
 @@||*read.js?
@@ -9070,10 +9079,13 @@ fd2ppv.cc#@#[id*="popup" i]:not(body):not(html):not(main)
 !
 ##[href*="/ad/" i]
 ! - 예외 - https://www.ad.co.kr/ - 사라지면 안되는 링크 사라짐
-ad.co.kr#@#[href*="/ad/" i]
+! - 예외 - https://fkhb90.github.io
+fkhb90.github.io,ad.co.kr#@#[href*="/ad/" i]
 !
 !
 ##[href*="/ads/" i]
+! - 예외 - https://fkhb90.github.io
+fkhb90.github.io#@#[href*="/ads/" i]
 !
 !
 !  개별 작업하는걸로
