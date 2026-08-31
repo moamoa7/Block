@@ -757,7 +757,10 @@ chzzk.naver.com##+js(json-prune, *.dab)
 ! 3) 배너 display:none 감지 회피
 !chzzk.naver.com##+js(spoof-css, [class*="bann"], display, block)
 ! 4) 최후의 폴백
-chzzk.naver.com##div[role*="alertdialog"]
+! - - - 로그인 팝업 및 후원하기 클릭시 나오는 팝업까지 차단
+!chzzk.naver.com##div[role*="alertdialog"]
+! - - - 위 전부 깨졌을 때 깜빡이긴 해도 닫아줌
+chzzk.naver.com##div[class*="dimmed_transparent"]:has-text(/광고 차단|확장 프로그램/)
 chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! ====================
 ! - 왼쪽 배너 (치즈 무료 수확)
@@ -8065,6 +8068,8 @@ porntasia.app##[class*="bottom" i]:has([target*="blank"][style*="background-imag
 ! AV19 (https://av19t.com/) - https://work33882.com/js/loads.js?v=1668586751
 ! https://k01.aving.tv - https://k01.aving.tv/assets/src/modules/composer/uploads.js?v=18bcebda699
 @@||*loads.js?
+! https://kr88.sogirl.so/wp-content/cache/min/1/js/jads.js?ver=1787735299
+@@||*/jads.js?
 !
 !
 ! 야동존 (https://xxzone27.top/)
