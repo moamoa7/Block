@@ -3366,8 +3366,8 @@ mbong.kr##tr.list_top.custom_code > td
 ! https://www.tiendeo.co.kr/
 ! - 배너
 tiendeo.co.kr##[class*="justify"]:has([data-testid*="ad_"])
-! - 쿠키 배너 차단
-||cookielaw.org^$3p
+! - 쿠키 배너 차단 (Adguard Annoyances에 잇어 주석 처리)
+!||cookielaw.org^$3p
 ! - 기타
 !||adv.red^
 !
@@ -5698,7 +5698,7 @@ javmov.com##.spot
 ||mediadelivery.net/rum.js
 !
 !
-! 야동존 (https://t.me/s/ydzone19)  (https://ydzone.cc/)  (https://xxzone27.top/) - x.videist.com is blocked 영상 재생 안됨
+! 야동존 (https://t.me/s/ydzone19)  (https://ydzone.cc/)  (https://xxzone28.top/) - x.videist.com is blocked 영상 재생 안됨
 ! - 영상 광고 차단
 */data/file/admin_banner/*.mp4
 ! - 팝업 일부
@@ -8056,14 +8056,16 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
 ! 숲 - https://res.sooplive.com/data/ad/check_new_ad.js?refresh=1787443662503
 !*ad.js
-*ad.js?
+!*ad.js?
 ! - 예외
 ! - - - https://supjav.com/wp-content/themes/supjav2/static/js/pcmload.js?2.54.13
-@@||*load.js?
+!@@||*load.js?
 ! - - - https://static.heraldcorp.com/js/lib/sscad.js?v=202608130914
-@@||*sscad.js?
+!@@||*sscad.js?
 ! - - - https://www53.eyny.com/data/cache/forum_viewthread.js?94d
-@@||*read.js?
+!@@||*read.js?
+! - - - https://xingbokep.tv/wp-content/plugins/streamtube-core/public/assets/js/typeahead.js?ver=1731238870
+!@@||*head.js?
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 !
@@ -8076,21 +8078,21 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 뽐뿌 (https://www.ppomppu.co.kr/) - https://cdn2.ppomppu.co.kr/js/wtg_ads.js?v=2026081802
 ! https://kav.xxx/ - https://rutood.com/js/dnsads.js?ads=1&AdType=1&cbrandom=2&clicktag=http
 !*ads.js
-*ads.js?
+!*ads.js?
 ! - 예외
 ! AV19 (https://av19t.com/) - https://work33882.com/js/loads.js?v=1668586751
 ! https://k01.aving.tv - https://k01.aving.tv/assets/src/modules/composer/uploads.js?v=18bcebda699
-@@||*loads.js?
+!@@||*loads.js?
 ! https://kr88.sogirl.so/wp-content/cache/min/1/js/jads.js?ver=1787735299
-@@||*/jads.js?
+!@@||*/jads.js?
 !
 !
-! 야동존 (https://xxzone27.top/)
+! 야동존 (https://xxzone28.top/)
 !_ads.php? - _ads.로 대체
 !
 !
 ! https://www.tiktok.com/
-! 야동존 (https://xxzone27.top/)
+! 야동존 (https://xxzone28.top/) - https://xxzone28.top/assets/player/player_ads.php?v=1788230925
 *_ads.*
 !
 !
@@ -8098,22 +8100,22 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !*##.ad
 !
 ! https://cloudfam.io/
-*##.adbox
+!*##.adbox
 !
 !
 !
-*videoad*
+!*videoad*
 !
 !
 ! https://www3.javfun.me/
-*video-ad*
+!*video-ad*
 ! - - - 트위치 (https://www.twitch.tv/)
-@@*video-ad*$css,script
+!@@*video-ad*$css,script
 !
 !
-###videoad
-###video-ad
-##.video-ad
+!###videoad
+!###video-ad
+!##.video-ad
 !
 !
 !
@@ -8221,7 +8223,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 /popups/*
 !
 !
-! 아동존 (https://xxzone27.top/) - /assets/popup_banner.php?
+! 아동존 (https://xxzone28.top/) - /assets/popup_banner.php?
 *popup*.php
 !
 !
@@ -8377,9 +8379,9 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 탑걸 (https://kr46.topgirl.co/)
 ! https://javhub.net/
 ! https://xingbokep.tv/
-##[target] video
+!##[target] video
 ! - 예외 - https://search.naver.com/ - 클립 영상 등 사라짐
-naver.com#@#[target] video
+!naver.com#@#[target] video
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -8466,7 +8468,7 @@ naver.com#@#[target] video
 ! https://www.ubisoft.com/
 ! 오늘의 중계 (https://today-sports11.com/)
 ! https://diconofficial.com/
-! 야동존 (https://xxzone27.top/)
+! 야동존 (https://xxzone28.top/)
 ! 지니파일
 ! https://www.avdbs.com/
 ! 헬스조선
@@ -8515,6 +8517,7 @@ naver.com#@#[target] video
 ! 자딸파티 (https://jaddal40.top/)
 ! https://tcafe21.com/
 ! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
+! 야동존 (https://xxzone28.top) - https://xxzone28.top/assets/popup_banner.php?v=1788230797
 *banner*.php
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -8759,7 +8762,7 @@ getmodsapk.com#@#[alt*="banner" i]
 ! 픽팍
 ! 씨네스트
 ! 이토랜드
-! 야동존 (https://xxzone27.top/)
+! 야동존 (https://xxzone28.top/)
 ! https://jable.tv/
 ! https://www.lezhinsnack.com/
 !##[href*="banner" i]
