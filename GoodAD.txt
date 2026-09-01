@@ -4202,11 +4202,6 @@ joatoon-oa.com##.bg-opacity-50
 ! -팝업 차단으로 인한 뿌연 화면 해결
 ![$domain=/^newtoki\d*\./]##div:has(> .theme-popup-stack)
 ##div:has(> .theme-popup-stack)
-! - 보안 검증 통과를 위한 조치
-!!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴 - 차단해도 웹툰 나오는걸로 변경된듯.
-!@@/ad/*$domain=/^newtoki\d+\.[a-z.]+$/
-! - 뉴토끼 - https://toki31.com/wasm/ad-guard/ad_guard.js 차단으로 소설 안나옴
-@@/ad-*$domain=/toki|sbxh|newtoki\d+\.[a-z.]+$/
 !
 !
 ! 뉴토끼 (https://뉴토끼우회.com) (https://toki31.com/) (https://sbxh9.com)
@@ -4270,6 +4265,12 @@ joatoon-oa.com##.bg-opacity-50
 @@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
 ! - - - adguard
 !@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
+!
+! - https://toki31.com/wasm/ad-guard/ad_guard.js 차단으로 소설 안나옴
+! - - - ublock
+@@/ad-*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
+! - - - adguard
+!@@/ad-*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
 !
 !
 ! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/toki_ch)  (https://최신토끼.com/)
