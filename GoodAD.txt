@@ -767,7 +767,7 @@ chzzk.naver.com##body:style(pointer-events: auto !important; overflow: auto !imp
 ! - 왼쪽 배너 (치즈 무료 수확)
 chzzk.naver.com##[class*="banner" i]
 ! - 배너? - id="live_end_banner"
-chzzk.naver.com##[id*="banner"]
+!chzzk.naver.com##[id*="banner"]
 ! 놓치면 후회할 무료 치즈 툴팁
 ! - - - 치지직 아이디 / 팔로우 사라짐 방지
 chzzk.naver.com##[class*="_tooltip_" i]:not([class*="_show_tooltip_"]):not([class*="_has_tooltip_box_"])
@@ -9233,19 +9233,19 @@ video.fc2.com#@#[class$="-ad"]:not(body):not(html):not(main)
 !
 !
 !
-##[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i])
+! - https://뉴토끼우회.com/ - 한글 주소라 애드가드에서 인식이 안될거 같아 :not([id="address" i]) 추가
+##[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i]):not([id="address"])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! - https://www.avdbs.com/
 ! - https://adguard-dns.io/
-adguard-dns.io,avdbs.com#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i])
+adguard-dns.io,avdbs.com#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i]):not([id="address"])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! - https://뉴토끼우회.com/
 ! - https://balbums.st/
 ! - https://bunkr.cr/
 ! - 토렌트씨 (https://torrentsee350.com/)
-/torrentsee|bunkr|balbums/,뉴토끼우회.com#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i])
+/torrentsee|bunkr|balbums/#@#[id^="ad" i]:not(body):not(html):not(main):not([id*="ads" i]):not([id="address"])
 !
 !
 !
