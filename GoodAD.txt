@@ -4273,11 +4273,9 @@ joatoon-oa.com##.bg-opacity-50
 !@@/ad-*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
 !
 ! - - - ublock
-!@@/ad[/*-]/$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
+@@/ad[/*-]/$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
 ! - - - adguard
-!@@/ad[/*-]*$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
-!
-@@/ad[/-]*$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
+@@/ad[/*-]*$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
 !
 !
 ! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/toki_ch)  (https://최신토끼.com/)
