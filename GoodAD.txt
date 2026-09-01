@@ -1040,6 +1040,10 @@ arca.live##[class*="row"]:has-text(광고)
 !platinmods.com#@#[class*="ad_"] [style]
 !##[class*="adpost" i]
 ##.adpost
+! - 일부 게시판 메인 하단 광고 빈 공간 / 게시물 하단 광고 빈 공간 (포텐 / 방출 하단 빈 공간) - 로딩후 일정시간 뒤에 사라짐 - tinyShield 고장났나?
+! - - - https://njavtv.com/ 등 영상 오른쪽 영상목록들이 사라짐으로 개별 도메인 처리
+! - - - fmkorea.com##.fm_vote ~ div[style^="margin:"] 규칙 추가 되었지만 일부 게시판 메인 하단 광고 빈 공간은 해결이 안되어 유지
+fmkorea.com##[style]:has(iframe):not([class^="video"])
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
@@ -1861,7 +1865,7 @@ zum.com##[class*="coupang" i]
 !
 !
 ! 쿠팡플레이 (https://www.coupangplay.com/)
-!@@||coupangplay.com^$generichide
+@@||coupangplay.com^$generichide
 !
 !
 ! 왓챠 (https://watcha.com/)
@@ -7661,6 +7665,7 @@ fhcontent.com##html,body:style(overflow: auto !important;)
 !
 ! https://nimi.wiki/
 ! - 기타
+! - - - 웨이브 - https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=D3DN40RC77U7D8VS48PG&lib=ttq
 ://analytics.*/event
 !
 !
@@ -7896,6 +7901,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 !
 ! 홍보글 링크 주의
+! - 티빙 - https://event.hackle.io/api/v2/w/n4lZZO5UDASZFT4QicpEgfjwSCaiJWu4/events
 ||event.
 ! - 예외 - https://esports.sooplive.com/
 @@||event.$domain=esports.sooplive.com
@@ -7958,6 +7964,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 조아툰
 ! https://iloa.gg/
 ! 숲 - https://res.sooplive.com/data/ad/check_new_ad.js?refresh=숫자(변동)
+! 티빙 -  https://gw.tving.com/ad/display-ads/banner?inventoryCode=DA_BANNER&contentSeg=context%3Dmain&screenCode=CSSD0100&osCode=CSOD0900&country=KOR&lmt=1&deviceWidth=1920&deviceHeight=1080&platformType=WEB&testMode=false&orientation=l
 */ad/*
 ! - 예외
 @@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr
@@ -8217,6 +8224,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 테무
 ! https://toon.at/
 ! AV조아
+! 티빙 - https://gw.tving.com/bff/web/v3/boot/popup/module?screenCode=CSSD0100&osCode=CSOD0900
 */popup/*
 !
 !
@@ -8381,6 +8389,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! https://xingbokep.tv/
 !##[target] video
 ! - 예외 - https://search.naver.com/ - 클립 영상 등 사라짐
+! - 예외 - https://platinmods.com/ - 일부 비디오? (프로필) 사라짐 - 빈 공간으로 보임 / 주석처리 - 필요시 개별 도메인으로 처리할 것
 !naver.com#@#[target] video
 !
 !
@@ -8495,8 +8504,10 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !
 !
 */banners/*
+! - 예외
 ! https://sooptore.sooplive.com/
-@@*/banners/*$domain=sooptore.sooplive.com
+! https://www.coupangplay.com/
+@@*/banners/*$domain=sooptore.sooplive.com|coupangplay.com
 !
 !
 ! 짜딸파티 (https://jaddal40.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
