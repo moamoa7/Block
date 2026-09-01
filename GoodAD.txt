@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260901
+! Version: 20260902
 !
 !
 !
@@ -4206,11 +4206,13 @@ joatoon-oa.com##.bg-opacity-50
 !
 ! 뉴토끼 (https://뉴토끼우회.com) (https://toki31.com/) (https://sbxh9.com)
 ! ===== sbxh 광고 트래픽 허용 =====
-!@@||sbxh*.com^$generichide
+!@@||sbxh*.com^$generichide,xhr,script
+!@@||toki*.com^$generichide,xhr,script
 ! - - - 허용하지 않으면 웹툰 등이 나오지 않음
 !!!@@||sbxh*.com^$image,xhr,script - 이 규칙에서 아래 규칙으로 변경 (image는 상관없는듯)
 !!! 26.6.25 갑작스런 광고차단 완화?로 아래 4개 규칙 주석처리
-!@@||toki*.com^$xhr,script
+@@||toki*.com^$xhr,script
+@@||sbxh*.com^$xhr,script
 !@@||apihost.store/wasm/ad-guard/ad_guard.js
 !@@||apihost.store/wasm/ad-guard/ad_guard_bg.wasm
 !@@||apihost.store/init/disable-devtool.min.js
@@ -4242,6 +4244,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - 실제 팝업 차단
 ! - - - 사용자 클릭이든 자동이든 모든 window.open을 무조건 차단 (광고를 화면밖으로 보내서 필요없음))
 ![$domain=/^sbxh\d*\./]##+js(no-window-open-if)
+![$domain=/^toki\d*\./]##+js(no-window-open-if)
 ! - 배너 크기 조절 + 시각적 가림 + 클릭 흡수
 ! - - - 컨테이너 크기 제한 (검증 통과용)
 ![$domain=/^sbxh\d*\./]#$#[data-brs="header"] { max-height: 425px !important; overflow: hidden !important; position: relative !important; z-index: 0 !important; }
@@ -4257,8 +4260,8 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - left: -9999px - 500px / top: -9999px - 600px 변경 (26.05.30) - -9999로 재변경 (특별한 이상없음)
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
 ![$domain=/sbxh/],[$domain=/toki/]#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
-!/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
-/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -500px !important; top: -500px !important; }
+/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
+!/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -500px !important; top: -500px !important; }
 ! - 보안 검증 통과를 위한 조치
 !!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴
 ! - - - ublock
@@ -4273,9 +4276,9 @@ joatoon-oa.com##.bg-opacity-50
 !@@/ad-*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
 !
 ! - - - ublock
-@@/ad[/*-]/$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
+!@@/ad[/*-]/$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
 ! - - - adguard
-@@/ad[/*-]*$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
+!@@/ad[/*-]*$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
 !
 !
 ! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/toki_ch)  (https://최신토끼.com/)
