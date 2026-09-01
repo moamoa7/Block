@@ -1040,10 +1040,8 @@ arca.live##[class*="row"]:has-text(광고)
 !platinmods.com#@#[class*="ad_"] [style]
 !##[class*="adpost" i]
 ##.adpost
-! - 일부 게시판 메인 하단 광고 빈 공간 / 게시물 하단 광고 빈 공간 (포텐 / 방출 하단 빈 공간) - 로딩후 일정시간 뒤에 사라짐 - tinyShield 고장났나?
-! - - - https://njavtv.com/ 등 영상 오른쪽 영상목록들이 사라짐으로 개별 도메인 처리
-! - - - fmkorea.com##.fm_vote ~ div[style^="margin:"] 규칙 추가 되었지만 일부 게시판 메인 하단 광고 빈 공간은 해결이 안되어 유지
-fmkorea.com##[style]:has(iframe):not([class^="video"])
+! - 일부 게시판 메인 하단 광고 빈 공간
+fmkorea.com##[style^="padding"]:has(iframe)
 ! - 모바일
 ! - - - 오른쪽 하단 떠다니는 작은 배너
 fmkorea.com###fm_alert
@@ -7938,6 +7936,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 *-ad-*
 !
 !
+! https://platinmods.com/
 *-ads-*
 !
 !
