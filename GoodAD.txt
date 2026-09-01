@@ -4263,7 +4263,7 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
 ![$domain=/sbxh/],[$domain=/toki/]#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
 !/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
-/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
+/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -500px !important; top: -500px !important; }
 ! - 보안 검증 통과를 위한 조치
 !!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴
 ! - - - ublock
