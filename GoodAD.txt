@@ -4205,6 +4205,8 @@ joatoon-oa.com##.bg-opacity-50
 ! - 보안 검증 통과를 위한 조치
 !!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴 - 차단해도 웹툰 나오는걸로 변경된듯.
 !@@/ad/*$domain=/^newtoki\d+\.[a-z.]+$/
+! - 뉴토끼 - https://toki31.com/wasm/ad-guard/ad_guard.js 차단으로 소설 안나옴
+@@/ad-*$domain=/toki|sbxh|newtoki\d+\.[a-z.]+$/
 !
 !
 ! 뉴토끼 (https://뉴토끼우회.com) (https://toki31.com/) (https://sbxh9.com)
@@ -4225,7 +4227,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - 외부 anti-adblock 추적 서버 차단 (DNS에 등록 필요)
 ! ////////////////////
 ! - https://toki31.com/ List-KR 미등록으로 개별 추가
-/toki/##[data-brs][data-br]
+!/toki/##[data-brs][data-br]
 ! - 차단 도메인
 ||whoas.xyz^
 ! - 팝업 및 이용 안내 팝업
@@ -4260,7 +4262,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - left: -9999px - 500px / top: -9999px - 600px 변경 (26.05.30) - -9999로 재변경 (특별한 이상없음)
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]#$#[data-brs] { position: absolute !important; left: -600px !important; top: -600px !important; }
 ![$domain=/sbxh/],[$domain=/toki/]#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
-!/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
+/sbxh|toki/#$#[data-brs] { position: absolute !important; left: -9999px !important; top: -9999px !important; }
 ! - 보안 검증 통과를 위한 조치
 !!! 26.6.25 갑작스런 광고차단 완화?가 있엇지만 아래 규칙은 차단하면 웹툰이 안나옴
 ! - - - ublock
@@ -8046,6 +8048,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://loawa.com/
 ! https://www.tiktok.com/
 ! https://fc2db.net/ - https://fc2db.net/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=2.0.0
+! 뉴토끼 - https://toki31.com/wasm/ad-guard/ad_guard.js?v=b1787955762841-wasm-1787955762844
 */ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
@@ -8228,6 +8231,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 */popup/*
 !
 !
+! 뉴토끼 - https://toki31.com/popups/1777400213_event_336.png
 /popups/*
 !
 !
