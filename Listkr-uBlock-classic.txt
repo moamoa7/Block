@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20696.4
+! Version: 2026.20697.0
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Mon Aug 31 22:30:52 UTC 2026
+! Updated: Tue Sep  1 03:46:39 UTC 2026
 
 ||mixtower.net^
 ||adflow.kr^
@@ -1941,6 +1941,7 @@ jobkorea.co.kr##div[id^="Banner"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+fmkorea.com##.fm_vote ~ div[style^="margin:"]
 iloa.gg##main[vaul-drawer-wrapper] .max-w-screen-lg.py-4.max-md\:hidden
 iloa.gg##main[vaul-drawer-wrapper] .bg-neutral-950\/90:has(.max-sm\:hidden)
 asiae.co.kr##.article-body__aside__wrap > .article-aside__section:has(i.ad)
@@ -3951,7 +3952,7 @@ algumon.com##div[id^="deal-"].card ~ .bg-base-100:has(> div[style] > div[class^=
 cheatdot.com##+js(nostif, 'window.getComputedStyle(t).display')
 tv.jtbc.co.kr,mvod.jtbc.co.kr,onair.jtbc.co.kr##+js(nostif, 'getComputedStyle(t).getPropertyValue("visibility")')
 erdcloud.com#$?#.ads-block-warning-overlay { remove: true; }
-mylocation.co.kr##+js(nostif, adBlockedMessage)
+mylocation.co.kr##+js(nostif, detectAdBlockByStructure)
 ||shana.pe.kr/shana_check/scp*.js$script
 remiz.co.kr##+js(spoof-css, .adsbygoogle, display, block)
 remiz.co.kr#@#.ad-body
