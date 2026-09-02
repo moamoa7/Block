@@ -3470,8 +3470,8 @@ ajunews.com/##.related_news
 !
 !
 ! 퀘이사존 (https://quasarzone.com/)
-! - 빈공간
-quasarzone.com##div:has(> div[class*="banner-bbs"])
+! - 메인 빈공간
+quasarzone.com##[class*="slot"]
 ! - 최신 파트너 핫딜
 ! - - - https://fc2.sirouto-siritai.com/ 젤 하단
 ##[class*="partner" i]:has([href*="partner" i])
