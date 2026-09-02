@@ -3472,11 +3472,11 @@ ajunews.com/##.related_news
 ! 퀘이사존 (https://quasarzone.com/)
 ! - 메인 빈공간
 quasarzone.com##[class*="slot"]
-! - 최신 파트너 핫딜
+! - 파트너 핫딜
 ! - - - https://fc2.sirouto-siritai.com/ 젤 하단
 ##[class*="partner" i]:has([href*="partner" i])
 ! - 기사 내 가려진거
-quasarzone.com##[class="info-layer"]
+!quasarzone.com##[class="info-layer"]
 !
 !
 ! 뉴시스 (https://www.newsis.com/)
