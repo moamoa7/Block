@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-09-02 18:09:01 UTC
+! Generated: 2026-09-02 21:08:57 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 372,636
+! Block Rules: 372,642
 !
 ||0--4.com^
 ||0--d.com^
@@ -62490,6 +62490,7 @@
 ||bycheri.de^
 ||bycicle.net^
 ||byclothes.com^
+||bycsg.oii.la^
 ||bycvdrvphznyr.site^
 ||byd.mybluehost.me^
 ||bydakitebx.xyz^
@@ -77505,6 +77506,7 @@
 ||consumercellular.demdex.net^
 ||consumercellular.sc.omtrdc.net^
 ||consumercellular.tt.omtrdc.net^
+||consumerdebtnegotiation.com^
 ||consumereldest.com^
 ||consumerinfo.com^
 ||consumerinfo.tt.omtrdc.net^
@@ -160674,6 +160676,7 @@
 ||jnrtavp2x66u.com^
 ||jnsol.sokolovelaw.com^
 ||jnsoxa.fcmm.kr^
+||jnt.welt.de^
 ||jntct.com^
 ||jntmwrm.com^
 ||jnunn.alppouch.com^
@@ -251563,6 +251566,7 @@
 ||rentify.se^
 ||rentin.store^
 ||rentinfinity.com^
+||rentinfrared.com^
 ||renting.aldautomotive.es^
 ||rentingimmoderatereflecting.com^
 ||rentler.se^
@@ -358726,6 +358730,7 @@
 ||www.jiathis.com^
 ||www.jiayuan.com^
 ||www.jipinyouwu.com^
+||www.jjbenefitsguide.com^
 ||www.jmine.cn^
 ||www.jndvxw.giirlfinder.com^
 ||www.jnhjf.com^
@@ -359373,6 +359378,7 @@
 ||www.pr-cy.ru^
 ||www.prabvisa.com^
 ||www.praize.com^
+||www.premiercountrymeats.com^
 ||www.premiumbrandszonalibre.com^
 ||www.presidency.site^
 ||www.prgwbn.cfd^
