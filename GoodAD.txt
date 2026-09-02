@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260902
+! Version: 20260903
 !
 !
 !
@@ -1099,6 +1099,8 @@ etoland.co.kr##[class="flex w-full justify-center"]
 ! - 게시물 하단 / 댓글 하단 공백 (모바일)
 ! - - - 핫딜 추천 상품 나오는 부분
 etoland.co.kr##[aria-label="토스 추천 상품"]
+! - - toss 베스트 (메인  왼쪽)
+etoland.co.kr##section:has([rel] img)
 ! - 게시물내 광고글
 !etoland.co.kr##li[class*="amber-100"]
 !etoland.co.kr##li[class*="h-10"]
@@ -3022,7 +3024,8 @@ mimint.co.kr##[class*="row"]:has([id="powerLinkList"])
 ! - 실시간 인기 TOP / 최근 등록된 게시물 내 빈 줄
 !mimint.co.kr##ul > .adline-v2-slot
 ! - 실시간 인기 TOP / 최근 등록된 게시물 내 빈 줄 / 본문 하단 빈 공간
-mimint.co.kr##[class*="slot" i]
+! - - - 퀘이사존 (https://quasarzone.com/) 메인 빈 공간
+quasarzone.com,mimint.co.kr##[class*="slot" i]
 ! - 이벤트
 !mimint.co.kr##.event_right_new
 ! - 본문 하단에 필요없는 숲 영상 첨부 안보이게
@@ -3097,7 +3100,7 @@ gemini.google.com##.input-area-container:style(max-width:1600px!important)
 !muko.kr##[id="popupadoverlay" i]
 ! - 상단 배너 공간
 !##.muko-ad-impression
-! - 오른쪽에 나타나는 회원가입 작은 팝업
+! - 오른쪽에 나타나는 회원가입 작은 팝업 (영화를 사랑하는 무코인이 함께 이야기 나누고 있어요  방금 본 글에 댓글·추천·찜 — 회원이면 바로 가능해요)
 !###xt_join_site_addons
 ##[id*="addons" i]
 ! - 상단 앱설치 팝업 (모바일)
@@ -3471,7 +3474,7 @@ ajunews.com/##.related_news
 !
 ! 퀘이사존 (https://quasarzone.com/)
 ! - 메인 빈공간
-quasarzone.com##[class*="slot"]
+!quasarzone.com##[class*="slot" i]
 ! - 파트너 핫딜
 ! - - - https://fc2.sirouto-siritai.com/ 젤 하단
 ##[class*="partner" i]:has([href*="partner" i])
@@ -3732,7 +3735,7 @@ kitpa.org##[class*="h-70"]:has([data-ad-slot])
 !
 ! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki48.net/) - 접속안됨 (https://tvwiki15.space)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
-! 티비핫 (https://tvhot2.com/) - 메인주소로 들어가면 구글로 전환 / https://tvhot2.com/movie   https://tvhot2.com/drama 이런식으로 접근하면 가능
+! 티비핫 (https://tvhot2.com/)
 ! - 팝업 제거
 !##[id*="modal-overlay" i]
 ! - 배너 이미지
@@ -3762,6 +3765,9 @@ kitpa.org##[class*="h-70"]:has([data-ad-slot])
 !###viewCover
 ! - - - 숲 (###videoLayerCover)
 ##[id$="cover" i]
+! - 예외
+! - - - https://javgg.net/ - 일부 텍스트(소개글) 사라짐
+javgg.net#@#[id$="cover" i]
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
 ! - 로딩 동그라마
@@ -3817,12 +3823,12 @@ fingerprint.
 /yadongkorea/##.yako-telegram-modal
 !
 !
-! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak208.com/) 
+! 티비착 (https://t.me/s/juso33) (https://tvchak.org/) (https://tvchak.live/)  (https://tvchak208.com/)  - 주소만 살아있고 텔레그램.바로가기 주소 등 삭제됨
 ! - 팝업
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 ![$domain=/^tvchak\d*\./]##[class*="popup_mdd" i]
 ! - 상단 배너 - (보증 어찌구~) 포함
-! - - - 후후티비 (https://da.hoohootv451.xyz)
+! - - - 후후티비 (https://jg.hoohootv452.xyz/)
 !/tvchak/##[class*="card"]:has(> style)
 !##[class*="border-shadow"]:has(> style) - 타 사이트(https://noonnu.cc/)에서 차단 발생하여 개별로 아래와 같이 변경
 !/tvchak/##[class*="border"]:has(> style)
@@ -3860,10 +3866,11 @@ fingerprint.
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! 후후티비 (https://telegra.ph/후후티비-최신-주소-09-03)  (https://da.hoohootv451.xyz)
+! 후후티비 (https://telegra.ph/후후티비-최신-주소-09-03)  (https://jg.hoohootv452.xyz/)
 ! - 배너 빈 공간 - ##[style]:has([target] img)는 메인 배너에만 적용되고 개별 목록내 배너에는 적용이 안되서 필요함
 ![$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
-/hoohootv/###img_row_container
+!/hoohootv/###img_row_container
+/hoohootv/##div:has(> [href^="/redirect"])
 !
 !
 ! 후후티비 (https://hoohootv1.org/) - 티비위키 그대로 가져오는듯 / p2p차단하면 영상재생 안됨
@@ -4515,7 +4522,7 @@ aving.tv##.gap-lg-5
 ! - 메인 배너 공간
 !sextb.net##[style][class*="hidden-sm"]
 ! -영상 오른쪽 배너 공간 (PC/모바일)
-/sextb/##.col-3
+!/sextb/##.col-3
 ! - 영상 하단 배너 공간 (모바일)
 !sextb.net##div.col-3.right:nth-of-type(2)
 ! - 일부 영상 재생 차단 방지
@@ -4632,19 +4639,19 @@ javgg.*##.home_iframead
 !.php?ping=
 !
 !
-! 7MMTV (https://7tv081.com/)
+! 7MMTV (https://7tv022.com/)
 ! - 유니콘Pro에서는 ST영상 재생 불가
 ! - 메인 전체 배너 공간
-##.a-d-block
+!##.a-d-block
 ! - 모바일에서 영상 아래 각 구간별 배너 보이는 현상 - 공백 삭제
-##div.set_height_250
+!##div.set_height_250
 ! - 기타
 !##.doubleclick
 ! - 재생 방지
 !mmsi02.com,mmvh02.com#@#[class*="floating" i]
 ! - 미리보기 영상 안나오는 문제 해결
 ![$domain=/^7tv\d+.com/]#@#[target] video
-/7tv/#@#[target] video
+!/7tv/#@#[target] video
 !
 !
 ! JAV GIGA (https://javgiga.com/)
@@ -5538,7 +5545,7 @@ javmov.com##.spot
 ! 정복걸 (https://jbjbgg45.top/)
 ! 언리샷 (https://unlishot45.top/)
 ! 야르가즘 (https://yargasm45.top/)
-! 다크걸2 (https://darkgg12.top/)
+! 다크걸2 (https://darkgg12.top/) - 없어진 듯
 ! - 성인업소 글자
 ![$domain=/^jotker\d+.top/],[$domain=/^jbjbgg\d+.top/],[$domain=/^unlishot\d+.top/],[$domain=/^yargasm\d+.top/],[$domain=/^darkgg\d+.top/]##li.gnb_1dli:nth-of-type(1)
 ! - 제휴사이트 글자
@@ -5549,12 +5556,12 @@ javmov.com##.spot
 !##[id*="main-banner" i]
 !
 !
-! 야동허브 (https://ydhub11.net/)
+! 야동허브 (https://ydhub16.net/)
 ! - 배너 이미지
 !||net/static/images/*$image
 ! - 하단 배너 공간
 !###random-images
-##[id*="random-images" i]
+!##[id*="random-images" i]
 !##.bottom-adv
 !
 !
@@ -7119,7 +7126,8 @@ litt.ly#@#[href*="link.coupang.com"]
 ! - 영상 목록 빈 공간
 rou.video##div.md\:col-span-1
 ! - 기타
-/clickad*
+! - - - /js/clickadu.js ( cn tw tw: AdGuard Chinese (中文))
+!/clickad*
 */ga.js^
 .xyz/z/*/json$3p
 .xyz/z/*/code.js$script,3p
@@ -7198,6 +7206,7 @@ rou.video##div.md\:col-span-1
 ! - 쿠키 팝업
 !###gdpr-cookie-notice
 !##[id*="cookie-notice" i]
+! - - - https://muko.kr/
 ##[id*="-notice" i]
 !
 !
@@ -7912,7 +7921,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ||ads-*
 !
 !
-! 퀘이사존
+! 퀘이사존(https://quasarzone.com) - https://ads.quasarzone.com/RealMedia/ads/Creatives/quasarzone/LD/maxmo_mediation.js
 ||ads.*
 !
 !
@@ -7996,6 +8005,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 치지직 - https://api.chzzk.naver.com/service/v1/lives/20694138/ads/current
 ! 팍스넷 (https://www.paxnet.co.kr)
 ! 짭툰 (https://www.jjaptoon007.com)
+! 그레이뉴스 (https://graynews.co.kr)
 */ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -8011,6 +8021,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
+! javclick.com - https://upload18.org/player/js/ads.js?v=1.0
 */ads.*
 !
 !
@@ -8048,7 +8059,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 !
 ! 티비위키 / 티비몬 / 티비핫
-! 디시인사이드
+! 디시인사이드 - https://gall.dcinside.com/_js/ad_audit.js?v=2605081820
 ! 풍투데이
 ! 조선에듀
 */ad_
@@ -8059,12 +8070,13 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 !
 ! 트위치
-! 이토랜드
+! 이토랜드 - https://etoland.co.kr/api/coupang/ad-url
 ! 디시인사이드
 ! https://loawa.com/
 ! https://www.tiktok.com/
 ! https://fc2db.net/ - https://fc2db.net/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=2.0.0
 ! 뉴토끼 - https://toki31.com/wasm/ad-guard/ad_guard.js?v=b1787955762841-wasm-1787955762844
+! javclick.com / manko.fun - https://a.pemsrv.com/ad-provider.js
 */ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
@@ -8073,8 +8085,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 !
 ! https://javgiga.com/
-! https://www.javrate.com/
-! - - - https://www.javrate.com/build/assets/ads-ClWB59_P.js
+! https://www.javrate.com/ - https://www.javrate.com/build/assets/ads-ClWB59_P.js
+! manko.fun - https://manko.fun/ads-cache/3ef7133c605d7a570ffb8a0369ffb1a87cbad0690633930ad62d615a764449d1.mp4
 */ads-*
 @@*/ads-*$css
 !
@@ -8314,7 +8326,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - 한국경제신문 - stockwin.thinkpool.com/html/hktv/index.html
 ! - https://redgg50.cc/ - upload18.com/play/
 ! - https://18av.mm-cg.com/ - 18av.mm-cg.com/js/player/play.php?
-! - 후후티비 (https://da.hoohootv451.xyz) - creatorofvideo.com/play/
+! - 후후티비 (https://jg.hoohootv452.xyz/) - creatorofvideo.com/play/
 ! - https://javbraze.com/ - /javbraze_cdn/
 ! - https://goodtv.co.kr/ - goodtv.co.kr/watch_banner.asp
 ! - https://javgiga.com/ - embed.streamxx.net
@@ -8969,6 +8981,12 @@ philgo.com##[alt*="배너"]
 !
 !
 !
+! https://rou.video/
+! 이토랜드 (https://etoland.co.kr/) - toss 베스트
+!##div[class][style]:has([target] img)
+!
+!
+!
 ! 필요시 개별로 할 것
 ! 콕콕티비 (https://cokcok15.com/)
 ! 티비위키 / 티비몬
@@ -8986,7 +9004,7 @@ philgo.com##[alt*="배너"]
 !seoul.co.kr,trand.co.kr#@#li:has([target*="blank"] img)
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! 주소코리아 (https://jusokorea10.com/)
+! 주소코리아 (https://jusokorea11.com/)
 ! https://platinmods.com/ - 댓글 이미지 사라짐
 ! https://mlbpark.donga.com/ - 일부 이미지 사라짐
 !/jusokorea/,platinmods.com,mlbpark.donga.com#@#li:has([target*="blank"] img)
@@ -8995,7 +9013,7 @@ philgo.com##[alt*="배너"]
 !
 ! - 개별 도메인으로 취급
 ! 티비착 (https://tvchak208.com/) - 상단 배너 필요없는 부분 (보증 어찌구~) 포함
-! 후후티비 (https://da.hoohootv451.xyz)
+! 후후티비 (https://jg.hoohootv452.xyz/)
 !/tvchak|hoohootv/##[style]:has([target] img)
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -9040,6 +9058,7 @@ video.fc2.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not(
 ! 야동투어 (https://ydtour62.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
 ! - - - 무코 (https://muko.kr/) 배너
 ! - - - 짭툰 (https://www.jjaptoon007.com/) 배너
+! - - - 그레이뉴스 (https://graynews.co.kr)
 ##img[src*="/ads/"]
 ! - - -  자딸파티 (https://jaddal40.top/) - 텔레그램 고객센터 버튼
 ##[onclick^="window.open"] img
