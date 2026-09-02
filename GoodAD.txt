@@ -3470,9 +3470,13 @@ ajunews.com/##.related_news
 !
 !
 ! 퀘이사존 (https://quasarzone.com/)
+! - 빈공간
+quasarzone.com##div:has(> div[class*="banner-bbs"])
 ! - 최신 파트너 핫딜
 ! - - - https://fc2.sirouto-siritai.com/ 젤 하단
 ##[class*="partner" i]:has([href*="partner" i])
+! - 기사 내 가려진거
+quasarzone.com##[class="info-layer"]
 !
 !
 ! 뉴시스 (https://www.newsis.com/)
@@ -7650,10 +7654,12 @@ video.dmm.co.jp##[class*="h-"]:has([class*="cds-deliver-tags"] iframe)
 !
 ! 털보티비 (https://tulbo.tv)
 ! - 필요없는거
-##[href*="partner_"]
+!##[href*="partner_"]
+! - https://lamu.club/ - 협력사 포인트 이전 버튼 삭제 방지 (:not([href*="lamu.club"]))
+##[href*="partner_"]:not([href*="lamu.club"])
 !
 !
-! 짭툰 (https://www.jjaptoon003.com/) - 배너 일체 없는 깨끗. 처리할게 없음
+! 짭툰 (https://www.jjaptoon007.com/) - 배너 일체 없는 깨끗. 처리할게 없음
 !
 !
 ! https://clothoff.net/
@@ -7989,6 +7995,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://iloa.gg/
 ! 치지직 - https://api.chzzk.naver.com/service/v1/lives/20694138/ads/current
 ! 팍스넷 (https://www.paxnet.co.kr)
+! 짭툰 (https://www.jjaptoon007.com)
 */ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -8171,6 +8178,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !mypikpak.com#@#[class*="-tooltip_" i]:not(body):not(html):not(main)
 !
 !
+! 짭툰 (https://www.jjaptoon007.com) - 상단 배너
 ##[data-testid*="advert" i]:not(body):not(html):not(main)
 !
 !
@@ -9031,6 +9039,7 @@ video.fc2.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not(
 !
 ! 야동투어 (https://ydtour62.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
 ! - - - 무코 (https://muko.kr/) 배너
+! - - - 짭툰 (https://www.jjaptoon007.com/) 배너
 ##img[src*="/ads/"]
 ! - - -  자딸파티 (https://jaddal40.top/) - 텔레그램 고객센터 버튼
 ##[onclick^="window.open"] img
