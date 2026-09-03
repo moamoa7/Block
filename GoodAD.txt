@@ -479,6 +479,11 @@ m.naver.com##.comp_home_feed
 @@||nid.naver.com^$generichide,image,xhr
 !
 !
+! 네이버 (https://search.naver.com/)
+! - 검색 오른쪽 필요없는 부분
+search.naver.com##section.sc_new:has(> .api_subject_bx)
+!
+!
 ! 네이버 블로그 (blog.naver.com)
 ! - 기타 (EasyPrivacy)
 !||ntm.pstatic.net/scripts/ntm_$domain=naver.com
@@ -8639,7 +8644,8 @@ lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.clien.net/ - 클리앙 검색 부분 / 댓글
-clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i])
+! https://search.naver.com/ - 검색 상단 사라짐
+search.naver.com,clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
