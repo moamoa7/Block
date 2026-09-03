@@ -1,8 +1,8 @@
 ! Title: Personal Block List (DNS)
 ! Homepage: https://github.com/moamoa7/adblock
-! Generated: 2026-09-03 01:14:06 UTC
+! Generated: 2026-09-03 05:56:10 UTC
 ! Method: (AdRules DNS List ∪ HaGeZi Pro ∪ 1Hosts Lite) - ExtWhite + PersonalBlock - PersonalWhite
-! Block Rules: 372,642
+! Block Rules: 372,644
 !
 ||0--4.com^
 ||0--d.com^
@@ -52072,6 +52072,7 @@
 ||bbs.qzone6.com^
 ||bbs.theacademyforconsciousleadership.com^
 ||bbs.ws^
+||bbs.xhamster.com^
 ||bbsclick.10jqka.com.cn^
 ||bbsdx.jp^
 ||bbssgjpbdrurh.space^
@@ -252475,6 +252476,7 @@
 ||retrograna.store^
 ||retrojeanshuonlineshop.com^
 ||retropornfilms.com^
+||retrorays.com^
 ||retroreddit.com^
 ||retrostage.shop^
 ||retrostages.de^
