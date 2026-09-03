@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20698.2
+! Version: 2026.20698.3
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Wed Sep  2 20:33:07 UTC 2026
+! Updated: Thu Sep  3 03:09:05 UTC 2026
 
 ||mixtower.net^
 ||adflow.kr^
@@ -708,6 +708,7 @@ nightofpeace.com,ilovebees.io##.e-grid.e-con-full.e-con.e-child:has(a[target="_b
 /^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 /data/banner.json?$domain=~nintendo.*
 
+||joinsmedia.sfo2.digitaloceanspaces.com/ad/
 ||graynews.co.kr/api/*/ads/imp
 ||graynews.co.kr/img/cms/*PC.$image
 ||img*.quasarzone.com/banner/
@@ -1942,6 +1943,9 @@ jobkorea.co.kr##div[id^="Banner"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+
+joinsmediacanada.com###popupNoticeWrap
+joinsmediacanada.com###aside.highChk
 graynews.co.kr##div[data-component="AdBanner"]
 graynews.co.kr##a[href^="/api/v2/ads/click?slot="]
 quasarzone.com##body > div[style^="min-height:"]
@@ -4060,6 +4064,7 @@ lover932.net,lover933.net,lover934.net,lover935.net,lover936.net,lover937.net,lo
 ||newspic.kr^$removeparam=cp
 auto.danawa.com##+js(set, NAVER_ADPOST_V2, noopFunc)
 
+joinsmediacanada.com#$##container.highChk { width: 100% !important; }
 quasarzone.com#$#.sponsor-banner-layer-container { width: 0px !important; }
 quasarzone.com#$#.sponsor-banner-layer-container * { width: 0px !important; padding: 0px !important; border: none !important; }
 mediapen.com#$#.article-content { width: 100% !important; }
