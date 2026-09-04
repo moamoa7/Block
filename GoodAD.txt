@@ -1132,10 +1132,10 @@ inven.co.kr##.inven-games.menuGroup
 ! - 오른쪽 배너 공간
 !- - - ##.ad-right2 처리 후 남는 공간
 inven.co.kr##.commu-right > div
-! - 게시물 본문 상단 오른쪽 배너
+! - 게시물 본문 상단 오른쪽 배너 - 굳이 없어도 되긴 함
 !##[class*="googlesubjectad" i]
 !##.googleSubjectAd
-inven.co.kr##[class*="googlesubjectad" i]
+!inven.co.kr##[class*="googlesubjectad" i]
 ! - 오른쪽 혜택.이이마트
 inven.co.kr###right-imart-benefits
 ! - 게시물 하단 작성자 프로필
@@ -3804,6 +3804,7 @@ fingerprint.
 @@fingerprint.$domain=github.com|fingerprint.com
 ! - 기타 - 먼가 잡히는건 없지만 layers이라서 규칙 만들어봄
 ! - - - 티비착 (https://tvchak208.com/)
+! - - - Linkkf 애니 TV (https://linkkf.tckopke.com/)
 ##[class*="-layers"]
 !
 !
@@ -3817,7 +3818,7 @@ fingerprint.
 ![$domain=/^tvchak\d+\.com$/]##[class*="popup_mdd" i]
 ![$domain=/^tvchak\d*\./]##[class*="popup_mdd" i]
 ! - 상단 배너 - (보증 어찌구~) 포함
-! - - - 후후티비 (https://jg.hoohootv452.xyz/)
+! - - - 후후티비 (https://dj.hoohootv453.xyz/)
 !/tvchak/##[class*="card"]:has(> style)
 !##[class*="border-shadow"]:has(> style) - 타 사이트(https://noonnu.cc/)에서 차단 발생하여 개별로 아래와 같이 변경
 !/tvchak/##[class*="border"]:has(> style)
@@ -3855,7 +3856,7 @@ fingerprint.
 ! 티비위키 (https://tvwiki24.com/) - 이 사이트는 영상재생이 직접적으로 없음
 !
 !
-! 후후티비 (https://telegra.ph/후후티비-최신-주소-09-03)  (https://jg.hoohootv452.xyz/)
+! 후후티비 (https://telegra.ph/후후티비-최신-주소-09-03)  (https://dj.hoohootv453.xyz/)
 ! - 배너 빈 공간 - ##[style]:has([target] img)는 메인 배너에만 적용되고 개별 목록내 배너에는 적용이 안되서 필요함
 ![$domain=/^([a-z0-9-]+\.)?hoohootv\d+\.xyz$/]###img_row_container
 !/hoohootv/###img_row_container
@@ -4490,6 +4491,7 @@ aving.tv##.gap-lg-5
 ! - 영상 클릭안되는거 해결 (uBlock filters – Ads)
 !streamtape.*##.play-overlay
 ! - 광고성 오버레이·요소들을 숨기는 코스메틱 필터
+! - - - 후후티비 (https://dj.hoohootv453.xyz/)
 ##[class*="ad-placement"]
 !
 !
@@ -5607,10 +5609,9 @@ javmov.com##.spot
 !@@||sorabada*.com/img/logo*.png
 !
 !
-! FC2PPVDB (https://fc2ppvdb.com/)
+! FC2PPVDB (https://fc2ppvdb.com/) - 접속 불가
 ! - 입장시 18세 체크
-!##[id*="ageCheck"]
-##[id*="agecheck" i]
+!##[id*="agecheck" i]
 !
 !
 ! AV핫걸 (https://avhotgirl.top/)
@@ -5776,6 +5777,8 @@ reddit.com#@#div[class*="border"]:has(> [target] img)
 shopping.naver.com#@#div[class*="border"]:has(> [target] img)
 ! - - - https://linkget1.com/ - 목록 사라짐 (일단 보류 - 리스트 넣지 않음)
 !/linkget/#@#div[class*="border"]:has(> [target] img)
+! - - -- https://dmm.ppvdb.com/ - 왼쪽 이미지 사라짐
+dmm.ppvdb.com#@#div[class*="border"]:has(> [target] img)
 ! - 상단 빈 공간 (PC/모바일 공통)
 !##.justify-start.flex-wrap.flex
 !  - 각 주제별 상단 빈 공간 (PC/모바일 공통)
@@ -6347,6 +6350,7 @@ sexygirl.cc##div[class*="overflow-auto"]
 !##.ad-overlay
 ! - 영상 재생 앞 로딩 부분
 ! - - - 청양티비 (https://cytv151.com/)
+! - - - Linkkf 애니 TV (https://linkkf.tckopke.com/)
 ###buffer
 ! - 동맹 글자
 !vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
@@ -6508,7 +6512,7 @@ of996.com##[class*="-fixed-" i]
 !||linklove*.com/data/editor/*$image
 !||linklove*.com/data/file/ls_*/*$image
 !||linklove*.com/data/apms/background/*$image
-! - - - 인생도박 (https://dobaklife03.com/)
+! - - - 인생도박 (https://dblife01.com/)
 ! - - - 주소야 (https://jusoya.com/)
 ! - - - 토렌트쓱 (https://ssg1.torrentssg9.com/)
 /data/apms/background/*$image
@@ -6812,7 +6816,7 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 ! - 안생도박 보증업체 테이블 (이미지)
 ![$domain=/^dobaklife\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
 ! - 게시물내 광고글
-/dobaklife/##[class="list-col"]:has-text(/포인트|보증/)
+/dblife/##[class="list-col"]:has-text(/포인트|보증/)
 !
 !
 ! 야동코리아 (https://www.yako14.com/) - 접속 안됨 --> https://yadongkorea01.tv/ 대체?
@@ -8062,6 +8066,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://fc2db.net/ - https://fc2db.net/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=2.0.0
 ! 뉴토끼 - https://toki31.com/wasm/ad-guard/ad_guard.js?v=b1787955762841-wasm-1787955762844
 ! javclick.com / manko.fun - https://a.pemsrv.com/ad-provider.js
+! https://dmm.ppvdb.com/ - https://dmm.ppvdb.com/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=1.0.0
 */ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
@@ -8807,6 +8812,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ! 왓챠KR (https://m273.watchakr.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
+! 인생도박 (https://dblife01.com/)
 ##.h10
 !
 !
@@ -8819,6 +8825,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ! 애니위크 (https://aniweek.com/)
 ! 개조아 (https://dogjoa97.net/)
 ! 현자타임 (https://hjtime112.com/)
+! 인생도박 (https://dblife01.com/)
 ##.h20
 !
 !
@@ -8829,6 +8836,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ! 왓챠KR (https://m273.watchakr.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
+! 인생도박 (https://dblife01.com/)
 ##.h30
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -8846,6 +8854,7 @@ cineaste.co.kr#@#.h30
 !
 !
 ! 야동코리아 (https://yadongkorea03.com/) - 영상 하단 배너 
+! https://www.javxxx.me/ - 상단 javHD 링크
 ##a[rel*="sponsored"][onclick]
 !
 !
