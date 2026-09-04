@@ -5952,7 +5952,7 @@ sexygirl.cc##div[class*="overflow-auto"]
 ! 야동홀릭 (https://yhl-59.com/)
 ! AV스팟 (https://avspot47.com/)
 ! AV소다 (https://soda59.com/)
-! 들어와 (https://comein22.com/)
+! 들어와 (https://comein24.com/)
 ! 방앗간 (https://gristmill31.com/)
 ! 섹플릭스 (https://www.xn--py2b11lf5aq86b.com/) (https://sexflix25.com/)
 ! 야동대학 (https://ydu14.com/)
@@ -5988,7 +5988,7 @@ sexygirl.cc##div[class*="overflow-auto"]
 ! 해피밤 (https://happy-n62.com/)
 ! 여의봉 (https://yeouibong63.com/)
 ! 야동홀릭 (https://yhl-59.com/)
-! 들어와 (https://comein22.com/)
+! 들어와 (https://comein24.com/)
 ! 방앗간 (https://gristmill31.com/)
 ! 섹플릭스 (https://sexflix25.com/)
 ! AV하나 (https://avhana-60.com/)
@@ -6479,7 +6479,7 @@ of996.com##[class*="-fixed-" i]
 !/wdwd/###dvhidden
 !
 !
-! 주소핑  (https://jusoping6.com/)
+! 주소핑  (https://jusoping7.com/)
 ! - 배너 빈 공간
 ![$domain=/jusoping/]##[class*="bg-black"]:has([href])
 !/jusoping/##[class*="bg-black"]:has([href])
@@ -6637,7 +6637,7 @@ jusotw.com##section:has([target] img[width="294"])
 ! - 상단 배너 공간
 ! - - - 링크랭킹 (https://www.lkrk1.com/)
 ! - - - 링크 365 (https://www.xn--365-938mx02g.com/) (https://www.xn--365-938mx02g.com/)
-! -- - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
+! - - - 주소365 (https://www.xn--365-9m5np11a.com/) (https://www.jooso365a.com/)
 ##div[role="list"]>:has([target] img[style])
 !
 !
@@ -6807,11 +6807,20 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 !xfree.com#@#[class^="ad" i]
 !
 !
+! 들어와 (https://comein24.com/)
+! 배너
+! - 씨네스트 (https://cineaste.co.kr/) - 배너
+! - 인생도박 (https://dblife01.com/) 상단배너
+! - 섹시걸 (https://sexygirl107.com/) 상단배너
+! - 주소핑 (https://jusoping7.com/) 상단배너
+##[class*="div"]:has([class*="img-item"])
+!
+!
 ! 인생도박 (https://인생도박주소.com) -> (https://t.me/s/indobak) (https://dobakin.com/) (https://dblife01.com/)
 ! - 배너
 ![$domain=/^dobaklife\d+.com/]##.col-sm-8
 ![$domain=/^dobaklife\d+.com/]##.col-sm-4
-! - - - 주소핑 (https://jusoping3.com/)
+! - - - 주소핑 (https://jusoping7.com/)
 !/dobaklife/##[class*="bg-black"]:has([href])
 ! - 안생도박 보증업체 테이블 (이미지)
 ![$domain=/^dobaklife\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
@@ -8432,7 +8441,7 @@ t-browser.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="
 ! 거지맵 (https://거지맵.com/) (https://xn--v69ak0xskm.com/)
 ! https://www.hankyung.com/ - 모바일에서 안보임
 ! https://www.womaneconomy.co.kr/ - banner 잘못 지워짐 수정 (상단 검색 부분 지워짐 방지)
-! 주소핑 (https://jusoping6.com/)
+! 주소핑 (https://jusoping7.com/)
 womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
