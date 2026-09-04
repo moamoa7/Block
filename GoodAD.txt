@@ -117,50 +117,6 @@ fhcontent.com,xfree.com##body:style(pointer-events: auto !important; overflow: a
 !##.grecaptcha-badge
 !
 !
-! - 팝업 (새창) 방지
-! 이토랜드 (https://etoland.co.kr/)
-! 매의눈닷컴 (https://heye.kr/)
-! https://javsubs91.uk/
-! https://javgiga.com/
-! https://sexkbj.com/
-! 색색티비 (https://kr551.mysstv.com/)
-! https://kissjav.com/
-! https://kissjav.li/
-! https://kpop.xxx
-! https://mrdouga.com
-! https://deepfakesporn.com
-! https://jpvoyeur.com
-! https://daftsex.net
-! https://javgays.com
-! https://javfc2.top/
-! https://mrjav.net/
-! https://thebjav.com/
-! https://kimchi.tv/
-! https://herexxx.com/
-! https://tokyomotion.com/
-! MISSAV 계열 사이트
-! sendvid.com
-! streamtape.com - https://sexkbj.com/ 영상 재생 등
-! q8y5z.com - https://thebjav.com/ 영상 재생 등
-! - - - ublock
-!q8y5z.com,streamtape.com,etoland.co.kr,heye.kr##+js(window.open-defuser)
-!/tokyomotion|herexxx|kimchi|thebjav|mrjav|javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/##+js(prevent-window-open)
-! - - - adguard
-!q8y5z.com,streamtape.com,etoland.co.kr,heye.kr#%#//scriptlet('prevent-window-open')
-!/tokyomotion|herexxx|kimchi|thebjav|mrjav|javfc2|sendvid|mysstv|missav|sexkbj|javgiga|javsubs|kissjav|kpop\.xxx|mrdouga|deepfakesporn|jpvoyeur|daftsex|javgays/#%#//scriptlet('prevent-window-open')
-!
-!
-! 카카오TV (https://tv.kakao.com/) - 서비스 종료
-! - 카카오TV 광고 차단 우회
-! - - - ||vst.play.kakao.com^ 차단해도 가능
-!tv.kakao.com#%#//scriptlet('set-constant', 'kakao.tv.adManager', 'noopFunc')
-! - 동영상 재상 안되는 문제 해결 (일부 차단 필터 차단 규칙 해제)
-!tv.kakao.com#@#.ads
-!tv.kakao.com#@#div.ads
-!  - --  DNS에서 차단중이면 아래 추가 필요
-!||smartmediarep.com^$badfilter
-!
-!
 ! 구글 (https://www.google.com/)
 ! - 검색시 하단에서 튀어나오는 아이콘 (기묘한 이야기 검색시)
 !||www.gstatic.com/delight/srp/scavenger_hunt/stranger_things/testing_2/dice.png
@@ -8408,10 +8364,6 @@ lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([
 ! https://pickscore119.com/
 ! 콕티비 (https://coktv1.com/) - 메인 오른쪽 최상단 작은 배너
 ##div[style*="banner" i]:not(body):not(html):not(main)
-!
-!
-!
-! - 개별 사이트마다 하는걸로 (##[target]:has([src*="/banner/" i]):not([class*="logo"]):not([alt*="로고"]):not([src*="/logo"]) 이것과 겹치는 일이 많음  / 해제도 2번 해야되는 일이 발생할 수 있음) // 타겟이 없는 배너만 해당
 !
 !
 !
