@@ -6827,6 +6827,8 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 !
 !
 ! https://www.xfree.com/
+! - (쿠키)팝업차단으로 스크롤 차단 해제 (모바일)
+xfree.com##body:style(pointer-events: auto !important; overflow: auto !important;)
 !  - 팝업 해제
 !xfree.com#@#[class^="ad" i]
 !
