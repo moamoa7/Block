@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260904
+! Version: 20260905
 !
 !
 !
@@ -149,7 +149,7 @@ fhcontent.com,xfree.com##body:style(pointer-events: auto !important; overflow: a
 ! YousLis 무력화
 !mylocation.co.kr#@#ins.adsbygoogle[data-ad-client]:not([data-matched-content-ui-type])
 !*adsbygoogle.js* - 이 규칙이 포함된 도메인이 아래 도메인임
-||googlesyndication.com^
+!||googlesyndication.com^
 !##[class*="google-ad"] - ##[class*="google"] 로 대체
 !##[class*="google" i]
 ! - 예외
@@ -165,11 +165,11 @@ fhcontent.com,xfree.com##body:style(pointer-events: auto !important; overflow: a
 ! - 문단 태그 존재 여부(:not(:has(p)))만 체크해서 본문이 날아가는 걸 방지하는 절충안
 !##[class*="adsense" i]:not(:has(p))
 !##[class*="adsense" i]
-##[id*="adsense" i]
+!##[id*="adsense" i]
 ! - 예외 - https://www.thecall.co.kr/
 thecall.co.kr#@#[id*="adsense" i]
 !##[class*="google-ads" i]
-##.google-ads
+!##.google-ads
 !##ins[data-adsbygoogle-status]
 !
 !
@@ -1471,16 +1471,17 @@ instiz.net##div:has([id*="powerlink" i])
 ! - 출처 : https://gall.dcinside.com/adguard/9576 - PC는 그대로임
 !namu.wiki##div:has(> form input[type="search"]) > div:has(svg)
 ! - 검색 후 메인 상단 빈공간
-!namu.wiki##div:has(> div > div[id^="_a"])
-namu.wiki##.\+7CqLcQ7
+namu.wiki##div:has(> div > div[id^="_gad"])
 ! - 검색 후 나오는 상단 2군대 배너 공간 (모바일) - 이걸로 모바일 빈공간은 다 해결됨
 !namu.wiki##div:has(> ins.adsbygoogle)
 ! - 검색 후 나오는 메인 중간 배너 공간들 (모바일)
-namu.wiki##div[class][data-v-4a81e1d2]
+!namu.wiki##div[class][data-v-4a81e1d2]
+namu.wiki##[data-v-a93b7ea0]
 ! - 검색 후 하단 광고
 !!namu.wiki##div:has(> div > div > table a[href^="#s-"] img[data-doc])
 ! - 파워링크 광고
 !namu.wiki##div[class][data-v-8cafd8cd]
+namu.wiki##div[style][data-v-e459f02a]
 !
 !
 ! 나무뉴스 (https://namu.news/)
@@ -2602,7 +2603,7 @@ cgv.co.kr##[class*=cgv-bot-modal]
 ! - - - - - 눌러도 예약화면이 안나옴 (왼쪽 상단 석삼자 눌러서 예매하기 클릭할 것)
 !cgv.co.kr##.btnLinkFixed
 ! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤/클릭(터치) 등이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
-cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
+!cgv.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
 !
 !
 ! 왓챠피디아 (https://pedia.watcha.com/)
@@ -8041,7 +8042,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 @@*/ad*$image,domain=trand.co.kr|coupang.com|mimint.co.kr
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! - 메이저링크 (https://majorlink2.com/)
+! - 메이저링크 (https://majorlink3.com/)
 @@*/ad*$image,domain=/majorlink/
 !
 !
