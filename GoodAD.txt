@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260905
+! Version: 20260906
 !
 !
 !
@@ -2637,7 +2637,7 @@ noonnu.cc##.is-visible.is-active.justify-center.items-center.flex.splide__slide
 !goodtv.co.kr##.popup
 ! - - - 예외 (WAVVE - 스크롤이 안됨)
 !www.wavve.com#@#.popup
-! - - - 예외 (https://kr88.sogirl.so) (https://kr29.4kjav.co/) - 예전 도메인이면 안보임
+! - - - 예외 (https://kr89.sogirl.so) (https://kr29.4kjav.co/) - 예전 도메인이면 안보임
 ![$domain=/^kr\d+.sogirl.so/],[$domain=/^kr\d+.4kjav.co/]#@#.popup
 ! - - - 예외 (nid.naver.com) - 네이버로 타사 회원가입시 필요
 !nid.naver.com#@#.popup
@@ -3691,6 +3691,15 @@ kitpa.org##[class*="h-70"]:has([data-ad-slot])
 ! 치클 (https://chicle.oshizi.com/)
 ! - 하단 쿠키 팝업
 chicle.oshizi.com##[data-chicle-consent-banner]
+!
+!
+! https://linkbio.co/
+! - 하단 배너 (모바일)
+linkbio.co##.lnk-prom-placement
+!
+!
+! https://www.ad.co.kr/
+@@||ad.co.kr^$generichide
 
 
 
@@ -3725,16 +3734,12 @@ chicle.oshizi.com##[data-chicle-consent-banner]
 !
 ! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki48.net/) - 접속안됨 (https://tvwiki15.space)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
-! 티비핫 (https://tvhot2.com/)
+! 티비핫 (https://tvhot2.com/) - 메인주소로 접속하면 구글로 이동됨 / https://tvhot2.com/drama 와 같이 디렉토리로 이동해야함
 ! - 팝업 제거
 !##[id*="modal-overlay" i]
 ! - 배너 이미지
-! - 티비위키 배너 이미지 -  kr: List-KR Classic 정규식이 잇어 패스
-!||cdn*.site/data/banner/*
-! - 티비몬 배너 이미지 -  kr: List-KR Classic 정규식이 잇어 패스
-!||tvmon.*/data/banner/*
-! - 티비핫 배너 이미지 -  kr: List-KR Classic 정규식이 잇어 패스
-!||tvhot.*/data/banner/*
+! - 티비위키 / 티비몬 / 티비핫 배너 이미지
+||apiapi*.com/data/banner/*$image
 ! - 상단 배너 공간
 ! -  - 티비위키
 !##[id="bannerList" i]
@@ -4233,7 +4238,7 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##[data-pm-ov="1"]
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##.vw-swipe-hint
 !/sbxh|toki/##[data-pm-ov="1"]
-/toki|sbxh|newtoki/##div[role="dialog"][aria-modal="true"]
+/toki|sbxh|newtoki/##div[role="dialog"]
 ##.vw-swipe-hint
 ! - p2p 차단 (애니 등 영상 시청시)
 !wss://tracker.
@@ -4493,6 +4498,8 @@ aving.tv##.gap-lg-5
 !streamtape.*##.play-overlay
 ! - 광고성 오버레이·요소들을 숨기는 코스메틱 필터
 ! - - - 후후티비 (https://dj.hoohootv453.xyz/)
+! - - - https://supjav.com/
+! - - - https://sextb.net/
 ##[class*="ad-placement"]
 !
 !
@@ -4517,8 +4524,10 @@ aving.tv##.gap-lg-5
 !/sextb/##.col-3
 ! - 영상 하단 배너 공간 (모바일)
 !sextb.net##div.col-3.right:nth-of-type(2)
+! - 영상 하단 VIP 링크
+/sextb/##.list-vip
 ! - 일부 영상 재생 차단 방지
-!turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]ㄱ
+!turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]
 ! - - - DNS 차단 해제 및 VPN도 별도 등록 필요
 @@||turboplays.click^
 ! - 기타
@@ -4693,7 +4702,7 @@ javgg.*##.home_iframead
 !
 ! https://www.pornhub.com/
 ! - 광고
-!##[class^="videos"] - 쏘걸 (https://kr88.sogirl.so/) - 영상 아미지 안나옴
+!##[class^="videos"] - 쏘걸 (https://kr89.sogirl.so/) - 영상 아미지 안나옴
 !
 !
 ! XNXX.COM (https://www.xnxx.com/)
@@ -4751,7 +4760,7 @@ sexkbj.com##.happy-inside-player
 ! 탑걸 (https://kr.av탑걸.com/) (https://www.탑걸.com/) (https://kr46.topgirl.co/)
 ! 자브걸 (https://kr31.javgirl.co/)
 ! - 배너
-! - - - 딸플릭스 (https://kr16.ddal.xyz/) 
+! - - - 딸플릭스 (https://kr16.ddal.xyz/) -접속 불가
 !##.ad_banner
 ! - 영상내 광고
 ! - - - 아브티비 (https://kr2.avtv.co/) - 없어진듯
@@ -4765,7 +4774,7 @@ sexkbj.com##.happy-inside-player
 topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !
 !
-! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr88.sogirl.so/)
+! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr89.sogirl.so/)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) - 없어짐
 ! - 입장시 18세 물어보는 팝업
 ###dclm_modal_content
@@ -4833,14 +4842,14 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !||waust.at^
 ! - 영상 차단 해제 (List-KR)
 @@||hcdn1.maxsocdn.net^$domain=sogirl.so
-! - - - https://kr88.sogirl.so/wp-content/cache/min/1/wp-content/plugins/adrotate-pro/library/jquery.groups.js?ver=1785128807
+! - - - https://kr89.sogirl.so/wp-content/cache/min/1/wp-content/plugins/adrotate-pro/library/jquery.groups.js?ver=1785128807
 /adrotate-
 !|metrics-bunny.net^
 ! - - - /plugins/wps-disclaimer/public/assets/js/disclaimer.js
 /plugins/wps-disclaimer/public/assets/js/disclaimer.js
 !
 !
-! 딸플릭스 (https://kr.딸플릭스.net/) (https://kr16.ddal.xyz/)
+! 딸플릭스 (https://kr.딸플릭스.net/) (https://kr16.ddal.xyz/) - 접속 불가
 ! - 쓸데없는 사이트 이동 차단
 !*/?code=*$document
 !*/mall/index.php$document
@@ -6138,7 +6147,7 @@ sexygirl.cc##div[class*="overflow-auto"]
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 야동투어 (https://야동투어.com/) (https://ydtour62.sbs/) - /p2p* 해제해야 영상재생 가능
+! 야동투어 (https://야동투어.com/) (https://ydtour67.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
 !##[id*="-ads" i]
@@ -6146,12 +6155,14 @@ sexygirl.cc##div[class*="overflow-auto"]
 !/ydtour/##.p-2:has(> .px-2)
 ! - 배너 이미지
 !##[src*="/ads/" i]
+! - 모든 배너
+/ydtour/##div[class*="center"]:has([aria-label*="광고"])
 ! - 영상 하단 텍스트 배너
 !##[class*=-ads-]
 ! - 상단 배너 공간 (메인)
 ![$domain=/^ydtour\d*\./]##.m-4
 ![$domain=/ydtour/]##.m-4
-/ydtour/##.p-1:has(> div)
+!/ydtour/##.m-4
 ! - 상단 배너 공간 (개별)
 ![$domain=/^ydtour\d*\./]##.mt-3
 ![$domain=/ydtour/]##.mt-3
@@ -6160,7 +6171,7 @@ sexygirl.cc##div[class*="overflow-auto"]
 ! - 스크롤 막힌거 해결 (팝업 남는것도 같이 해결됨)
 /ydtour/##[class*="z-[9999]"]
 ! - 영상 하단 텍스트 박스 광고
-/ydtour/##[aria-label*="광고"]
+!/ydtour/##[aria-label*="광고"]
 ! - 기타 (EasyPrivacy)
 !/script.tagged-events.js
 !
@@ -7109,16 +7120,24 @@ litt.ly#@#[href*="link.coupang.com"]
 !tcafe21.com#@#div[style*="z-index:99" i], div[style*="z-index: 99" i]
 ! - 메인 하단 배너 공간
 ![$domain=/^tcafe\d+.com/]##.main-p10
-/tcafe/##.main-p10
+!/tcafe/##.main-p10
 ! - 게시판 검색 안내 팝업
 ![$domain=/^tcafe\d+.com/]###tcag_overlay
 !/tcafe/###tcag_overlay
 !
 !
 ! 首頁 - 肉視頻,您的私人AV影院 (https://rou.video/)
-! - 배녀
-##div.flex.justify-center > ins[id]
-! - 영상 목록 빈 공간
+! - 팝업
+rou.video##div[role="dialog"]
+! - 배너
+! - - - 야동투어 (https://ydtour67.sbs/) - 일부 배너 이미지
+##div > a[target="_blank"] > img[src$=".gif"][style*="width:100%"]
+! - 배너 포함 일부 배너 공간
+rou.video##.my-2
+! - 개별 영상 위 쓸데없는 링크 - ##.my-2로 해결됨
+! - 개별 영상 내 필요없는 빈 공간
+rou.video##div.justify-center
+! - 영상 목록 (大家正在看) 빈 공간
 rou.video##div.md\:col-span-1
 ! - 기타
 ! - - - /js/clickadu.js ( cn tw tw: AdGuard Chinese (中文))
@@ -7206,6 +7225,8 @@ rou.video##div.md\:col-span-1
 !
 !
 ! 테라박스 (https://www.terabox.com/) (https://www.1024tera.com/)
+! - 왼쪽 하단 배너
+/tera/##[class="rotation auto-carousel"]
 ! -  본문 안보이는거 방지 (타 규칙에 의한 차단해제)
 #@#div[class*="share-link"]
 !
@@ -7405,7 +7426,7 @@ patreon.com##body:style(overflow: auto !important;)
 !uploadrar.com###gdpr-cookie-notice
 !
 !
-! AV플릭스 (https://av플릭스평생도메인.com) (https://kr3.avflix.co/)
+! AV플릭스 (https://av플릭스평생도메인.com) (https://kr4.avflix.co/)
 ! - 배너 이미지
 !||*.avflix.co/download/*$image
 ! 링크없는 배너 (아래 2규칙은 없어도 배너 이미지가 사라져서 상관없음)
@@ -7416,10 +7437,11 @@ patreon.com##body:style(overflow: auto !important;)
 ! - 배너 공간
 ##[class*="grid"]:has([data-banner-code])
 ! 기타
+! - - - https://kr4.avflix.co/banners/partner?_rsc=1r34m
 /banners^$xhr
 !
 !
-! 딸튜브 (https://딸튜브.com/) (https://kr14.ddaltube.com/) - 광고 영상이 재생시 나옴 (음소거 필요)
+! 딸튜브 (https://딸튜브.com/) (https://kr16.ddaltube.com/) - 광고 영상이 재생시 나옴 (음소거 필요)
 ! 야동스타 (https://kr2.yastar.xyz/) - 광고 영상이 재생시 나옴 (음소거 필요)
 ! - 플레이어 안보이는거 해결
 !/yastar|ddaltube/#@#[class*="-ad-" i]
@@ -7496,11 +7518,6 @@ cam69.com##[id*="slider-ad"]
 !||ptwmstcnt.com^
 !||vcmdiawe.com^
 !||realtime.pa.highwebmedia.com^
-!
-!
-! https://leakedzone.com/
-! - 상단 프리미엄 배너
-##[href*="/premium"]
 !
 !
 ! https://www.camconsole.com/
@@ -7989,6 +8006,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://iloa.gg/
 ! 숲 - https://res.sooplive.com/data/ad/check_new_ad.js?refresh=숫자(변동)
 ! 티빙 -  https://gw.tving.com/ad/display-ads/banner?inventoryCode=DA_BANNER&contentSeg=context%3Dmain&screenCode=CSSD0100&osCode=CSOD0900&country=KOR&lmt=1&deviceWidth=1920&deviceHeight=1080&platformType=WEB&testMode=false&orientation=l
+! AV플릭스 (https://kr4.avflix.co/) - https://kr4.avflix.co/api/v1/ad/config
 */ad/*
 ! - 예외
 @@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr
@@ -8062,6 +8080,9 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 풍투데이
 ! 조선에듀
 */ad_
+! - 예외
+! https://www.ad.co.kr/ - 이미지
+@@||*/ad_*$domain=ad.co.kr
 !
 !
 ! https://vkvideo.ru/
@@ -8120,7 +8141,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! AV19 (https://av19t.com/) - https://work33882.com/js/loads.js?v=1668586751
 ! https://k01.aving.tv - https://k01.aving.tv/assets/src/modules/composer/uploads.js?v=18bcebda699
 !@@||*loads.js?
-! https://kr88.sogirl.so/wp-content/cache/min/1/js/jads.js?ver=1787735299
+! https://kr89.sogirl.so/wp-content/cache/min/1/js/jads.js?ver=1787735299
 !@@||*/jads.js?
 !
 !
@@ -8282,9 +8303,31 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ##[href*="link.coupang.com"]
 !
 !
-! 뉴시스 (https://www.newsis.com/) - 기사내 빈공간
+!
+! 구글 -https://www.google.com/recaptcha/
+! AVseeTV (https://01.avsee.is/) -예외 : :not([src*="player"])
+! https://javclick.com/ - upload18.com/play/index/IPZZ-941-clone-baca85
+! 유튜브 / 트위터 / 인스타 등 - :not([src*="embed"])
+! turboplays.click/t/6a3bd5737dce6
+! hglink.to/e/s5nqr69mkpzb
+! ryderjet.com/v/4ezt65y4j7zz
+! https://supjav.com/ TV영상 - supremejav.com
+! 7MMTV (https://7tv022.com/) TV영상 - 7tv022.com
+! |player.upn.one/- Video not found or deleted 일부
+! stb.strp2p.com/ - Video not found or deleted
+! 픽팍 - :not([src*="mypikpak.com"])
+! 스포츠TV (헐크TV / VIPTV 등) - goststream.com  //  :not([src*="content"])   //  :not([src*="live"])  // :not([id*="broadcast"])
+##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="content"]):not([src*="live"]):not([id*="broadcast"])
+!
+! 예외
+! Tcafe (https://tcafe21.com/) - src="about:blank"
+tcafe21.com#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="content"]):not([src*="live"]):not([id*="broadcast"])
+!
+!
+! 뉴시스 (https://www.newsis.com/) - 기사내 빈공간 - 일부 기사 하단 내용 지워짐으로 대체 하지 않고 사용시 추가 규칙 필요해보임
 ! 헝그리앱
-##li:has(> iframe)
+! ##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]) 이 규칙으로 대체
+!##li:has(> iframe)
 !
 !
 ! https://crassiang.com/
@@ -8292,7 +8335,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !||cre.ma^
 !||datarize.io^
 ! - - - https://map.naver.com/ 등
-##iframe[width="0"][height="0"]
+! ##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]) 이 규칙으로 대체
+!##iframe[width="0"][height="0"]
 !
 !
 ! https://bada.us/ iframe 배너  (backstage.bada.us/vueController/getAmazonCustomAds?asin=)
@@ -8302,7 +8346,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !##iframe[src$="ads" i]
 !##iframe[src$="?asin=" i]
 ! - - - https://01.avovo.net/ 등 예외 적용
-##iframe[src*="ads" i]:not([src*="loads" i])
+! ##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]) 이 규칙으로 대체
+!##iframe[src*="ads" i]:not([src*="loads" i])
 !
 !
 !
@@ -8310,6 +8355,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! - 예외
 ! https://sooptore.sooplive.com/
 ! https://www.coupangplay.com/
+! AV플릭스 (https://kr4.avflix.co/) - https://kr4.avflix.co/banners/partner?_rsc=1r34m
 @@*/banners/*$domain=sooptore.sooplive.com|coupangplay.com
 !
 !
@@ -8624,26 +8670,21 @@ video.fc2.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not(
 !
 !
 !
-! 야동투어 (https://ydtour62.sbs/) - 배너 및 팝업 이미지 (두 규칙 모두 동일)
-! - - - 무코 (https://muko.kr/) 배너
-! - - - 짭툰 (https://www.jjaptoon007.com/) 배너
-! - - - 그레이뉴스 (https://graynews.co.kr)
-##img[src*="/ads/"]
-! - - -  자딸파티 (https://jaddal40.top/) - 텔레그램 고객센터 버튼
+! 자딸파티 (https://jaddal40.top/) - 텔레그램 고객센터 버튼
 ##[onclick^="window.open"] img
 ! - - - https://www.edaily.co.kr/에서 img로 안하면 일부 텍스트가 사라짐
 !##[onclick^="window.open"]
 !
 !
 !
-##[id*="-pop" i]:not(body):not(html):not(main)
+##[id*="-pop" i]:not(body):not(html):not(main):not([id*="-popular" i])
 !
 !
 !##[class*="-pop" i]:not(body):not(html):not(main)
 !
 !
 !
-##[id*="_pop" i]:not(body):not(html):not(main)
+##[id*="_pop" i]:not(body):not(html):not(main):not([id*="_popular" i])
 !
 !
 !##[class*="_pop" i]:not(body):not(html):not(main)
@@ -8704,9 +8745,9 @@ fd2ppv.cc#@#[id*="popup" i]:not(body):not(html):not(main)
 !
 !
 ##[href*="/ad/" i]
-! - 예외 - https://www.ad.co.kr/ - 사라지면 안되는 링크 사라짐
+! - 예외 - https://www.ad.co.kr/ - 사라지면 안되는 링크 사라짐 - @@||ad.$from=ad.co.kr 대신 처리
 ! - 예외 - https://fkhb90.github.io
-fkhb90.github.io,ad.co.kr#@#[href*="/ad/" i]
+fkhb90.github.io#@#[href*="/ad/" i]
 !
 !
 ##[href*="/ads/" i]
@@ -8877,6 +8918,19 @@ analysis.
 !
 ! 광고 차단 프로그램을 켜고 있는지 탐지(Anti-Adblock)하기 위해 호출하는걸 차단 (사용자의 광고 차단기 사용 여부를 추적하고 수집하는 것을 차단)
 szCheckType=adblock
+!
+!
+!
+! https://javfc2.xyz/ - 프리미엄 링크
+##[href*="/premium"]
+!
+!
+!
+! https://leakedzone.com/ - 상단 프리미엄 배너 / 왼쪽 하단 배너
+##[class*="premium"]
+! - 예외 - https://mypikpak.com/ - 일부 이미지 사라져 페이지가 아주 미미하게 이상하게 느껴짐
+mypikpak.com#@#[class*="premium"]
+
 
 
 
