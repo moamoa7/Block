@@ -4,7 +4,7 @@
 ! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260825
+! Version: 20260906
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
@@ -34,6 +34,7 @@
 @@||termeden.com^$stealth=dpi
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||truefriend.com^$stealth=dpi
+@@||ticketlink.co.kr^$stealth
 !
 ! 네이버 카페 (https://cafe.naver.com/)
 ! - 카페 사진 첨부 오류 해결
