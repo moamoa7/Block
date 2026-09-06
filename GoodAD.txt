@@ -5807,6 +5807,8 @@ shopping.naver.com#@#div[class*="border"]:has(> [target] img)
 !/linkget/#@#div[class*="border"]:has(> [target] img)
 ! - - -- https://dmm.ppvdb.com/ - 왼쪽 이미지 사라짐
 dmm.ppvdb.com#@#div[class*="border"]:has(> [target] img)
+! - - - https://fc2db.net/ - 개별 상세 목록에서 왼쪽 이미지 사라짐
+fc2db.net#@#div[class*="border"]:has(> [target] img)
 ! - 상단 빈 공간 (PC/모바일 공통)
 !##.justify-start.flex-wrap.flex
 !  - 각 주제별 상단 빈 공간 (PC/모바일 공통)
@@ -8033,6 +8035,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! AV플릭스 (https://kr4.avflix.co/) - https://kr4.avflix.co/api/v1/ad/config
 */ad/*
 ! - 예외
+@@*/ad/*$css
+! - 예외
 @@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr
 !
 !
@@ -8106,10 +8110,11 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 디시인사이드 - https://gall.dcinside.com/_js/ad_audit.js?v=2605081820
 ! 풍투데이
 ! 조선에듀
+! https://video.fc2.com/ - https://video.fc2.com/a/ad_rentangle.php
 */ad_
 ! - 예외
 ! https://www.ad.co.kr/ - 이미지
-@@||*/ad_*$domain=ad.co.kr
+!@@||*/ad_*$domain=ad.co.kr
 !
 !
 ! https://vkvideo.ru/
@@ -8347,12 +8352,13 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 스포츠TV (헐크TV / VIPTV 등) - goststream.com  //  :not([src*="/content/"])   //  :not([src*="/live"])  // :not([id*="broadcast"])
 ! 네이버지도 - :not([src*="map"])
 ! 이토랜드 팬더티비 - id="webmediaFrame"
-##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"])
+! https://www.bestjavporn.com/ - :not([src*="bestjavporn"])
+##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"])
 !
 ! 예외
 ! Tcafe (https://tcafe21.com/) - src="about:blank"
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
-/tcafe/#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"])
+/tcafe/#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"])
 !
 !
 !
@@ -8938,6 +8944,7 @@ cineaste.co.kr#@#.h30
 !
 ! 야동코리아 (https://yadongkorea03.com/) - 영상 하단 배너 
 ! https://www.javxxx.me/ - 상단 javHD 링크
+! https://www.bestjavporn.com/ -  - 상단 javHD 링크
 ##a[rel*="sponsored"][onclick]
 !
 !
@@ -8955,14 +8962,19 @@ szCheckType=adblock
 !
 ! https://javfc2.xyz/ - 프리미엄 링크
 ! https://gofile.io/ - 프리미엄 링크
+! https://avjb.com/ - 프리미엄 링크
+! https://video.fc2.com/ - 프리미엄 링크
 ##[href*="/premium"]
 !
 !
 !
 ! https://leakedzone.com/ - 상단 프리미엄 배너 / 왼쪽 하단 배너
 ##[class*="premium"]
-! - 예외 - https://mypikpak.com/ - 일부 이미지 사라져 페이지가 아주 미미하게 이상하게 느껴짐
-mypikpak.com#@#[class*="premium"]
+! - 예외
+! https://mypikpak.com/ - 일부 이미지 사라져 페이지가 아주 미미하게 이상하게 느껴짐
+! https://avjb.com/ - 회원가입 해야하는 곳
+avjb.com,mypikpak.com#@#[class*="premium"]
+
 
 
 
