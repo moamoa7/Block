@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260906
+! Version: 20260907
 !
 !
 !
@@ -1098,6 +1098,8 @@ etoland.co.kr##.fixed-bottom
 etoland.co.kr##[style*="grid-column"]:has([target*=blank])
 ! - - - 히트 게시판에서 핫딜 없애기
 etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
+! - - - 게시물 핫딜 없애기
+etoland.co.kr##li:has([data-inouts-click="true"])
 ! =========================
 ! - 애드블럭 감지 해제 (출석체크 랜덤포인트 얻을려면 필요)
 @@||doubleclick.net^$domain=etoland.co.kr
@@ -3777,7 +3779,8 @@ linkbio.co##.lnk-prom-placement
 ##[id$="cover" i]
 ! - 예외
 ! - - - https://javgg.net/ - 일부 텍스트(소개글) 사라짐
-javgg.net#@#[id$="cover" i]
+! - - - https://www.av01.media/ - 일부 커버 이미지 사라짐
+/av01|javgg/#@#[id$="cover" i]
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
 ! - 로딩 동그라마
@@ -8343,12 +8346,13 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 픽팍 - :not([src*="mypikpak.com"])
 ! 스포츠TV (헐크TV / VIPTV 등) - goststream.com  //  :not([src*="/content/"])   //  :not([src*="/live"])  // :not([id*="broadcast"])
 ! 네이버지도 - :not([src*="map"])
-##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"])
+! 이토랜드 팬더티비 - id="webmediaFrame"
+##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"])
 !
 ! 예외
 ! Tcafe (https://tcafe21.com/) - src="about:blank"
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
-cafe21.com#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"])
+/tcafe/#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"])
 !
 !
 !
