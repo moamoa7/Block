@@ -42,14 +42,12 @@
 ! - 광고 차단이나 팝업 차단 필터로  그 뒤에 스크롤/클릭(터치) 등이 잠긴 채로 남아있는 문제를 해결하기 위해 같이 쓰는 규칙
 !noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,linkareer.com,svrforum.com,issuya.com,tistory.com,cgv.co.kr,joongang.co.kr##body:style(pointer-events: auto !important; overflow: auto !important;)
 ! - 다른 규칙 2가지 사용으로 구분 (##+js(no-scroll-lock) 이 규칙이 통하면 이것부터 적용)
-!noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,svrforum.com,issuya.com,tistory.com,joongang.co.kr##+js(no-scroll-lock)
-noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,svrforum.com,issuya.com,tistory.com,joongang.co.kr#%#//scriptlet('prevent-scroll-lock')
+!itworld.co.kr,noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,svrforum.com,issuya.com,tistory.com,joongang.co.kr##+js(no-scroll-lock)
+!itworld.co.kr,noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,svrforum.com,issuya.com,tistory.com,joongang.co.kr#%#//scriptlet('prevent-scroll-lock')
 !linkareer.com,cgv.co.kr##html, body:style(pointer-events: auto !important; overflow: auto !important;)
-linkareer.com,cgv.co.kr#$#html, body { pointer-events: auto !important; overflow: auto !important; }
+!linkareer.com,cgv.co.kr#$#html, body { pointer-events: auto !important; overflow: auto !important; }
+itworld.co.kr,noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,linkareer.com,svrforum.com,issuya.com,tistory.com,cgv.co.kr,joongang.co.kr##html, body:style(overflow: auto !important; overflow-y: auto !important; position: static !important; height: auto !important;)
 !
-
-!
-
 !
 !
 !
@@ -3716,7 +3714,7 @@ linkbio.co##.lnk-prom-placement
 ! - 쿠키 팝업 차단
 !itworld.co.kr##[role="dialog"]
 ! - 쿠키 팝업 차단으로 인한 스크롤 해제
-itworld.co.kr##+js(no-scroll-lock)
+!itworld.co.kr##+js(no-scroll-lock)
 
 
 
@@ -8346,13 +8344,12 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 스포츠TV (헐크TV / VIPTV 등) - goststream.com  //  :not([src*="/content/"])   //  :not([src*="/live"])  // :not([id*="broadcast"])
 ! 네이버지도 - :not([src*="map"])
 ##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"])
-
 !
 ! 예외
 ! Tcafe (https://tcafe21.com/) - src="about:blank"
-! https://www.itworld.co.kr/ - src="about:blank" - ##+js(no-scroll-lock)로 해결되서 주석처리
+! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
 cafe21.com#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"])
-
+!
 !
 !
 ! 뉴시스 (https://www.newsis.com/) - 기사내 빈공간 - 일부 기사 하단 내용 지워짐으로 대체 하지 않고 사용시 추가 규칙 필요해보임
