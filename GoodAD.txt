@@ -2141,6 +2141,7 @@ mk.co.kr##.my_agent2
 ! - 기타 (uBlock filters – Ads)
 !##.ad-slot:not(.adsbox):not(.adsbygoogle)
 ! - - - 마이민트 (https://www.mimint.co.kr/) - 실시간 인기 TOP / 최근 등록된 게시물 내 빈 줄 / 댓글 사이 빈 줄
+! - -  gigafile.nu
 ##[class$="-slot" i]
 !
 !
@@ -3458,7 +3459,8 @@ chicle.oshizi.com#@#[aria-label*="광고"]:has([class*="adsbygoogle"])
 ! 퀘이사존 (https://quasarzone.com/)
 ! - 메인 빈공간
 !quasarzone.com##[class*="slot" i]
-! - 마이민트 (https://www.mimint.co.kr/) - 인기 게시물 / 인기 뉴스 위 빈 공간
+! - - - 마이민트 (https://www.mimint.co.kr/) - 인기 게시물 / 인기 뉴스 위 빈 공간
+! - - - gigafile.nu
 ##[class*="-slot-" i]
 ! - 파트너 핫딜
 ! - - - https://fc2.sirouto-siritai.com/ 젤 하단
@@ -4209,7 +4211,7 @@ joatoon-oa.com##.bg-opacity-50
 ##div:has(> .theme-popup-stack)
 !
 !
-! 뉴토끼 (https://뉴토끼우회.com) (https://toki31.com/) (https://sbxh9.com)
+! 뉴토끼 (https://뉴토끼우회.com)  (https://뉴토주소.com) (https://toki31.com/) (https://sbxh9.com)
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide,xhr,script
 !@@||toki*.com^$generichide,xhr,script
@@ -4286,19 +4288,19 @@ joatoon-oa.com##.bg-opacity-50
 !@@/ad[/*-]*$domain=/^(toki|sbxh|newtoki)\d+\.[a-z.]+$/
 !
 !
-! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/toki_ch)  (https://최신토끼.com/)
+! 뉴토끼 / 마나토끼 / 북토끼 (https://t.me/s/newtokinews)  (https://최신토끼.net)
 ! - 뉴토끼평생 팝업
 !뉴토끼평생.net##.show.op_popup_overlay
 ! - 이미지
-! - - - 뉴토끼 (https://newto27.com/)
+! - - - 뉴토끼 (https://newto31.com/)
 !||newto*.com/data/apms/*
-! - - - 마나토끼 (https://mato27.com/)
+! - - - 마나토끼 (https://mato31.com/)
 !||mato*.com/data/apms/*
-! - - - 북토끼 (https://bookto27com/)
+! - - - 북토끼 (https://bookto31.com/)
 !||bookto*.com/data/apms/*
 !
 !
-! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon417.com/)
+! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon421.com/)
 ! - 최신주소 안내페이지 배너 공간 (https://www.blacktoonurl2.com/)
 ![$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 ![$domain=/blacktoonurl/]###comp-mon185d4 > div > div
@@ -4317,7 +4319,7 @@ joatoon-oa.com##.bg-opacity-50
 !/blacktoon/##li.nav-item:nth-of-type(5)
 !/blacktoon/##li.nav-item:nth-of-type(6)
 !
-! 블루TV (https://bluelive81.com/)
+! 블루TV (https://bluelive82.com/)
 ! - 필요업는거
 ![$domain=/^bluelive\d*\./]##.navbar-collapse
 ![$domain=/^bluelive\d*\./]##.card-body
@@ -4326,7 +4328,7 @@ joatoon-oa.com##.bg-opacity-50
 !/bluelive/##.card-body
 !
 !
-! 무료툰 (https://t.me/s/foclink) (https://무료툰.com) (https://foc116.asia/)
+! 무료툰 (https://t.me/s/foclink) (https://무료툰.com) (https://foc123.asia/)
 ! - 배너 이미지
 !||foc*.com/banner/*
 ! - 하단 배너
@@ -7891,6 +7893,12 @@ porntasia.app##[class*="bottom" i]:has([target*="blank"][style*="background-imag
 ! 
 !
 !
+! gigafile.nu
+! - 가입 안내
+gigafile.nu##[class*="subsc-content"]
+!
+!
+!
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
 
 
@@ -8039,6 +8047,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
 ! javclick.com - https://upload18.org/player/js/ads.js?v=1.0
+! https://gofile.io/ - https://gofile.io/js/core/ads.js
 */ads.*
 !
 !
@@ -8317,11 +8326,14 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! stb.strp2p.com/ - Video not found or deleted
 ! 픽팍 - :not([src*="mypikpak.com"])
 ! 스포츠TV (헐크TV / VIPTV 등) - goststream.com  //  :not([src*="content"])   //  :not([src*="live"])  // :not([id*="broadcast"])
-##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="content"]):not([src*="live"]):not([id*="broadcast"])
+! 네이버지도 - :not([src*="map"])
+##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="content"]):not([src*="live"]):not([id*="broadcast"]):not([src*="map"])
+
 !
 ! 예외
 ! Tcafe (https://tcafe21.com/) - src="about:blank"
-tcafe21.com#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="content"]):not([src*="live"]):not([id*="broadcast"])
+tcafe21.com#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="content"]):not([src*="live"]):not([id*="broadcast"]):not([src*="map"])
+
 !
 !
 ! 뉴시스 (https://www.newsis.com/) - 기사내 빈공간 - 일부 기사 하단 내용 지워짐으로 대체 하지 않고 사용시 추가 규칙 필요해보임
@@ -8922,6 +8934,7 @@ szCheckType=adblock
 !
 !
 ! https://javfc2.xyz/ - 프리미엄 링크
+! https://gofile.io/ - 프리미엄 링크
 ##[href*="/premium"]
 !
 !
