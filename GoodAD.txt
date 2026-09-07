@@ -3965,7 +3965,7 @@ fingerprint.
 !ttattack.com###thema_wrapper
 !
 !
-! 고구마티비 (https://www.gogumatv.live/) - 접속 안됨
+! 고구마티비 (https://www.gogumatv.live/) --> 좋은티비 (https://www.jountv01.in/) 로 변경
 ! - 이미지 복원
 ![$domain=/^gogumatv\d+.com/]#@#[class*="banner" i]
 ![$domain=/gogumatv/]#@#[class*="banner" i]
@@ -3975,6 +3975,9 @@ fingerprint.
 ! - 쓸데없는거
 ! - - - 옥션 (추석 기획전)
 !##div[class^="swiper-"] > ul > li > a[target="_blank"]
+! - 이미지 사라지는거 방지
+! - - - 티비차차 (https://www.tvchacha04.live/)
+@@||bootcss.com^$domain=/jountv|tvchacha/
 !
 !
 ! 조개무비 (https://jogemovie.xyz/) (https://v25.jogemovie.net/)
@@ -4091,7 +4094,7 @@ fingerprint.
 ! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx332.com/)
 ! W툰 (https://t.me/s/wtwt999) (https://wtwt335.com/)
 ! - 팝업
-! - - - 별별티비 (https://www.bbtv92.com/)
+! - - - 별별티비 (https://www.bbtv95.com/)
 !##.modal-wrapper
 ! - 뿌옇거 해결
 !##.modal-overlay
@@ -6938,10 +6941,11 @@ apkmody.com##.invisible-horizontal-scroll.flex-container-3
 !modded-1.com#@#[class*="ad-container" i]
 !
 !
-! 별별티비 (https://www.bbtv92.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! 별별티비 (https://www.bbtv95.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 배너 이미지
-! - - - 달달티비 (https://www.dadtv2.com/) - 현재 접속 불가
+! - - - 달달티비 (https://www.dadtv3.com/) - 현재 접속 불가
 ! - - - 별별티비 / 달달티비 / 청양티비
+! - - - 티비짱 (https://www.tvzzang4.com/) - 영상이 로딩만 하고 재생이 안됨
 !/^https?:\/\/images2\.imgbox\.com\/.*$/$domain=/^(www\.)?(bbtv|dadtv)\d+\.com$/
 !||images2.imgbox.com^$domain=/bbtv/
 !||images2.imgbox.com^$domain=/dadtv/
@@ -6970,13 +6974,13 @@ naver.com#@#[target]>div[class*="image"][style]
 /cytv/##.index-wall-left, .index-wall-right
 !
 !
-! 도도티비 (https://dodotv20.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! 도도티비 (https://www.dodotv20.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 상단 텍스트 배너 (사이트 제작하기)
 !/^(www\.)?dodotv/##.line-notice
 /dodotv/##.line-notice
 !
 !
-! 모자TV (https://www.mozatv.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음 - 현재 접속 불가(26.07.11)
+! 모자TV (https://www.mozatv.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 배너 (PC)
 !mozatv.com##.banner_max
 ! - 배너 (모바일)
@@ -8540,7 +8544,8 @@ t-browser.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="
 womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-/jusoping|tkor|funbe|wdwd/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+! - https://www.koreasite.live/
+/jusoping|tkor|funbe|wdwd|koreasite/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 !
 !
@@ -8593,6 +8598,7 @@ xn--v69ak0xskm.com,atlantak.com#@#[class*="-banner-" i]:not(body):not(html):not(
 ! 머니툰 (https://mtoon144.asia/)
 ! https://iloa.gg/
 ! 한국인포맥스 (https://www.hinfomax.co.kr)
+! 티비차차 (https://www.tvchacha04.live/)
 ##[alt*="banner" i]
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -8709,7 +8715,9 @@ yandex.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([hr
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://video.fc2.com/ - 개별 작품 하단 이미지 사라짐
-video.fc2.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"])
+! 좋은티비 (https://www.jountv01.in/) - 작품 이미지 사라짐
+! 티비차차 (https://www.tvchacha04.live/) - 작품 이미지 사라짐
+/jountv|tvchacha/,video.fc2.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"])
 !
 !
 !
