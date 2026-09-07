@@ -2287,8 +2287,6 @@ kstarfashion.com##[style="width:320px;height:100px;"]
 ! - - - 서울경제 (https://www.sedaily.com) 모바일
 !##div:has(> script[src*="/ad."])
 ##div[style]:has(> script[src*="/ad."])
-! - 애드가드에서는 도메인을 넣어야 정확히 처리되서 도메인 넣은 규칙 병행 기재
-joongdo.co.kr,edaily.co.kr,fomos.kr,sedaily.com##div[style]:has(> script[src*="/ad."])
 !
 !
 ! 데일리메디 (https://www.dailymedi.com/)
