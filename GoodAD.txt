@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260907
+! Version: 20260908
 !
 !
 !
@@ -534,6 +534,14 @@ map.naver.com##[class*="promotion"]
 !/?sentry_version=
 ! - 기타
 bannerid=
+!
+!
+!
+! 네이트 (https://www.nate.com/)
+! 메인 왼쪽 하단 Biz 추천검색어
+nate.com##.area_ranking
+! 메인 하단 숏폼
+nate.com##.short-form-content
 !
 !
 ! 네이트 뉴스 (https://news.nate.com)
@@ -2128,7 +2136,7 @@ mbiz.heraldcorp.com##[class*="event_" i]
 ! 게임조선 (https://gamechosun.co.kr/)
 ! - 상단 배너
 !##[class*="top_event" i]
-##.top_event
+!##.top_event
 !
 !
 ! 한국경제TV (https://www.wowtv.co.kr/)
@@ -3457,6 +3465,7 @@ chicle.oshizi.com#@#[aria-label*="광고"]:has([class*="adsbygoogle"])
 !quasarzone.com##[class*="slot" i]
 ! - - - 마이민트 (https://www.mimint.co.kr/) - 인기 게시물 / 인기 뉴스 위 빈 공간
 ! - - - gigafile.nu
+! - - - https://view.nate.com/ - 빈 공간
 ##[class*="-slot-" i]
 ! - 파트너 핫딜
 ! - - - https://fc2.sirouto-siritai.com/ 젤 하단
@@ -3705,9 +3714,26 @@ linkbio.co##.lnk-prom-placement
 !itworld.co.kr##[role="dialog"]
 ! - 쿠키 팝업 차단으로 인한 스크롤 해제
 !itworld.co.kr##+js(no-scroll-lock)
-
-
-
+!
+!
+! 디즈니+ (https://www.disneyplus.com/)
+@@||www.disneyplus.com^$generichide
+!
+!
+! 티켓링크 (https://www.ticketlink.co.kr/)
+@@||ticketlink.co.kr^$generichide,xhr
+!
+!
+! 삼성 (https://www.samsung.com/)
+@@||samsung.com^$generichide
+!
+!
+! T다이렉트샵 (https://shop.tworld.co.kr/)
+@@||shop.tworld.co.kr^$generichide
+!
+!
+! KT다이렉트샵 (https://shop.kt.com/)
+@@||shop.kt.com^$generichide
 
 
 
@@ -7891,6 +7917,8 @@ poomki.net##[rel*="sponsor"]:has-text(AD)
 ssadafile.com##[id*="box"]:has([id*="banner" i])
 ! - 왼쪽 배너
 ##[href*="event/?"] img
+! - 예외 - https://page.kakao.com/
+page.kakao.com#@#[href*="event/?"] img
 ! - 오른쪽 배너 공간
 ssadafile.com##[class*="wrap"]:has([id*="banner" i])
 !
@@ -8005,6 +8033,10 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 뉴엑스툰 (https://newxtoon1.com/) - https://newxtoon1.com/build/assets/home-ad-popups-6UlIYRHN.js
 *-ad-*
 !
+! - 예외
+@@||*-ad-*$domain=nate.com
+
+!
 !
 ! https://platinmods.com/
 *-ads-*
@@ -8025,6 +8057,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 *ads_*:not(_ads_)
 !
 !
+! https://pann.nate.com/ - https://pann.nate.com/pann_ad_right.html?
 ! 디스코드
 ! 팍스넷 (https://www.paxnet.co.kr) - https://image.paxnet.co.kr/rpan/common/js/mobile_ad_main.js?update=20230316
 ! Yandex - Yandex 자동완성 기능
@@ -8052,7 +8085,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 예외
 @@*/ad/*$css
 ! - 예외
-@@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr
+@@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com
 !
 !
 ! 치지직
@@ -8349,6 +8382,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !
 ! - 쿠팡 광고
 ##[href*="link.coupang.com"]
+! - 예외
+shopping.nate.com#@#[href*="link.coupang.com"]
 !
 !
 !
@@ -8416,6 +8451,11 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 짜딸파티 (https://jaddal40.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
 ! 야동닷컴 (https://yadong9.com/) - 상단배너
 */admin_banner/*
+!
+!
+!
+! 게임조선 (https://gamechosun.co.kr/) - 좌.우 배너
+*/ad_banner/*
 !
 !
 ! 숲
@@ -8488,7 +8528,8 @@ lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.clien.net/ - 클리앙 검색 부분 / 댓글
 ! https://search.naver.com/ - 검색 상단 사라짐
-search.naver.com,clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i])
+! 게임조선 (https://gamechosun.co.kr/) - 메인에서 일부 잘림으로 이상해짐
+gamechosun.co.kr,search.naver.com,clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
@@ -8705,6 +8746,7 @@ mule.co.kr##[target] img
 ! 토렌트쓱 (https://ssg1.torrentssg9.com/)
 ! 얼리어답터뉴스 (https://eanews.kr/)
 ! 주소파티 (https://www.주소파티.com/) - 상단 배너
+! https://brunch.co.kr/ - 글 하단 오늘만 무료 배너
 ! - - - 유튜브 / 숲/ 치지직 /왓챠피디아 (https://pedia.watcha.com/) 예외
 ##[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"])
 !
@@ -8725,7 +8767,8 @@ yandex.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([hr
 !
 ! https://porntasia.app/
 ! 왓챠피디아 (https://pedia.watcha.com/)
-##[target*="blank"][style*="background-image"]
+! - - - 유튜브 이미지 제외 :not([href*="youtube"])
+##[target*="blank"][style*="background-image"]:not([href*="youtube"])
 !
 !
 !
@@ -8959,6 +9002,7 @@ cineaste.co.kr#@#.h30
 !
 ! DVDPrime (https://dvdprime.com/)
 ! 침하하 (https://chimhaha.net/)
+! 게임조선 (https://gamechosun.co.kr/) - 하단 빈공간
 ##[id^="slot" i]
 !
 !
@@ -8978,6 +9022,11 @@ analysis.
 !
 ! 광고 차단 프로그램을 켜고 있는지 탐지(Anti-Adblock)하기 위해 호출하는걸 차단 (사용자의 광고 차단기 사용 여부를 추적하고 수집하는 것을 차단)
 szCheckType=adblock
+!
+!
+!
+! 게임조선 (https://gamechosun.co.kr/) - 상단 공간
+##[class$="_event"]
 
 
 
