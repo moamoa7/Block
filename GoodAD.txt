@@ -2860,19 +2860,6 @@ t.hi098123.com#$#.tabad { top: -100px !important; }
 dschool.co.kr##[id*="lean_overlay" i]
 !
 !
-! 라바TV (https://lrtv117.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
-! - 팝업
-!##.popup_left
-!##.popup_right
-! - 상단 배너
-![$domain=/^lrtv\d+.com/]##.yk-container
-/lrtv/##.yk-container
-! - 영상 하단 배너
-! - - -  뷰티비 (https://vitv85.com/) 
-![$domain=/^lrtv\d+.com/],[$domain=/^vitv\d+.com/]##.yk-container3
-/lrtv|vitv/##.yk-container3
-!
-!
 ! 사람인 (https://www.saramin.co.kr/)
 ! - 일부 해제 - 사이트 구동 안됨
 saramin.co.kr#@#[class*="banner" i]
@@ -4362,8 +4349,8 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^b\d+.toon-bro.xyz/]##.inset-0.fixed
 !
 !
-! 링크비비기 (https://linkbbg5.com/)
-! - - - 엑스비비기 (https://linkbbg.xbbg.tv/) (https://34.xbbg.tv/)
+! 링크비비기 (https://linkbbg5.com/) - 없어짐?
+! - - - 엑스비비기 (https://linkbbg.xbbg.tv/) (https://34.xbbg.tv/) - 영상 안됨
 ! - - - 온도티비 ((https://ondo.ondotv.com/) (https://18.ondotv.com/)
 ! - - - 온도애니 (https://ondo.ondoani.com/) (https://19.ondoani.com/)
 ! - - - 온도툰 (https://ondo.ondotoon.com/) (https://24.ondotoon.com/)
@@ -4422,7 +4409,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - 출처 : https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
 !##div[style]:has(> [target='_blank'])
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
-! - - - 오늘의 중계 (https://today-sports11.com/)
+! - - - 오늘의 중계 (https://today-sports12.com/)
 ! - - - 야동망고 (https://mango57.com/)
 ! - - -  밍키넷 (https://mingky08.tv/)
 !##[target='_blank']:has([src*='.gif'])
@@ -5163,7 +5150,7 @@ avdbs.com###bnotice-wrap
 !
 ! 123AV (https://123av.com/)  (https://njav.tv/에서 이전)
 ! - 지저분한거
-! - - - https://today-sports11.com/ - 상단 검색란 등 사라짐으로 도메인 한정으로 변경
+! - - - https://today-sports12.com/ - 상단 검색란 등 사라짐으로 도메인 한정으로 변경
 !123av.com##.d-lg-block
 !
 !
@@ -5750,7 +5737,7 @@ javmov.com##.spot
 !##[id*="popupbanner" i]
 !
 !
-! 오늘의 중계 (https://today-sports11.com/)
+! 오늘의 중계 (https://today-sports12.com/)
 ! - - - 코난티비(https://conan-tv.com/) - 팝업
 !###hd_pop
 ! - 상단 배너 공간
@@ -5795,6 +5782,7 @@ javmov.com##.spot
 ! - 박스 배너
 !##div[class*="border"]:has(> [target] img)
 ! - - - 규칙 변경
+! - - - - - 요즘IT (https://yozm.wishket.com/ - 일부 배너
 ##div[class*="border"]:has(> a[href][target*="_blank"] img)
 ! - - 예외
 ! - - - https://kilho.net/ - 내용 안보임
@@ -5808,9 +5796,8 @@ javmov.com##.spot
 ! - - - https://linkget1.com/ - 목록 사라짐 (일단 보류 - 리스트 넣지 않음)
 !/linkget/#@#div[class*="border"]:has(> [target] img)
 ! - - -- https://dmm.ppvdb.com/ - 왼쪽 이미지 사라짐
-dmm.ppvdb.com#@#div[class*="border"]:has(> a[href][target*="_blank"] img)
 ! - - - https://fc2db.net/ - 개별 상세 목록에서 왼쪽 이미지 사라짐
-fc2db.net#@#div[class*="border"]:has(> a[href][target*="_blank"] img)
+fc2db.net,dmm.ppvdb.com#@#div[class*="border"]:has(> a[href][target*="_blank"] img)
 ! - 상단 빈 공간 (PC/모바일 공통)
 !##.justify-start.flex-wrap.flex
 !  - 각 주제별 상단 빈 공간 (PC/모바일 공통)
@@ -6548,7 +6535,7 @@ of996.com##[class*="-fixed-" i]
 !||linklove*.com/data/file/ls_*/*$image
 !||linklove*.com/data/apms/background/*$image
 ! - - - 인생도박 (https://dblife01.com/)
-! - - - 주소야 (https://jusoya.com/)
+! - - - 주소야 (https://jusoya.com/) --> https://jusoya114.com/ 변경
 ! - - - 토렌트쓱 (https://ssg1.torrentssg9.com/)
 /data/apms/background/*$image
 ! - 상단 배너 공간
@@ -6578,7 +6565,7 @@ of996.com##[class*="-fixed-" i]
 !##.banner_top_box
 !
 !
-! 18모아 (https://18moa028.com/)
+! 18모아 (https://18moa029.com/)
 ! - 배너 이미지
 !18moa028.com###main_top
 ! - 이미지 복원
@@ -7136,6 +7123,19 @@ litt.ly#@#[href*="link.coupang.com"]
 !||*.watchakr.com/img/*.jpg
 !
 !
+! 라바TV (https://lrtv124.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! - 팝업
+!##.popup_left
+!##.popup_right
+! - 상단 배너
+![$domain=/^lrtv\d+.com/]##.yk-container
+/lrtv/##.yk-container
+! - 영상 하단 배너
+! - - -  뷰티비 (https://vitv88.com/) 
+![$domain=/^lrtv\d+.com/],[$domain=/^vitv\d+.com/]##.yk-container3
+/lrtv|vitv/##.yk-container3
+!
+!
 !  T카페 (https://tcafe21.com/) - https://lamu.club 신설
 ! - 팝업 (기존 티카페회원 가입안내)
 !tcafe21.com###migration-popup-overlay
@@ -7154,6 +7154,7 @@ litt.ly#@#[href*="link.coupang.com"]
 rou.video##div[role="dialog"]
 ! - 배너
 ! - - - 야동투어 (https://ydtour67.sbs/) - 일부 배너 이미지
+! - - - 냥티비 (https://nortv95.com/) - 일부 배너 이미지
 ##div > a[target="_blank"] > img[src$=".gif"][style*="width:100%"]
 ! - 배너 포함 일부 배너 공간
 rou.video##.my-2
@@ -7414,7 +7415,7 @@ patreon.com##body:style(overflow: auto !important;)
 !ouo.io##+js(prevent-fab-3.2.0)
 !
 !
-! 메이저 링크 (https://majorlink2.com/)
+! 메이저 링크 (https://majorlink3.com/)
 ! - 이미지 복원
 !/^(www\.)?majorlink/#@#[rel*="sponsor"]
 !/majorlink/#@#[rel*="sponsor"]
@@ -7919,6 +7920,11 @@ porntasia.app##[class*="bottom" i]:has([target*="blank"][style*="background-imag
 gigafile.nu##[class*="subsc-content"]
 !
 !
+! 주소고 (https://jusogo.site/)
+! - 배너
+jusogo.site##[class="jusora-silver-wrap"]
+!
+!
 !
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
 
@@ -8220,7 +8226,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 주소닷컴 (https://juso.one/)
 ! https://javfilms.com/ - 영상플레이가 같이 사라짐
-! https://majorlink2.com/ - 이미지 복원
+! https://majorlink3.com/ - 이미지 복원
 ! https://shiroto-navi.com/ - 영상 하단 텍스트 등 사라짐
 !/majorlink/,javfilms.com,juso.one,shiroto-navi.com#@#[rel*="sponsor"]
 !
@@ -8356,6 +8362,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! 네이버지도 - :not([src*="map"])
 ! 이토랜드 팬더티비 - id="webmediaFrame"
 ! https://www.bestjavporn.com/ - :not([src*="bestjavporn"])
+! 디시인사이드 갤러리내 동영상 - :not([src*="view?"]) - 디시인사이드 $generichide 처리로 이 규칙이 적용이 안되서 제외 추가 보류
 ##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"])
 !
 ! 예외
@@ -8572,7 +8579,7 @@ xn--v69ak0xskm.com,atlantak.com#@#[class*="-banner-" i]:not(body):not(html):not(
 !mbong.kr##[src*="banner" i] - /*banner*로 이미지 차단 처리
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! - https://today-sports11.com/ - _banner.로 이미지 차단 처리
+! - https://today-sports12.com/ - _banner.로 이미지 차단 처리
 !/today-sports/##[src*="banner" i]
 !
 !
@@ -8673,7 +8680,8 @@ philgo.com##[alt*="배너"]
 !  Manko (https://manko.fun/)
 ! 위플랩 WEFLAB (https://weflab.com/)
 ! 캐나다 한국일보 (https://koreatimes.net)
-/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|yadongkorea|manko|weflab|koreatimes/##[target*="blank"] img
+! 냥티비 (https://nortv95.com/)
+/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|yadongkorea|manko|weflab|koreatimes|nortv/##[target*="blank"] img
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
