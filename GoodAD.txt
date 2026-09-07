@@ -7031,6 +7031,10 @@ hearheart.com##section.relative
 !
 !
 ! https://cloudfam.io/
+! - 프리미엄 및 결제
+cloudfam.io##.lg\:col-span-7
+! 스폰서 배너 등
+cloudfam.io##.overflow-hidden
 ! - 기타
 !||gtcpicnics.com^
 ||paypal.com/xoplatform/logger/api/logger^
