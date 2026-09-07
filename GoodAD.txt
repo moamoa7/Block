@@ -5155,6 +5155,8 @@ avdbs.com###bnotice-wrap
 ! - 지저분한거
 ! - - - https://today-sports12.com/ - 상단 검색란 등 사라짐으로 도메인 한정으로 변경
 !123av.com##.d-lg-block
+! 팝업 차단
+123av.com#%#//scriptlet('prevent-window-open')
 !
 !
 ! https://herexxx.com/
