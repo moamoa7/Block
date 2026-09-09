@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260909
+! Version: 20260910
 !
 !
 !
@@ -2495,8 +2495,9 @@ web.joongna.com##.max-md\:gap-3
 !
 !
 ! 바나나몰 (https://www.bananamall.co.kr/)
+@@||bananamall.co.kr^$generichide
 ! - 팝업 잔챙이
-!###vue-pc-popup-app
+bananamall.co.kr###vue-pc-popup-app
 ! - 팝업 왼쪽
 !bananamall.co.kr##.ui-draggable
 ! - 팝업 오른쪽
@@ -3866,7 +3867,7 @@ fingerprint.
 ##[class*="-layers"]
 !
 !
-! 야동코리아 (https://t.me/s/yadongkorea_url) (https://yadongkorea.store) (https://yadongkorea03.com) - 기존 야동코리아와 동일한건가? / 티비위키 메뉴에 신설
+! 야동코리아 (https://t.me/s/yadongkorea_url) (https://yadongkorea.store) (https://yadongkorea03.com/) - 기존 야동코리아와 동일한건가? / 티비위키 메뉴에 신설
 ! - 팝업
 /yadongkorea/##.yako-telegram-modal
 !
@@ -3924,7 +3925,7 @@ fingerprint.
 ! 후후티비 (https://hoohootv1.org/) - 티비위키 그대로 가져오는듯 / p2p차단하면 영상재생 안됨
 !
 !
-! 티비룸  (https://티비룸.com/) (https://tvroom.one/) (https://tvroom26.org/)
+! 티비룸  (https://티비룸.com/) (https://tvroom.one/) (https://tvroom32.org/)
 ! - 팝업
 ![$domain=/^tvroom\d+.org/]##.popup
 ! - 화면 뿌옇게 변한거 해결
@@ -4444,7 +4445,7 @@ joatoon-oa.com##.bg-opacity-50
 ! 토렌트와이 (https://www.토와이.xyz/) (https://www.torrentwhy188.xyz/)
 !
 !
-! AVseeTV (https://01.avsee.is/)
+! AVseeTV (https://02.avsee.is/)
 ! - 배너 이미지
 !||avsee.is/imgs/$image
 ! - 메인 배너
@@ -4509,7 +4510,7 @@ avsee.is#@#.tabs
 ||jwpltx.com^
 !
 !
-! https://k01.aving.tv/ - avsee를 가져오는 사이트로 보임
+! https://k01.aving.tv/ - avsee를 가져오는 사이트로 보임 - 접속 불가?
 ! - 영상 하단 공백? (PC - Suggested Toppics 위 세로줄 공간 / 모바일 - BEST RECOMMEND 위 비어잇는 공간)
 aving.tv##.gap-lg-5
 ! - 팝업(새창) 방지 (AdGuard – Ad)
@@ -4835,8 +4836,10 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 ! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr89.sogirl.so/)
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) - 없어짐
 ! - 입장시 18세 물어보는 팝업
-###dclm_modal_content
-###dclm_modal_screen
+!###dclm_modal_content
+!###dclm_modal_screen
+! - 뿌연거 해결
+##[id$="-overlay" i]
 ! - 전체 배너 (상단 오른쪽 작은 배너 제외)
 !##[class="ad_banner"]
 !##.ad_banner
@@ -6908,7 +6911,7 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 /dblife/##[class="list-col"]:has-text(/포인트|보증/)
 !
 !
-! 야동코리아 (https://www.yako14.com/) - 접속 안됨 --> https://yadongkorea01.tv/ 대체?
+! 야동코리아 (https://www.yako14.com/) - 접속 안됨 --> https://yadongkorea01.tv/ 접속불가?
 ! - 배너
 ![$domain=/^www.yako\d+.com/]##a[target='_blank']:has([src*='/banner/'])
 !##[class="banner_grid" i]
@@ -7272,7 +7275,7 @@ rou.video##div.md\:col-span-1
 !/red/##.notice-box-area
 ! - 탑툰챗 및 이용안내 텍스트 배너
 ![$domain=/^red\d+.kr/]##[class*="notice"]
-! - - - 무비킹(https://mvking17.org/)에서 영상재생시 https://player-v2.bcbc.red/player/의 notice를 차단. 재생시 문제는 없는대 /red/ 로 간결표현이 문제될 시 참고할것
+! - - - 무비킹(https://mvking17.org/) / 티비룸 (https://tvroom32.org/) 에서 영상재생시 https://player-v2.bcbc.red/player/의 notice를 차단. 재생시 문제는 없는대 /red/ 로 간결표현이 문제될 시 참고할것
 /red/##[class*="notice"]
 ! - 게시물내 하단 공간
 ![$domain=/^red\d+.kr/]##.integrated-ad-slot, .article-tool
@@ -7812,6 +7815,7 @@ vexfile.com##center
 ! https://www.winmy20.com/
 ! - 팝업 차단 후 뿌연화면 해결 - 스크롤 잠긴거 풀 필요없음 / 도박 사이트인듯
 ! - - - 라채티비 (https://lctv2019.com/)
+! - - - 쏘걸 (https://kr89.sogirl.so/) - 규칙은 보이나 차단효과는 없는 규칙 / ##[id$="modal-overlay"]가 뿌연거 해결
 ##[class$="modal-overlay"]
 !
 !
@@ -7865,6 +7869,7 @@ jable.tv##[class*="video"]:has([href*="banner"])
 ! https://avgle.net/
 ! - 영상 위 박스?
 !##.js-video-overlay
+! - - - 쏘걸 (https://kr89.sogirl.so/) - 규칙은 보이나 먼가 차단효과 없는듯
 ##[class*="video-overlay" i]
 !
 !
@@ -8130,6 +8135,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 짭툰 (https://www.jjaptoon007.com)
 ! 그레이뉴스 (https://graynews.co.kr)
 ! 거지맵 - https://api.hobos.studio/v1/ads/web/placements/config
+! https://www.google.co.kr/ads/ga-audiences?v=1&t=sr&slf_rd=1&_r=4&tid=생략
 */ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -8429,7 +8435,7 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 !
 !
 ! 구글 -https://www.google.com/recaptcha/
-! AVseeTV (https://01.avsee.is/) -예외 : :not([src*="player"])
+! AVseeTV (https://02.avsee.is/) -예외 : :not([src*="player"])
 ! https://javclick.com/ - upload18.com/play/index/IPZZ-941-clone-baca85
 ! 유튜브 / 트위터 / 인스타 등 - :not([src*="embed"])
 ! turboplays.click/t/6a3bd5737dce6
@@ -8448,13 +8454,14 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! https://www.naver.com/ - 메인에서 네이버 메일 클릭시 내용 안보임 /my.html
 ! 조개무비 - upnstreamlive.shop
 ! 디시인사이드 갤러리내 동영상 - :not([src*="view?"]) - 디시인사이드 $generichide 처리로 이 규칙이 적용이 안되서 제외 추가 보류
-##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"])
+! 쏘걸 (https://kr89.sogirl.so/) -  - src="about:blank" - data-lazy-src*="/embed/"
+##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"])
 !
 ! 예외
 ! Tcafe (https://tcafe21.com/) - src="about:blank"
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
 ! https://mail3.nate.com/ - class="_nmContent" - :not([src*="content"])로 하면 일부 프레임이 해제되서 예외로 별도 처리
-mail3.nate.com,/tcafe/#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"])
+mail3.nate.com,/tcafe/##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"])
 !
 !
 !
@@ -8772,7 +8779,7 @@ philgo.com##[alt*="배너"]
 ! 애니위크 (https://aniweek.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
-! 야동코리아 (https://yadongkorea02.tv)
+! 야동코리아 (https://yadongkorea03.com/)
 !  Manko (https://manko.fun/)
 ! 위플랩 WEFLAB (https://weflab.com/)
 ! 캐나다 한국일보 (https://koreatimes.net)
@@ -8800,7 +8807,8 @@ mule.co.kr##[target] img
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! Yandex (https://yandex.com/) - 메인 이미지
-yandex.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"])
+! https://www.tistory.com/
+tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"])
 
 !
 !
@@ -9005,7 +9013,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 !
 !
 !
-! AVsee.tv (https://09.avsee.is/)
+! AVsee.tv (https://02.avsee.is/)
 ! 씨네스트 (https://cineaste.co.kr/)
 ! 뉴토끼 / 마나토끼 / 북토끼
 ! 코무비 (https://m324.kormovie.com/)
@@ -9017,7 +9025,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ##.h10
 !
 !
-! AVsee.tv (https://09.avsee.is/)
+! AVsee.tv (https://02.avsee.is/)
 ! 씨네스트 (https://cineaste.co.kr/)
 ! 뉴토끼 / 마나토끼 / 북토끼
 !  코무비 (https://m324.kormovie.com/)
@@ -9122,6 +9130,7 @@ szCheckType=adblock
 !
 ! 게임조선 (https://gamechosun.co.kr/) - 상단 공간
 ##[class$="_event"]
+
 
 
 
