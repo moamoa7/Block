@@ -1501,12 +1501,14 @@ instiz.net##div:has([id*="powerlink" i])
 ! - 출처 : https://gall.dcinside.com/adguard/9576 - PC는 그대로임
 !namu.wiki##div:has(> form input[type="search"]) > div:has(svg)
 ! - 검색 후 메인 상단 빈공간
-namu.wiki##div:has(> div > div[id^="_gad"])
+!namu.wiki##div:has(> div > div[id^="_gad"])
+namu.wiki##div[class="ArVj2K9H"]
 ! - 검색 후 나오는 상단 2군대 배너 공간 (모바일) - 이걸로 모바일 빈공간은 다 해결됨
 !namu.wiki##div:has(> ins.adsbygoogle)
 ! - 검색 후 나오는 메인 중간 배너 공간들 (모바일)
 !namu.wiki##div[class][data-v-4a81e1d2]
-namu.wiki##[data-v-a93b7ea0]
+!namu.wiki##[data-v-a93b7ea0]
+namu.wiki##div[class="Ia8JYllf"]
 ! - 검색 후 하단 광고
 !!namu.wiki##div:has(> div > div > table a[href^="#s-"] img[data-doc])
 ! - 파워링크 광고
