@@ -2145,6 +2145,8 @@ mbiz.heraldcorp.com##[class*="event_" i]
 !
 !
 ! 서울경제 (https://www.sedaily.com/)
+! - 기사 맨 밑 하단 - 더욱 새로워진 서울경제 회원이 되어보세요 (모바일)
+m.sedaily.com##.btn-new
 ! - 지저분한거 정리
 !##.email_pop
 !
