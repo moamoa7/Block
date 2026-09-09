@@ -4615,6 +4615,8 @@ javfc2.*##.row > div.text-center:has(> h5#messageAds)
 //creative.*/widget*.js$3p
 ! - 서드파티 요청 중 popcash.net으로 가는 것을 (최우선으로 강제해서) 차단하되, 완전히 막아서 오류를 내지 말고 빈 응답으로 대체하라.
 ||popcash.net^$3p,important,redirect-rule=empty
+! - 팝업 발생 차단
+/javfc2/#%#//scriptlet('prevent-window-open')
 !
 !
 ! JavNeon (https://javneon.tv/)
