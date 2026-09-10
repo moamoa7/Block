@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.09.08.0
-! TimeUpdated: 2026-09-08T09:42:12+00:00
+! Version: 2026.09.11.1
+! TimeUpdated: 2026-09-10T17:35:39+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, wBlock, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -53,6 +53,7 @@ wowtv.co.kr,cafe.naver.com##[class*='Banner']
 ! Specific rules
 !
 *$script,third-party,domain=nimi.wiki
+/vue/component/common/banner_modal.vue
 3rd.supply##.h-hori-ad
 3rd.supply##.text-center:has(sp-common-adsense)
 [$domain=/^darkg[a-z0-9]*\.com/]###side-popup, #posterWrap, a[class*="banner"]
@@ -359,7 +360,8 @@ shipdago.com,ez2pattern.kr,quizbubble.kr##+js(no-fetch-if, adsbygoogle.js)
 ! Incorrect blocking
 !#safari_cb_affinity(general,custom)
 $@$link[rel="manifest"]
-@@||192.168.$stealth=dpi
+@@*$stealth=dpi,app=com.dcinside.app.android|com.dcinside.app|com.dcinside.app.android.revanced|com.nhn.android.search
+@@||192.168.$stealth
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
 @@||ad-img.gmarket.com^$image,domain=m.gmarket.co.kr|auction.co.kr|www.gmarket.co.kr
@@ -391,6 +393,7 @@ $@$link[rel="manifest"]
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||truefriend.com^$stealth=dpi
 @@||wcs.naver.net^$domain=seorinexpress.com|naver.com
+@@||yes24.com^$stealth=dpi
 ktmmobile.com#@%#//scriptlet('set-constant', 'mainBottomBanner', 'noopFunc')
 m.fmkorea.com#@$?#*.bd.bd_mobile:not(:has(#bd_capture ~ #comment)):has(form[action="./"]:matches-css(height: auto)) { remove: true; }
 m.gmarket.co.kr#@#.ReactVirtualized__Grid__innerScrollContainer .box__banner-wrap > .box__banner--today
