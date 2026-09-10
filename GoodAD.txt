@@ -8015,7 +8015,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 *-ad-*
 !
 ! - 예외
-@@||*-ad-*$domain=nate.com
+@@||*-ad-$css
+@@||*-ad-*$domain=nate.com|www.twitch.tv
 
 !
 !
