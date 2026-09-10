@@ -4311,8 +4311,8 @@ joatoon-oa.com##.bg-opacity-50
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##[data-pm-ov="1"]
 ![$domain=/^sbxh\d*\./],[$domain=/^toki\d*\./]##.vw-swipe-hint
 !/sbxh|toki/##[data-pm-ov="1"]
-!/toki|sbxh|newtoki/##div[role="dialog"]
-!##.vw-swipe-hint
+/toki|sbxh|newtoki/##div[role="dialog"]
+##.vw-swipe-hint
 ! - p2p 차단 (애니 등 영상 시청시)
 !wss://tracker.
 ! - 상단 배너
