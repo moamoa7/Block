@@ -54,16 +54,16 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 <br/>
 https://github.com/specter78/adblock/tree/main/ublock
 ```
-https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_base_optimized.txt
+[https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt](https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_base_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_mobile_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_tracking_protection_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_annoyances_optimized.txt
-https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_optimized.txt
+https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_optimized.txt)
 ```
 <br/>
 <br/>
 
-※ 브레이브에서 사용하는 필터
+※ 브레이브에서 사용하는 필터 (참고용)
 <br/>
 https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
 
