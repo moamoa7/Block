@@ -51,8 +51,6 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 ※ ublock 필터목록
 <br/>
 - https://github.com/specter78/adblock/tree/main/ublock
-<br/>
-Adguard Url Tracking Optimized은 일부 오류가 일부 있어 기존 ublock의 Adguard Url Tracking 필터 사용 추천
 ```
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_base_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_mobile_optimized.txt
@@ -62,6 +60,7 @@ https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_annoyanc
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_optimized.txt
 ```
 <br/>
+Adguard Url Tracking Optimized은 일부 오류가 일부 있어 기존 ublock의 Adguard Url Tracking 필터 사용 추천
 <br/>
 
 ※ 브레이브에서 사용하는 필터 (참고용)
