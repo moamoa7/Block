@@ -58,7 +58,7 @@ https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_tracking
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_annoyances_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_optimized.txt
 ```
-Adguard Url Tracking Optimized은 일부 오류가 일부 있어 기존 ublock의 Adguard Url Tracking 필터 사용 추천
+- Adguard Url Tracking Optimized은 일부 오류가 일부 기존 ublock의 Adguard Url Tracking 필터 사용 추천
 <br/>
 <br/>
 
