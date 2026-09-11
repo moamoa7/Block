@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260911
+! Version: 20260912
 !
 !
 !
@@ -3735,7 +3735,7 @@ linkbio.co##.lnk-prom-placement
 !
 !
 ! https://www.ad.co.kr/
-@@||ad.co.kr^$generichide
+@@||ad.co.kr^$generichide,script,xhr
 !
 !
 ! ITWorld (https://www.itworld.co.kr/)
@@ -3746,24 +3746,47 @@ linkbio.co##.lnk-prom-placement
 !
 !
 ! 디즈니+ (https://www.disneyplus.com/)
-@@||www.disneyplus.com^$generichide
+@@||www.disneyplus.com^$generichide,script,xhr
 !
 !
 ! 티켓링크 (https://www.ticketlink.co.kr/)
-@@||ticketlink.co.kr^$generichide,xhr
+@@||ticketlink.co.kr^$generichide,script,xhr
 !
 !
 ! 삼성 (https://www.samsung.com/)
-@@||samsung.com^$generichide
+@@||samsung.com^$generichide,script,xhr
 !
 !
 ! T다이렉트샵 (https://shop.tworld.co.kr/)
-@@||shop.tworld.co.kr^$generichide
+@@||shop.tworld.co.kr^$generichide,script,xhr
 !
 !
 ! KT다이렉트샵 (https://shop.kt.com/)
-@@||shop.kt.com^$generichide
-
+@@||shop.kt.com^$generichide,script,xhr
+!
+!
+! 키움증권 (https://www3.kiwoom.com/)
+@@||kiwoom.com^$generichide,script,xhr
+!
+!
+! 토스 (https://toss.im/)
+@@||toss.im^$generichide,script,xhr
+!
+!
+! 토스증권 (https://www.tossinvest.com/)
+@@||tossinvest.com^$generichide,script,xhr
+!
+!
+! 네이버 페이 증권 (https://stock.naver.com/)
+@@||stock.naver.com^$generichide,script,xhr
+!
+!
+! 다음 증권 (https://finance.daum.net/)
+@@||finance.daum.net^$generichide,script,xhr
+!
+!
+! Investing.com (https://www.investing.com/)
+@@||investing.com^$generichide,script,xhr
 
 
 
@@ -3867,12 +3890,14 @@ linkbio.co##.lnk-prom-placement
 !/p2p - 스크립트 실행 전제로 해지 / 풀어도 ||tracker.$websocket 규칙이 작동
 ! - 핑거프린팅 스크립트가 수집한 데이터를 전송하는 바로 그 서버 측 엔드포인트 차단
 ! - - - https://w2.apiapi199.com/js/fingerprint.js?ver=1783568406
-fingerprint.
-@@fingerprint.$image
-@@fingerprint.$domain=github.com|fingerprint.com
+!/fingerprint.js^
+!@@fingerprint.$image
+!@@fingerprint.$domain=github.com|fingerprint.com
 ! - 기타 - 먼가 잡히는건 없지만 layers이라서 규칙 만들어봄
 ! - - - 티비착 (https://tvchak208.com/)
 ! - - - Linkkf 애니 TV (https://linkkf.tckopke.com/)
+! - - - https://ko.javfc2.live/
+! - - - https://ko.hplives.com/
 ##[class*="-layers"]
 !
 !
@@ -4211,6 +4236,7 @@ joatoon-oa.com##.bg-opacity-50
 !
 ! 엑스툰  XToon (https://엑스툰.com/) (https://뉴엑스툰.com/) (https://t3.xtoon365.com/) --> (https://newxtoon1.com/) 변경
 ! - 팁
+! - - - https://www.t66y.com/
 ##.f-tips, .tips
 ! - 개별 만화 상단 배너
 !##.chapter-ad -##[class$="-ad" i]로 대체
@@ -5223,7 +5249,7 @@ avdbs.com###bnotice-wrap
 !||apologiesoccursdepressed.com^$popup
 !
 !
-! 123AV (https://123av.com/)  (https://njav.tv/에서 이전)
+! 123AV (https://123av.com/)  (https://njav.tv/ 및 https://javgo.net/ 에서 이전)
 ! - 지저분한거
 ! - - - https://today-sports12.com/ - 상단 검색란 등 사라짐으로 도메인 한정으로 변경
 !123av.com##.d-lg-block
