@@ -28,13 +28,11 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodDNS.txt
 ```
 <br/>
-※ adguard_gallery.txt (추천 필터) - adguard
 <br/>
-
-홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter (2026년 2월 21일 폐쇄)
+※ 추천 필터 목록
 <br/>
-계승 홈페이지 : https://github.com/hooray804/adguard-gallery-filter
-<br/><br/>
+※ adguard_gallery.txt - adguard(애드가드 필터)
+<br/>
 
 - 필터
 ```
@@ -52,7 +50,13 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 ※ 추천하는 ublock 필터목록
 <br/>
 https://github.com/specter78/adblock/tree/main/ublock
-
+```
+https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_base_optimized.txt
+https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_mobile_optimized.txt
+https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_tracking_protection_optimized.txt
+https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_annoyances_optimized.txt
+https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_optimized.txt
+```
 <br/>
 <br/>
 
