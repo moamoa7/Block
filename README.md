@@ -48,6 +48,8 @@ https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_o
 https://ublockorigin.github.io/uAssets/filters/privacy-removeparam.txt
 https://filters.adtidy.org/extension/ublock/filters/250_optimized.txt
 https://filters.adtidy.org/extension/ublock/filters/251_optimized.txt
+https://cdn.jsdelivr.net/npm/@filteringdev/filterslists-ko@latest/dist/filterslist-uBlockOrigin-classic.txt
+https://filters.adtidy.org/extension/ublock/filters/7.txt
 ```
 <br/>
 <br/>
