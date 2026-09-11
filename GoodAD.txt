@@ -723,6 +723,8 @@ sooplive.com##+js(no-fetch-if, check_new_ad)
 ! - 기타
 !/static*js/ad*.js$script,1p
 /banner.php$domain=~research.hchs.hc.edu.tw
+! - 메인 , https://play.sooplive.com/ ,  https://vod.sooplive.com/ - https://static.file.sooplive.com/pc/ko_KR/main_lnb_banner.js?=생략
+banner.js?
 !
 !
 ! 시네티 (https://cinety.sooplive.com/)
@@ -8017,7 +8019,6 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 예외
 @@||*-ad-$css
 @@||*-ad-*$domain=nate.com|www.twitch.tv
-
 !
 !
 ! https://platinmods.com/
@@ -8383,6 +8384,7 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 !
 !
 !
+! src="about:blank" - 예외처리함
 ! 구글 -https://www.google.com/recaptcha/
 ! AVseeTV (https://02.avsee.is/) -예외 : :not([src*="player"])
 ! https://javclick.com/ - upload18.com/play/index/IPZZ-941-clone-baca85
@@ -8407,13 +8409,15 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! https://javplayer.org/ - PP영상 - :not([src*="stb.strp2p.com"])
 ! https://www.javdock.com/ - src="blob:https://www.javdock.com/6ffe2122-6e05-4b4a-9784-4c45f97b031b"
 ! tcafe - 출석 - src="/attendance/"
-##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"])
+! 네이트 - 뉴스 댓글 :not([src*="/Comment/"])
+! - 네이버 뉴스 기사 오른쪽 다른 언론사 보기 팝업 사라지는거 그냥 둘 것
+##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"])
 !
 ! 예외
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
 ! https://mail3.nate.com/ - class="_nmContent" - :not([src*="content"])로 하면 일부 프레임이 해제되서 예외로 별도 처리
 ! https://safe.sur.ly/
-safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"])
+safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"])
 !
 !
 !
@@ -8923,6 +8927,7 @@ video.fc2.com#@#[class$="-ad"]:not(body):not(html):not(main)
 !
 ! https://aagag.com/ - 하단 협오광고신고 버튼 Request 제외 - :not([class$="hate_ad"])
 ! https://www.goodgag.net/
+! 네이트판 - 젤 하단의 오늘의 판 사라지는대 그냥 둘 것
 ##[class$="_ad" i]:not([class$="hate_ad"]):not(body):not(html):not(main)
 !
 !
