@@ -32,14 +32,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodDNS.txt
 
 ※ 추천 필터 목록
 
-추천 애드가드 필터 목록
-
-- https://github.com/hooray804/adguard-gallery-filter
-
-<br/>
-<br/>
-
-추천 ublock 필터 목록
+ublock 필터 목록
 <br/>
 - https://github.com/specter78/adblock/tree/main/ublock
 ```
@@ -50,6 +43,13 @@ https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_annoyanc
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_optimized.txt
 ```
 Adguard Url Tracking Optimized은 일부 오류가 일부 기존 ublock의 Adguard Url Tracking 필터 사용 추천
+<br/>
+<br/>
+
+애드가드 필터 목록
+
+- https://github.com/hooray804/adguard-gallery-filter
+
 <br/>
 <br/>
 
