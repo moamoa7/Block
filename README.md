@@ -35,7 +35,6 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodDNS.txt
 <br/>
 
 ※ adguard_gallery.txt - adguard(애드가드 필터)
-<br/>
 
 - 필터
 ```
@@ -49,7 +48,6 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 <br/>
 <br/>
 
-<br/>
 ※ ublock 필터목록
 <br/>
 - https://github.com/specter78/adblock/tree/main/ublock
