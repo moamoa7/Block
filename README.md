@@ -34,7 +34,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodDNS.txt
 
 추천 애드가드 필터 목록
 
-https://github.com/hooray804/adguard-gallery-filter
+- https://github.com/hooray804/adguard-gallery-filter
 
 <br/>
 <br/>
@@ -55,7 +55,7 @@ https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_o
 
 추천 브레이브 필터 목록
 <br/>
-https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
+- https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
 
 <br/>
 <br/>
