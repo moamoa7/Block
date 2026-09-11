@@ -54,11 +54,11 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 https://github.com/specter78/adblock/tree/main/ublock
 
 <br/>
+<br/>
 
 ※ 브레이브에서 사용하는 필터
 <br/>
 https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
-
 
 <br/>
 <br/>
