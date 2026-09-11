@@ -53,7 +53,7 @@ https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_o
 <br/>
 <br/>
 
-추천 브레이브에서 필터 목록
+추천 브레이브 필터 목록
 <br/>
 https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
 
