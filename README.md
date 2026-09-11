@@ -32,14 +32,14 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodDNS.txt
 
 ※ 추천 필터 목록
 
-※ adguard_gallery.txt - adguard(애드가드 필터)
+추천 애드가드 필터 목록
 
 https://github.com/hooray804/adguard-gallery-filter
 
 <br/>
 <br/>
 
-※ ublock 필터목록
+추천 ublock 필터 목록
 <br/>
 - https://github.com/specter78/adblock/tree/main/ublock
 ```
@@ -53,7 +53,7 @@ https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_o
 <br/>
 <br/>
 
-※ 브레이브에서 사용하는 필터 (참고용)
+추천 브레이브에서 필터 목록
 <br/>
 https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
 
