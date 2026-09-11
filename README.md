@@ -54,11 +54,12 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 <br/>
 https://github.com/specter78/adblock/tree/main/ublock
 ```
-[https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt](https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_base_optimized.txt
+https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_base_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_mobile_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_tracking_protection_optimized.txt
+https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_url_tracking_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_annoyances_optimized.txt
-https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_optimized.txt)
+https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_optimized.txt
 ```
 <br/>
 <br/>
