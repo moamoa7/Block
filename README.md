@@ -52,7 +52,7 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 <br/>
 ※ ublock 필터목록
 <br/>
-https://github.com/specter78/adblock/tree/main/ublock
+- https://github.com/specter78/adblock/tree/main/ublock
 ```
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_base_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_mobile_optimized.txt
