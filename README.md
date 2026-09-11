@@ -32,16 +32,16 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodDNS.txt
 
 ※ 추천 필터 목록
 
-추천 애드가드 필터 목록
+- 추천 애드가드 필터 목록
 
-- https://github.com/hooray804/adguard-gallery-filter
+https://github.com/hooray804/adguard-gallery-filter
 
 <br/>
 <br/>
 
-추천 ublock 필터 목록
+- 추천 ublock 필터 목록
 <br/>
-- https://github.com/specter78/adblock/tree/main/ublock
+https://github.com/specter78/adblock/tree/main/ublock
 ```
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_base_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_mobile_optimized.txt
@@ -49,13 +49,13 @@ https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_tracking
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_annoyances_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_social_optimized.txt
 ```
-- Adguard Url Tracking Optimized은 일부 오류가 일부 기존 ublock의 Adguard Url Tracking 필터 사용 추천
+Adguard Url Tracking Optimized은 일부 오류가 일부 기존 ublock의 Adguard Url Tracking 필터 사용 추천
 <br/>
 <br/>
 
-추천 브레이브 필터 목록
+- 추천 브레이브 필터 목록
 <br/>
-- https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
+https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
 
 <br/>
 <br/>
