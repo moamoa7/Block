@@ -1,17 +1,3 @@
-# DNS
-<br>
-- 개인적으로 맞춤 설게한 개인 DNS
-<br/><br/>
-
-※ Block_DNS
-```
-https://raw.githubusercontent.com/moamoa7/Block/main/output/Block_DNS.txt
-```
-※ White_DNS
-```
-https://raw.githubusercontent.com/moamoa7/Block/main/output/White_DNS.txt
-```
-<br/><br/>
 
 # 필터규칙
 <br/>
