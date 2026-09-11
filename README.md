@@ -35,16 +35,9 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodDNS.txt
 <br/>
 
 ※ adguard_gallery.txt - adguard(애드가드 필터)
+<br/>
+https://github.com/hooray804/adguard-gallery-filter
 
-- 필터
-```
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
-```
-
-- DNS 필터
-```
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
-```
 <br/>
 <br/>
 
