@@ -7476,6 +7476,9 @@ patreon.com##body:style(overflow: auto !important;)
 ! - - - https://kr4.avflix.co/banners/partner?_rsc=1r34m
 ! - - - 야동허브 (https://ydhub16.net/) - 배너
 /banners^$xhr
+! - 예외
+@@||/banners^$xhr,domain=www.tworld.co.kr
+
 !
 !
 ! 딸튜브 (https://딸튜브.com/) (https://kr16.ddaltube.com/) - 광고 영상이 재생시 나옴 (음소거 필요)
