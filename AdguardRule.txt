@@ -21,14 +21,8 @@
 @@||192.168.$stealth
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
-@@||ad-img.gmarket.com^$image,domain=m.gmarket.co.kr|auction.co.kr|www.gmarket.co.kr
-@@||ad.co.kr^$ghide
-@@||adtouch.*
-@@||arca.live^$ghide
 @@||arca.live^$stealth=push
-@@||blog.kakaocdn.net*/img.gif
 @@||bloodinfo.net^$stealth=dpi
-@@||cdn.cms.outstanding.kr/images/origin/2
 @@||claude.ai^$stealth=push
 @@||clien.net^$stealth=dpi
 @@||code-pia.com^$stealth=dpi
@@ -58,7 +52,6 @@
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 @@||shinhan*.com^$stealth=dpi
 @@||shopping.naver.com^$stealth
-@@||slrclub.com/rss/today_photo.slr
 @@||smartstore.naver.com^$stealth
 @@||sofrano.com^$stealth=dpi
 @@||ssg.com^$stealth=dpi
@@ -67,7 +60,6 @@
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||toss*.$stealth=dpi
 @@||truefriend.com^$stealth=dpi
-@@||wcs.naver.net^$domain=seorinexpress.com|naver.com
 @@||yes24.com^$stealth=dpi
 !
 !
