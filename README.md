@@ -53,6 +53,12 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/DNS.txt
 https://github.com/brave/adblock-resources/blob/master/filter_lists/list_catalog.json
 
 <br/>
+※ 추천하는 ublock 필터목록
+<br/>
+https://github.com/specter78/adblock/tree/main/ublock
+
+
+<br/>
 <br/>
 
 # 스크립트
