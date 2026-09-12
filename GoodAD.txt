@@ -14,10 +14,11 @@
 !
 !
 !
-!!! F12 버튼, 마우스 오른쪽 버튼 및 브라우저에서 웹 개발자 도구 비활성화 무력화
+!!! F12, 우클릭, 개발자 도구 단축키, DevTools 열림 여부 등을 감지해서 웹 개발자 도구 사용을 방해하는 기능 --> 그 방해 스크립트 자체가 실행되지 못하도록 차단하는 규칙
 ! - - - EasyList – Other Annoyances 포함되어 있어 없앰
 ! -출처 : (Adblock-Rule-Collection-Lite) (EasyList – Other Annoyances)
 !||jsdelivr.net/npm/disable-devtool
+||jsdelivr.net/npm/disable-devtool$script
 !
 !
 ! - 내용 없는 빈 문단'이나 '공백만 있는 줄바꿈'을 찾아내서 화면에서 지워버리는 아주 섬세한 정리용 필터
@@ -114,7 +115,7 @@ itworld.co.kr,noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,linkareer.co
 !
 !
 ! - 내가 어떤 사이트에 있든, 광고 회사나 추적 서버로 내 클릭 정보를 몰래 전송하는 모든 백그라운드 핑(Ping) 통신을 원천 봉쇄해라 (EasyPrivacy)
-!*$ping,3p
+*$ping,3p
 !
 !
 ! - Google의 클릭 추적 기능을 무력화
@@ -211,6 +212,10 @@ youtube.com##.sticker-layer
 ! - 예외 - https://poooo.ml/ - 채팅 이모니콘 안보임
 !poooo.ml#@#[class*="sticker" i]
 ! - 광고 차단 관련
+! - - - https://googleads.g.doubleclick.net/pagead/id
+! - - - https://www.google.com/pagead/lvz?evtid=생략
+! - - - - - https://www.teamblind.com/
+! - - - - - - - https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js
 /pagead^
 ! - 유튜브의 통계 및 시청 기록 시스템의 핵심 관문을 차단하는 규칙
 ! - - - 시청 기록 차단 해제 (차단목록 (Adblock-Rule-Collection-Lite) 해제)
@@ -2743,6 +2748,10 @@ shana.pe.kr##+js(set, checkShanaBlock, noopFunc)
 !
 !
 ! 블라인드 (https://www.teamblind.com/)
+! 스크립 차단 안내 팝업 (##[style*="z-index: 이 뒤의 값은 랜덤으로 변하므로 넣으면 안됨"])
+www.teamblind.com##[style*="z-index:"]
+! 개별 오른쪽 배너
+##aside>:has([class="kakao_ad_area"])
 ! - ##[class^="ad" i] 차단 해제 - 상단 제목 날라감
 !teamblind.com/#@#[class^="ad" i]
 !
@@ -4543,12 +4552,14 @@ avsee.is#@#.tabs
 !j91.asia##+js(window.open-defuser)
 ! - 영상 재생시 팝업 차단 (uBlock filters – Ads)
 !/^https:\/\/[0-9a-z]{6,12}\.(?:com|in)(?:\/[a-z]{2,10}){1,3}(?:\?id=\d+)?$/$script,3p,match-case,responseheader=etag:/^W\/"[0-9a-z]+-[0-9a-zA-Z]+(?:\/[0-9a-zA-Z]+)?"$/,from=~edu|~gov,to=com|in
-! - 광고/오버레이 차단 필터 규칙
 ! - - - https://supjav.com/
+! - - - - - 전형적인 광고/anti-adblock 미끼 제거 규칙
+##.afs_ads
+! - - - - - JW Player 안에서 jw-reset-text 클래스를 가진 요소 중 버튼이 아닌 것들을 숨겨라.
 ##.jw-reset-text:not(button)
+! - - - - - JW Player 플레이어 위에 깔리는 투명 오버레이/클릭 방해 레이어/광고 관련 레이어 등을 제거하기 위한 규칙
 ##.jw-wrapper > div[style="opacity: 0; visibility: hidden; overflow: hidden; display: block; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;"]
-! JW Player의 분석/텔레메트리(analytics telemetry) - JW Player 재생 통계 수집 차단
-! - - - https://supjav.com/
+! - - - - - JW Player의 분석/텔레메트리(analytics telemetry) - JW Player 재생 통계 수집 차단
 ||jwpltx.com^
 !
 !
@@ -7699,7 +7710,7 @@ upload18.org#%#//scriptlet('prevent-window-open')
 !/\/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]\/invoke\.js/$script,3p
 !
 !
-! https://javclick.com/
+! https://javclick.com/ - 팝업 발생 주의
 ! - 기타
 !/popunder-
 !
@@ -8072,6 +8083,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://pann.nate.com/ - https://pann.nate.com/pann_ad_right.html?
 ! 디스코드
 ! 팍스넷 (https://www.paxnet.co.kr) - https://image.paxnet.co.kr/rpan/common/js/mobile_ad_main.js?update=20230316
+! 카카오 광고 SDK가 배너 광고를 요청하는 엔드포인트
+! - - - https://serv.ds.kakao.com/sdk/banner?id=DAN-L54Y9ppcBbHw8Z56&sdktype=web&sdkver=4.41.3&sdkid=771ea6b4-47b2-400e-aa0b-7df7c957685b&secretmode=N&network=6&surl=https%3A%2F%2Fwww.teamblind.com%2Fkr%2Fpost%2F30%25ED%258F%2589%25EB%258C%2580-%25EC%2582%25B4%25EB%258B%25A4%25EA%25B0%2580-%25EC%2583%2581%25EA%25B8%2589%25EC%25A7%2580-%25EA%25B5%25AC%25EC%25B6%2595-20%25ED%258F%2589-%25EA%25B0%2588%25EC%2595%2584%25ED%2583%2580%25EA%25B8%25B0-%25ED%2595%25B4%25EB%25B3%25B8-%25EC%2582%25AC%25EB%259E%258C-%25EC%259E%2588%25EC%2596%25B4-c7nzyyw3&cookiedisabled=N&rfseq=1&appkey=ed03e3036a7388af0e3bb99045499c91&os=windows&osver=10.0.0&browser=chrome&browserver=150.0.7871.230&mobile=N&tpc=Y&dk=6d98cdb1-ca06-42a7-b106-6626eb72f906&batterylevel=100&batterystate=full&cnt=1&pxratio=1&pwidth=1920&pheight=1080&containerid=kakao_ad_NyKCEv&ppi=96&lmt=N&test=N&ctag=%7B%7D
 ! Yandex - Yandex 자동완성 기능
 ! - - - https://yandex.com/suggest/suggest-ya.cgi?srv=morda_com_desktop&wiz=TrWth&uil=en&fact=1&v=4&icon=1&lr=114234&hl=1&bemjson=0&history=1&html=1&platform=desktop&rich_nav=1&show_experiment=224&verified_nav=1&rich_phone=1&use_favicon=1&nav_favicon=1&nav_text=1&mt_wizard=1&suggest_entity_desktop=1&entity_enrichment=1&entity_alignment_mode=bottom&sn=7&maybe_ads=1&yu=3584214381788404985&abtestids=1498265&yabsexp=1498265&yasm_testid=1498265&yasm_testid_write_page=1&platform_ad_control=1&super_a=0&entity_max_count=2&svg=1&part=&pos=0&suggest_reqid=358421438178840498549876872604979&hs=0
 *_ad_*
@@ -8113,6 +8126,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 그레이뉴스 (https://graynews.co.kr)
 ! 거지맵 - https://api.hobos.studio/v1/ads/web/placements/config
 ! https://www.google.co.kr/ads/ga-audiences?v=1&t=sr&slf_rd=1&_r=4&tid=생략
+! https://www.teamblind.com/ - https://t1.kakaocdn.net/kas/static/ads/custom_ads.js
 */ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
@@ -8414,8 +8428,9 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 !
 !
 ! src="about:blank" - 예외처리함
+! play , player , /player? 표기 금지 - 다른걸로 할것 (https://missav01.com/ iframe 해제됨)
 ! 구글 -https://www.google.com/recaptcha/
-! AVseeTV (https://02.avsee.is/) -예외 : :not([src*="player"])
+! AVseeTV (https://02.avsee.is/) -예외 : :not([src*="/player.php?"])
 ! https://javclick.com/ - upload18.com/play/index/IPZZ-941-clone-baca85
 ! 유튜브 / 트위터 / 인스타 등 - :not([src*="embed"])
 ! turboplays.click/t/6a3bd5737dce6
@@ -8440,13 +8455,13 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! tcafe - 출석 - src="/attendance/"
 ! 네이트 - 뉴스 댓글 :not([src*="/Comment/"])
 ! - 네이버 뉴스 기사 오른쪽 다른 언론사 보기 팝업 사라지는거 그냥 둘 것
-##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"])
+##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"])
 !
 ! 예외
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
 ! https://mail3.nate.com/ - class="_nmContent" - :not([src*="content"])로 하면 일부 프레임이 해제되서 예외로 별도 처리
 ! https://safe.sur.ly/
-safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"])
+safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"])
 !
 !
 !
@@ -8958,6 +8973,13 @@ video.fc2.com#@#[class$="-ad"]:not(body):not(html):not(main)
 ! https://www.goodgag.net/
 ! 네이트판 - 젤 하단의 오늘의 판 사라지는대 그냥 둘 것
 ##[class$="_ad" i]:not([class$="hate_ad"]):not(body):not(html):not(main)
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://www.teamblind.com/ - 젤 상단 사라짐
+teamblind.com#@#[class$="_ad" i]:not([class$="hate_ad"]):not(body):not(html):not(main)
+!
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
 !
 !
