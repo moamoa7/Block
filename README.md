@@ -45,8 +45,6 @@ https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_mobile_o
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_tracking_protection_optimized.txt
 https://raw.githubusercontent.com/specter78/adblock/main/ublock/adguard_annoyances_optimized.txt
 https://ublockorigin.github.io/uAssets/filters/privacy-removeparam.txt
-https://filters.adtidy.org/extension/ublock/filters/250_optimized.txt
-https://filters.adtidy.org/extension/ublock/filters/251_optimized.txt
 https://cdn.jsdelivr.net/npm/@filteringdev/filterslists-ko@latest/dist/filterslist-uBlockOrigin-classic.txt
 https://filters.adtidy.org/extension/ublock/filters/7.txt
 ```
