@@ -29,12 +29,14 @@
 @@||danawa.com^$stealth=dpi
 @@||dcinside.com^$stealth=dpi|push
 @@||donga.com^$stealth=dpi
+@@||google*.$stealth=dpi|push
 @@||ichannela.com^$stealth=dpi
 @@||isplus.$stealth=dpi
 @@||joycity.com^$stealth=dpi
 @@||kakao*.$stealth=dpi
 @@||kb*.$stealth=dpi
 @@||kiwoom.com^$stealth=dpi
+@@||kfc*.$stealth=dpi
 @@||kr^$stealth=dpi
 @@||kt*.$stealth=dpi
 @@||lg*.$stealth=dpi
@@ -50,6 +52,7 @@
 @@||samsung*.com^$stealth=dpi
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 @@||shinhan*.com^$stealth=dpi
+@@||shinsegae*.com^$stealth=dpi
 @@||shopping.naver.com^$stealth
 @@||smartstore.naver.com^$stealth
 @@||sofrano.com^$stealth=dpi
