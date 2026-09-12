@@ -3824,7 +3824,7 @@ linkbio.co##.lnk-prom-placement
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki48.net/) - 접속안됨 (https://tvwiki15.space)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki49.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/) - 메인주소로 접속하면 구글로 이동됨 / https://tvhot2.com/drama 와 같이 디렉토리로 이동해야함
 ! - 팝업 제거
