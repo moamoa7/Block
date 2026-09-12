@@ -4724,7 +4724,7 @@ shirotomaster.com##[class*="entry-third"]:has([href*="https://www.pcolle.com/"])
 !
 ! FUNLOVE (https://funlove.info/)
 ! - 전체 배너
-##.boxAds
+!##.boxAds
 !
 !
 ! JavGG (https://javgg.net/)
@@ -8146,6 +8146,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://gofile.io/ - https://gofile.io/js/core/ads.js
 ! https://sukebei.nyaa.si/view/를 통한 이미지 검색 - https://cn-av.com/ - https://cn-av.com/ads.js
 ! https://sukebei.nyaa.si/view/를 통한 이미지 검색 - https://kin8-jav.com/ - https://kin8-jav.com/ads.js
+! https://funlove.info/ - https://funlove.info/ads.php
 */ads.*
 !
 !
@@ -8454,8 +8455,10 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! https://www.javdock.com/ - src="blob:https://www.javdock.com/6ffe2122-6e05-4b4a-9784-4c45f97b031b"
 ! tcafe - 출석 - src="/attendance/"
 ! 네이트 - 뉴스 댓글 :not([src*="/Comment/"])
+! https://javsubs91.uk/ - :not([src*="/hgem.php?"])
 ! - 네이버 뉴스 기사 오른쪽 다른 언론사 보기 팝업 사라지는거 그냥 둘 것
-##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"])
+##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"])
+
 !
 ! 예외
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
@@ -9102,7 +9105,7 @@ cineaste.co.kr#@#.h30
 !
 !
 ! https://www.ppomppu.co.kr/
-##[class$="_slot" i]
+##[class$="_slot" i]:not([class$="__slot" i])
 !
 !
 !
