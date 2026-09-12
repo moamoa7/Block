@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260912
+! Version: 20260913
 !
 !
 !
@@ -115,7 +115,7 @@ itworld.co.kr,noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,linkareer.co
 !
 !
 ! - 내가 어떤 사이트에 있든, 광고 회사나 추적 서버로 내 클릭 정보를 몰래 전송하는 모든 백그라운드 핑(Ping) 통신을 원천 봉쇄해라 (EasyPrivacy)
-*$ping,3p
+!*$ping,3p
 !
 !
 ! - Google의 클릭 추적 기능을 무력화
@@ -2377,6 +2377,10 @@ coupang.com##[class*="trending_ads" i]
 ! - 쿠팡 검색 결과 및 메인 광고 상품 제거
 ! - - - 같이 보면 좋은 상품
 !coupang.com##[class*="bottom-carousel" i]
+! - 각 제품별 바로구매 하단 추천 이런건 어때요?
+coupang.com###sdp-ad-banner-position-c
+! - 각 제품별 리뷰 하단 4점이상 리뷰가 좋은 제품
+coupang.com###midCarousel3
 ! - 각 제품별 하단 이런 상품은 어때요?
 coupang.com###midCarousel2
 ! 장바구니 하단 같이 보면 좋은 상품
@@ -3167,6 +3171,8 @@ imgbox.com##div[id^="aad-header-"]
 !
 !
 ! MMZ (https://www.mmzone.co.kr/)
+! - 메인 광고차단 안내
+mmzone.co.kr##.index-support-placement
 ! 상단 로그 안보임 해결
 !mmzone.co.kr#@#.ads-wrap
 !
@@ -3466,8 +3472,8 @@ villain.city##[style*="background-image:url"]
 !
 ! 일로아 (https://iloa.gg/)
 ! - 뿌연 화면 해결
-iloa.gg##.fixed
-! - 메인 등 반 공간
+!iloa.gg##.fixed
+! - 메인 등 빈 공간
 ! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/main/filter.txt
 iloa.gg##div.justify-center[class*="min-h-"]:has(> div.items-center:empty):not(:has(a))
 ! - 기타 (EasyPrivacy)
@@ -4268,10 +4274,10 @@ joatoon-oa.com##.bg-opacity-50
 !##[href^="/index/banner_click"]
 !
 !
-! 머니툰 (https://머니툰.com/) (https://mtoon144.asia/)
+! 머니툰 (https://머니툰.com/) (https://mtoon152.asia/)
 ! - 배너 빈공간
 ![$domain=/^mtoon\d+.com/]##div.container_full:nth-of-type(1)
-/mtoon/##div.container_full:nth-of-type(1)
+!/mtoon/##div.container_full:nth-of-type(1)
 ! - 이미지 복원
 !@@||mtoon*.com/img/*$image
 !
@@ -7204,22 +7210,28 @@ rou.video##div[role="dialog"]
 ! - - - 온도툰 (https://23.ondotoon.com/) - 일부 배너 이미지
 ! - - - 온도마나 (https://21.ondomana.com/) - 일부 배너 이미지
 ! - - - 온도북 (https://22.ondobook.net/) - 일부 배너 이미지
-##div > a[target="_blank"] > img[src$=".gif"][style*="width:100%"]
-! - 배너 포함 일부 배너 공간
-rou.video##.my-2
-! - 개별 영상 위 쓸데없는 링크 - ##.my-2로 해결됨
-! - 개별 영상 내 필요없는 빈 공간
-rou.video##div.justify-center
-! - 영상 목록 (大家正在看) 빈 공간
-rou.video##div.md\:col-span-1
+! - - - 머니툰 (https://mtoon152.asia/) - 일부 배너 이미지
+!##div > a[target="_blank"] > img[src$=".gif"][style*="width:100%"]
+! - 다른 사이트의 배너의 일부만 처리하는것이 대부분인 상태로 불필요하게 발생하므로 아래 규칙으로 재변경
+##a[href^="/api/hop/"] > img[src*=".xyz/m/"]
+! - 페이지내 필요없는 빈 공간
+! - - - 메인 들어가는 버튼이 사라짐으로 규칙 변경 필요
+!rou.video##div.justify-center
+rou.video##.max-w-\[300px\]
+! - 개별 영상 위 필요없는 버튼 (광고)
+rou.video##.max-rail\:grid-cols-2.my-4
+! - 개별 영상 위 필요없는 공간
+rou.video##.max-w-\[640px\]
+! - 개별 영상 페이지내 하단 영상 목록 (大家正在看) 빈 공간 등
+rou.video##.max-md\:col-span-full
 ! - 기타
 ! - - - /js/clickadu.js ( cn tw tw: AdGuard Chinese (中文))
 !/clickad*
-*/ga.js^
-.xyz/z/*/json$3p
-.xyz/z/*/code.js$script,3p
-://ra*.xyz/z/*/code.js$script,3p
-/^https?:\/\/(([0-9a-z]{7,10}|www)\.)?([0-9a-f]{10}|[a-z0-9]{5,40})\.com\/(([a-z0-9]{2}\/){2,3})?[0-9a-f]{32}\.js(on)?$/$script,3p,important,match-case
+!*/ga.js^
+!.xyz/z/*/json$3p
+!.xyz/z/*/code.js$script,3p
+!://ra*.xyz/z/*/code.js$script,3p
+!/^https?:\/\/(([0-9a-z]{7,10}|www)\.)?([0-9a-f]{10}|[a-z0-9]{5,40})\.com\/(([a-z0-9]{2}\/){2,3})?[0-9a-f]{32}\.js(on)?$/$script,3p,important,match-case
 !||98d4403b02.com^
 !
 !
@@ -8027,6 +8039,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 !
 ! 퀘이사존(https://quasarzone.com) - https://ads.quasarzone.com/RealMedia/ads/Creatives/quasarzone/LD/maxmo_mediation.js
+! 산업일보 (https://kidd.co.kr/) - https://ads.daara.co.kr/v.php?s=생략
 ||ads.*
 !
 !
@@ -8090,7 +8103,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 *_ad_*
 ! - 예외
 ! - - - 11번가 (https://www.11st.co.kr/) - AD광고표시 삭제됨
-@@*_ad_*$domain=11st.co.kr
+! - - - https://www.mmzone.co.kr/ - 일부 이미지 삭제됨
+@@*_ad_*$domain=11st.co.kr|mmzone.co.kr
 !
 !
 !
@@ -8188,6 +8202,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 풍투데이
 ! 조선에듀
 ! https://video.fc2.com/ - https://video.fc2.com/a/ad_rentangle.php
+! 산업일보 (https://kidd.co.kr/) - https://pimg2.daara.co.kr/mc2/ad_img/
 */ad_
 ! - 예외
 ! https://www.ad.co.kr/ - 이미지
@@ -8710,18 +8725,20 @@ xn--v69ak0xskm.com,atlantak.com#@#[class*="-banner-" i]:not(body):not(html):not(
 !##ul[class*="banner" i]
 !
 !
-! 머니툰 (https://mtoon144.asia/)
-! https://iloa.gg/
+! 머니툰 (https://mtoon152.asia/) - 상단배너
+! 일로아 (https://iloa.gg/)
 ! 한국인포맥스 (https://www.hinfomax.co.kr)
-! 티비차차 (https://www.tvchacha04.live/)
-##[alt*="banner" i]
+##[target*="blank"]:has(img[alt*="banner" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+! https://iloa.gg/ - 상단 배너 - 기부 이미지
+iloa.gg#@#[target*="blank"]:has(img[alt*="banner" i])
+
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://getmodsapk.com/ - 일부 이미지 사라짐
-getmodsapk.com#@#[alt*="banner" i]
+!getmodsapk.com#@#[alt*="banner" i]
 !
 !
 !
@@ -8786,6 +8803,7 @@ philgo.com##[alt*="배너"]
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들 (빈 공간이 안생기는 것만 할것)
 ! 블랙툰 (https://www.blacktoonurl2.com/) - 빈공간 생김
 ! 주소모아 (https://www.joosomoa1.com/) - 빈공간 생김
+! 머니툰 (https://mtoon152.asia/)
 ! 조개파티 (https://jogaeparty184.com/)
 ! https://www.thisav.sbs/
 ! https://www.hanime123.mom
@@ -8807,7 +8825,7 @@ philgo.com##[alt*="배너"]
 ! 위플랩 WEFLAB (https://weflab.com/)
 ! 캐나다 한국일보 (https://koreatimes.net)
 ! 냥티비 (https://nortv95.com/)
-/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv/##[target*="blank"] img
+/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv|mtoon/##[target*="blank"] img
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -9102,6 +9120,9 @@ cineaste.co.kr#@#.h30
 ! - -  gigafile.nu
 ! - - - 주소핫 (https://jusohot5.com/) - 배너 이미지
 ##[class$="-slot" i]
+! - 예외
+! - - - https://www.mmzone.co.kr/ - 메인 상단 이미지 삭제됨
+mmzone.co.kr#@#[class$="-slot" i]
 !
 !
 !
