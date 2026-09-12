@@ -4,25 +4,23 @@
 ! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260911
+! Version: 20260912
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
 !!! 출처 : 애드가드 갤러리 필터 (https://github.com/hooray804/adguard-gallery-filter/blob/main/filter.txt)
 !
 !
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:bank|stock|invest|coin|pay|mobile|card|post|logi|finance|tele|news|pass|econom|biz|member|shop|mall|store|game|market|mart|hana|insure|direct)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*ins(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*cj[a-z0-9]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*kb[a-z0-9]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*kt[a-z0-9]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*lg[a-z0-9]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@fire.$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:bank|stock|invest|coin|pay|mobile|card|post|logi|financ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:tele|news|pass|econom|biz|member|shop|mall|store|univ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|hana|insure|direct|soft|point|cash|time|info)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@*fire.$stealth=dpi
+@@*ins.$stealth=dpi
 @@||192.168.$stealth
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
 @@||arca.live^$stealth=push
-@@||bloodinfo.net^$stealth=dpi
+@@||cj*.$stealth=dpi
 @@||claude.ai^$stealth=push
 @@||clien.net^$stealth=dpi
 @@||code-pia.com^$stealth=dpi
@@ -30,19 +28,20 @@
 @@||coupang.com^$stealth
 @@||danawa.com^$stealth=dpi
 @@||dcinside.com^$stealth=dpi|push
-@@||direct.$stealth=dpi
 @@||donga.com^$stealth=dpi
 @@||ichannela.com^$stealth=dpi
-@@||io^$stealth=dpi
 @@||isplus.$stealth=dpi
 @@||joycity.com^$stealth=dpi
 @@||kakao*.$stealth=dpi
+@@||kb*.$stealth=dpi
 @@||kiwoom.com^$stealth=dpi
 @@||kr^$stealth=dpi
+@@||kt*.$stealth=dpi
+@@||lg*.$stealth=dpi
 @@||log1.toup.net^$app=com.nhn.android.search
 @@||lotte*.$stealth=dpi
-@@||m.$stealth=dpi
 @@||miraeasset.com^$stealth=dpi
+@@||monimo.com^$stealth=dpi
 @@||mykt.com^$stealth=dpi
 @@||nc.com^$stealth=dpi
 @@||nexon.com^$stealth=dpi
@@ -54,9 +53,9 @@
 @@||shopping.naver.com^$stealth
 @@||smartstore.naver.com^$stealth
 @@||sofrano.com^$stealth=dpi
-@@||ssg.com^$stealth=dpi
+@@||ssg*.com^$stealth=dpi
 @@||termeden.com^$stealth=dpi
-@@||ticke*.$stealth
+@@||ticket*.$stealth
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||toss*.$stealth=dpi
 @@||truefriend.com^$stealth=dpi
