@@ -8456,15 +8456,16 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! tcafe - 출석 - src="/attendance/"
 ! 네이트 - 뉴스 댓글 :not([src*="/Comment/"])
 ! https://javsubs91.uk/ - :not([src*="/hgem.php?"])
+! ||streamable.com - :not([src*="/o/"])
 ! - 네이버 뉴스 기사 오른쪽 다른 언론사 보기 팝업 사라지는거 그냥 둘 것
-##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"])
+##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"])
 
 !
 ! 예외
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
 ! https://mail3.nate.com/ - class="_nmContent" - :not([src*="content"])로 하면 일부 프레임이 해제되서 예외로 별도 처리
 ! https://safe.sur.ly/
-safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"])
+safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/o/"])
 !
 !
 !
