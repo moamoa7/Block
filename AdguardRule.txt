@@ -4,7 +4,7 @@
 ! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260912
+! Version: 20260914
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
@@ -29,7 +29,6 @@
 @@||danawa.com^$stealth=dpi
 @@||dcinside.com^$stealth=dpi|push
 @@||donga.com^$stealth=dpi
-@@||google*.$stealth=dpi|push
 @@||ichannela.com^$stealth=dpi
 @@||isplus.$stealth=dpi
 @@||joycity.com^$stealth=dpi
@@ -51,8 +50,7 @@
 @@||plaync.com^$stealth=dpi
 @@||samsung*.com^$stealth=dpi
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
-@@||shinhan*.com^$stealth=dpi
-@@||shinsegae*.com^$stealth=dpi
+@@||shin*.com^$stealth=dpi
 @@||shopping.naver.com^$stealth
 @@||smartstore.naver.com^$stealth
 @@||sofrano.com^$stealth=dpi
