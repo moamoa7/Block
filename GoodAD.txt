@@ -3318,6 +3318,7 @@ ez2pattern.kr###left-display
 ! - 이 규칙 사용으로 부수적으로 스크롤도 잠금 해제
 ! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 ! - - - https://shipdago.com/
+! - - - https://quizbubble.kr
 !quizbubble.kr,shipdago.com,ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
 *##+js(no-fetch-if, adsbygoogle.js)
 !
