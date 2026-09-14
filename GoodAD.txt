@@ -3308,15 +3308,30 @@ lineup11.net##.cookie-consent
 !||ampscamp.net^
 !
 !
-! https://ez2pattern.kr
+! EZ2ON REBOOT : R - EZ2PATTERN (https://ez2pattern.kr/)
 ! - 광고 차단 팝업
 !ez2pattern.kr###pop_info_1
 !##[id*="pop_"]
 ! - 왼쪽 배너
 ez2pattern.kr###left-display
-! - 스크롤 잠금 해제
+! - 웹페이지의 fetch() 함수 호출을 가로채서, URL에 adsbygoogle.js가 들어간 fetch 요청 무력화
+! - 이 규칙 사용으로 부수적으로 스크롤도 잠금 해제
 ! - - - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
-ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
+! - - - https://shipdago.com/
+!quizbubble.kr,shipdago.com,ez2pattern.kr##+js(no-fetch-if, adsbygoogle.js)
+*##+js(no-fetch-if, adsbygoogle.js)
+!
+!
+! 쉽다고 (https://shipdago.com/)
+! - 커뮤니티 등 양쪽 프리미엄 배너
+shipdago.com##[class*="w-40"]:has-text(광고)
+! - 커뮤니티 등 하단 프리미엄 배너
+shipdago.com##[class*="group"]:has-text(광고)
+!
+!
+! 퀴즈버블 (https://quizbubble.kr/)
+! - 애드블록 감지팝업
+###adblock-modal
 !
 !
 ! https://code.visualstudio.com
@@ -3788,11 +3803,6 @@ heykorean.com##li:has([src*="/ad_"])
 ! 디지털 타임스 (https://www.dt.co.kr/)
 ! - 빈 공간
 dt.co.kr##[class*="-ad"]
-!
-!
-! 퀴즈버블 (https://quizbubble.kr/)
-! - 애드블록 감지팝업
-###adblock-modal
 
 
 
@@ -4196,7 +4206,7 @@ fabulouslink.xyz##.widget
 ! 여우코믹스 (https://t.me/s/fxfx999_com) (https://fxfx332.com/)
 ! W툰 (https://t.me/s/wtwt999) (https://wtwt335.com/)
 ! - 팝업
-! - - - 별별티비 (https://www.bbtv95.com/)
+! - - - 별별티비 (https://www.bbtv96.com/)
 !##.modal-wrapper
 ! - 뿌옇거 해결
 !##.modal-overlay
@@ -6831,15 +6841,16 @@ video.fc2.com##[style] [class]:has-text(We appreciate your help for quality impr
 !
 !
 ! 노벨피아 (https://novelpia.com/)
+@@||novelpia.com^$generichide
 ! - 메인 상단 배너
-novelpia.com##.new-top-header2
+!novelpia.com##.new-top-header2
 ! - 메인 상단 배너 (공간) - 모바일
 !novelpia.com##.novellist-swiper-banner
 ! - 메인 하단 이벤트
 !novelpia.com###main_event_banner_swiper
 ! - 첫 구독 무료 혜택 팝업
-novelpia.com##.sub-sale-modal-v2
-novelpia.com##.modal_background
+!novelpia.com##.sub-sale-modal-v2
+!novelpia.com##.modal_background
 ! - 모바일 메뉴 버튼
 novelpia.com##.mobile_show.bt-nv-wrapper
 ! - 모바일 작품별 배너
@@ -7000,7 +7011,7 @@ apkmody.com##.invisible-horizontal-scroll.flex-container-3
 !modded-1.com#@#[class*="ad-container" i]
 !
 !
-! 별별티비 (https://www.bbtv95.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
+! 별별티비 (https://www.bbtv96.com/) - - https://dujiza.com/html/Video/ 에서 링크 찾음
 ! - 배너 이미지
 ! - - - 달달티비 (https://www.dadtv3.com/) - 현재 접속 불가
 ! - - - 별별티비 / 달달티비 / 청양티비
@@ -8904,28 +8915,32 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 !
 !
 !
-##[id*="-pop" i]:not(body):not(html):not(main):not([id*="-popular" i])
+!##[id*="-pop" i]:not(body):not(html):not(main):not([id*="-popular" i])
+##[id$="-pop" i]:not(body):not(html):not(main)
 !
 !
 !##[class*="-pop" i]:not(body):not(html):not(main)
 !
 !
 !
-##[id*="_pop" i]:not(body):not(html):not(main):not([id*="_popular" i])
+!##[id*="_pop" i]:not(body):not(html):not(main):not([id*="_popular" i])
+##[id$="_pop" i]:not(body):not(html):not(main)
 !
 !
 !##[class*="_pop" i]:not(body):not(html):not(main)
 !
 !
 !
-##[id*="pop-" i]:not(body):not(html):not(main)
+!##[id*="pop-" i]:not(body):not(html):not(main)
+##[id^="pop-" i]:not(body):not(html):not(main)
 !
 !
 !##[class*="pop-" i]:not(body):not(html):not(main)
 !
 !
 !
-##[id*="pop_" i]:not(body):not(html):not(main)
+!##[id*="pop_" i]:not(body):not(html):not(main)
+##[id^="pop_" i]:not(body):not(html):not(main)
 !
 !
 !##[class*="pop_" i]:not(body):not(html):not(main)
