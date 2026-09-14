@@ -222,6 +222,7 @@ youtube.com##.sticker-layer
 ! - 광고 차단 관련
 ! - - - https://googleads.g.doubleclick.net/pagead/id
 ! - - - https://www.google.com/pagead/lvz?evtid=생략
+! - - - https://www.google.com/pagead/1p-conversion/16521530460/?gad_source=생략
 ! - - - - - https://www.teamblind.com/
 ! - - - - - - - https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js
 /pagead^
@@ -8714,7 +8715,7 @@ t-browser.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="
 ! 마이민트 (https://www.mimint.co.kr/)
 ! FapHouse (https://ko.fhcontent.com/)
 ! 쿠팡 (https://www.coupang.com/)
-##[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+##[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://vexfile.com/
@@ -8725,11 +8726,11 @@ t-browser.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="
 ! https://www.hankyung.com/ - 모바일에서 안보임
 ! https://www.womaneconomy.co.kr/ - banner 잘못 지워짐 수정 (상단 검색 부분 지워짐 방지)
 ! 주소핑 (https://jusoping7.com/)
-womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - https://www.koreasite.live/
-/jusoping|tkor|funbe|wdwd|koreasite/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+/jusoping|tkor|funbe|wdwd|koreasite/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 !
 !
