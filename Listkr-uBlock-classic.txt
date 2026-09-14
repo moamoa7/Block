@@ -4,7 +4,7 @@
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Mon Sep 14 17:49:04 UTC 2026
+! Updated: Mon Sep 14 21:32:37 UTC 2026
 
 ||mixtower.net^
 ||adflow.kr^
