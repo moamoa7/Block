@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260914
+! Version: 20260915
 !
 !
 !
@@ -206,15 +206,15 @@ thecall.co.kr#@#[id*="adsense" i]
 ! 유튜브 (https://www.youtube.com/)
 !@@||www.youtube.com^$generichide
 ! - 메인 스폰서 영상
-youtube.com###masthead-ad
-youtube.com##.ytd-in-feed-ad-layout-renderer
+!!youtube.com###masthead-ad
+!!youtube.com##.ytd-in-feed-ad-layout-renderer
 ! - 제품 광고/쇼핑 배너
-youtube.com##.ytp-featured-product
+!!youtube.com##.ytp-featured-product
 ! - 유튜브 홈/구독 피드에 끼어 있는 광고
-youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
+!!youtube.com##ytd-rich-item-renderer:has(> #content > ytd-ad-slot-renderer)
 ! 유튜브 shorts 스티커 (유튜브는 신뢰로 되어있어 도메인 지정해야 적용)
 !youtube.com##.sticker-layer.ytd-reel-video-renderer
-youtube.com##.sticker-layer
+!!youtube.com##.sticker-layer
 ! - 아래 규칙으로 하면 스티커 이미지들이 안보임
 !##[class*="sticker" i]
 ! - 예외 - https://poooo.ml/ - 채팅 이모니콘 안보임
@@ -231,55 +231,7 @@ youtube.com##.sticker-layer
 @@||youtube.com/api/stats^
 ! - 유튜브(youtube.com)에서 광고가 재생될 때 발생하는 '상태 보고(Ad Status)' 통신을 차단
 ! - - - 광고는 차단하되, 유튜브 플레이어가 고장 나지 않도록 필수적인 통신 파일은 통과시켜 주는 '안정화 장치 (AdGuard – Ads)
-!@@||static.doubleclick.net/instream/ad_status.js$domain=youtube.com
-! - 메인에서 5줄로 나오는거 해제 (Cosmetic Combined Filterlist )
-youtube.com#@#ytd-rich-grid-renderer, html:style(--ytd-rich-grid-items-per-row: 5 !important;)
-! - 영상 플레이어 오른쪽 영상리스트 가려진거 해제 (Cosmetic Combined Filterlist )
-www.youtube.com#@#ytd-item-section-renderer.ytd-watch-next-secondary-results-renderer.style-scope
-! - - - 실시간 영상 오른쪽 채팅창 안보이는거 해제 (Cosmetic Combined Filterlist )
-youtube.com#@##chat
-www.youtube.com#@##chat:remove()
-! - - - 로고 사리지는거 해제 (Cosmetic Combined Filterlist )
-www.youtube.com#@#.ytd-yoodle-renderer
-! - - - 왼쪽 메뉴 중 short(쇼츠) 사리지는거 해제 (Cosmetic Combined Filterlist )
-!www.youtube.com#@##guide [title="Shorts"], .ytd-mini-guide-entry-renderer[title="Shorts"]
-!youtube.com#@#.yt-simple-endpoint[title="Shorts"]
-!www.youtube.com#@#ytd-guide-entry-renderer.ytd-guide-section-renderer.style-scope > .ytd-guide-entry-renderer.style-scope.yt-simple-endpoint:has-text(/Shorts/i)
-!www.youtube.com#@#ytd-guide-entry-renderer:has(yt-formatted-string:has-text(/^Shorts$/i))
-! - - - 오른쪽 쇼츠 영상 안보이는거 해결 (Cosmetic Combined Filterlist )
-!www.youtube.com#@##shorts-container
-!
-! 특수
-! - 영상 끝 자동재생 자체를 끄는 것도 병행 - 이건 필터로는 한계가 있어서, 유튜브 플레이어 우상단의 자동재생 토글을 꺼둘것
-! ===== 추천 사이드바 (영상 옆) =====
-! - - - 실시간 채팅까지 막고 싶으면 1번째 규칙을 실시간 채팅만 풀고 싶으면 2번째 규칙을 풀면 됨
-! - - - 1번째 규칙으로 하면 동영상 화면이 커짐
-!www.youtube.com###secondary
-!www.youtube.com##ytd-watch-next-secondary-results-renderer
-!www.youtube.com###related
-!
-! ===== 영상 끝 엔드스크린 / 다음 추천 =====
-!www.youtube.com##.ytp-ce-element
-!www.youtube.com##.ytp-endscreen-content
-!www.youtube.com##.ytp-fullscreen-grid-stills-container
-!www.youtube.com##.ytp-autonav-endscreen-upnext-container
-!
-! ===== 홈 피드 비우기 (가장 효과 큼) =====
-! - - - 홈을 통째로 비울려면 1번째 규칙을 살리고 홈을 통째로 비우는 대신 쇼츠·추천 묶음만 골라 없애고 일반 추천은 남기고 싶으면 2번째 규칙을 살리면 됨
-!www.youtube.com##ytd-browse[page-subtype="home"] #contents.ytd-rich-grid-renderer
-!www.youtube.com##ytd-browse[page-subtype="home"] ytd-rich-section-renderer
-!
-! ===== 쇼츠 제거 (검색/홈/사이드바) =====
-!www.youtube.com##grid-shelf-view-model
-!www.youtube.com##ytd-rich-shelf-renderer[is-shorts]
-!www.youtube.com##ytd-reel-shelf-renderer
-!www.youtube.com##ytd-guide-entry-renderer:has(a[title="Shorts"])
-!www.youtube.com##ytd-mini-guide-entry-renderer:has(a[title="Shorts"])
-!
-! ===== 탐색 유발 요소 (선택) ===== (플레이리스트/믹스 묶음, 쇼츠 줄, 큐레이션 모음)
-!www.youtube.com##ytd-rich-section-renderer
-! - 기타 (EasyPrivacy)
-!/generate_204?$image
+@@||static.doubleclick.net/instream/ad_status.js$domain=youtube.com
 !
 !
 ! 디스코드 (https://discord.com/)
@@ -305,7 +257,7 @@ www.youtube.com#@#.ytd-yoodle-renderer
 !||instagram.com/ajax/qm/?
 !||facebook.com/ajax/qm/
 !||com/ads
-||instagram.*.fna.fbcdn.net^$removeparam=ccb,domain=~instagram.com
+!||instagram.*.fna.fbcdn.net^$removeparam=ccb,domain=~instagram.com
 !||cdninstagram.com^$removeparam=efg
 !||cdninstagram.com^$removeparam=ccb
 !||cdninstagram.com^$removeparam=_nc_sid
@@ -1167,6 +1119,8 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! 더쿠 (https://theqoo.net/)
 ! - 로딩중 글자
 !theqoo.net##.theqoo-counter
+! - 트위터 내용 안보이는거 해결
+@@||syndication.*$third-party
 ! - 기타
 /counter.js^$script
 !
@@ -1261,6 +1215,7 @@ m.inven.co.kr##.goto_top_arrow
 ! - 지금뜨는 핫벤 /팟벳 사라지는거 방지
 !inven.co.kr#@#div[class^="swiper-"] > ul > li > a[target="_blank"]
 ! -기타
+! - - - https://www.inven.co.kr/common/lib/js/floatstatic.js?생략
 /js/float*.js
 @@/js/float*.js$domain=m.bunjang.co.kr
 !
@@ -2338,6 +2293,7 @@ kstarfashion.com##[style="width:320px;height:100px;"]
 ! - - - https://www.anewsa.com/
 ! - - - https://www.fomos.kr/
 ! - - - 서울경제 (https://www.sedaily.com) 모바일
+! - - - 브릿지경제 (https://viva100.com/)
 !##div:has(> script[src*="/ad."])
 ##div[style]:has(> script[src*="/ad."])
 !
@@ -3114,6 +3070,8 @@ gemini.google.com##.input-area-container:style(max-width:1600px!important)
 !
 !
 ! ChatGPT (https://chatgpt.com/)
+! - 딥변 후 광고
+chatgpt.com##.starting\:opacity-0
 ! - 기타
 !chatgpt.com##+js(ubo-set-session-storage-item, oai/apps/noAuthHasDismissedSoftRateLimitModal, true)
 !chatgpt.com##+js(ubo-set-local-storage-item, oai/apps/hasSeenNoAuthImagegenNux, true)
@@ -3818,9 +3776,23 @@ linkbio.co##.lnk-prom-placement
 @@||investing.com^$generichide,script,xhr
 !
 !
+! 카드고릴라 (https://www.card-gorilla.com/)
+@@||card-gorilla.com^$generichide,script,xhr
+!
+!
 ! https://heykorean.com/
 ! - Popular Listings 광거 제거 후 빈 공간
 heykorean.com##li:has([src*="/ad_"])
+!
+!
+! 디지털 타임스 (https://www.dt.co.kr/)
+! - 빈 공간
+dt.co.kr##[class*="-ad"]
+!
+!
+! 퀴즈버블 (https://quizbubble.kr/)
+! - 애드블록 감지팝업
+###adblock-modal
 
 
 
@@ -8123,7 +8095,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! - 예외
 @@||*-ad-$css
-@@||*-ad-*$domain=nate.com|www.twitch.tv
+@@||*-ad-*$domain=nate.com|www.twitch.tv|youtube.com
 !
 !
 ! https://platinmods.com/
@@ -8250,7 +8222,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 !
 ! 티비위키 / 티비몬 / 티비핫
-! 디시인사이드 - https://gall.dcinside.com/_js/ad_audit.js?v=2605081820
+! 디시인사이드 - https://gall.dcinside.com/_js/ad_audit.js?v=생략
 ! 풍투데이
 ! 조선에듀
 ! https://video.fc2.com/ - https://video.fc2.com/a/ad_rentangle.php
@@ -8267,7 +8239,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! 트위치
 ! 이토랜드 - https://etoland.co.kr/api/coupang/ad-url
-! 디시인사이드
+! 디시인사이드 - https://api-external.adsvoya.com/api/v1/ad-logs
 ! https://loawa.com/
 ! https://www.tiktok.com/
 ! https://fc2db.net/ - https://fc2db.net/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=2.0.0
@@ -8527,15 +8499,16 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! https://k01.aving.tv/ - :not([src*="/v.php?"])
 ! missav (https://missvod8.com/) - src="https://av1.wandoo1.com/stream/getPlayer/326458"
 ! missav (https://dk370.com/) - :not([src*="/play.html?"])
+! 인스타 - id="captcha-recaptcha"
 ! - 네이버 뉴스 기사 오른쪽 다른 언론사 보기 팝업 사라지는거 그냥 둘 것
-##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"])
+##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"])
 
 !
 ! 예외
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
 ! https://mail3.nate.com/ - class="_nmContent" - :not([src*="content"])로 하면 일부 프레임이 해제되서 예외로 별도 처리
 ! https://safe.sur.ly/
-safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"])
+safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"])
 !
 !
 !
