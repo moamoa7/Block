@@ -8573,7 +8573,7 @@ safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/
 !##iframe[src*="AmazonCustomAds"]
 !##iframe[src$="ads" i]
 !##iframe[src$="?asin=" i]
-! - - - https://01.avovo.net/ 등 예외 적용
+! - - - https://02.avovo.net/ 등 예외 적용
 ! ##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]) 이 규칙으로 대체
 !##iframe[src*="ads" i]:not([src*="loads" i])
 !
@@ -8880,7 +8880,8 @@ philgo.com##[alt*="배너"]
 ! 위플랩 WEFLAB (https://weflab.com/)
 ! 캐나다 한국일보 (https://koreatimes.net)
 ! 냥티비 (https://nortv95.com/)
-/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv|mtoon/##[target*="blank"] img
+! https://02.avovo.net/
+/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv|mtoon|avovo/##[target*="blank"] img
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -9085,7 +9086,8 @@ heykorean.com,teamblind.com#@#[class$="_ad" i]:not([class$="hate_ad"]):not(body)
 ! https://www.fmkorea.com/ - class="document_address" 제외
 ! https://trand.co.kr/ - class="page_manage_add" - :not([class*="_add" i])
 ! https://02.avsee.is/ -class*="afs_ads"
-##[class*="_ad" i]:not(body):not(html):not(main):not([class*="-ad-" i]):not([class$="_ad" i]):not([class*="_add" i]):not([class*="_admin" i]):not([class*="afs_ads" i])
+! 구글 - class="tile_M6Boq type:ImageTile module_Ad1it" -- _Ad 제외
+##[class*="_ad" i]:not(body):not(html):not(main):not([class*="-ad-" i]):not([class$="_ad" i]):not([class*="_add" i]):not([class*="_admin" i]):not([class*="afs_ads" i]):not([class*="_Ad"])
 !
 !
 !
