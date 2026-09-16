@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20708.0
+! Version: 2026.20712.1
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Wed Sep 16 03:32:38 UTC 2026
+! Updated: Wed Sep 16 10:54:44 UTC 2026
 
 ||mixtower.net^
 ||adflow.kr^
@@ -605,6 +605,7 @@ m.cafe.naver.com##.banner_add.bottom:matches-path(/ca-fe\\/web\\/cafes\\/(steami
 !
 ! DOMAIN-REFRESHER: START
 !
+/yasyadong[0-9]+\.tv/##.top-ad-padding
 /anilife[0-9]+\.tv/##*[class^="partner-banner-"]
 /cokcok[0-9]+\.com/###cpb-popup-banners
 /xtoon[0-9]+\.com/##.container > div.row > div > a[target="_blank"] > picture
@@ -710,6 +711,7 @@ nightofpeace.com,ilovebees.io##.e-grid.e-con-full.e-con.e-child:has(a[target="_b
 /^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 /data/banner.json?$domain=~nintendo.*
 
+ipokergosu.com/banner/$domain=pokergosu.com
 ||amazing.today/_next/image?url=%2Fads%2F2
 ||image.gamechosun.co.kr/ad_banner/
 ||file.chuchu.gg/*/pop_up_ad/
@@ -1662,14 +1664,16 @@ nightofpeace.com,ilovebees.io##.e-grid.e-con-full.e-con.e-child:has(a[target="_b
 ||img.mingk.xyz/data/file/passfree/
 ! aglint-disable-next-line no-invalid-modifiers
 ||mingk*.net/theme/BS4-Basic/js/pf-loader.js$domain=/^mingky[0-9]+\.net/
-||yasyadong.*/?_Action=adv&_Method$domain=yasyadong.*
+! aglint-disable-next-line no-invalid-modifiers
+||yasyadong.*/?_Action=adv&_Method$domain=yasyadong.*|/yasyadong[0-9]+\.tv/
 ! aglint-disable-next-line no-invalid-modifiers
 /https:\/\/tvwiki[0-9]+\.com\/data\/banner\//$domain=/tvwiki[0-9]+\.com/
 /^https:\/\/(www\.)?aniya24\.com\/wp-content\/uploads\/[0-9]+\/[0-9]+\/[a-z]+[0-9]+x[0-9]+\./$domain=aniya24.com
 ||aniya24.com/wp-content/uploads/*.gif
 ||sutom.org/wp-content/uploads/*.webp
 ||nooo*.tv/theme/basic_player/img/banner/
-||blogger.googleusercontent.com/img/$domain=yasyadong.*
+! aglint-disable-next-line no-invalid-modifiers
+||blogger.googleusercontent.com/img/$domain=yasyadong.*|/yasyadong[0-9]+\.tv/
 .gif^$image,domain=itrulli.com
 ||365tvda.com/data/file/bojng/
 ||xn--hy1bm2ltmr.com/img/banner/
@@ -1951,6 +1955,7 @@ jobkorea.co.kr##div[id^="Banner"]
 ! ##div[id*="_AD"]
 sports.donga.com##div[id*="_AD"]
 
+lec.co.kr##aside.user-aside > div[style^="height:"]
 bananamall.co.kr###banner_header
 bananamall.co.kr##.banner_fan_meeting_review
 bananamall.co.kr##.banner_cntnt_right
