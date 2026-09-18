@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260917
+! Version: 20260919
 !
 !
 !
@@ -237,6 +237,7 @@ thecall.co.kr#@#[id*="adsense" i]
 !
 !
 ! 디스코드 (https://discord.com/)
+@@||discord.com^$generichide,xhr
 ! - 상단 공지
 !discord.com##div[class*="notice"]
 ! - 기타
@@ -1578,6 +1579,7 @@ m.ppomppu.co.kr###ask_app_usage_popup
 m.ppomppu.co.kr##[class*="ad_" i]
 ! - 사이트 최하단 공백 (모바일) - 인기/HOT 게시글을 없애면 안보이긴함
 !m.ppomppu.co.kr###m_view_bottom_f_1
+! - - - https://inews24.com/
 ##div[id][style^="min-width: 300px; min-height: 250px"]
 ! - 포럼내 AD 공지글 삭제
 ! - -  일부 광고글 삭제
@@ -2486,6 +2488,7 @@ web.joongna.com##.max-md\:gap-3
 !
 !
 ! 성삼당몰 (https://www.sungsimdangmall.co.kr/)
+@@||sungsimdangmall.co.kr^$generichide,image
 ! - 팝업
 !##[class*="popup-area" i]
 !
@@ -2810,7 +2813,7 @@ algumon.com##[class*="pb-3"]:has([aria-label*="광고"])
 ! 뉴덕 (https://newduck.net/)
 ! - 상단 빈 공간
 ! - - - 이코노미스트 (https://economist.co.kr/) - 개벌 기사 모든 빈 공간
-economist.co.kr,newduck.net##[class*="_ad" i]
+!economist.co.kr,newduck.net##[class*="_ad" i]
 ! - 상단 / 중간 / 왼쪽 하단 배너
 !newduck.net##.code-content-top
 !##[class*="kakao_ad_area" i]
@@ -3079,7 +3082,7 @@ gemini.google.com##.input-area-container:style(max-width:1600px!important)
 !
 ! ChatGPT (https://chatgpt.com/)
 ! - 딥변 후 광고
-chatgpt.com##.starting\:opacity-0
+!chatgpt.com##[data-pokkok-sim="0"]
 ! - 기타
 !chatgpt.com##+js(ubo-set-session-storage-item, oai/apps/noAuthHasDismissedSoftRateLimitModal, true)
 !chatgpt.com##+js(ubo-set-local-storage-item, oai/apps/hasSeenNoAuthImagegenNux, true)
@@ -3188,9 +3191,9 @@ linkareer.com##[class*="PopularActivity" i]
 !
 !
 ! 서울신문 (https://seoul.co.kr/)
-! - 기사 하단 배너공간
+! - 기사 하단 따라다니는 배너공간
 !seoul.co.kr###bottomScrollBox
-!##[id*="scrollbox" i]
+seoul.co.kr##[id$="ad" i]
 !
 !
 ! 환산주스탯 (https://maplescouter.com/)
@@ -3816,6 +3819,38 @@ dt.co.kr##[class*="-ad"]
 !
 ! https://tdeal.kr/
 @@||tdeal.kr$generichide,image,xhr
+!
+!
+! 아워홈Mall (https://mall.ourhome.co.kr/)
+@@||mall.ourhome.co.kr^$generichide,image
+!
+!
+! 와디즈 (https://www.wadiz.io/)
+@@||wadiz.io^$generichide
+!
+!
+! 데일리팜 (https://dailypharm.com/)
+! 필요없는거 - 오른쪽 취업정보
+dailypharm.com##.recruit
+! 필요없는거 - 오른쪽 이벤트
+dailypharm.com##.pharmstar
+! 필요없는거 - 오른쪽 동향
+dailypharm.com##.aside_news
+! 필요없는거 - 오른쪽 알림.공표
+dailypharm.com##.notice
+! 필요없는거 - 오른쪽 약국e몰
+dailypharm.com##.thepharm_mall
+! 필요없는거 - 오른쪽 매출TOP100
+dailypharm.com##.TOP100
+! - 메인 CF 영상?
+dailypharm.com##.vest_CF
+! - 기사내 신청하기
+dailypharm.com##.pr_wrap
+! - 규칙 해제
+dailypharm.com#@#.adv_box
+
+
+
 
 
 
@@ -3844,7 +3879,7 @@ dt.co.kr##[class*="-ad"]
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki49.net/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://티비위키접속.com) (https://tvwiki50.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/) - 메인주소로 접속하면 구글로 이동됨 / https://tvhot2.com/drama 와 같이 디렉토리로 이동해야함
 ! - 팝업 제거
@@ -4657,6 +4692,7 @@ aving.tv##.gap-lg-5
 !sextb.net##div.notice
 ! - 메인 배너 공간
 !sextb.net##[style][class*="hidden-sm"]
+sextb.net##[style]:has([src*="a.magsrv.com"])
 ! -영상 오른쪽 배너 공간 (PC/모바일)
 !/sextb/##.col-3
 ! - 영상 하단 배너 공간 (모바일)
@@ -4666,7 +4702,7 @@ aving.tv##.gap-lg-5
 ! - 일부 영상 재생 차단 방지
 !turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]
 ! - - - DNS 차단 해제 및 VPN도 별도 등록 필요
-@@||turboplays.click^
+!@@||turboplays.click^
 ! - 기타
 /log^$xhr,from=~meet.google.com|~sigstore.dev|~backloggd.com
 !
@@ -5535,14 +5571,14 @@ missav.app##[style*="-ad-" i]
 popjav.in##div.pop--excl
 !
 !
-! https://kissjav.com/
-! https://kissjav.li/
+! https://kissjav.com/ --> https://kissjav.li  전환
 ! https://kpop.xxx
 ! https://mrdouga.com
 ! https://deepfakesporn.com
 ! https://jpvoyeur.com
 ! https://daftsex.net
 ! https://javgays.com
+! https://bunnyxxx.com/
 ! - - - https://pornhits.net / https://fapbee.com  /  https://fakekpop.com  좀 다른 사이트들
 ! - 영상 옆 오른쪽 배너
 !kissjav.*##.asside-link
@@ -5558,7 +5594,7 @@ popjav.in##div.pop--excl
 !kissjav.*##+js(set-attr, img.lazy-load, src, [data-original])
 !kissjav.*##+js(set-attr, img.lazy-load, src, [data-webp])
 ! - 팝업 차단
-!kissjav.*,kpop.xxx,mrdouga.com,deepfakesporn.com,jpvoyeur.com,daftsex.net,javgays.com##+js(nowoif)
+kissjav.*,kpop.xxx,mrdouga.com,deepfakesporn.com,jpvoyeur.com,daftsex.net,javgays.com,bunnyxxx.com##+js(nowoif)
 ! - 기타
 !action=js_stats
 !
@@ -7035,7 +7071,8 @@ apkmody.com##.invisible-horizontal-scroll.flex-container-3
 ! - - - 이미지 주소 변경되서 규칙 변경
 ##[target]>div[class*="image"][style]
 ! - 예외 - https://search.naver.com/ - 클립 이미지 사라짐
-naver.com#@#[target]>div[class*="image"][style]
+! - 예외 - https://lec.co.kr/ - 일부 이미지 사라짐
+lec.co.kr,naver.com#@#[target]>div[class*="image"][style]
 ! - 배너 공간
 !/^(www\.)?bbtv/###pagetop > div > .el-row
 !/bbtv/###pagetop > div > .el-row
@@ -7735,15 +7772,19 @@ javfilms.com##div[class*="xs"]:has([target*="blank"])
 !||simpleanalyticscdn.com^
 !
 !
-! https://www.njav.com/ - 영상 재생 불가 (upload18.org)
+! nJAV.com (https://www.njav.com/)
+! - 영상 오른쪽 빈 공간
+##[id^="ad"]:has(script)
 ! - 영상 재생 가능하게
+! - - - https://njav.fun/
 @@||upload18.org^$ehide
 !@@||www.njav.com^$script,3p
 ! - 영상 재생 가능하게 (DNS도 해제 필요)
-@@||renamereptiliantrance.com^
+!@@||renamereptiliantrance.com^
+! - - - ping 허용이 필요해서 넣은것 // 별도로 popup 설정
 @@||endlesshandbaglinked.com^
-@@||adligature.com^
-@@||srvtrck.com^
+!@@||adligature.com^
+!@@||srvtrck.com^
 ! - 팝업 차단
 upload18.org#%#//scriptlet('prevent-window-open')
 ! - 기타
@@ -8043,6 +8084,16 @@ getav.net##.lg\:flex:has-text(광고)
 getav.net#%#//scriptlet('prevent-window-open')
 !
 !
+! https://javget.com/
+! - 팝업 차단
+||renamereptiliantrance.com^$popup
+!
+!
+! https://njav.fun/
+! - 팝업 차단
+||endlesshandbaglinked.com^$popup
+!
+!
 !
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
 
@@ -8174,7 +8225,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 예외
 @@*/ad/*$css
 ! - 예외
-@@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com
+@@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com|weekly.donga.com
 !
 !
 ! 치지직
@@ -8527,15 +8578,18 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! 인스타 - id="captcha-recaptcha"
 ! 네이버 카페 - src="//cafe.naver.com/MyCafeIntro.nhn?clubid=31091221"
 ! https://accounts.kakao.com/ - /dkaptcha/
+! https://www.njav.com/ - /vv/
+! 디스코드 (https://discord.com/) - /captcha/
+! https://lec.co.kr/ - not([src*="follow"])
 ! - 네이버 뉴스 기사 오른쪽 다른 언론사 보기 팝업 사라지는거 그냥 둘 것
-##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"])
+##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"])
 
 !
 ! 예외
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
 ! https://mail3.nate.com/ - class="_nmContent" - :not([src*="content"])로 하면 일부 프레임이 해제되서 예외로 별도 처리
 ! https://safe.sur.ly/
-safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"])
+safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"])
 !
 !
 !
@@ -8665,13 +8719,15 @@ lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([
 !
 !
 !  치지직 (https://chzzk.naver.com/)
-##[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i])
+! 데일리팜 (https://dailypharm.com/) - :not([class*="adver_banner" i])
+##[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i]):not([class*="adver_banner" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.clien.net/ - 클리앙 검색 부분 / 댓글
 ! https://search.naver.com/ - 검색 상단 사라짐
 ! 게임조선 (https://gamechosun.co.kr/) - 메인에서 일부 잘림으로 이상해짐
-gamechosun.co.kr,search.naver.com,clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i])
+! 데일리팜 (https://dailypharm.com/)
+dailypharm.com,gamechosun.co.kr,search.naver.com,clien.net#@#[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
@@ -8688,11 +8744,12 @@ gamechosun.co.kr,search.naver.com,clien.net#@#[class*="_banner" i]:not(body):not
 !
 !
 !
-##[class*="_banner_" i]:not(body):not(html):not(main)
+##[class*="_banner_" i]:not(body):not(html):not(main):not([class*="news"])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! 만개의 레시피 (https://m.10000recipe.com/]
-10000recipe.com#@#[class*="_banner_" i]:not(body):not(html):not(main)
+! 데일리팜 (https://dailypharm.com/)
+dailypharm.com,10000recipe.com#@#[class*="_banner_" i]:not(body):not(html):not(main)
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
@@ -9103,8 +9160,9 @@ javgiga.com#@#[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"]):
 !
 ! https://hatzze.fun/ - head-ad 제외
 ! https://kr47.topgirl.co/ - load 제외
+! https://etoland.co.kr/ - class="sad-count 제외
 ! ##[class*="ad-placement"]  이 규칙은 별도로 있으므로 제외
-##[class*="ad-" i]:not(body):not(html):not(main):not([class*="-ad-"]):not([class^="ad-"]):not([class*="head-"]):not([class*="load-"]):not([class*="read-"]):not([class*="ad-placement"]):not([class*="pad-"])
+##[class*="ad-" i]:not(body):not(html):not(main):not([class*="-ad-"]):not([class^="ad-"]):not([class*="head-"]):not([class*="load-"]):not([class*="read-"]):not([class*="ad-placement"]):not([class*="pad-"]):not([class*="sad-count"])
 !
 !
 !
@@ -9159,8 +9217,9 @@ up-4ever.net,platinmods.com#@#[class*="ads"]:not(body):not(html):not(main):not([
 !
 !##[id*="adsby" i] 제외
 ! 스킵버튼? :not([id*="adskip"]) 제외 
+! https://etoland.co.kr/ - gladsdk 제외
 ! https://njavtv.com/ - id="html-ads" 그냥 둠 
-##[id*="ads"]:not(body):not(html):not(main):not([id*="loads"]):not([id*="adsby"]):not([id*="adskip"])
+##[id*="ads"]:not(body):not(html):not(main):not([id*="loads"]):not([id*="adsby"]):not([id*="adskip"]):not([id*="gladsdk"])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://adguard-dns.io/
@@ -9246,7 +9305,9 @@ cineaste.co.kr#@#.h30
 ! - -  gigafile.nu
 ! - - - 주소핫 (https://jusohot5.com/) - 배너 이미지
 ! - - - missav (https://dk370.com/) - 영상 페이지 내 상단 배너
-##[class$="-slot" i]
+! - - - - - https://hatzze.fun/ - hint-slot" 제외
+! - - - - - https://www.reddit.com/ - loading-slot 제외
+##[class$="-slot" i]:not([class$="hint-slot" i]):not([class$="loading-slot" i])
 ! - 예외
 ! - - - https://www.mmzone.co.kr/ - 메인 상단 이미지 삭제됨
 mmzone.co.kr#@#[class$="-slot" i]
