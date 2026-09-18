@@ -3081,8 +3081,6 @@ gemini.google.com##.input-area-container:style(max-width:1600px!important)
 !
 !
 ! ChatGPT (https://chatgpt.com/)
-! - 딥변 후 광고
-!chatgpt.com##[data-pokkok-sim="0"]
 ! - 기타
 !chatgpt.com##+js(ubo-set-session-storage-item, oai/apps/noAuthHasDismissedSoftRateLimitModal, true)
 !chatgpt.com##+js(ubo-set-local-storage-item, oai/apps/hasSeenNoAuthImagegenNux, true)
