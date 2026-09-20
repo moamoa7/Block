@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.09.20.8
-! TimeUpdated: 2026-09-20T04:40:19+00:00
+! Version: 2026.09.21.0
+! TimeUpdated: 2026-09-20T16:06:59+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, wBlock, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -48,6 +48,7 @@ ruliweb.com,fmkorea.com#@#[alt$='광고']
 ruliweb.com,ppomppu.co.kr,naver.com,daum.net,etoland.co.kr##[id$='_ad']
 seoul.co.kr,mule.co.kr,hiromi.fans##[class*='Ad']
 tdgall.com,hygall.com##.admanager-row
+thinkpool.com,econovill.com,viva100.com##.banner_box
 windowsforum.kr,seoul.co.kr,xportsnews.com,yonhapnewstv.co.kr,goodgag.net,dailycar.co.kr##.ad
 wowtv.co.kr,cafe.naver.com##[class*='Banner']
 !
@@ -122,7 +123,6 @@ dvdprime.com##[id^='ad_mobile']
 dvdprime.com##[id^='slot']
 ebs.co.kr##.ji_adban
 economist.co.kr##[class*="_ad"]
-econovill.com##div.banner_box
 edu.chosun.com##a:has(> [src*="edu.chosun.com/images/bn/"])
 edu.chosun.com##section:has(> [id^="AD_Main_"])
 encar.com##[class*="Banner_wrap"]
@@ -204,7 +204,6 @@ munhwa.com###bottom-sticky
 munhwa.com##.top-banner-area
 musinsa.com##[href$="/main/musinsa/brand_ad"]
 namu.news##li:has(div[style*="min-height:100px"]):has(> div > div[id*="article-a"])
-naver.com###sb-kh-shortents-wrap
 naver.com##.sa_empty_ad
 news.jtbc.co.kr##.MuiBox-root[radius="0"][style]:empty
 news.jtbc.co.kr##.print-hide.MuiBox-root:has(> iframe)
@@ -244,6 +243,7 @@ ssalmuk.com##+js(json-prune, data.[-].popupCode)
 svrforum.com$$ins[class="adsbygoogle"]
 te31.com##table:has(td > script)
 teamblind.com##.coupang_gnb
+teamblind.com##.progtop-band:has(> div[id^="div-gpt-ad"]:empty:only-child)
 teamblind.com##.top_banner
 teamblind.com##.topic-list.best > div.article:has(> [href^='https://link.coupang.com/re/'])
 teamblind.com##[href^='https://link.coupang.com/re/AFFSDP']
@@ -251,13 +251,11 @@ teamblind.com##div.border-b:has(> div.flex > div[id^="infeed-home-"])
 teamblind.com##div.comment_area.wrap-comment[style='cursor: pointer;']
 teamblind.com##ul.tag-actions:has(> li > a[href^="https://link.coupang.com/a/"])
 terms.naver.com##div.ad-banner-area
-thinkpool.com##.banner_box
 tiendeo.co.kr##section.justify-center:has([id^="div-gpt-ad-web"])
 tvseoul.kr##div[style*="width:360px"][style*="height:300px"]
 umrb.co.kr##ul.main_slider_area
 uppity.co.kr##.adrop-outer
 veritas-a.com##article.grid.body > div.clearfix:has(.ad-template)
-viva100.com##.banner_box
 wadiz.kr##[class^="MultiBoardAdBannerDisplay-"]
 welfarehello.com##[style^="--ad-frame-width-"]
 wooriilbo.com##div[style$="width:360px;height:320px;"]
@@ -329,12 +327,11 @@ m.naver.com###MM_AI_TAB_TOOLTIP
 m.naver.com###MM_homefeed_react_container > .grid1_wrap.brick-house > .brick-vowel > div:not(:first-child)
 m.naver.com##.chf_feed_wrap > .type_square.cc_clip_list
 m.naver.com##script#MM_search_disaster ~*
-! m.search.naver.com##.api_subject_bx div:has(.fds-aib-answer-expand-button-wrapper:not([style*="none"])) + div
-! m.search.naver.com##.api_subject_bx div:has(.fds-aib-answer-expand-button-wrapper:not([style*="none"])) + div + div
+m.search.naver.com##.fds-aib-expandable-container:has(.fds-aib-answer-expand-button-wrapper:not([style*="none"])) .fds-aib-input-dock
 mlbpark.donga.com##.the_hottest
 namu.wiki##div[class]:matches-css(position: sticky)
 namu.wiki##li:has(a > time):not(:has([href*='/raw/'])):upward(2)
-naver.com##div.sds-comps-vertical-layout.fds-shortents-compact-block[data-template-id="layout"]
+naver.com###sb-kh-shortents-wrap
 phdkim.net##.app-smart-banner
 quasarzone.com##.best-official-news, .new-official-news, .best-official-news-container, .new-official-news-container, .new-partner-saleinfo-container
 search.dcinside.com##.right_content
@@ -372,16 +369,18 @@ shipdago.com,ez2pattern.kr,quizbubble.kr##+js(no-fetch-if, adsbygoogle.js)
 $@$link[rel="manifest"]
 @@*capital.$stealth=dpi
 @@*fire.$stealth=dpi
+@@*info.$stealth=dpi
 @@*ins.$stealth=dpi
 @@*mbc.com^$stealth=dpi
 @@*sb.com^$stealth=dpi
+@@*store.com^$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:bank|stock|invest|coin|pay|mobile|card|post|logi|financ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:eon|buk|busan|seo|won|nam|traff|ung|sam)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|gok|chat|mae|hae|bus|account)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|han|insure|direct|soft|point|cash|time|info)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:screen|size|monitor|pdf|tech|udi|scan|dae|sound)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:savings|cruit|event|talent|energy|test|check|speed|song|work|dev)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:tele|news|pass|econom|biz|member|shop|mall|store|univ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|ung|account|udi|busan|speed)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|hana|insure|direct|soft|point|cash|time)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:pdf|phone|info|tech|monitor)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:savings|cruit|event|talent|energy|test|check|scan)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:tele|news|pass|econom|biz|member|shop|mall|univ|mae)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*ssg[a-z]*\.com(?:[\/?#]|$)/$stealth=dpi
 @@||192.168.$stealth=dpi
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
@@ -402,6 +401,7 @@ $@$link[rel="manifest"]
 @@||danawa.com^$stealth=dpi
 @@||dcinside.com^$stealth=dpi|push
 @@||donga.com^$stealth=dpi
+@@||finnq.com^$stealth=dpi
 @@||giggleus.com^$stealth=dpi
 @@||google*.$stealth=dpi|push
 @@||gs*.com^$stealth=dpi
@@ -433,7 +433,6 @@ $@$link[rel="manifest"]
 @@||slrclub.com/rss/today_photo.slr
 @@||smartstore.naver.com^$stealth
 @@||sofrano.com^$stealth=dpi
-@@||ssg*.com^$stealth=dpi
 @@||termeden.com^$stealth=dpi
 @@||ticket*.$stealth
 @@||tivan.naver.com^$app=com.nhn.android.search
