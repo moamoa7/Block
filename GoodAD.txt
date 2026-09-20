@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260920
+! Version: 20260921
 !
 !
 !
@@ -879,7 +879,9 @@ issuelink.co.kr##.text-center
 dcinside.com##.ad_bottom_list
 ! - 갤러리 게시물 하단 등 빈 공간
 !dcinside.com##[class="adsbygoogle" i]
-dcinside.com##[style]:has([class*="adsby"])
+dcinside.com##div[class]>[style]:has([class*="adsby"])
+! - 디시인사이드 외 광역으로 규칙 추가
+##div[class]>[style]:has([class*="adsby"])
 ! - 갤러리  오른쪽 하단 따라다니는 알람
 dcinside.com##[class*="alarm" i]
 ! - 오른쪽 배너 공간
@@ -7766,7 +7768,7 @@ javfilms.com##div[class*="xs"]:has([target*="blank"])
 !
 ! nJAV.com (https://www.njav.com/)
 ! - 영상 오른쪽 빈 공간
-##[id^="ad"]:has(script)
+##[id^="ad"]:has(script):not([id^="ad-"]):not([id^="ad_"])
 ! - 영상 재생 가능하게
 ! - - - https://njav.fun/
 @@||upload18.org^$ehide
@@ -8711,9 +8713,10 @@ lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([
 !
 !
 !
-!  치지직 (https://chzzk.naver.com/)
+! 치지직 (https://chzzk.naver.com/)
 ! 데일리팜 (https://dailypharm.com/) - :not([class*="adver_banner" i])
-##[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i]):not([class*="adver_banner" i])
+! https://www.clien.net/ - 댓글 및 검색 제외  :not([class*="comment" i]):not([class*="search" i])
+##[class*="_banner" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([alt="logo" i]):not([class*="adver_banner" i]):not([class*="comment" i]):not([class*="search" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.clien.net/ - 클리앙 검색 부분 / 댓글
@@ -9147,7 +9150,7 @@ javgiga.com#@#[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"]):
 ! https://trand.co.kr/ - class="page_manage_add" - :not([class*="_add" i])
 ! https://02.avsee.is/ -class*="afs_ads"
 ! 구글 - class="tile_M6Boq type:ImageTile module_Ad1it" -- _Ad 제외
-##[class*="_ad"]:not(body):not(html):not(main):not([class*="-ad-"]):not([class$="_ad"]):not([class*="_add"]):not([class*="_admin"]):not([class*="afs_ads"]):not([class*="_adult"]):not([class*="_adblock"]):not([class*="_adguard"]):not([class*="_pad_"])
+##[class*="_ad"]:not(body):not(html):not(main):not([class*="_ad_"]):not([class$="_ad"]):not([class*="_add"]):not([class*="_admin"]):not([class*="afs_ads"]):not([class*="_adult"]):not([class*="_adblock"]):not([class*="_adguard"]):not([class*="_pad_"])
 !
 !
 !
@@ -9163,14 +9166,16 @@ javgiga.com#@#[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"]):
 ! https://javgg.net/ - load 제외
 ! https://www.clien.net/ - head  // class="comment ad_banner"
 ! https://www.fomos.kr/ - read 제외
-##[class*="ad_"]:not(body):not(html):not(main):not([class*="-ad-" i]):not([class^="ad_"]):not([title="빈 프레임"]):not([class*="load_"]):not([class*="head_"]):not([class*="comment"]):not([class*="read_"]):not([class*="pad_"])
+! https://www.clien.net/ - 검색 제외 class="search ad_banner"
+##[class*="ad_"]:not(body):not(html):not(main):not([class*="_ad_" i]):not([class^="ad_"]):not([title="빈 프레임"]):not([class*="load_"]):not([class*="head_"]):not([class*="comment"]):not([class*="read_"]):not([class*="pad_"]):not([class*="search"])
 !
 !
 !
-##[class*="-ad-"]:not(body):not(html):not(main)
+! https://damoang.net/ - row 제외
+##[class*="-ad-"]:not(body):not(html):not(main):not([class*="-ad-row"])
 !
 !
-##[class*="_ad_"]:not(body):not(html):not(main)
+##[class*="_ad_"]:not(body):not(html):not(main):not([class*="_ad"]):not([class*="ad_"])
 !
 !
 !
@@ -9189,6 +9194,7 @@ up-4ever.net,platinmods.com#@#[class*="ads"]:not(body):not(html):not(main):not([
 !
 !
 ! https://www.avdbs.com/ -  배우정보의 꿀파일 / 스마트파일 / 찜등록 버튼
+! https://www.njav.com/ - 개별 영상 하단 광고
 ##[id^="ad-"]:not(body):not(html):not(main)
 !
 !
