@@ -4,7 +4,7 @@
 ! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260914
+! Version: 20260920
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
@@ -12,14 +12,20 @@
 !
 !
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:bank|stock|invest|coin|pay|mobile|card|post|logi|financ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|hana|insure|direct|soft|point|cash|time|info)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:tele|news|pass|econom|biz|member|shop|mall|store|univ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:eon|buk|busan|seo|won|nam|traff|ung|sam)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|gok|chat|mae|hae|bus|account)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|han|insure|direct|soft|point|cash|time|info)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:screen|size|monitor|pdf|tech|udi|scan|dae|sound)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:savings|cruit|event|talent|energy|test|check|speed|song|work|dev)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@*capital.$stealth=dpi
 @@*fire.$stealth=dpi
 @@*ins.$stealth=dpi
+@@*mbc.com^$stealth=dpi
 @@||192.168.$stealth=dpi
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
+@@||adot.ai^stealth=dpi
 @@||arca.live^$stealth=push
 @@||cj*.$stealth=dpi
 @@||claude.ai^$stealth=push
@@ -30,12 +36,13 @@
 @@||danawa.com^$stealth=dpi
 @@||dcinside.com^$stealth=dpi|push
 @@||donga.com^$stealth=dpi
+@@||giggleus.com^$stealth=dpi
 @@||google*.$stealth=dpi|push
 @@||gs*.com^$stealth=dpi
-@@||hyundai*.com^$stealth=dpi
 @@||ichannela.com^$stealth=dpi
 @@||isplus.$stealth=dpi
 @@||joycity.com^$stealth=dpi
+@@||jusoen.com^$stealth=dpi
 @@||kakao*.$stealth=dpi
 @@||kb*.$stealth=dpi
 @@||kiwoom.com^$stealth=dpi
@@ -44,16 +51,15 @@
 @@||kt*.$stealth=dpi
 @@||lg*.$stealth=dpi
 @@||log1.toup.net^$app=com.nhn.android.search
-@@||lotte*.$stealth=dpi
+@@||lott*.$stealth=dpi
 @@||miraeasset.com^$stealth=dpi
 @@||mobis.com^$stealth=dpi
 @@||monimo.com^$stealth=dpi
-@@||mykt.com^$stealth=dpi
+@@||my*.com^$stealth=dpi
 @@||nc.com^$stealth=dpi
 @@||nexon.com^$stealth=dpi
 @@||nonghyup.com^$stealth=dpi
 @@||plaync.com^$stealth=dpi
-@@||samsung*.com^$stealth=dpi
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 @@||shin*.com^$stealth=dpi
 @@||shopping.naver.com^$stealth
@@ -65,6 +71,7 @@
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||toss*.$stealth=dpi
 @@||truefriend.com^$stealth=dpi
+@@||whitescreenfree.com^$stealth=dpi
 @@||yes24.com^$stealth=dpi
 !
 !
