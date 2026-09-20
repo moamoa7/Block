@@ -15,8 +15,8 @@
 // @exclude      *://www.photopea.com/*
 // @grant        none
 // @run-at       document-start
-// @updateURL    https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Web_Turbo.js
-// @downloadURL  https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/Web_Turbo.js
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/Web_Tubro.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/Web_Tubro.js
 // ==/UserScript==
 
 'use strict';
