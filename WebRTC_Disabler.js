@@ -14,8 +14,8 @@
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://www.recaptcha.net/*
 // @exclude      *://recaptcha.net/*
-// @updateURL    https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/WebRTC_Disabler.js
-// @downloadURL  https://cdn.jsdelivr.net/gh/moamoa7/adblock@main/WebRTC_Disabler.js
+// @updateURL    https://raw.githubusercontent.com/moamoa7/adblock/main/WebRTC_Disabler.js
+// @downloadURL  https://raw.githubusercontent.com/moamoa7/adblock/main/WebRTC_Disabler.js
 // ==/UserScript==
 
 (() => {
