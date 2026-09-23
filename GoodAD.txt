@@ -2499,16 +2499,14 @@ web.joongna.com##.max-md\:gap-3
 !
 ! 바나나몰 (https://www.bananamall.co.kr/)
 @@||bananamall.co.kr^$generichide
-! - 팝업 잔챙이
-bananamall.co.kr###vue-pc-popup-app
+! - 팝업 (PC/모바일)
+bananamall.co.kr##[id*="-popup-" i]
 ! - 팝업 왼쪽
 !bananamall.co.kr##.ui-draggable
 ! - 팝업 오른쪽
 !bananamall.co.kr###pop_gevent
 ! - 배너
 !##[id^="banner_"]
-! - 팝업 안지워지는거(모바일)
-m.bananamall.co.kr###vue-popup-app
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
@@ -9029,7 +9027,16 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 ##[id^="pop_" i]:not(body):not(html):not(main)
 !
 !
+!
 !##[class*="pop_" i]:not(body):not(html):not(main)
+!
+!
+!
+##[class*="-pop-" i]:not(body):not(html):not(main)
+!
+!
+!
+##[id*="-popup-" i]:not(body):not(html):not(main)
 !
 !
 !
