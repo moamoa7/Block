@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.09.22.0
-! TimeUpdated: 2026-09-21T16:32:47+00:00
+! Version: 2026.09.23.0
+! TimeUpdated: 2026-09-23T09:09:34+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, wBlock, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -461,6 +461,12 @@ www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 ||ssl.pstatic.net/t.static.blog/nmobile/versioning//common/lib/ntm/ntm-blog-web-*.js$badfilter
 ||tnkfactory.com^$badfilter
 !#safari_cb_affinity
+! NOT TESTED
+@@/^https:\/\/(.*\.)?(inicis|kcp|nicepay|tosspayments|kakaopay|payco|paypal|iamport|portone|signgate|yessign|kisa|tsign|dcert|crosscert|cert)\.(com|co\.kr).*$/$stealth
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:billing|smart|vertif|cloud|remote|motor|mobility|think|fine|here)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:soop)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*sk[a-z]*\.com(?:[\/?#]|$)/$stealth=dpi
+@@||m.$stealth=dpi
 
 ! Malware & Spam
 *$websocket,domain=bunny-frame.online
