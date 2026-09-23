@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260922
+! Version: 20260924
 !
 !
 !
@@ -2507,8 +2507,8 @@ bananamall.co.kr###vue-pc-popup-app
 !bananamall.co.kr###pop_gevent
 ! - 배너
 !##[id^="banner_"]
-! - 배너 안지워지는거
-!bananamall.co.kr##[id*="pop_" i]
+! - 팝업 안지워지는거(모바일)
+m.bananamall.co.kr###vue-popup-app
 !
 !
 ! 쑈당몰 (https://showdang.co.kr/)
