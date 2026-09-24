@@ -1302,7 +1302,7 @@ zoneid=
 !
 ! 웃대 (https://humoruniv.com/)
 ! - 게시물 상단 쿠팡 광고
-humoruniv.com##table:has([src*="timg.humoruniv.com/thumb.php?url_enc="])
+humoruniv.com##[style]:has([src*="timg.humoruniv.com/thumb.php?url_enc="])
 ! - 웃긴자료 게시목록 사이 광고
 humoruniv.com##div:has([src="/images/ls.png"])
 ! - 댓글 사이 광고
