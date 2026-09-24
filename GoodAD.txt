@@ -1302,17 +1302,13 @@ zoneid=
 !
 ! 웃대 (https://humoruniv.com/)
 ! - 게시물 상단 쿠팡 광고
-humoruniv.com##[style]:has([src*="timg.humoruniv.com/thumb.php?url_enc="])
+!humoruniv.com##[style]:has([src*="timg.humoruniv.com/thumb.php?url_enc="])
 ! - 웃긴자료 게시목록 사이 광고
-humoruniv.com##div:has([src="/images/ls.png"])
+!humoruniv.com##div:has([src="/images/ls.png"])
 ! - 댓글 사이 광고
-humoruniv.com##[style*="width:300px"]
+!humoruniv.com##[style*="width:300px"]
 ! - 댓글 사이 빈공간
-humoruniv.com###place_div
-! - 모바일 댓글 사이 광고
-!##[href^="https://cache.ggeal.com/board/exp/me_go.html"]
-!##.power_place
-!##[id*="choo_center" i]
+!humoruniv.com###place_div
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
