@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260924
+! Version: 20260925
 !
 !
 !
@@ -55,7 +55,8 @@
 !itworld.co.kr,noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,svrforum.com,issuya.com,tistory.com,joongang.co.kr#%#//scriptlet('prevent-scroll-lock')
 !linkareer.com,cgv.co.kr##html, body:style(pointer-events: auto !important; overflow: auto !important;)
 !linkareer.com,cgv.co.kr#$#html, body { pointer-events: auto !important; overflow: auto !important; }
-itworld.co.kr,noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,linkareer.com,svrforum.com,issuya.com,tistory.com,cgv.co.kr,joongang.co.kr##html, body:style(overflow: auto !important; overflow-y: auto !important; position: static !important; height: auto !important;)
+!itworld.co.kr,noonnu.cc,lolchess.gg,kr-weathernews.com,lineup11.net,linkareer.com,svrforum.com,issuya.com,tistory.com,cgv.co.kr,joongang.co.kr##html, body:style(overflow: auto !important; overflow-y: auto !important; position: static !important; height: auto !important;)
+lineup11.net,cgv.co.kr##html, body:style(overflow: auto !important; overflow-y: auto !important; position: static !important; height: auto !important;)
 !
 !
 !
@@ -879,9 +880,7 @@ issuelink.co.kr##.text-center
 dcinside.com##.ad_bottom_list
 ! - 갤러리 게시물 하단 등 빈 공간
 !dcinside.com##[class="adsbygoogle" i]
-dcinside.com##div[class]>[style]:has([class*="adsby"])
-! - 디시인사이드 외 광역으로 규칙 추가
-##div[class]>[style]:has([class*="adsby"])
+dcinside.com##[class*="adsby" i]
 ! - 갤러리  오른쪽 하단 따라다니는 알람
 dcinside.com##[class*="alarm" i]
 ! - 오른쪽 배너 공간
@@ -1685,6 +1684,8 @@ hungryapp.co.kr,hungapp.com##.right_top1
 !##div[data-position="side-image-text-banner"]
 ! - 하단 광고 차단 팝업
 !!damoang.net##.adblock-notice
+! - - - https://lineup11.net/
+##.adblock-notice
 !##[class*="-notice" i] - 광역으로 절대 하지 말것
 !damoang.net##[aria-label="광고 차단 안내"]
 ! - [aria-label*="차단"] : 제품 중 햇빛 차단 제품이 사라질 수 잇음
@@ -3859,6 +3860,12 @@ dailypharm.com##.vest_CF
 dailypharm.com##.pr_wrap
 ! - 규칙 해제
 dailypharm.com#@#.adv_box
+!
+!
+! 뉴스 투데이 (https://news2day.co.kr/)
+! - 팝업 일부 ?
+news2day.co.kr##.ui-draggable.modal-content
+
 
 
 
@@ -4983,7 +4990,7 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !###dclm_modal_content
 !###dclm_modal_screen
 ! - 뿌연거 해결
-##[id$="-overlay" i]
+!##[id$="-overlay" i]
 ! - 전체 배너 (상단 오른쪽 작은 배너 제외)
 !##[class="ad_banner"]
 !##.ad_banner
@@ -5320,7 +5327,7 @@ avdbs.com##.dbs-bnr-wrp
 ! - - - ##[class^="ad" i] 복원 - 일부 이미지 사라짐
 !avdbs.com#@#[class^="ad" i]
 ! - 배우찜 제거 안내 팝업?
-avdbs.com###bnotice-wrap
+!avdbs.com###bnotice-wrap
 ! - - - 뿌연 화면 해결
 !avdbs.com##.__b-popup1__.b-modal
 !
@@ -5345,7 +5352,11 @@ avdbs.com###bnotice-wrap
 !||exodusjailhousetarantula.com^$popup
 !
 !
-! AV01 (https://www.av01.media/)
+! AV01 ( https://www.av01.tv/) --> (https://www.av01.media/) 로 이동  (https://github.com/av01tv/url/blob/master/mirrors.json)
+! 광고 영상
+! - - - ##.group:has(> .relative.overflow-hidden.rounded-lg.bg-gray-900.cursor-pointer) (Adguard Base Optimized) 규칙
+! - - - ##.grid > div.group:has(> div.relative.overflow-hidden.rounded-lg.bg-gray-900.cursor-pointer) (Adguard Base Optimized) 규칙
+##div[class*="group"]:has(iframe)
 ! - 팝업 방지
 !||apologiesoccursdepressed.com^$popup
 !
@@ -7905,7 +7916,7 @@ vexfile.com##center
 ! - 팝업 차단 후 뿌연화면 해결 - 스크롤 잠긴거 풀 필요없음 / 도박 사이트인듯
 ! - - - 라채티비 (https://lctv2019.com/)
 ! - - - 쏘걸 (https://kr89.sogirl.so/) - 규칙은 보이나 차단효과는 없는 규칙 / ##[id$="modal-overlay"]가 뿌연거 해결
-##[class$="modal-overlay"]
+!##[class$="modal-overlay"]
 !
 !
 ! X1Hub (https://www.x1hub.com/)
@@ -8511,7 +8522,7 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !@@/popup.$domain=gofile.io
 !
 !
-/popups.
+!/popups.
 !
 !
 ! 와디즈
@@ -8520,11 +8531,11 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 ! https://toon.at/
 ! AV조아
 ! 티빙 - https://gw.tving.com/bff/web/v3/boot/popup/module?screenCode=CSSD0100&osCode=CSOD0900
-*/popup/*
+!*/popup/*
 !
 !
 ! 뉴토끼 - https://toki31.com/popups/1777400213_event_336.png
-/popups/*
+!/popups/*
 !
 !
 ! 아동존 (https://xxzone28.top/) - /assets/popup_banner.php?
@@ -8806,7 +8817,7 @@ womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banne
 ! https://javsubs91.uk/ - 영상 하단 배너
 ! FapHouse (https://ko.fhcontent.com/)
 ! 쿠팡 (https://www.coupang.com/)
-##[class*="-banner-" i]:not(body):not(html):not(main)
+##[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner--" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://atlantak.com/
@@ -9011,7 +9022,7 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 !
 !
 !##[id*="-pop" i]:not(body):not(html):not(main):not([id*="-popular" i])
-##[id$="-pop" i]:not(body):not(html):not(main)
+!!##[id$="-pop" i]:not(body):not(html):not(main)
 !
 !
 !##[class*="-pop" i]:not(body):not(html):not(main)
@@ -9019,7 +9030,7 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 !
 !
 !##[id*="_pop" i]:not(body):not(html):not(main):not([id*="_popular" i])
-##[id$="_pop" i]:not(body):not(html):not(main)
+!!##[id$="_pop" i]:not(body):not(html):not(main)
 !
 !
 !##[class*="_pop" i]:not(body):not(html):not(main)
@@ -9027,7 +9038,7 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 !
 !
 !##[id*="pop-" i]:not(body):not(html):not(main)
-##[id^="pop-" i]:not(body):not(html):not(main)
+!!##[id^="pop-" i]:not(body):not(html):not(main)
 !
 !
 !##[class*="pop-" i]:not(body):not(html):not(main)
@@ -9035,7 +9046,7 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 !
 !
 !##[id*="pop_" i]:not(body):not(html):not(main)
-##[id^="pop_" i]:not(body):not(html):not(main)
+!!##[id^="pop_" i]:not(body):not(html):not(main)
 !
 !
 !
@@ -9043,16 +9054,16 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 !
 !
 !
-##[class*="-pop-" i]:not(body):not(html):not(main)
+!!##[class*="-pop-" i]:not(body):not(html):not(main)
 !
 !
 !
-##[id*="-popup-" i]:not(body):not(html):not(main)
+!!##[id*="-popup-" i]:not(body):not(html):not(main)
 !
 !
 !
 ! https://www.javbangers.com/ - class*="age-popup" 예외
-##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
+!!##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
 !
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -9067,27 +9078,27 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 ! https://www.joongang.co.kr/ - 기사검색 클릭시 반응 없음
 ! sktuniverse.co.kr - 본문 안보임
 !joongang.co.kr,lezhinsnack.com,sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
-sktuniverse.co.kr,joongang.co.kr,lezhinsnack.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
+!!sktuniverse.co.kr,joongang.co.kr,lezhinsnack.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://clothoff.net/
 ! https://javgiga.com/
 ! https://javfilms.com
 ! https://ssadafile.com
-ssadafile.com,javfilms.com,clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
+!!ssadafile.com,javfilms.com,clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
 !
 !
-##[id*="popup" i]:not(body):not(html):not(main)
+!!##[id*="popup" i]:not(body):not(html):not(main)
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! - https://nid.naver.com/
 ! - https://adguard-dns.io/
 ! - https://m.newspim.com/
-m.newspim.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not(main)
+!!m.newspim.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not(main)
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://fd2ppv.cc/
-fd2ppv.cc#@#[id*="popup" i]:not(body):not(html):not(main)
+!!fd2ppv.cc#@#[id*="popup" i]:not(body):not(html):not(main)
 !
 !
 !
