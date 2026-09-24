@@ -1104,10 +1104,15 @@ etoland.co.kr##.fixed-bottom
 !etoland.co.kr##li:has([data-inouts-click="true"])
 ! - ([data-inouts-click="true"])로 사라진 왼쪽 메뉴중 일부 항목이 안사라짐 해결
 etoland.co.kr##[style*="grid-column"]:has([target*=blank])
-! - - - 히트 게시판에서 핫딜 없애기
-etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
+! - - - 히트 게시판에서 핫딜 없애기 (오늘의 HIT는 안지워지게)
+!etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
+##li:has(>[class*="gap"][href*="/hit/hotdeal/view/"])
 ! - - - 게시물 핫딜 없애기
 etoland.co.kr##li:has([data-inouts-click="true"])
+! - - - 지워진 게시물 흔적 지우기
+etoland.co.kr##li:has(:has(>.gap-1.flex-col.flex))
+! - - - List-KR 필요없는 규칙 지우기 - 규칙 변경으로 적용 X
+!etoland.co.kr#@#[data-inouts-click="true"]
 ! =========================
 ! - 애드블럭 감지 해제 (출석체크 랜덤포인트 얻을려면 필요)
 @@||doubleclick.net^$domain=etoland.co.kr
