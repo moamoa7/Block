@@ -2362,9 +2362,9 @@ enter.etoday.co.kr##[style*="height:200px"]
 !coupang.com##[class*="banner" i]
 ! - 오늘의 발견
 !coupang.com###todayDiscoveryUnit
-! - ㅡ이상품 놓치지 마세요
+! - - - 이상품 놓치지 마세요
 !##.personalized_ads
-!coupang.com##[class*="personalized_ads" i]
+coupang.com##[class*="personalized_ads" i]
 !##[class$="_ads" i]
 ! - 카테고리별 추천 광고상품
 !coupang.com###categoryBestUnit
@@ -8298,7 +8298,6 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - - - ads 앞뒤가 구분자로 끝나거나 이어지는 경우를 모두 매칭( . 과 _ 과 - 는 포함하지 않음)  //  ads 앞뒤에 일반 문자가 바로 붙으면 매칭하지 않음
 ^ads^
 @@^ads^$domain=github.com
-
 !
 !
 ! 루리웹
@@ -8380,7 +8379,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 */ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
-@@/ad-$domain=github.com|outstanding.kr
+! - https://www.coupang.com/
+@@/ad-$domain=github.com|outstanding.kr|coupang.com
 !
 !
 ! https://javgiga.com/
