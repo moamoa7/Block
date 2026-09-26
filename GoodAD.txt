@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260926
+! Version: 20260927
 !
 !
 !
@@ -1105,14 +1105,15 @@ etoland.co.kr##.fixed-bottom
 !etoland.co.kr##li:has([data-inouts-click="true"])
 ! - ([data-inouts-click="true"])로 사라진 왼쪽 메뉴중 일부 항목이 안사라짐 해결
 etoland.co.kr##[style*="grid-column"]:has([target*=blank])
+! - - - HIT 게시판에서 광고성 글 삭제 ( (오늘의 HIT는 안지워지게)
+!etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
+!etoland.co.kr##li:has(>[class*="gap"][href*="/hit/hotdeal/view/"])
 ! - - - 게시판에서 지워진 게시물 없애기 (오늘의 HIT는 안지워지게 / 공지)
 etoland.co.kr##li:has([data-inouts-click="true"])
 ! - - - 게시판에서 지워진 게시물 없애기 - 일반 게시물 추가 (PC)
-!etoland.co.kr##li:has([href*="/hit/hotdeal/view/"])
-!##li:has(>[class*="gap"][href*="/hit/hotdeal/view/"])
-##li:has(div [class*="flex-col"])
+etoland.co.kr##li:has(div [class*="flex-col"])
 ! - - - 게시판에서 지워진 게시물 없애기 - 일반 게시물 추가 (모바일)
-##li:has(> [class*="flex-col"])
+etoland.co.kr##li:has(> [class*="flex-col"])
 ! - - - List-KR 필요없는 규칙 지우기 - 규칙 변경으로 적용 X
 !etoland.co.kr#@#[data-inouts-click="true"]
 ! =========================
@@ -1995,7 +1996,7 @@ www.donga.com#@#[class*="ad_"] [style]
 ! - 기사 왼쪽 구독 배너
 !##[class*="subscribe-banner" i]
 ! - 일부 오류 해제
-@@/ad.$domain=hankyung.com
+!@@/ad.$domain=hankyung.com
 !@@*banner*$domain=hankyung.com
 !hankyung.com#@#[class*="top-banner" i]
 ! - 기타
@@ -8264,6 +8265,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 티빙 -  https://gw.tving.com/ad/display-ads/banner?inventoryCode=DA_BANNER&contentSeg=context%3Dmain&screenCode=CSSD0100&osCode=CSOD0900&country=KOR&lmt=1&deviceWidth=1920&deviceHeight=1080&platformType=WEB&testMode=false&orientation=l
 ! AV플릭스 (https://kr4.avflix.co/) - https://kr4.avflix.co/api/v1/ad/config
 ! https://159i.net/ - https://sexy196.com/AD/?FID=1654753&X=1&Y=3&TYPE=3&CHANNEL=R52
+! 이토랜드 - 스포츠룰렛 - https://etoland.co.kr/v1/squidland/play/1/ad
 !*/ad/*
 ! - 예외
 !@@*/ad/*$css
@@ -8272,7 +8274,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - - - ad 앞뒤가 구분자로 끝나거나 이어지는 경우를 모두 매칭( . 과 _ 과 - 는 포함하지 않음)  //  ad 앞뒤에 일반 문자가 바로 붙으면 매칭하지 않음
 ^ad^
 @@^ad^$css
-@@^ad^$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com|weekly.donga.com|github.com
+@@^ad^$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com|weekly.donga.com|github.com|etoland.co.kr
 !
 !
 ! 치지직
@@ -8304,6 +8306,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://autopostkorea.com/ - 기사 본문 공백 발생으로 규칙 주석 처리
 */ad.*
 @@/ad.$css
+! -예외 - https://www.hankyung.com/ - 기사 하단 관련뉴스 이미지
+@@/ad.$domain=hankyung.com
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -8695,24 +8699,28 @@ fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):no
 !
 !
 !
-*/banners/*
+^banners^
+!*/banners/*
 ! - 예외
 ! https://sooptore.sooplive.com/
 ! https://www.coupangplay.com/
 ! AV플릭스 (https://kr4.avflix.co/) - https://kr4.avflix.co/banners/partner?_rsc=1r34m
 ! 티처라인 (https://teacherline.net/)
-@@*/banners/*$domain=sooptore.sooplive.com|coupangplay.com|teacherline.net
+!@@*/banners/*$domain=sooptore.sooplive.com|coupangplay.com|teacherline.net
+@@^banners^$domain=sooptore.sooplive.com|coupangplay.com|teacherline.net
 !
 !
 ! 짜딸파티 (https://jaddal40.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
 ! 야동닷컴 (https://yadong10.com/) - 상단 배너
 ! 야동정복 (https://xxdong29.top/) - 전체 배너
-*/admin_banner/*
+^admin_banner^
+!*/admin_banner/*
 !
 !
 !
 ! 게임조선 (https://gamechosun.co.kr/) - 좌.우 배너
-*/ad_banner/*
+^ad_banner^
+!*/ad_banner/*
 !
 !
 !
