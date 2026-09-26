@@ -192,7 +192,8 @@ lineup11.net,cgv.co.kr##html, body:style(overflow: auto !important; overflow-y: 
 ! 구글 광고 차단 (추가)
 ! - - - https://alohafind.com/search/
 ! - - - - - https://cse.google.com/adsense/search/async-ads.js
-/adsense/*
+*^adsense^
+!*/adsense/*
 ! - 문단 태그 존재 여부(:not(:has(p)))만 체크해서 본문이 날아가는 걸 방지하는 절충안
 !##[class*="adsense" i]:not(:has(p))
 !##[class*="adsense" i]
@@ -5036,6 +5037,7 @@ topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !##[class*="widget" i][class^="textwidget" i] img
 !##[class="textwidget" i][class^="textwidget" i] img
 ! - - - https://jav.guru/ 일부 이미지 사라짐으로 아래로 재변경
+! - - - - https://www.cybermania.ws/ - 페이팔 버튼
 ##[class="textwidget" i][class^="textwidget" i] [target*="blank"] img
 ! - 예외 - https://jpporn.net/ - 멤버쉽 가입 버튼
 jpporn.net#@#[class="textwidget" i][class^="textwidget" i] [target*="blank"] img
@@ -8243,14 +8245,15 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 예외
 ! - - - 11번가 (https://www.11st.co.kr/) - AD광고표시 삭제됨
 ! - - - https://www.mmzone.co.kr/ - 일부 이미지 삭제됨
-@@*_ad_*$domain=11st.co.kr|mmzone.co.kr
+@@_ad_$domain=11st.co.kr|mmzone.co.kr
 !
 !
 !
 *_ads_*
+@@_ads_$css
 ! - 예외
 ! - - - https://platinmods.com/ - 사이트 틀 깨짐
-@@*_ads_*$domain=platinmods.com
+!@@*_ads_*$domain=platinmods.com
 !
 !
 ! 티비착
@@ -8260,11 +8263,15 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 티빙 -  https://gw.tving.com/ad/display-ads/banner?inventoryCode=DA_BANNER&contentSeg=context%3Dmain&screenCode=CSSD0100&osCode=CSOD0900&country=KOR&lmt=1&deviceWidth=1920&deviceHeight=1080&platformType=WEB&testMode=false&orientation=l
 ! AV플릭스 (https://kr4.avflix.co/) - https://kr4.avflix.co/api/v1/ad/config
 ! https://159i.net/ - https://sexy196.com/AD/?FID=1654753&X=1&Y=3&TYPE=3&CHANNEL=R52
-*/ad/*
+!*/ad/*
 ! - 예외
-@@*/ad/*$css
+!@@*/ad/*$css
 ! - 예외
-@@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com|weekly.donga.com
+!@@*/ad/*$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com|weekly.donga.com
+! - - - ad 앞뒤가 구분자로 끝나거나 이어지는 경우를 모두 매칭( . 과 _ 과 - 는 포함하지 않음)  //  ad 앞뒤에 일반 문자가 바로 붙으면 매칭하지 않음
+^ad^
+@@^ad^$css
+@@^ad^$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com|weekly.donga.com|github.com
 !
 !
 ! 치지직
@@ -8280,18 +8287,21 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 거지맵 - https://api.hobos.studio/v1/ads/web/placements/config
 ! https://www.google.co.kr/ads/ga-audiences?v=1&t=sr&slf_rd=1&_r=4&tid=생략
 ! https://www.teamblind.com/ - https://t1.kakaocdn.net/kas/static/ads/custom_ads.js
-*/ads/*
+!*/ads/*
 ! - 예외
 ! - 옥션/지마켓 배너 안보임
 !@@ad-img.gmarket.com/ADS/*
 ! - 예외 - https://career.rememberapp.co.kr/ - 아래 안해도 됨. 에러는 배너 막혀서 나오는 메시지. 검색과 무관
 !@@/ads/*$xhr,domain=career.rememberapp.co.kr
+! https://manko.fun/ - ||manko.fun/api/proxy/ads
+! - - - ads 앞뒤가 구분자로 끝나거나 이어지는 경우를 모두 매칭( . 과 _ 과 - 는 포함하지 않음)  //  ads 앞뒤에 일반 문자가 바로 붙으면 매칭하지 않음
+^ads^
 !
 !
 ! 루리웹
 ! https://autopostkorea.com/ - 기사 본문 공백 발생으로 규칙 주석 처리
-!*/ad.*
-!@@*/ad.*$css
+*/ad.*
+@@/ad.$css
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -8300,6 +8310,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://sukebei.nyaa.si/view/를 통한 이미지 검색 - https://cn-av.com/ - https://cn-av.com/ads.js
 ! https://sukebei.nyaa.si/view/를 통한 이미지 검색 - https://kin8-jav.com/ - https://kin8-jav.com/ads.js
 ! https://funlove.info/ - https://funlove.info/ads.php
+! https://ads.vk.com/
 */ads.*
 !
 !
@@ -8312,17 +8323,17 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! - 예외
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-@@*/ad*$domain=github.com
+!@@*/ad*$domain=github.com
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-@@*/ad*$image,domain=trand.co.kr|coupang.com|mimint.co.kr
+!@@*/ad*$image,domain=trand.co.kr|coupang.com|mimint.co.kr
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! - 메이저링크 (https://majorlink3.com/)
-@@*/ad*$image,domain=/majorlink/
+!@@*/ad*$image,domain=/majorlink/
 !
 !
 ! 티카페 (https://tcafe21.com/)
@@ -8348,7 +8359,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !@@||*/ad_*$domain=ad.co.kr
 !
 !
-! https://vkvideo.ru/
+! https://vkvideo.ru/ - https://vkvideo.ru/js/langs/entry/webl/ads_light.5708478af2526352.js?v=1&p=web&l=0
+! https://vkvideo.ru/ - https://st1-29.vkvideo.ru/dist/webl/ads_light.bd9b3954.js
 */ads_
 !
 !
@@ -8365,7 +8377,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 */ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
-@@||*/ad-*$domain=github.com|outstanding.kr
+!@@/ad-$domain=github.com|outstanding.kr
 !
 !
 ! https://javgiga.com/
@@ -8373,11 +8385,6 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! manko.fun - https://manko.fun/ads-cache/3ef7133c605d7a570ffb8a0369ffb1a87cbad0690633930ad62d615a764449d1.mp4
 */ads-*
 @@*/ads-*$css
-!
-!
-!
-! https://manko.fun/ - ||manko.fun/api/proxy/ads
-*/ads^
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
