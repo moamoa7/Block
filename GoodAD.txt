@@ -192,7 +192,7 @@ lineup11.net,cgv.co.kr##html, body:style(overflow: auto !important; overflow-y: 
 ! 구글 광고 차단 (추가)
 ! - - - https://alohafind.com/search/
 ! - - - - - https://cse.google.com/adsense/search/async-ads.js
-*^adsense^
+^adsense^
 !*/adsense/*
 ! - 문단 태그 존재 여부(:not(:has(p)))만 체크해서 본문이 날아가는 걸 방지하는 절충안
 !##[class*="adsense" i]:not(:has(p))
@@ -8211,17 +8211,18 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 *-ad-*
 !
 ! - 예외
-@@||*-ad-$css
-@@||*-ad-*$domain=nate.com|www.twitch.tv|youtube.com
+@@-ad-$css
+@@-ad-$domain=nate.com|www.twitch.tv|youtube.com
 !
 !
 ! https://platinmods.com/
 *-ads-*
+@@-ads-$domain=github.com
 !
 !
 *_ad*:not(_ad_)
 ! - 예외 - https://github.com/ - 이름이 같을 경우 저장시 에러발생
-@@*_ad*$domain=github.com
+@@_ad$domain=github.com
 !
 !
 ! https://alohafind.com/search/ - _ads?query=
@@ -8296,6 +8297,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://manko.fun/ - ||manko.fun/api/proxy/ads
 ! - - - ads 앞뒤가 구분자로 끝나거나 이어지는 경우를 모두 매칭( . 과 _ 과 - 는 포함하지 않음)  //  ads 앞뒤에 일반 문자가 바로 붙으면 매칭하지 않음
 ^ads^
+@@^ads^$domain=github.com
+
 !
 !
 ! 루리웹
@@ -8377,7 +8380,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 */ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
-!@@/ad-$domain=github.com|outstanding.kr
+@@/ad-$domain=github.com|outstanding.kr
 !
 !
 ! https://javgiga.com/
