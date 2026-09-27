@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260927
+! Version: 20260928
 !
 !
 !
@@ -8309,10 +8309,13 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! 루리웹
 ! https://autopostkorea.com/ - 기사 본문 공백 발생으로 규칙 주석 처리
-*/ad.*
-@@/ad.$css
+^ad.*
+!*/ad.*
+@@^ad.$css
+!@@/ad.$css
 ! -예외 - https://www.hankyung.com/ - 기사 하단 관련뉴스 이미지
-@@/ad.$domain=hankyung.com
+@@^ad.$domain=hankyung.com
+!@@/ad.$domain=hankyung.com
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것
@@ -8322,7 +8325,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://sukebei.nyaa.si/view/를 통한 이미지 검색 - https://kin8-jav.com/ - https://kin8-jav.com/ads.js
 ! https://funlove.info/ - https://funlove.info/ads.php
 ! https://ads.vk.com/
-*/ads.*
+^ads.*
+!*/ads.*
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것 (너무 많을거 같음)
@@ -8364,7 +8368,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 조선에듀
 ! https://video.fc2.com/ - https://video.fc2.com/a/ad_rentangle.php
 ! 산업일보 (https://kidd.co.kr/) - https://pimg2.daara.co.kr/mc2/ad_img/
-*/ad_
+^ad_
+!*/ad_
 ! - 예외
 ! https://www.ad.co.kr/ - 이미지
 !@@||*/ad_*$domain=ad.co.kr
@@ -8372,7 +8377,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! https://vkvideo.ru/ - https://vkvideo.ru/js/langs/entry/webl/ads_light.5708478af2526352.js?v=1&p=web&l=0
 ! https://vkvideo.ru/ - https://st1-29.vkvideo.ru/dist/webl/ads_light.bd9b3954.js
-*/ads_
+^ads_
+!*/ads_
 !
 !
 ! 트위치
@@ -8385,56 +8391,23 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! javclick.com / manko.fun - https://a.pemsrv.com/ad-provider.js
 ! www.twidouga.net - https://a.pemsrv.com/ad-provider.js
 ! https://dmm.ppvdb.com/ - https://dmm.ppvdb.com/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=1.0.0
-*/ad-*
+^ad-
+!*/ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
 ! - https://www.coupang.com/
-@@/ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
+@@^ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
+!@@/ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
 !
 !
 ! https://javgiga.com/
 ! https://www.javrate.com/ - https://www.javrate.com/build/assets/ads-ClWB59_P.js
 ! manko.fun - https://manko.fun/ads-cache/3ef7133c605d7a570ffb8a0369ffb1a87cbad0690633930ad62d615a764449d1.mp4
-*/ads-*
-@@*/ads-*$css
+^ads-
+!*/ads-*
+@@^ads-$css
+!@@*/ads-*$css
 !
-!
-! - 이 규칙은 해보고 아닌 이유 달아놓을것
-! 숲 - https://res.sooplive.com/data/ad/check_new_ad.js?refresh=1787443662503
-!*ad.js
-!*ad.js?
-! - 예외
-! - - - https://supjav.com/wp-content/themes/supjav2/static/js/pcmload.js?2.54.13
-!@@||*load.js?
-! - - - https://static.heraldcorp.com/js/lib/sscad.js?v=202608130914
-!@@||*sscad.js?
-! - - - https://www53.eyny.com/data/cache/forum_viewthread.js?94d
-!@@||*read.js?
-! - - - https://xingbokep.tv/wp-content/plugins/streamtube-core/public/assets/js/typeahead.js?ver=1731238870
-!@@||*head.js?
-!
-! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-!
-!
-! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! -뉴토끼 (https://toki31.com/) - 페이지 오류
-!@@*ad.js$domain=/toki/
-!
-! - 이 규칙은 해보고 아닌 이유 달아놓을것
-! 뽐뿌 (https://www.ppomppu.co.kr/) - https://cdn2.ppomppu.co.kr/js/wtg_ads.js?v=2026081802
-! https://kav.xxx/ - https://rutood.com/js/dnsads.js?ads=1&AdType=1&cbrandom=2&clicktag=http
-!*ads.js
-!*ads.js?
-! - 예외
-! AV19 (https://av19t.com/) - https://work33882.com/js/loads.js?v=1668586751
-! https://k01.aving.tv - https://k01.aving.tv/assets/src/modules/composer/uploads.js?v=18bcebda699
-!@@||*loads.js?
-! https://kr89.sogirl.so/wp-content/cache/min/1/js/jads.js?ver=1787735299
-!@@||*/jads.js?
-!
-!
-! 야동존 (https://xxzone28.top/)
-!_ads.php? - _ads.로 대체
 !
 !
 ! https://www.ppomppu.co.kr/ - https://cdn4.ppomppu.co.kr/js/wtg_ads.js?v=2026090702
@@ -8447,60 +8420,9 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 @@_ads.$css
 !
 !
-! https://jav-angel.net/ - 딱히 잡히는거 없음
-!*##.ad
-!
-! https://cloudfam.io/
-!*##.adbox
-!
-!
-!
-!*videoad*
-!
-!
-! https://www3.javfun.me/
-!*video-ad*
-! - - - 트위치 (https://www.twitch.tv/)
-!@@*video-ad*$css,script
-!
-!
-!###videoad
-!###video-ad
-!##.video-ad
-!
-!
-!
-!##[rel*="sponsor"]
-!
-! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-!
-! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! 주소닷컴 (https://juso.one/)
-! https://javfilms.com/ - 영상플레이가 같이 사라짐
-! https://majorlink3.com/ - 이미지 복원
-! https://shiroto-navi.com/ - 영상 하단 텍스트 등 사라짐
-!/majorlink/,javfilms.com,juso.one,shiroto-navi.com#@#[rel*="sponsor"]
-!
-!
 !
 ##[alt*="보증토토"]
 !
-!
-! https://myfans.jp/
-! https://hsck69.com -> https://u0u0.u0u0.cc/  동일 : https://m0m0m2.mnmnmnmnmnmn.com/
-*click?*
-!
-!
-!##[class$="tooltip" i]:not(body):not(html):not(main)
-!
-!
-!##[class*="-tooltip_" i]:not(body):not(html):not(main)
-!
-! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-!
-! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! https://mypikpak.com/ - 영상 정렬 등 도구 사라짐
-!mypikpak.com#@#[class*="-tooltip_" i]:not(body):not(html):not(main)
 !
 !
 ! 짭툰 (https://www.jjaptoon007.com) - 상단 배너
@@ -8515,13 +8437,6 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 mail3.nate.com#@#[class*="advert" i]:not(body):not(html):not(main)
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-!
-!
-!
-! - 위의 것이 문제가 많이 발생하면 아래것으로 세분해하자
-!*adverts*
-!*advertising*
-!||*.advert.*
 !
 !
 !
@@ -8552,46 +8467,10 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !
 !
 !
-/adsblocker.
-!
-!
-###adblock-dialog
-!
-!
 ! https://www.91jav1.com/
 ! https://advise.zdqxrcwzz.cc/
 ##[data-ad_slot_name]
 ##[data-event*="ad_click" i]
-!
-!
-!/popup.
-!@@/popup.$css
-!
-! https://gofile.io/ - 로딩 불가
-!@@/popup.$domain=gofile.io
-!
-!
-!/popups.
-!
-!
-! 와디즈
-! 뽐뿌 - https://www.ppomppu.co.kr/cheditor/popup/js/image.html5.js?v=2026090200
-! 테무
-! https://toon.at/
-! AV조아
-! 티빙 - https://gw.tving.com/bff/web/v3/boot/popup/module?screenCode=CSSD0100&osCode=CSOD0900
-!*/popup/*
-!
-!
-! 뉴토끼 - https://toki31.com/popups/1777400213_event_336.png
-!/popups/*
-!
-!
-! 아동존 (https://xxzone28.top/) - /assets/popup_banner.php?
-*popup*.php
-!
-!
-*popup*.script
 !
 !
 !
@@ -8680,33 +8559,6 @@ fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):no
 ! - 다른규칙과 함께 사용허면 이 규칙이 안보일 수 있음
 !##iframe[style*="z-index: 2147483647"]
 ##iframe[style*="z-index"]
-!
-!
-!
-! 뉴시스 (https://www.newsis.com/) - 기사내 빈공간 - 일부 기사 하단 내용 지워짐으로 대체 하지 않고 사용시 추가 규칙 필요해보임
-! 헝그리앱
-! ##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]) 이 규칙으로 대체
-!##li:has(> iframe)
-!
-!
-! https://crassiang.com/
-! - 기타
-!||cre.ma^
-!||datarize.io^
-! - - - https://map.naver.com/ 등
-! ##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]) 이 규칙으로 대체
-!##iframe[width="0"][height="0"]
-!
-!
-! https://bada.us/ iframe 배너  (backstage.bada.us/vueController/getAmazonCustomAds?asin=)
-! - https://pornogking.com/ - ##[src*="ads" i]:not([src*="loads" i])로 하면 반영이 안되어야하는데도 (동적인지..) 이미지가 사라짐으로 iframe 로 한정지음
-!##.iframe_amazon
-!##iframe[src*="AmazonCustomAds"]
-!##iframe[src$="ads" i]
-!##iframe[src$="?asin=" i]
-! - - - https://02.avovo.net/ 등 예외 적용
-! ##div > iframe:not([src*="/recaptcha/"]):not([src*="play"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]) 이 규칙으로 대체
-!##iframe[src*="ads" i]:not([src*="loads" i])
 !
 !
 !
@@ -9078,87 +8930,6 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 ##[onclick^="window.open"] img
 ! - - - https://www.edaily.co.kr/에서 img로 안하면 일부 텍스트가 사라짐
 !##[onclick^="window.open"]
-!
-!
-!
-!##[id*="-pop" i]:not(body):not(html):not(main):not([id*="-popular" i])
-!!##[id$="-pop" i]:not(body):not(html):not(main)
-!
-!
-!##[class*="-pop" i]:not(body):not(html):not(main)
-!
-!
-!
-!##[id*="_pop" i]:not(body):not(html):not(main):not([id*="_popular" i])
-!!##[id$="_pop" i]:not(body):not(html):not(main)
-!
-!
-!##[class*="_pop" i]:not(body):not(html):not(main)
-!
-!
-!
-!##[id*="pop-" i]:not(body):not(html):not(main)
-!!##[id^="pop-" i]:not(body):not(html):not(main)
-!
-!
-!##[class*="pop-" i]:not(body):not(html):not(main)
-!
-!
-!
-!##[id*="pop_" i]:not(body):not(html):not(main)
-!!##[id^="pop_" i]:not(body):not(html):not(main)
-!
-!
-!
-!##[class*="pop_" i]:not(body):not(html):not(main)
-!
-!
-!
-!!##[class*="-pop-" i]:not(body):not(html):not(main)
-!
-!
-!
-!!##[id*="-popup-" i]:not(body):not(html):not(main)
-!
-!
-!
-! https://www.javbangers.com/ - class*="age-popup" 예외
-!!##[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
-!
-!
-! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! https://www.clien.net/
-! https://nid.naver.com/
-! https://mypikpak.com/
-! https://www.a-ha.io/
-! https://www.naver.com/
-! https://yandex.com/
-! https://www.sooplive.com/ - 즐겨찾기 삭제시 팝업 안보임. 어쩔수없이 모든 곳에 팝업 허용
-! https://www.lezhinsnack.com/
-! https://www.joongang.co.kr/ - 기사검색 클릭시 반응 없음
-! sktuniverse.co.kr - 본문 안보임
-!joongang.co.kr,lezhinsnack.com,sooplive.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
-!!sktuniverse.co.kr,joongang.co.kr,lezhinsnack.com,yandex.com,naver.com,a-ha.io,mypikpak.com,clien.net#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
-!
-! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! https://clothoff.net/
-! https://javgiga.com/
-! https://javfilms.com
-! https://ssadafile.com
-!!ssadafile.com,javfilms.com,clothoff.net,javgiga.com#@#[class*="popup" i]:not(body):not(html):not(main):not([class*="captcha" i]):not([class*="age-" i])
-!
-!
-!!##[id*="popup" i]:not(body):not(html):not(main)
-!
-! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! - https://nid.naver.com/
-! - https://adguard-dns.io/
-! - https://m.newspim.com/
-!!m.newspim.com,adguard-dns.io#@#[id*="popup" i]:not(body):not(html):not(main)
-!
-! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! https://fd2ppv.cc/
-!!fd2ppv.cc#@#[id*="popup" i]:not(body):not(html):not(main)
 !
 !
 !
