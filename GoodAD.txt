@@ -2197,7 +2197,8 @@ www.fnnews.com#@#[class$="-slot" i]
 !
 ! 한겨레 (https://www.hani.co.kr/)
 ! - 메인 배너 및 기사 상단 배너
-##[class*="adWrapper"]
+##[class*="articleadtop" i] 
+!##[class*="adWrapper"]
 ! - 기사 하단 따라다니는 배너
 !##[class*="imagebanner" i]
 !
@@ -2269,6 +2270,8 @@ sports.donga.com##[style]:has(img[src*="coupangcdn.com/thumbnails/"])
 !
 !
 ! 머니투데이 (https://www.mt.co.kr/)
+! - 기사 하단 빈 공간 (모바일)
+##[data-testid="comment"]
 ! - 기타
 !||mtgroup.kr^
 !
@@ -2309,6 +2312,8 @@ tvreport.co.kr##.main-body:style(padding-top: 0 !important)
 ! 엑스포츠뉴스 (https://www.xportsnews.com/)
 ! - 기사내 오른쪽 배너공간
 xportsnews.com##[id*="_ad_"]
+! - 기사내 빈 공간 (모바일)
+##[class="ad mobile"]
 !
 !
 ! 아시아투데이 (https://www.asiatoday.co.kr/)
