@@ -8403,7 +8403,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://javgiga.com/
 ! https://www.javrate.com/ - https://www.javrate.com/build/assets/ads-ClWB59_P.js
 ! manko.fun - https://manko.fun/ads-cache/3ef7133c605d7a570ffb8a0369ffb1a87cbad0690633930ad62d615a764449d1.mp4
-^ads-
+^ads-*
 !*/ads-*
 @@^ads-$css
 !@@*/ads-*$css
