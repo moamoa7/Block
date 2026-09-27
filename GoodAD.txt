@@ -530,7 +530,7 @@ bannerid=
 ! 메인 왼쪽 하단 Biz 추천검색어
 nate.com##.area_ranking
 ! 메인 하단 숏폼
-nate.com##.short-form-content
+nate.com###divShortForm
 !
 !
 ! 네이트 뉴스 (https://news.nate.com)
@@ -724,6 +724,10 @@ poong.today##*:has(> a[href="/my/inquiries/add"] [class*="_adCard_"])
 !
 !
 ! 치지직 (https://chzzk.naver.com/)
+! - 광고 차단 (Adguard Tracking Protection Optimized)
+||nlog.naver.com^$from=~brand.naver.com|~flight.naver.com|~shopping.naver.com|~smartstore.naver.com
+! - 광고 차단 ( kr: 한국어 (Korean))
+||veta.naver.com^
 ! ===== 광고 차단 팝업 없애기 =====
 ! 1) API 응답에서 dab 플래그 제거 (메인)
 !chzzk.naver.com##+js(json-prune, content.dab)
@@ -7904,7 +7908,7 @@ fhcontent.com##[id*="premium-modal"]
 ! https://nimi.wiki/
 ! - 기타
 ! - - - 웨이브 - https://analytics.tiktok.com/i18n/pixel/events.js?sdkid=D3DN40RC77U7D8VS48PG&lib=ttq
-://analytics.*/event
+!://analytics.*/event
 !
 !
 ! https://vexfile.com/
@@ -8213,10 +8217,11 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! - 예외
 @@-ad-$css
-@@-ad-$domain=nate.com|www.twitch.tv|youtube.com
+@@-ad-$domain=nate.com|www.twitch.tv|youtube.com|tiktok.com
 !
 !
 ! https://platinmods.com/
+! 틱톡 - https://sf16-website-login.neutral.ttwstatic.com/obj/tiktok_web_login_static/tiktok/webapp/main/player-split/webapp-desktop/static/js/async/ttam-ads-cta.e2368d52.js
 *-ads-*
 @@-ads-$domain=github.com
 !
@@ -8384,7 +8389,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
 ! - https://www.coupang.com/
-@@/ad-$domain=github.com|outstanding.kr|coupang.com
+@@/ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
 !
 !
 ! https://javgiga.com/
@@ -8437,6 +8442,9 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 야동존 (https://xxzone28.top/) - https://xxzone28.top/assets/player/player_ads.php?v=1788230925
 ! https://sukebei.nyaa.si/view/를 통한 이미지 검색 - imagetwist.com - https://imagetwist.com/site_ads.js
 *_ads.*
+! - 예외 - https://www.tiktok.com/
+! - - - https://sf16-website-login.neutral.ttwstatic.com/obj/tiktok_web_login_static/tiktok/webapp/main/player-split/webapp-desktop/static/assets/banner_ads.a000de4c.css
+@@_ads.$css
 !
 !
 ! https://jav-angel.net/ - 딱히 잡히는거 없음
@@ -8588,9 +8596,12 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !
 !
 ! 숲 - https://live.sooplive.com/api/extension.php?bj_id=뒷부분 생략
+! 트위치 - https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js
+^extension
 ! 트위치 - https://extension.streamstickers.com/panel/channel-top
-/extension.
-@@/extension$image
+!/extension.
+! 트위치 - https://extensions-discovery-images.twitch.tv/d4uvtfdr04uq6raoenvj7m86gdk16v/2.2.41/logo9ddb9aba-c647-4e34-900e-7b488d158a00
+!@@^extension$image
 !
 !
 !
