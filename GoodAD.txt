@@ -2313,7 +2313,7 @@ tvreport.co.kr##.main-body:style(padding-top: 0 !important)
 ! - 기사내 오른쪽 배너공간
 xportsnews.com##[id*="_ad_"]
 ! - 기사내 빈 공간 (모바일)
-##.mobile
+xportsnews.com##[class^="ad"]
 !
 !
 ! 아시아투데이 (https://www.asiatoday.co.kr/)
