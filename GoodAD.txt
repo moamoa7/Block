@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260928
+! Version: 20260929
 !
 !
 !
@@ -1699,8 +1699,8 @@ hungryapp.co.kr,hungapp.com##.right_top1
 ! - 하단 광고 차단 팝업
 !!damoang.net##.adblock-notice
 ! - - - https://lineup11.net/
-##.adblock-notice
 !##[class*="-notice" i] - 광역으로 절대 하지 말것
+##.adblock-notice
 !damoang.net##[aria-label="광고 차단 안내"]
 ! - [aria-label*="차단"] : 제품 중 햇빛 차단 제품이 사라질 수 잇음
 !##[aria-label*="광고"]
@@ -3882,7 +3882,10 @@ dailypharm.com#@#.adv_box
 ! 뉴스 투데이 (https://news2day.co.kr/)
 ! - 팝업 일부 ?
 news2day.co.kr##.ui-draggable.modal-content
-
+!
+!
+! 제주항공 (https://www.jejuair.net/)
+@@||jejuair.net^$generichide
 
 
 
@@ -6643,7 +6646,8 @@ of996.com##[class*="-fixed-" i]
 !||digitalcamp.co.kr^
 !||onetag.co.kr^
 ! - - - https://api.pandalive.co.kr/resource/advert/spa.js?sd=생략
-/advert^
+^advert^
+!/advert^
 !
 !
 ! 주소월드 (https://wdwd14.com/)
@@ -7919,6 +7923,8 @@ fhcontent.com##[id*="premium-modal"]
 ! https://vexfile.com/
 ! - 가운대 배너
 vexfile.com##center
+! - 다운로드 버튼 사라지는거 방지 (Adguard Base Optimized)
+vexfile.com#@#.upload-btn-wrapper:has(> button:is(.btn-download.blocked, .btn-download.btn_get_offers)):style(display: none !important;)
 !
 !
 ! https://holdem1.com/
@@ -8198,7 +8204,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 티빙 - https://event.hackle.io/api/v2/w/n4lZZO5UDASZFT4QicpEgfjwSCaiJWu4/events
 ||event.
 ! - 예외 - https://esports.sooplive.com/
-@@||event.$domain=esports.sooplive.com
+@@||event.$domain=esports.sooplive.com|jejuair.net
 !
 !
 *-ad*:not(-ad-)
@@ -8401,6 +8407,9 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
 ! - https://outstanding.kr/ - 오른쪽 내용이 안보임
 ! - https://www.coupang.com/
+! - 예외
+! - - - - 다모앙 - 새로고침 유발 - https://static.damoang.net/releases/sha-c5a7c05-pdb58191/_app/immutable/assets/ad-slot.2BkAA2Ny.css
+@@^ad-$css
 @@^ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
 !@@/ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
 !
@@ -9233,7 +9242,8 @@ mmzone.co.kr#@#[class$="-slot" i]
 !
 !
 !
-##[id$="-slot" i]
+! id="ad-slot" 제외
+##[id$="-slot" i]:not([id$="ad-slot" i])
 !
 !
 !
