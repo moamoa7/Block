@@ -881,6 +881,8 @@ issuelink.co.kr##.text-center
 !##[src*="/ad/" i]
 ! - 예외
 !ad.co.kr,auction.co.kr,avsee.is,linkareer.com#@#[src*="/ad/" i]
+! - 갤러리  게시물 중 실베 게시물 (모바일)
+dcinside.com##.detail-top-concept
 ! - 갤러리 하단 빈공간
 dcinside.com##.ad_bottom_list
 ! - 갤러리 게시물 하단 등 빈 공간
