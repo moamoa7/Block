@@ -704,7 +704,7 @@ sooplive.com##+js(no-fetch-if, check_new_ad)
 ! - - - https://adballoon.sooplive.com/app/api/banner.php?생략
 /banner.php$domain=~research.hchs.hc.edu.tw
 ! - 메인 , https://play.sooplive.com/ ,  https://vod.sooplive.com/ - https://static.file.sooplive.com/pc/ko_KR/main_lnb_banner.js?=생략
-banner.js?
+banner.js^
 !
 !
 ! 시네티 (https://cinety.sooplive.com/)
@@ -3715,6 +3715,7 @@ koreatimes.net##[src*="banner"]
 ! - 기타 (EasyPrivacy)
 !/^https:\/\/cdn\.jsdelivr\.net\/npm\/[-a-z_]{4,22}@latest\/dist\/script\.min\.js$/$script,third-party
 ! - 기타
+! - - - https://image.paxnet.co.kr/rpan/common/html/header_top_ad.html
 _top_ad.
 !
 !
@@ -5992,7 +5993,7 @@ ivfree.asia#@#[id*="-layer" i]
 ||mediadelivery.net/rum.js
 !
 !
-! 야동존 (https://t.me/s/ydzone19)  (https://ydzone.cc/)  (https://xxzone28.top/) - x.videist.com is blocked 영상 재생 안됨
+! 야동존 (https://t.me/s/ydzone19)  (https://ydzone.cc/)  (https://xxzone29.top/) - x.videist.com is blocked 영상 재생 안됨
 ! - 영상 광고 차단
 */data/file/admin_banner/*.mp4
 ! - 팝업 일부
@@ -7672,7 +7673,9 @@ patreon.com##body:style(overflow: auto !important;)
 ![$domain=/redgg/]##li.menu_blank.menu_item_.gnb_1dli_ > .gnb_1da > .btn-12.custom-btn
 !
 !
-! 자딸파티 (https://jaddal.top/) (https://jaddal41.top/)
+! 자딸파티 (https://jaddal.top/) (https://jaddal42.top/)
+! - 팝업
+###noticePopupModal
 ! - 맨 왼쪽 작은 배너
 !/jaddal/##[class*="-ad-"]
 ! - 필요없는거 (자딸 평생주소 / 텔레그램)
@@ -8274,6 +8277,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !@@*_ads_*$domain=platinmods.com
 !
 !
+!
 ! 티비착
 ! 조아툰
 ! https://iloa.gg/
@@ -8402,6 +8406,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! javclick.com / manko.fun - https://a.pemsrv.com/ad-provider.js
 ! www.twidouga.net - https://a.pemsrv.com/ad-provider.js
 ! https://dmm.ppvdb.com/ - https://dmm.ppvdb.com/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=1.0.0
+! AVseeTV - https://02.avsee.is/player/ad-gate.js?v=1789836773
 ^ad-
 !*/ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
@@ -8426,7 +8431,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! https://www.ppomppu.co.kr/ - https://cdn4.ppomppu.co.kr/js/wtg_ads.js?v=2026090702
 ! https://www.tiktok.com/
-! 야동존 (https://xxzone28.top/) - https://xxzone28.top/assets/player/player_ads.php?v=1788230925
+! 야동존 (https://xxzone29.top/) - https://xxzone29.top/assets/player/player_ads.php?v=1788230925
 ! https://sukebei.nyaa.si/view/를 통한 이미지 검색 - imagetwist.com - https://imagetwist.com/site_ads.js
 *_ads.*
 ! - 예외 - https://www.tiktok.com/
@@ -8588,7 +8593,7 @@ fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):no
 @@^banners^$domain=sooptore.sooplive.com|coupangplay.com|teacherline.net
 !
 !
-! 짜딸파티 (https://jaddal40.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
+! 짜딸파티 (https://jaddal42.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
 ! 야동닷컴 (https://yadong10.com/) - 상단 배너
 ! 야동정복 (https://xxdong29.top/) - 전체 배너
 ^admin_banner^
@@ -8612,10 +8617,11 @@ fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):no
 !@@*banner.js$domain=sooptore.sooplive.com|cookmanacom
 !
 !
-! 자딸파티 (https://jaddal41.top/)
+! 자딸파티 (https://jaddal42.top/) - https://jaddal42.top/bbs/banner_click.php?wr_id=9001&type=header_imp  // https://jaddal42.top/assets/popup_banner.php?v=1790649508
 ! https://tcafe21.com/
 ! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/)
-! 야동존 (https://xxzone28.top) - https://xxzone28.top/assets/popup_banner.php?v=1788230797
+! 야동존 (https://xxdong29.top/) - https://xxdong29.top/assets/popup_banner.php?v=1790649853
+! 야동존 (https://xxzone29.top/) - https://xxzone29.top/assets/popup_banner.php?v=1790649915
 *banner*.php
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
@@ -8941,7 +8947,7 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 !
 !
 !
-! 자딸파티 (https://jaddal41.top/) - 텔레그램 고객센터 버튼
+! 자딸파티 (https://jaddal42.top/) - 텔레그램 고객센터 버튼
 ##[onclick^="window.open"] img
 ! - - - https://www.edaily.co.kr/에서 img로 안하면 일부 텍스트가 사라짐
 !##[onclick^="window.open"]
