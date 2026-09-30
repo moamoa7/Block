@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260929
+! Version: 20260930
 !
 !
 !
@@ -3245,7 +3245,8 @@ hmall.com##.dim.jsx-f06e421e6d920460
 !
 !
 ! https://www.lotteimall.com/
-||lotteimall.com*$popup
+@@||lotteimall.com^$generichide
+!||lotteimall.com*$popup
 !
 !
 ! https://hmstory.net/
@@ -3626,7 +3627,8 @@ sbs.co.kr##[class^="ad" i]
 !
 ! 머야 이번호 (https://moyaweb.com/)
 ! - 하단 이미지
-##A > IMG[alt][src*="resources/images/"]
+! - - - moyaweb.com - 이미지 사라짐으로 개별 규칙으로 전환
+moyaweb.com##A > IMG[alt][src*="resources/images/"]
 !
 !
 ! Manga Million (https://mangamillion.shueisha.co.jp/)
@@ -9271,6 +9273,7 @@ mmzone.co.kr#@#[class$="-slot" i]
 !
 ! - 사용자의 이용 통계(어떤 버튼을 클릭했는지, 체류 시간, 시청 패턴 등)를 수집하고 분석하는 트래킹(추적) 및 텔레메트리
 ! 숲 - https://static.sooplive.com/asset/service/common/common_analysis.js  / https://analysis.sooplive.com/_au.js (analysis.sooplive.com - dns에서 이미 차단 중)
+! 롯데홈숏핑 - https://analysis.adinsight.co.kr/emnet/trs_esc.js
 analysis.
 !
 !
