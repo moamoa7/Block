@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.09.29.2
-! TimeUpdated: 2026-09-29T11:12:25+00:00
+! Version: 2026.10.01.3
+! TimeUpdated: 2026-10-01T02:55:03+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, wBlock, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -126,10 +126,12 @@ ebs.co.kr##.ji_adban
 economist.co.kr##[class*="_ad"]
 edu.chosun.com##a:has(> [src*="edu.chosun.com/images/bn/"])
 edu.chosun.com##section:has(> [id^="AD_Main_"])
+eduyonhap.com##div.banner_con
 encar.com##[class*="Banner_wrap"]
 encar.com##li > a[class*="RecommendQuick_link_quick__"][href^="https://automotive.encar.com/RealMedia/ads/"][target="_blank"]
 ez2pattern.kr##.sticky
-fc-info.com##div[class^='Venatus_']
+fc-info.com##.android-app-download-banner
+fc-info.com##div[class^='Venatus']
 gall.dcinside.com##.gnb_list.clear > li:has(> [onclick])
 gall.dcinside.com##li[id^="reply_li_"]:has(p[class*='txt']:has-text(/^(https?:\/\/)[A-Za-z0-9]{2,10}(\.[a-z]{2,7}|\.co\.kr)(\/(?=.*[a-z])(?=.*[0-9])[A-Za-z0-9_]{5,9})$/):not(:has-text(/git|g2sh|img|tebin|sendanywhe|twitter|rentry|x\.com|youtu|ibb\.co|archive\.md|t\.me|streamable|dev/i))):style(opacity: 0.5 !important;)
 gangmom.kr##.banner-wrapper
@@ -388,11 +390,14 @@ $@$link[rel="manifest"]
 @@*store.com^$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:bank|stock|invest|coin|pay|mobile|card|post|logi|financ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|ung|account|udi|busan|speed)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|hana|insure|direct|soft|point|cash|time)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|han|insure|direct|soft|point|cash|time)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:pdf|phone|info|tech|monitor)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:savings|cruit|event|talent|energy|test|check|scan)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:smart|vertif|cloud|remote|motor|mobility|think|fine|here)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:tele|news|pass|econom|biz|member|shop|mall|univ|mae)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*sk[a-z]*\.com(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*ssg[a-z]*\.com(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/([a-z0-9-]+\.)*(inicis|kginicis|kcp|nicepay|nicepayments|tosspayments|toss|kakaopay|payco|danal|danalpay|mobilians|settlebank|hectofinancial|smartropay|eximbay|samsungpay|iamport|portone|niceid|checkplus|kmcert|mobile-ok|siren24|koscom|kftc|signgate|yessign|kisa|tsign|dcert|crosscert|cert|paypal|stripe|adyen|braintreegateway|checkout|squareup|klarna|alipay|alipayplus|unionpay|unionpayintl|visa|mastercard|jcb|cardinalcommerce|paddle)\.(com|net|io|co|kr|co\.kr|or\.kr|im|co\.jp)(:\d+)?(\/|\?|#|$)/$stealth=dpi
 @@||192.168.$stealth=dpi
 @@||a*.smlog.co.kr^$app=com.nhn.android.search
 @@||ad-creative.pstatic.net^$app=com.nhn.android.search
@@ -400,6 +405,7 @@ $@$link[rel="manifest"]
 @@||ad.co.kr^$ghide
 @@||adot.ai^stealth=dpi
 @@||adtouch.*
+@@||algumon.com^$stealth=push
 @@||arca.live^$ghide
 @@||arca.live^$stealth=push
 @@||blog.kakaocdn.net*/img.gif
@@ -412,12 +418,15 @@ $@$link[rel="manifest"]
 @@||coupang.com^$stealth
 @@||danawa.com^$stealth=dpi
 @@||dcinside.com^$stealth=dpi|push
+@@||deobseog.com^$stealth=push
 @@||donga.com^$stealth=dpi
+@@||facebook.com^$stealth=push
 @@||finnq.com^$stealth=dpi
 @@||giggleus.com^$stealth=dpi
 @@||google*.$stealth=dpi|push
 @@||gs*.com^$stealth=dpi
 @@||ichannela.com^$stealth=dpi
+@@||instagram.com^$stealth=push
 @@||isplus.$stealth=dpi
 @@||joycity.com^$stealth=dpi
 @@||jusoen.com^$stealth=dpi
@@ -431,27 +440,34 @@ $@$link[rel="manifest"]
 @@||lg*.$stealth=dpi
 @@||log1.toup.net^$app=com.nhn.android.search
 @@||lott*.$stealth=dpi
+@@||m.$stealth=dpi
 @@||miraeasset.com^$stealth=dpi
 @@||mobis.com^$stealth=dpi
 @@||monimo.com^$stealth=dpi
 @@||my*.com^$stealth=dpi
+@@||naver.com^$stealth=push
 @@||nc.com^$stealth=dpi
 @@||nexon.com^$stealth=dpi
 @@||nonghyup.com^$stealth=dpi
 @@||plaync.com^$stealth=dpi
+@@||postype.com^$stealth=push
+@@||reddit.com^$stealth=push
 @@||searchad-phinf.pstatic.net^$app=com.nhn.android.search
 @@||shin*.com^$stealth=dpi
 @@||shopping.naver.com^$stealth
 @@||slrclub.com/rss/today_photo.slr
 @@||smartstore.naver.com^$stealth
 @@||sofrano.com^$stealth=dpi
+@@||sooplive.com^$stealth=dpi|push
 @@||termeden.com^$stealth=dpi
 @@||ticket*.$stealth
 @@||tivan.naver.com^$app=com.nhn.android.search
 @@||toss*.$stealth=dpi
 @@||truefriend.com^$stealth=dpi
+@@||twitch.tv^$stealth=push
 @@||wcs.naver.net^$domain=seorinexpress.com|naver.com
 @@||whitescreenfree.com^$stealth=dpi
+@@||x.com^$stealth=push
 @@||yes24.com^$stealth=dpi
 ktmmobile.com#@%#//scriptlet('set-constant', 'mainBottomBanner', 'noopFunc')
 m.fmkorea.com#@$?#*.bd.bd_mobile:not(:has(#bd_capture ~ #comment)):has(form[action="./"]:matches-css(height: auto)) { remove: true; }
@@ -473,12 +489,7 @@ www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 ||ssl.pstatic.net/t.static.blog/nmobile/versioning//common/lib/ntm/ntm-blog-web-*.js$badfilter
 ||tnkfactory.com^$badfilter
 !#safari_cb_affinity
-! NOT TESTED
-@@/^https:\/\/(.*\.)?(inicis|kcp|nicepay|tosspayments|kakaopay|payco|paypal|iamport|portone|signgate|yessign|kisa|tsign|dcert|crosscert|cert)\.(com|co\.kr).*$/$stealth
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:billing|smart|vertif|cloud|remote|motor|mobility|think|fine|here)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:soop)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*sk[a-z]*\.com(?:[\/?#]|$)/$stealth=dpi
-@@||m.$stealth=dpi
+
 
 ! Malware & Spam
 *$websocket,domain=bunny-frame.online
@@ -489,12 +500,15 @@ www.google.com##.MjjYud:has(span[role="text"]:has-text(/^https:\/\/[a-zA-Z0-9.-]
 
 ! Tweaks
 arca.live#%#(()=>{const N="nrx",S='a.notice[href*="/b/"] .vcol.col-ad>.badge.text-bg-success,a.notice[href*="/b/"] .vcol.col-id>b';document.documentElement.appendChild(Object.assign(document.createElement("style"),{textContent:`${S}{visibility:hidden;animation:${N} 1ms}@keyframes ${N}{to{}}`}));addEventListener("animationstart",e=>{if(e.animationName!==N)return;const g=/\/b\/([^/]+)/.exec(e.target.closest("a.notice").pathname)?.[1];if(g){e.target.textContent=g;e.target.style.visibility="visible"}},true)})();
-dcinside.com#%#//scriptlet('trusted-create-element', 'head', 'meta', 'name="theme-color" content="#2b367d"')
+dcinside.com##.imgwrap > .num:style(opacity: 0.6 !important;)
 dmm.co.jp#%#//scriptlet('trusted-set-cookie-reload', 'ckcy_remedied_check', 'ec_mrnhbtk', '1year', '/', '.dmm.co.jp')
 gall.dcinside.com##+js(aeld, contextmenu, , elements, video)
 gall.dcinside.com##+js(remove-attr, controlslist, video, stay)
 gall.dcinside.com##.img_area button.btn:style(opacity: 0.4 !important;)
-gall.dcinside.com#$#.btn_imgcmtopen { opacity: 0.4 !important; transform: translate(8px, 7px) !important; }
+gall.dcinside.com#$#.imgwrap > .btn.btn_imgcmt { opacity: 0.6 !important;  transform: translate(19px, -10px) scale(0.8) !important; }
+gall.dcinside.com#$#.imgwrap > .mngbtn_wrap > button { opacity: 0.6 !important;  transform: translate(21px, -25px) scale(0.8) !important; }
+gall.dcinside.com#$#.imgwrap > .sunseon.sp_btnimg.btn { opacity: 0.6 !important; transform: translate(19px, -18px) scale(0.8) !important; }
+gall.dcinside.com#$#button.btn_imgcmtopen { opacity: 0.6 !important; transform: translate(17px, 10px) scale(0.8) !important; }
 gall.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview_head:has(em.icon_write_app) > div.gall_writer > div.fl', 'span', '', 'ㅤAPP')
 gall.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview_head:has(em.icon_write_mbl) > div.gall_writer > div.fl', 'span', '', 'ㅤMOBILE')
 gall.dcinside.com#%#//scriptlet('trusted-create-element', 'div.gallview_head:not(:has(em.icon_write_mbl)):not(:has(em.icon_write_app)) > div.gall_writer > div.fl', 'span', '', 'ㅤPC')
