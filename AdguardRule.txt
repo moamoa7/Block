@@ -4,7 +4,7 @@
 ! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20260924
+! Version: 20261002
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
@@ -23,13 +23,16 @@
 @@*store.com^$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:bank|stock|invest|coin|pay|mobile|card|post|logi|financ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|ung|account|udi|busan|speed)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|hana|insure|direct|soft|point|cash|time)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|han|insure|direct|soft|point|cash|time)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:pdf|phone|info|tech|monitor)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:savings|cruit|event|talent|energy|test|check|scan)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:smart|vertif|cloud|remote|motor|mobility|think|fine|here)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:tele|news|pass|econom|biz|member|shop|mall|univ|mae)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*ssg[a-z]*\.com(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/([a-z0-9-]+\.)*(inicis|kginicis|kcp|nicepay|nicepayments|tosspayments|toss|kakaopay|payco|danal|danalpay|mobilians|settlebank|hectofinancial|smartropay|eximbay|samsungpay|iamport|portone|niceid|checkplus|kmcert|mobile-ok|siren24|koscom|kftc|signgate|yessign|kisa|tsign|dcert|crosscert|cert|paypal|stripe|adyen|braintreegateway|checkout|squareup|klarna|alipay|alipayplus|unionpay|unionpayintl|visa|mastercard|jcb|cardinalcommerce|paddle)\.(com|net|io|co|kr|co\.kr|or\.kr|im|co\.jp)(:\d+)?(\/|\?|#|$)/$stealth=dpi
 @@||192.168.$stealth=dpi
 @@||adot.ai^stealth=dpi
+@@||algumon.com^$stealth=push
 @@||arca.live^$stealth=push
 @@||cj*.$stealth=dpi
 @@||claude.ai^$stealth=push
@@ -39,12 +42,15 @@
 @@||coupang.com^$stealth
 @@||danawa.com^$stealth=dpi
 @@||dcinside.com^$stealth=dpi|push
+@@||deobseog.com^$stealth=push
 @@||donga.com^$stealth=dpi
+@@||facebook.com^$stealth=push
 @@||finnq.com^$stealth=dpi
 @@||giggleus.com^$stealth=dpi
 @@||google*.$stealth=dpi|push
 @@||gs*.com^$stealth=dpi
 @@||ichannela.com^$stealth=dpi
+@@||instagram.com^$stealth=push
 @@||isplus.$stealth=dpi
 @@||joycity.com^$stealth=dpi
 @@||jusoen.com^$stealth=dpi
@@ -61,19 +67,25 @@
 @@||mobis.com^$stealth=dpi
 @@||monimo.com^$stealth=dpi
 @@||my*.com^$stealth=dpi
+@@||naver.com^$stealth=push
 @@||nc.com^$stealth=dpi
 @@||nexon.com^$stealth=dpi
 @@||nonghyup.com^$stealth=dpi
 @@||plaync.com^$stealth=dpi
+@@||postype.com^$stealth=push
+@@||reddit.com^$stealth=push
 @@||shin*.com^$stealth=dpi
 @@||shopping.naver.com^$stealth
 @@||smartstore.naver.com^$stealth
 @@||sofrano.com^$stealth=dpi
+@@||sooplive.com^$stealth=dpi|push
 @@||termeden.com^$stealth=dpi
 @@||ticket*.$stealth
 @@||toss*.$stealth=dpi
 @@||truefriend.com^$stealth=dpi
+@@||twitch.tv^$stealth=push
 @@||whitescreenfree.com^$stealth=dpi
+@@||x.com^$stealth=push
 @@||yes24.com^$stealth=dpi
 !
 !
