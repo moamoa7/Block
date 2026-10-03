@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.10.01.3
-! TimeUpdated: 2026-10-01T02:55:03+00:00
+! Version: 2026.10.02.3
+! TimeUpdated: 2026-10-02T10:17:04+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, wBlock, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -316,6 +316,7 @@ namu.wiki#%#!function(){const e=document.createElement("style");e.textContent=".
 
 ! Minor distractions
 arca.live##a:has(img[src*="/static/assets/images/karisuma-point"])
+avsee.is###hd_pop
 gall.dcinside.com##.dc_all
 gall.dcinside.com##.dcmedia.content_box
 gall.dcinside.com##.ltr
@@ -355,8 +356,11 @@ gmarket.co.kr##+js(set, mouseRightButtonDisabled, noopFunc)
 ||arca.live/static/assets/js/adult.min.js
 
 ! Anti-adblock
-0db.co.kr###adblock_notice
+!#safari_cb_affinity(general,custom)
 @@||piku.co.kr^$ghide
+@@||avsee.is^$ghide
+!#safari_cb_affinity
+0db.co.kr###adblock_notice
 aagag.com#$#.la { position: absolute !important; left: -3000px !important; width: 60px !important; height: 20px !important; }
 avsee.is##+js(json-prune, adsEnabled, adsEnabled)
 cola16.app##+js(acis, decodeURIComponent, ABCDEFGHIJKLMNOPQRSTUVWXYZ)
