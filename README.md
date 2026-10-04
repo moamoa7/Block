@@ -14,7 +14,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/AdguardRule.txt
 ※ GoodAD.txt
 <br/>
 
-개인 Filter List ( 한국사이트 위주)  (일부 타 규칙 인용)
+List-KR 규칙에 개인적으로 추가한 Filter List (한국사이트 위주)  (일부 타 규칙 인용)
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
