@@ -4,7 +4,7 @@
 ! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261002
+! Version: 20261006
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
@@ -22,7 +22,7 @@
 @@*sb.com^$stealth=dpi
 @@*store.com^$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:bank|stock|invest|coin|pay|mobile|card|post|logi|financ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|ung|account|udi|busan|speed)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|ung|account|udi|busan|speed|convert|tool)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|han|insure|direct|soft|point|cash|time)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:pdf|phone|info|tech|monitor)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:savings|cruit|event|talent|energy|test|check|scan)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
@@ -62,6 +62,7 @@
 @@||kr^$stealth=dpi
 @@||kt*.$stealth=dpi
 @@||lg*.$stealth=dpi
+@@||live.com^$stealth=dpi
 @@||lott*.$stealth=dpi
 @@||miraeasset.com^$stealth=dpi
 @@||mobis.com^$stealth=dpi
