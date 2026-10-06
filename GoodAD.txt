@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261006
+! Version: 20261007
 !
 !
 !
@@ -1126,6 +1126,7 @@ etoland.co.kr##li:has(> [class*="flex-col"])
 ! =========================
 ! - 애드블럭 감지 해제 (출석체크 랜덤포인트 얻을려면 필요)
 @@||doubleclick.net^$domain=etoland.co.kr
+@@||g.doubleclick.net^$domain=etoland.co.kr
 ! 팝업 차단
 etoland.co.kr#%#//scriptlet('prevent-window-open')
 ! - 팝업 차단
@@ -3226,6 +3227,8 @@ seoul.co.kr##[id$="ad" i]
 ! 환산주스탯 (https://maplescouter.com/)
 ! - 팝업
 !###popup
+! - 하단 팝업
+maplescouter.com##[style*="z-index"]
 !
 !
 ! https://postshare.co.kr/
