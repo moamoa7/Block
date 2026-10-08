@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261007
+! Version: 20261009
 !
 !
 !
@@ -2838,6 +2838,8 @@ semrush.com#?#div[data-ui-name="Modal.Overlay"][style*="timingFunction"]
 !##.right-ad-sidebar
 ! - 중간 배너 공간
 algumon.com##[class*="pb-3"]:has([aria-label*="광고"])
+! - 빈 공간
+algumon.com##[style*="placement-height: 100px;"]
 !
 !
 ! 뉴덕 (https://newduck.net/)
@@ -4024,6 +4026,8 @@ news2day.co.kr##.ui-draggable.modal-content
 ! - - - wss://t.peertrk.com/
 ! - - - https://t.peertrk.com/api/live/report
 ||t.peertrk.com^
+! 플레이어의 시청/재생 상태·통계·추적 이벤트를 서버로 보내는 beacon 엔드포인트
+||player.bunny-frame.online/player/api/beacon.php
 !
 !
 !
@@ -4634,7 +4638,7 @@ joatoon-oa.com##.bg-opacity-50
 ! 토렌트와이 (https://www.토와이.xyz/) (https://www.torrentwhy188.xyz/)
 !
 !
-! AVseeTV (https://02.avsee.is/)
+! AVseeTV (https://03.avsee.is/)
 ! - 배너 이미지
 !||avsee.is/imgs/$image
 ! - 메인 배너
@@ -5335,7 +5339,7 @@ javtiful.com##.front-feature-placement-side
 !aniya24.com##section:has([target] img[src*="/wp-content/uploads/"])
 ! - 예외 - https://apkmody.com/ - 본문 안보임
 !apkmody.com#@#section:has([target] img[src*="/wp-content/uploads/"])
-! -예외 - https://07.avsee.is/ - 일부 게시판내 링크를 사용할경우 이미지 등 본문 안보임
+! -예외 - https://03.avsee.is/ - 일부 게시판내 링크를 사용할경우 이미지 등 본문 안보임
 !avsee.is#@#section:has([target] img[src*="/wp-content/uploads/"])
 ! - 예외 - https://emuokunmaster.com/ - 본문 안보임
 !emuokunmaster.com#@#section:has([target] img[src*="/wp-content/uploads/"])
@@ -8228,6 +8232,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! 퀘이사존(https://quasarzone.com) - https://ads.quasarzone.com/RealMedia/ads/Creatives/quasarzone/LD/maxmo_mediation.js
 ! 산업일보 (https://kidd.co.kr/) - https://ads.daara.co.kr/v.php?s=생략
+! https://www.albamon.com/ - https://ads.jobkorea.co.kr/ads/sdk/js/adSdk.min.js
 ||ads.*
 !
 !
@@ -8438,7 +8443,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! javclick.com / manko.fun - https://a.pemsrv.com/ad-provider.js
 ! www.twidouga.net - https://a.pemsrv.com/ad-provider.js
 ! https://dmm.ppvdb.com/ - https://dmm.ppvdb.com/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=1.0.0
-! AVseeTV - https://02.avsee.is/player/ad-gate.js?v=1789836773
+! AVseeTV - https://03.avsee.is/player/ad-gate.js?v=1789836773
+! https://www.albamon.com/ - https://www.albamon.com/api/msa/ad-recruit-detail
 ^ad-
 !*/ad-*
 ! - 예외 - https://github.com/ - AD-를 쓰는 주소가 있을때 페이지 로딩에 문제 발생
@@ -8551,7 +8557,7 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! src="about:blank" - 예외처리함
 ! play , player , /player? 표기 금지 - 다른걸로 할것 (https://missav01.com/ iframe 해제됨)
 ! 구글 -https://www.google.com/recaptcha/
-! AVseeTV (https://02.avsee.is/) -예외 : :not([src*="/player.php?"])
+! AVseeTV (https://03.avsee.is/) -예외 : :not([src*="/player.php?"])
 ! https://javclick.com/ - upload18.com/play/index/IPZZ-941-clone-baca85
 ! 유튜브 / 트위터 / 인스타 등 - :not([src*="embed"])
 ! turboplays.click/t/6a3bd5737dce6
@@ -9068,7 +9074,7 @@ heykorean.com,teamblind.com#@#[class$="_ad"]:not([class$="hate_ad"]):not(body):n
 !
 ! https://tcafe21.com/ - class="fa fa-adjust" 제외
 ! https://trand.co.kr/ - :not([class*="-addon" i]) - :not([class*="-add" i]) 제외
-! https://02.avsee.is/ - 아이콘 -  :not([class*="-admin" i]) 제외  // :not([class*="-advance" i]) 제외
+! https://03.avsee.is/ - 아이콘 -  :not([class*="-admin" i]) 제외  // :not([class*="-advance" i]) 제외
 ! https://adguard-dns.io/ - class="react-select react-select-responsive react-select--menu-big react-select--adaptive-height react-select--height-big-mobile hYA1z css-b62m3t-container"
 ! https://adguard-vpn.com/ - :not([class*="-adblock"])  //  :not([class*="-adguard"])  //  :not([class*="-pad-"])  제외
 ! 주소팡 (https://jusopang39.com/) - aduit
@@ -9085,7 +9091,7 @@ javgiga.com#@#[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"]):
 !
 ! https://www.fmkorea.com/ - class="document_address" 제외
 ! https://trand.co.kr/ - class="page_manage_add" - :not([class*="_add" i])
-! https://02.avsee.is/ -class*="afs_ads"
+! https://03.avsee.is/ -class*="afs_ads"
 ! https://www.todayhumor.co.kr/ - ads 제외
 ! 구글 - class="tile_M6Boq type:ImageTile module_Ad1it" -- _Ad 제외
 ##[class*="_ad"]:not(body):not(html):not(main):not([class*="_ads"]):not([class*="_ad_"]):not([class$="_ad"]):not([class*="_add"]):not([class*="_admin"]):not([class*="afs_ads"]):not([class*="_adult"]):not([class*="_adblock"]):not([class*="_adguard"]):not([class*="_pad_"])
@@ -9197,7 +9203,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 !
 !
 !
-! AVsee.tv (https://02.avsee.is/)
+! AVsee.tv (https://03.avsee.is/)
 ! 씨네스트 (https://cineaste.co.kr/)
 ! 뉴토끼 / 마나토끼 / 북토끼
 ! 코무비 (https://m333.kormovie.com/)
@@ -9209,7 +9215,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ##.h10
 !
 !
-! AVsee.tv (https://02.avsee.is/)
+! AVsee.tv (https://03.avsee.is/)
 ! 씨네스트 (https://cineaste.co.kr/)
 ! 뉴토끼 / 마나토끼 / 북토끼
 !  코무비 (https://m333.kormovie.com/)
