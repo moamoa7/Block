@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.10.06.5
-! TimeUpdated: 2026-10-06T11:56:01+00:00
+! Version: 2026.10.09.0
+! TimeUpdated: 2026-10-08T16:57:13+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, wBlock, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -70,7 +70,10 @@ wowtv.co.kr,cafe.naver.com##[class*='Banner']
 [$domain=/^wftoon[0-9]*\.com/]##.top-banner
 [$domain=/^wtwt[0-9]*\.com/]##.banner
 aflnews.co.kr###layer-popups
-algumon.com##div:has([data-tip^='파트너스'], div[style*='height'], ins):is(.card, .deal-2col)
+algumon.com##div.deal-row:has(> div.card > div.card-body > div > div > div > div[data-tip^="파트너스"])
+algumon.com##div.py-2.px-2:has(> div.placement-space > div.placement-frame > ins.adsbygoogle)
+algumon.com##aside[aria-label="slot"]:has(> div.placement-space > div.placement-frame > ins.adsbygoogle)
+algumon.com##div[data-virtual-row-id]:has(> div.deal-feed-card > div.card-body span:has-text(작성자광고))
 arca.live##div.vrow.hybrid:has(.badge.category-badge)
 asiatoday.co.kr###ad-floating-wrapper
 asiatoday.co.kr##.ad_banner3
@@ -288,6 +291,7 @@ zod.kr##.app-mobile-only:has(> div > a[target] > img)
 ||bokuennews.com/data/banner
 ||checkplus.co.kr/images/banner/service/AD
 ||clink.kakao.com/sp/$all
+||coupang.com/mlp-api/v1/newtab/trafficSplit*trafficType=marketing*subid=dynamicda$all
 ||dvdprime.com/file/*/banner
 ||img.etoday.co.kr/web/eto_ad
 ||kamp.kakao.com^$app=com.kakao.talk
