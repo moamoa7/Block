@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261009
+! Version: 20261010
 !
 !
 !
@@ -1023,7 +1023,7 @@ arca.live##[class*="row"]:has-text(광고)
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe672.com/) - 이미지 목록 사라짐
+! 펀비 (https://funbe680.com/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -1284,7 +1284,7 @@ mlbpark.donga.com##.btn_top01
 !ruliweb.com##.adrr
 !ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe672.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe680.com/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 !ruliweb.com##[class*="ad_"][style] - ##[class*="ad_slot" i]로 변경
 ! - 루리웹 전체 배너 (게시판 내 AD글 포함)
@@ -3456,7 +3456,7 @@ loawa.com##[alt*="후원"]
 ! - 예외 - 숲 - 별풍선 후원 이미지 복원
 ! - 예외 - 야동갤러리 - 게시물 제목 이미지
 ! - 예외 - 툰코 (https://tkor153.com/) - 일부 게시물 제목에 의해 사라짐
-! - 예외 - 펀비 (https://funbe672.com/) - 일부 게시물 제목에 의해 사라짐
+! - 예외 - 펀비 (https://funbe680.com/) - 일부 게시물 제목에 의해 사라짐
 !play.sooplive.com#@#[alt*="후원"]
 !funbe|tkor|yagall/#@#[alt*="후원"]
 ! - 배너 빈 공간
@@ -4295,8 +4295,8 @@ fabulouslink.xyz##.widget
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://t.me/s/tkor_com) (https://tkor153.com/)
-! 펀비 (https://t.me/s/funbe_next) (https://funbe672.com/)
+! 툰코 (https://t.me/s/toonkor_org) (https://toonkor3.org/) -- https://korsite.net/ 참고
+! 펀비 (https://t.me/s/funbe_next) (https://funbe680.com/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -4317,7 +4317,7 @@ fabulouslink.xyz##.widget
 !kilho.net#@#.clearfix
 !
 !
-! 툰코 (https://t.me/s/toonkorinfo) (https://툰코주소.com/) (https://toonkor402.com/)
+! 툰코 (https://t.me/s/toonkorinfo) (https://툰코주소.com/) (https://툰코주소보기.com/) (https://toonkor404.com/)
 !
 !
 ! 나이스링크 (https://nicelink6.com/)
@@ -8777,18 +8777,18 @@ t-browser.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://vexfile.com/
-! 주소월드 (https://wdwd14.com/)
-! 펀비 (https://funbe672.com/)
-! 툰코 (https://tkor153.com/)
 ! 거지맵 (https://거지맵.com/) (https://xn--v69ak0xskm.com/)
 ! https://www.hankyung.com/ - 모바일에서 안보임
 ! https://www.womaneconomy.co.kr/ - banner 잘못 지워짐 수정 (상단 검색 부분 지워짐 방지)
-! 주소핑 (https://jusoping7.com/)
 womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! - https://www.koreasite.live/
-/jusoping|tkor|funbe|wdwd|koreasite/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+!  https://www.koreasite.live/
+! https://toonkor3.org/ 
+! 펀비 (https://funbe680.com/)
+! 주소월드 (https://wdwd14.com/)
+! 주소핑 (https://jusoping7.com/)
+/toonkor|jusoping|funbe|wdwd|koreasite/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 !
 !
@@ -8949,7 +8949,8 @@ philgo.com##[alt*="배너"]
 ! 캐나다 한국일보 (https://koreatimes.net)
 ! 냥티비 (https://nortv95.com/)
 ! https://02.avovo.net/
-/yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv|mtoon|avovo/##[target*="blank"] img
+! 툰코 (https://toonkor3.org/)
+/toonkor|yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv|mtoon|avovo/##[target*="blank"] img
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
