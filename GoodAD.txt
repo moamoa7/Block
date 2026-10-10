@@ -1323,7 +1323,7 @@ zoneid=
 ! - 댓글 사이 광고
 !humoruniv.com##[style*="width:300px"]
 ! - 댓글 사이 빈공간
-!humoruniv.com###place_div
+humoruniv.com###place_div
 ! - 맨 하단 빈공간
 !humoruniv.com##div[style*="width:100%;height:20px"]
 !
@@ -4008,7 +4008,8 @@ news2day.co.kr##.ui-draggable.modal-content
 ! - - - https://javgiga.com/
 ! - - - https://embed.streamxx.net/player/js/p2p-media-loader-core.min.js
 ! - - - https://embed.streamxx.net/player/js/p2p-media-loader-hlsjs.min.js
-!/p2p - 스크립트 실행 전제로 해지 / 풀어도 ||tracker.$websocket 규칙이 작동
+! - -  - 스크립트 실행 전제로 해지 / 풀어도 ||tracker.$websocket 규칙이 작동
+!/p2p
 ! - 핑거프린팅 스크립트가 수집한 데이터를 전송하는 바로 그 서버 측 엔드포인트 차단
 ! - - - https://w2.apiapi199.com/js/fingerprint.js?ver=1783568406
 !/fingerprint.js^
@@ -4016,7 +4017,7 @@ news2day.co.kr##.ui-draggable.modal-content
 !@@fingerprint.$domain=github.com|fingerprint.com
 ! - 기타 - 먼가 잡히는건 없지만 layers이라서 규칙 만들어봄
 ! - - - 티비착 (https://tvchak208.com/)
-! - - - Linkkf 애니 TV (https://linkkf.tckopke.com/)
+! - - - Linkkf 애니 TV (https://linkani.tv/)
 ! - - - https://ko.javfc2.live/
 ! - - - https://ko.hplives.com/
 ##[class*="-layers"]
@@ -6576,7 +6577,7 @@ sexygirl.cc##div[class*="overflow-auto"]
 !##.ad-overlay
 ! - 영상 재생 앞 로딩 부분
 ! - - - 청양티비 (https://cytv158.com/)
-! - - - Linkkf 애니 TV (https://linkkf.tckopke.com/)
+! - - - Linkkf 애니 TV (https://linkani.tv/)
 ###buffer
 ! - 동맹 글자
 !vod.tmall-kr.net##a.swiper-slide:nth-of-type(10)
