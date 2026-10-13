@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20738.0
+! Version: 2026.20738.1
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Mon Oct 12 14:32:12 UTC 2026
+! Updated: Tue Oct 13 00:11:40 UTC 2026
 
 ||mixtower.net^
 ||adflow.kr^
@@ -1987,6 +1987,8 @@ dpg.danawa.com###danawa-gnb-banner
 m.danawa.com##.goods-list__ad
 danawa.com###danawa_main_container > .main-top > .main-top__center > .main-middlebnr
 !
+search.naver.com###shp_dig_root ul[class] > li[data-slog-content]:has(a[href^="https://ader.naver.com/"])
+search.naver.com###rbp-main-section-root ul[class] > li:has(a[href^="https://ader.naver.com/"])
 aniweek.com,ani.ohli24.com##.banner-area-main
 linkani.tv##.linktv-banners
 ssg.com##ul > li:has(> div[data-react-advert-yn="Y"])
