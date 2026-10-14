@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20739.1
+! Version: 2026.20739.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Tue Oct 13 22:18:59 UTC 2026
+! Updated: Wed Oct 14 03:42:33 UTC 2026
 
 ||mixtower.net^
 ||adflow.kr^
@@ -3415,6 +3415,7 @@ kio.ac##main > div:has(> div > div > a > img)
 !
 ! DOMAIN-REFRESHER: START
 !
+1465544.xyz###overlay
 tvchak.live##.banner-box
 aniya24.com##.popup-container
 sutom.org##div[data-id="9429d5d"]
@@ -3904,6 +3905,7 @@ kilho.net##+js(set, hahaha, noopFunc)
 !
 ! DOMAIN-REFRESHER: START
 !
+watchfreejavonline.co##+js(prevent-window-open, !watchfreejavonline.co)
 cokcok.stream##+js(trusted-replace-node-text, script, '/const *_[a-z0-9]+ *= *{ *"media_file" *: *" *https:\\\/\\\/cdn[0-9]+\.cokcok\.[a-z0-9]+\\\/assets\\\/videos\\\/.+"click_through" *:.+};/', media_file, '')
 ! aglint-disable-next-line
 /lover[0-9]\.net/##+js(aeld, click, 'opMagic)
