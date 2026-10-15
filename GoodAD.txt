@@ -3910,7 +3910,7 @@ news2day.co.kr##.ui-draggable.modal-content
 !  끄투게임즈코리아 (https://kkutugame.kr/)
 ! - 기타
 ! - - - https://kkutugame.kr/js/adblock-gate.js?v=20261009-brand-restored-1  //  https://kkutugame.kr/css/adblock-gate.css?v=20261004-1
-
+^adblock-
 !- 예외 - googleusercontent.com - https://s2.googleusercontent.com/s2/favicons?domain=adblock-tester.com
 @@||^adblock-$domain=googleusercontent.com
 
