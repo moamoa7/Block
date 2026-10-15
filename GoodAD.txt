@@ -100,6 +100,10 @@ lineup11.net,cgv.co.kr##html, body:style(overflow: auto !important; overflow-y: 
 #@#img[width="0"][height="0"]
 
 
+! 아이콘 차단 방지
+@@||*/favicon
+
+
 ! ───── WebSocket 연결은 removeparam 예외 ─────
 ! - - - 애드가드에서만 작동함
 !@@|wss://$removeparam
@@ -3912,7 +3916,7 @@ news2day.co.kr##.ui-draggable.modal-content
 ! - - - https://kkutugame.kr/js/adblock-gate.js?v=20261009-brand-restored-1  //  https://kkutugame.kr/css/adblock-gate.css?v=20261004-1
 ^adblock-
 !- 예외 - https://trand.co.kr/ - https://s2.googleusercontent.com/s2/favicons?domain=adblock-tester.com
-@@||^adblock-$domain=trand.co.kr
+!@@||^adblock-$domain=trand.co.kr
 
 
 
