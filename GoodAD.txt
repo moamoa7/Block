@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261013
+! Version: 20261015
 !
 !
 !
@@ -3910,8 +3910,9 @@ news2day.co.kr##.ui-draggable.modal-content
 !  끄투게임즈코리아 (https://kkutugame.kr/)
 ! - 기타
 ! - - - https://kkutugame.kr/js/adblock-gate.js?v=20261009-brand-restored-1  //  https://kkutugame.kr/css/adblock-gate.css?v=20261004-1
-^adblock-
 
+!- 예외 - googleusercontent.com - https://s2.googleusercontent.com/s2/favicons?domain=adblock-tester.com
+@@||^adblock-$domain=googleusercontent.com
 
 
 
@@ -3942,7 +3943,7 @@ news2day.co.kr##.ui-draggable.modal-content
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki53.net/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki54.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/) - 메인주소로 접속하면 구글로 이동됨 / https://tvhot2.com/drama 와 같이 디렉토리로 이동해야함
 ! - 팝업 제거
@@ -4039,6 +4040,8 @@ news2day.co.kr##.ui-draggable.modal-content
 ||player.bunny-frame.online/player/api/beacon.php
 ! - 개발자 도구(DevTools) 감지 및 차단 기능을 담당하는 JavaScript
 */devtool-gate.js
+! - 광고 차단 - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
+bunny-frame.online##+js(set-constant, TVP_CONFIG.banner, undefined)
 !
 !
 !
@@ -8438,7 +8441,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !@@||*/ads*$domain=login.coupang.com
 !
 !
-! 티비위키 / 티비몬 / 티비핫
+! 티비위키 / 티비몬 / 티비핫 - https://player.bunny-frame.online/js/ad_fetcher.js?v=1789073195
 ! 디시인사이드 - https://gall.dcinside.com/_js/ad_audit.js?v=생략
 ! 풍투데이
 ! 조선에듀
@@ -8626,15 +8629,16 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! 야동존 (https://xxzone29.top/) - /hls/
 ! https://www.zibenstore.com/ - review
 !  야동파티 (https://yadongparty2.com/) - /v1/Yl/player/
+! https://s26.watchfreejavonline.co/ - src="/?v="
 ! - 네이버 뉴스 기사 오른쪽 다른 언론사 보기 팝업 사라지는거 그냥 둘 것
-##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"]):not([src*="onet.php"]):not([src*="avatar"]):not([src*="/board/"]):not([src*="sign"]):not([src*="media.fmkorea.com"]):not([src*="/wpsview?"]):not([src*="/v3"]):not([src*="extension"]):not([src*="/hls/"]):not([src*="review"]):not([src*="/v1/Yl/player/"])
+##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"]):not([src*="onet.php"]):not([src*="avatar"]):not([src*="/board/"]):not([src*="sign"]):not([src*="media.fmkorea.com"]):not([src*="/wpsview?"]):not([src*="/v3"]):not([src*="extension"]):not([src*="/hls/"]):not([src*="review"]):not([src*="/v1/Yl/player/"]):not([src*="/?v="])
 !
 ! 예외
 ! https://www.itworld.co.kr/ - src="about:blank" - 스크롤 문제로 해결
 ! https://fd2ppv.cc/ - src 없음
 ! https://mail3.nate.com/ - class="_nmContent" - :not([src*="content"])로 하면 일부 프레임이 해제되서 예외로 별도 처리
 ! https://safe.sur.ly/
-fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"]):not([src*="onet.php"]):not([src*="avatar"]):not([src*="/board/"]):not([src*="sign"]):not([src*="media.fmkorea.com"]):not([src*="/wpsview?"]):not([src*="/v3"]):not([src*="extension"]):not([src*="/hls/"]):not([src*="review"])
+fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"]):not([src*="onet.php"]):not([src*="avatar"]):not([src*="/board/"]):not([src*="sign"]):not([src*="media.fmkorea.com"]):not([src*="/wpsview?"]):not([src*="/v3"]):not([src*="extension"]):not([src*="/hls/"]):not([src*="review"]):not([src*="/?v="])
 !
 !
 !
@@ -9078,7 +9082,8 @@ chicle.oshizi.com#@#[class^="ad-"]:not(body):not(html):not(main):not([class^="ad
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! https://video.fc2.com/ - 메인 일부 사라짐
-video.fc2.com#@#[class$="-ad"]:not(body):not(html):not(main)
+! 티비위키내
+player.bunny-frame.online,video.fc2.com#@#[class$="-ad"]:not(body):not(html):not(main)
 !
 !
 !
@@ -9144,6 +9149,9 @@ javgiga.com#@#[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"]):
 !
 ! https://damoang.net/ - row 제외 -> 모바일에서 일부 빈공간이 발생하나 이걸 안하면 PC에서는 작성자 최근활동이 안보여서 그냥 두기로 함
 ##[class*="-ad-"]:not(body):not(html):not(main):not([class*="-ad-row"]):not([class*="-ad-banner"]):not([class*="-ad-banners"])
+!
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+player.bunny-frame.online#@#[class*="-ad-"]:not(body):not(html):not(main):not([class*="-ad-row"]):not([class*="-ad-banner"]):not([class*="-ad-banners"])
 !
 !
 ##[class*="_ad_"]:not(body):not(html):not(main):not([class*="_ad"]):not([class*="ad_"])
