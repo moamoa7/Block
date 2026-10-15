@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20740.5
+! Version: 2026.20741.1
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Thu Oct 15 03:24:04 UTC 2026
+! Updated: Thu Oct 15 10:55:12 UTC 2026
 
 ||mixtower.net^
 ||adflow.kr^
@@ -711,6 +711,8 @@ nightofpeace.com,ilovebees.io##.e-grid.e-con-full.e-con.e-child:has(a[target="_b
 /^https?:\/\/[a-z0-9-\.]*[a-z0-9-]+\.[a-z]+\/RealMedia\/ads\//
 /data/banner.json?$domain=~nintendo.*
 
+! naver.com
+||ssl.pstatic.net/sstatic/fe/sfe/whale-dl-banner/$script,domain=search.naver.com
 ! danawa.com
 ||search.danawa.com/js/elevenStAd.min.js
 ||img.danawa.com/img/m/prod/ajungdang_banner/
@@ -1973,7 +1975,6 @@ pre.land.naver.com##.mapContainer > div[class^="home-module__"] > div[class$="__
 search.naver.com###place-main-section-root ul[class] > li[data-laim-exp-id]:has(a[href^="https://ader.naver.com/"])
 search.naver.com###shp_dig_root ul[class] > li[data-slog-content]:has(a[href^="https://ader.naver.com/"])
 search.naver.com###rbp-main-section-root ul[class] > li:has(a[href^="https://ader.naver.com/"])
-search.naver.com###header_wrap.type_whale_banner > .api_floating_header > .ban_whale_wrap
 m.sports.naver.com###sports_lnb_sub > ul > li[data-menu-id="fconline"]
 m.sports.naver.com###sports_placard_top
 land.naver.com###presale_news_list
