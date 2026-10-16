@@ -8832,15 +8832,15 @@ womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banne
 ##[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner--" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! https://atlantak.com/
+! https://atlantak.com/ - 본문 일부 사라짐
 ! 거지맵 - 상단 스토어 받는거 사라지는거 방지
-xn--v69ak0xskm.com,atlantak.com#@#[class*="-banner-" i]:not(body):not(html):not(main)
+xn--v69ak0xskm.com,atlantak.com#@#[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner--" i])
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
-! https://s7.kav.so/ - 본문 안보임
+! https://s15.kav.so/ - 본문 안보임
 ! 야동25 (https://kr13.noonatv.com/) - 플레이어 사라짐 - 접속 불가?
-/noonatv|kav.so/#@#[class*="-banner-" i]:not(body):not(html):not(main)
+!/noonatv|kav.so/#@#[class*="-banner-" i]:not(body):not(html):not(main)
 !
 !
 !
