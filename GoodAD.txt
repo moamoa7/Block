@@ -2534,7 +2534,8 @@ web.joongna.com##.max-md\:gap-3
 @@||bananamall.co.kr^$generichide
 ! - 팝업 (PC/모바일)
 ! - - - 도도걸 (https://dodogirl9.com/)
-/dodogirl|bananamall/##[id*="-popup-" i]
+! - - - 다크걸 (https://darkg22.com/)
+/dodogirl|darkg|bananamall/##[id*="-popup-" i]
 ! - 팝업 왼쪽
 !bananamall.co.kr##.ui-draggable
 ! - 팝업 오른쪽
@@ -6611,7 +6612,7 @@ sexygirl.cc##div[class*="overflow-auto"]
 !@@||mmaxx*.com/img/*$image
 !
 !
-! 다크걸 (https://darkgirl-juso.com/) (https://www.darktt.com/) (https://darkg17.com/)
+! 다크걸 (https://darkgirl-juso.com/) (https://www.darktt.com/) (https://darkg22.com/)
 ! - 전체 배너
 ! - - - 도도걸 (https://ggdodo.com/) (https://dodogirl9.com/)
 ! - - - 야동닷컴 (https://ydong.net/ (https://yadong10.com/)
@@ -8633,7 +8634,7 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! https://www.zibenstore.com/ - review
 !  야동파티 (https://yadongparty2.com/) - /v1/Yl/player/
 ! https://s26.watchfreejavonline.co/ - src="/?v="
-! 도도걸 (https://dodogirl9.com/) - src="/player.html?src=
+! 도도걸 (https://dodogirl9.com/) // 다크걸 (https://darkg22.com/) - src="/player.html?src=
 ! - 네이버 뉴스 기사 오른쪽 다른 언론사 보기 팝업 사라지는거 그냥 둘 것
 ##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="embed"]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"]):not([src*="onet.php"]):not([src*="avatar"]):not([src*="/board/"]):not([src*="sign"]):not([src*="media.fmkorea.com"]):not([src*="/wpsview?"]):not([src*="/v3"]):not([src*="extension"]):not([src*="/hls/"]):not([src*="review"]):not([src*="/v1/Yl/player/"]):not([src*="/?v="]):not([src*="/player.html?src="])
 !
