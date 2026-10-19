@@ -988,8 +988,8 @@ dcinside.com##.refresher-toast
 gall.dcinside.com#@#.r_dcmedia
 ! - 디시이슈 댓글 이후 안보이게 하기
 !||ad-script.viewus.co.kr^
-! 갤러리 상단 메뉴 중 이벤트 링크
-gall.dcinside.com##[href*="event."]
+! 갤러리 상단 메뉴 / 디시이슈 중 이벤트 링크
+gall.dcinside.com,issuefeed.dcinside.com##[href*="event."]
 ! 갤러리 상단 메뉴 중 광고문의 링크
 gall.dcinside.com##[href*="ads."]
 ! - 기타
