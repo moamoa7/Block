@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261016
+! Version: 20261019
 !
 !
 !
@@ -3910,7 +3910,8 @@ news2day.co.kr##.ui-draggable.modal-content
 !
 ! 뉴닉 (https://newneek.co/)
 ! - 하단 구독 배너
-##[aria-label*="구독"]
+- - - 광역으로 처리시 배너성 아닌 것들의 버튼이 사라짐으로 개별 처리할것
+newneek.co##[aria-label*="구독"]
 !
 !
 !  끄투게임즈코리아 (https://kkutugame.kr/)
@@ -4397,7 +4398,7 @@ fabulouslink.xyz##.widget
 joatoon-oa.com##.bg-opacity-50
 !
 !
-! 엑스툰  XToon (https://엑스툰.com/) (https://뉴엑스툰.com/) (https://t3.xtoon365.com/) --> (https://newxtoon1.com/) 변경
+! 엑스툰  XToon (https://엑스툰.com/) (https://뉴엑스툰.com/) (https://t3.xtoon365.com/) --> (https://newxtoon2.com/) 변경
 ! - 팁
 ! - - - https://www.t66y.com/
 ##.f-tips, .tips
@@ -4776,6 +4777,8 @@ avsee.is#@#.tabs
 ! - - - https://supjav.com/
 ! - - - https://sextb.net/
 ##[class*="ad-placement"]
+! - 팝업 방지
+||ablelaunchshorts.com^$popup
 !
 !
 ! https://javplayer.org/
@@ -7793,7 +7796,7 @@ camconsole.com##div.clearfix.block:nth-of-type(2)
 ! Jav Guru (https://jav.guru/)
 ! - 기타
 ! - - - https://maxstream.org/js/pop.js
-/pop.js^$domain=~autohome.com.cn|~patch.ali213.net|~socpk.com
+*/pop.js^$domain=~socpk.com|~autohome.com.cn|~patch.ali213.net
 !||toodlerehouse.com^
 !
 !
@@ -8084,6 +8087,8 @@ $third-party,script,domain=klto9.com|f2movies.to|hacamchicac.com|yourporngod.com
 !
 ! https://pornavhd.com/
 ! - 기타
+! - - - https://supjav.com/
+! - - - - - https://evsishere.xyz/ad?type=860026470
 ! - - - - - https://playrecord.biz/ad?type=90500624031 (script)
 ! - - - .com/ad? 같은 규칙으로 보임 (javgiga.com)
 ! - - - - - https://morencius.com/ad?type=1345031904
@@ -8290,7 +8295,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! 조개무비 (https://v25.jogemovie.net/) - https://upnstreamlive.shop/hlsmod/p16-ad-site-sign-sg.tiktokcdn.com/rgtk4L0ovaRtMBAPBfgkQA/r81/ipljen8o/rafxdu/tt/master.m3u8?v=1766826492
 ! https://www.tiktok.com/
 ! https://sextb.net/  - US/PP영상
-! 뉴엑스툰 (https://newxtoon1.com/) - https://newxtoon1.com/build/assets/home-ad-popups-6UlIYRHN.js
+! 뉴엑스툰 (https://newxtoon2.com/) - https://newxtoon2.com/build/assets/home-ad-popups-6UlIYRHN.js
 *-ad-*
 !
 ! - 예외
@@ -8350,6 +8355,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! AV플릭스 (https://kr5.avflix.co/) - https://kr5.avflix.co/api/v1/ad/config
 ! https://159i.net/ - https://sexy196.com/AD/?FID=1654753&X=1&Y=3&TYPE=3&CHANNEL=R52
 ! 이토랜드 - 스포츠룰렛 - https://etoland.co.kr/v1/squidland/play/1/ad
+! supjav - 	https://a.eix304.com/ad?spotid=
 !*/ad/*
 ! - 예외
 !@@*/ad/*$css
@@ -8359,8 +8365,9 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ^ad^
 @@^ad^$css
 ! - - - https://123av.com/ - 커버 이미지 안보임
+! - - - https://sextb.net/ - f4scdn.com - 영상 재생 불가로 해제 - https://f4scdn.com/api/play/01a104e6-9f55-7a1c-a423-225b31c026e9?ab=0&ad=0&r=https%3A%2F%2Fsextb.net%2F
 @@^ad^*/cover.jpg
-@@^ad^$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com|weekly.donga.com|github.com|etoland.co.kr
+@@^ad^$domain=avsee.is|linkareer.com|auction.co.kr|www.nate.com|weekly.donga.com|github.com|etoland.co.kr|f4scdn.com
 !
 !
 ! 치지직
@@ -8822,7 +8829,8 @@ womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banne
 ! 펀비 (https://funbe680.com/)
 ! 주소월드 (https://wdwd14.com/)
 ! 주소핑 (https://jusoping7.com/)
-/toonkor|jusoping|funbe|wdwd|koreasite/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+! https://sextb.net/ - f4scdn.com - Ad blocker detected 나와서 해제
+/f4scdn|toonkor|jusoping|funbe|wdwd|koreasite/#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 !
 !
@@ -9132,6 +9140,12 @@ javgiga.com#@#[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"]):
 ! 구글 - class="tile_M6Boq type:ImageTile module_Ad1it" -- _Ad 제외
 ##[class*="_ad"]:not(body):not(html):not(main):not([class*="_ads"]):not([class*="_ad_"]):not([class$="_ad"]):not([class*="_add"]):not([class*="_admin"]):not([class*="afs_ads"]):not([class*="_adult"]):not([class*="_adblock"]):not([class*="_adguard"]):not([class*="_pad_"])
 !
+! - 주소 변경이나 사라질  가능성이 낮은 도메인들
+!
+! - 주소 변경이나 사라질  가능성이 높은 도메인들
+! https://sextb.net/ - f4scdn.com - Ad blocker detected 나와서 해제
+f4scdn.com#@#[class*="_ad"]:not(body):not(html):not(main):not([class*="_ads"]):not([class*="_ad_"]):not([class$="_ad"]):not([class*="_add"]):not([class*="_admin"]):not([class*="afs_ads"]):not([class*="_adult"]):not([class*="_adblock"]):not([class*="_adguard"]):not([class*="_pad_"])
+!
 !
 !
 ! https://hatzze.fun/ - head-ad 제외
@@ -9156,7 +9170,8 @@ javgiga.com#@#[class*="-ad"]:not(body):not(html):not(main):not([class*="-ad-"]):
 ##[class*="-ad-"]:not(body):not(html):not(main):not([class*="-ad-row"]):not([class*="-ad-banner"]):not([class*="-ad-banners"])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-player.bunny-frame.online#@#[class*="-ad-"]:not(body):not(html):not(main):not([class*="-ad-row"]):not([class*="-ad-banner"]):not([class*="-ad-banners"])
+! - https://supjav.com/ - luminscdn.xyz - Disable Adblock and Click Allow Pop-up Always to watch this video ! 로 인해 해제
+luminscdn.xyz,player.bunny-frame.online#@#[class*="-ad-"]:not(body):not(html):not(main):not([class*="-ad-row"]):not([class*="-ad-banner"]):not([class*="-ad-banners"])
 !
 !
 ##[class*="_ad_"]:not(body):not(html):not(main):not([class*="_ad"]):not([class*="ad_"])
@@ -9176,7 +9191,8 @@ player.bunny-frame.online#@#[class*="-ad-"]:not(body):not(html):not(main):not([c
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! - https://platinmods.com/ - PMP UPDATES 개별목록시 본문 사라짐
 ! - https://www.up-4ever.net/
-up-4ever.net,platinmods.com#@#[class*="ads"]:not(body):not(html):not(main):not([class*="player"]):not([class*="loads"]):not([class*="source"]):not([class*="adsby"]):not([class*="banner-ads"]):not([class*="adskip"]):not([class*="afs_ads"]):not([class="allow_ads--button"]):not([class*="headset"])
+! - https://supjav.com/ - luminscdn.xyz - Disable Adblock and Click Allow Pop-up Always to watch this video ! 로 인해 해제
+luminscdn.xyz,up-4ever.net,platinmods.com#@#[class*="ads"]:not(body):not(html):not(main):not([class*="player"]):not([class*="loads"]):not([class*="source"]):not([class*="adsby"]):not([class*="banner-ads"]):not([class*="adskip"]):not([class*="afs_ads"]):not([class="allow_ads--button"]):not([class*="headset"])
 !
 !
 !
