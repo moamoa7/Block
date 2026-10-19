@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261019
+! Version: 20261020
 !
 !
 !
@@ -988,6 +988,10 @@ dcinside.com##.refresher-toast
 gall.dcinside.com#@#.r_dcmedia
 ! - 디시이슈 댓글 이후 안보이게 하기
 !||ad-script.viewus.co.kr^
+! 갤러리 상단 메뉴 중 이벤트 링크
+gall.dcinside.com##[href*="event."]
+! 갤러리 상단 메뉴 중 광고문의 링크
+gall.dcinside.com##[href*="ads."]
 ! - 기타
 !/third*cookie/*
 !
@@ -3083,6 +3087,8 @@ mimint.co.kr##[class="media-container"]>iframe
 !mimint.co.kr###soop_player_video
 ! - 모바일 맨 밑 하단 고정되어있는 흰색 네모박스
 m.mimint.co.kr###anchor-layer
+! - 개별 게시물 관람시 오른쪽 항목 중 이벤트
+mimint.co.kr##[id="rightevent" i]
 !
 !
 ! SSG (https://www.ssg.com/)
