@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20748.0
+! Version: 2026.20748.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Thu Oct 22 11:13:30 UTC 2026
+! Updated: Thu Oct 22 16:41:36 UTC 2026
 
 ||mixtower.net^
 ||adflow.kr^
@@ -2009,6 +2009,8 @@ dpg.danawa.com###danawa-gnb-banner
 m.danawa.com##.goods-list__ad
 danawa.com###danawa_main_container > .main-top > .main-top__center > .main-middlebnr
 !
+search.11st.co.kr##div[data-ui-type="ProductScroll_BrandAd"]
+search.11st.co.kr##ul#arChipPaneldefault > li.c-card-item--ad
 search.11st.co.kr##ul[data-ui-type="Product_List_Search"]:has(> li[id^="topAdArea1-"])
 search.11st.co.kr##div[data-ui-type="Cap_Box_SearchTitle"]:has(button.c-ad__btn)
 search.11st.co.kr###section_officialSellerAd
@@ -2665,7 +2667,6 @@ search.zum.com##.naver_power_shopping
 search.zum.com##[class*="sponsor"]
 bloter.net##.respons-edit > div[style^="width:"].float-right
 newspim.com###news-contents div[style*="margin:"]
-11st.co.kr##[data-log-actionid-area^="focus_"]
 search.11st.co.kr##.search_content > section[data-log-actionid-area="power"]
 11st.co.kr##div[data-log-actionid-area="adplusling"]
 11st.co.kr##.review_list_element > .c_review_recommend
