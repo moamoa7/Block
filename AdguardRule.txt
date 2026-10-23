@@ -4,7 +4,7 @@
 ! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261015
+! Version: 20261023
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
@@ -73,6 +73,7 @@
 @@||nc.com^$stealth=dpi
 @@||nexon.com^$stealth=dpi
 @@||nonghyup.com^$stealth=dpi
+@@||onstove.com^$stealth=dpi
 @@||plaync.com^$stealth=dpi
 @@||postype.com^$stealth=push
 @@||reddit.com^$stealth=push
