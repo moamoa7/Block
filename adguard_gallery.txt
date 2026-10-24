@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.10.23.0
-! TimeUpdated: 2026-10-23T06:31:36+00:00
+! Version: 2026.10.24.0
+! TimeUpdated: 2026-10-24T07:19:41+00:00
 ! Description: AdGuard, uBlock Origin, Unicorn Pro, wBlock, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -405,7 +405,7 @@ $@$link[rel="manifest"]
 @@*sb.com^$stealth=dpi
 @@*store.com^$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:bank|stock|invest|coin|pay|mobile|card|post|logi|financ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|ung|account|udi|busan|speed|convert|tool|auth|login)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|ung|account|udi|busan|convert|tool|auth|login)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|han|insure|direct|soft|point|cash|time)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:pdf|phone|info|tech|monitor|office|text|style)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:savings|cruit|event|talent|energy|test|check|scan)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
