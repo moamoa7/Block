@@ -2038,11 +2038,6 @@ www.donga.com#@#[class*="ad_"] [style]
 !@@/ad.$domain=hankyung.com
 !@@*banner*$domain=hankyung.com
 !hankyung.com#@#[class*="top-banner" i]
-! - 기타
-/tracking.js^$script
-! - 예외
-! - - - https://www.tokenpost.kr/ - 상단 메뉴 클릭시 메뉴 안나옴
-@@/tracking.js^$script,domain=tokenpost.kr
 !
 !
 ! 한국일보 (https://www.hankookilbo.com/)
