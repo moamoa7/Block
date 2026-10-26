@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261020
+! Version: 20261026
 !
 !
 !
@@ -128,7 +128,7 @@ lineup11.net,cgv.co.kr##html, body:style(overflow: auto !important; overflow-y: 
 !
 !
 ! - 내가 어떤 사이트에 있든, 광고 회사나 추적 서버로 내 클릭 정보를 몰래 전송하는 모든 백그라운드 핑(Ping) 통신을 원천 봉쇄해라 (EasyPrivacy)
-!*$ping,3p
+*$ping,3p
 !
 !
 ! - Google의 클릭 추적 기능을 무력화
@@ -156,6 +156,7 @@ lineup11.net,cgv.co.kr##html, body:style(overflow: auto !important; overflow-y: 
 ||www.gstatic.com/delight/srp/*
 ! EasyPrivacy
 !/collect?v=
+^collect^
 ! - 기타
 !/gen_204^
 !||accounts.google.com/gsi/log
@@ -285,6 +286,8 @@ thecall.co.kr#@#[id*="adsense" i]
 !
 !
 ! GitHub (https://github.com/)
+! - 기타
+||collector.github.com^
 !
 !
 !
@@ -368,6 +371,8 @@ mypikpak.com##.operation-container
 ! - 기타
 ! - - - https://mypikpak.com/pikcloud/BWpG6vT5.js
 /bwp*js
+! - https://rcv5-sp.mypikpak.com/api/stat/~
+^stat^
 !
 !
 ! 네이버 (https://www.naver.com/)
@@ -710,6 +715,8 @@ sooplive.com##+js(no-fetch-if, check_new_ad)
 /banner.php$domain=~research.hchs.hc.edu.tw
 ! - 메인 , https://play.sooplive.com/ ,  https://vod.sooplive.com/ - https://static.file.sooplive.com/pc/ko_KR/main_lnb_banner.js?=생략
 banner.js^
+! - 챗창내 이 방송 마음에 드셨나요? 즐겨찾기하고 다음 방송도 놓치지 마세요! 즐겨찾기 추가
+sooplive.com##.on.chat_induce_layer
 !
 !
 ! 시네티 (https://cinety.sooplive.com/)
@@ -814,6 +821,18 @@ www.twitch.tv###twilight-sticky-footer-root
 !www.twitch.tv##div[data-a-target=player-controls]:style(background:unset!important)
 ! - 확장 프로그램 차단
 twitch.tv##[class*="extensions" i]
+! - 기타
+||player.stats.live-video.net^$xhr
+! - 기타 (EasyPrivacy)
+! - - - player.twitch.tv
+! - - - - - https://o278969.ingest.us.sentry.io/api/1517394/envelope/?sentry_version=
+! - - - https://toon.at/
+! - - - - - https://o4509036630376448.ingest.us.sentry.io/api/4509036631162880/envelope/?sentry_version=
+! - - - https://sukebei.nyaa.si/
+! - - - - https://o4504926511693824.ingest.us.sentry.io/api/4504926515298304/envelope/?sentry_version=
+||sentry.io^$3p
+! - 기타
+||scorecardresearch.com^
 !
 !
 ! 킥 (https://kick.com/)
@@ -989,9 +1008,9 @@ gall.dcinside.com#@#.r_dcmedia
 ! - 디시이슈 댓글 이후 안보이게 하기
 !||ad-script.viewus.co.kr^
 ! 갤러리 상단 메뉴 / 디시이슈 중 이벤트 링크
-gall.dcinside.com,issuefeed.dcinside.com##[href*="event."]
+dcinside.com##[href*="event."]
 ! 갤러리 상단 메뉴 중 광고문의 링크
-gall.dcinside.com##[href*="ads."]
+dcinside.com##[href*="ads."]
 ! - 기타
 !/third*cookie/*
 !
@@ -3956,7 +3975,7 @@ newneek.co##[aria-label*="구독"]
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki54.net/)
+! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki55.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/) - 메인주소로 접속하면 구글로 이동됨 / https://tvhot2.com/drama 와 같이 디렉토리로 이동해야함
 ! - 팝업 제거
@@ -4058,7 +4077,7 @@ bunny-frame.online##+js(set-constant, TVP_CONFIG.banner, undefined)
 !
 !
 !
-! 야동코리아 (https://t.me/s/yadongkorea_ch)  (http://야동코리아평생주소.com/) (https://yadongkorea2.com/)
+! 야동코리아 (https://t.me/s/yadongkorea_ch)  (http://야동코리아평생주소.com/) (https://yadongkorea7.com/)
 ! - 팝업 차단 방지
 ||hearheart.com^$popup
 !
@@ -4624,7 +4643,7 @@ joatoon-oa.com##.bg-opacity-50
 !
 !
 ! 링크비비기 (https://linkbbg5.com/) - 없어짐?
-! - - - 엑스비비기 (https://linkbbg.xbbg.tv/) (https://38.xbbg.tv/) - 영상 안됨
+! - - - 엑스비비기 (https://linkbbg.xbbg.tv/) (https://42.xbbg.tv/) - 영상 안됨
 ! - - - 온도티비 ((https://ondo.ondotv.com/) (https://18.ondotv.com/)
 ! - - - 온도애니 (https://ondo.ondoani.com/) (https://19.ondoani.com/)
 ! - - - 온도툰 (https://ondo.ondotoon.com/) (https://23.ondotoon.com/)
@@ -4685,7 +4704,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - 비슷한 규칙 (이거 더 많이 곳에 적용)
 ! - - - 오늘의 중계 (https://today-sports12.com/)
 ! - - - 야동망고 (https://mango57.com/)
-! - - -  밍키넷 (https://mingky11.com/)
+! - - -  밍키넷 (https://mingky16.com/)
 !##[target='_blank']:has([src*='.gif'])
 !##[target='_blank']:has([src$='.gif'])
 ! - - - - - 예외
@@ -5951,7 +5970,7 @@ javmov.com##.spot
 !
 ! 색색티비 (https://kr555.mysstv.com/) - 영상 재생 안됨?
 ! - 팝업
-! - - - 야스닷컴 (https://yasyadong03.tv/) - 팝업
+! - - - 야스닷컴 (https://yasyadong04.tv/) - 팝업
 ##[id*="-layer" i]
 ! - 예외 - https://ivfree.asia/ - 왼쪽 달력
 ivfree.asia#@#[id*="-layer" i]
@@ -6197,7 +6216,7 @@ fc2db.net,dmm.ppvdb.com#@#div[class*="border"]:has(> a[href][target*="_blank"] i
 !minochinos.com,turbovidhls.com#@#[class*="floating" i]
 !
 !
-! 야동위키 (https://hanyasa.com/) -> (https://19wiki12.com/)
+! 야동위키 (https://hanyasa.com/) -> (https://19wiki14.com/)
 ! - 상단 배너 / 영상 하단 배너 공간
 !hanyasa.com##.gofollow
 !
@@ -6448,7 +6467,7 @@ sexygirl.cc##div[class*="overflow-auto"]
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 야동투어 (https://야동투어.com/) (https://ydtour79.sbs/) - /p2p* 해제해야 영상재생 가능
+! 야동투어 (https://야동투어.com/) (https://ydtour84.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
 !##[id*="-ads" i]
@@ -6502,7 +6521,9 @@ sexygirl.cc##div[class*="overflow-auto"]
 ##[class^="videoad" i]
 !
 !
-! 밍키넷 (https://밍키넷주소.com/) (https://mingky11.com/)
+! 밍키넷 (https://밍키넷주소.com/) (https://mingky16.com/)
+! - 팝업
+/mingky/##[id*="-popup-" i]
 ! - 배너 이미지
 ||img.imagedive.net/assets/*
 ! - 배너 공간
@@ -6753,7 +6774,7 @@ of996.com##[class*="-fixed-" i]
 ! - - - 인생도박 (https://dblife01.com/)
 ! - - - 주소야 (https://jusoya.com/) --> https://jusoya114.com/ 변경
 ! - - - 토렌트쓱 (https://ssg1.torrentssg9.com/)
-! - - - 엑스비비기 (https://38.xbbg.tv/)
+! - - - 엑스비비기 (https://42.xbbg.tv/)
 ! - - - 온도티비 (https://18.ondotv.com/)
 ! - - - 온도애니 (https://19.ondoani.com/)
 ! - - - 온도툰 (https://23.ondotoon.com/)
@@ -7377,10 +7398,10 @@ litt.ly#@#[href*="link.coupang.com"]
 ! - 팝업
 rou.video##div[role="dialog"]
 ! - 배너
-! - - - 야동투어 (https://ydtour79.sbs/) - 일부 배너 이미지
+! - - - 야동투어 (https://ydtour84.sbs/) - 일부 배너 이미지
 ! - - - 냥티비 (https://nortv95.com/) - 일부 배너 이미지
-! - - - 엑스비비기 (https://38.xbbg.tv/) - 일부 배너 이미지
-! - - - 온도티비 (https://18.ondotv.com/) - 일부 배너 이미지
+! - - - 엑스비비기 (https://42.xbbg.tv/) - 일부 배너 이미지
+! - - - 온도티비 (https://23.ondotv.com/) - 일부 배너 이미지
 ! - - - 온도애니 (https://19.ondoani.com/) - 일부 배너 이미지
 ! - - - 온도툰 (https://23.ondotoon.com/) - 일부 배너 이미지
 ! - - - 온도마나 (https://21.ondomana.com/) - 일부 배너 이미지
@@ -7834,7 +7855,7 @@ modsfire.com##[data-mf-placement]
 !||shield.sitelock.com^
 !
 !
-! 야스닷컴 (https://yasyadong03.tv/)
+! 야스닷컴 (https://yasyadong04.tv/)
 ! - 팝업
 !##body > script:not([src]) ~ #layui-layer-shade1
 !##body > script:not([src]) ~ #layui-layer1
@@ -8048,7 +8069,6 @@ jable.tv##[class*="video"]:has([href*="banner"])
 ! - 기타
 !/pop-under.
 !/^https?:\/\/[a-z0-9]{7,40}\.com\/([^\s]{350,400}|[a-z0-9]{8,10}(\?[a-z]{3,5}=.*)?|[a-z?]{13,}=[^\s]+)[?&]key=[a-f0-9]{32}/$important,popunder,popup
-!/stat^
 !
 !
 ! https://javbar.com/
@@ -8588,6 +8608,8 @@ ohmynews.com#@#[class*="sponsor" i]:not(body):not(html):not(main)
 !/extension.
 ! 트위치 - https://extensions-discovery-images.twitch.tv/d4uvtfdr04uq6raoenvj7m86gdk16v/2.2.41/logo9ddb9aba-c647-4e34-900e-7b488d158a00
 !@@^extension$image
+! - 예외 - sukebei.nyaa.si - 픽팍으로의 연결 차단 방지
+@@^extension$domain=sukebei.nyaa.si
 !
 !
 !
@@ -8671,6 +8693,8 @@ fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):no
 ! - 다른규칙과 함께 사용허면 이 규칙이 안보일 수 있음
 !##iframe[style*="z-index: 2147483647"]
 ##iframe[style*="z-index"]
+! - 예외 - sukebei.nyaa.si - 픽팍으로의 연결 차단 방지
+sukebei.nyaa.si#@#iframe[style*="z-index"]
 !
 !
 !
@@ -8948,7 +8972,7 @@ hungryapp.co.kr,hungapp.com,www.korea.com#@#[id*="banner" i]:not(body):not(html)
 !
 !
 !
-! 엑스비비기 (https://38.xbbg.tv/) - 배너
+! 엑스비비기 (https://42.xbbg.tv/) - 배너
 ! 온도티비 (https://18.ondotv.com/) - 배너
 ! 온도애니 (https://19.ondoani.com/) - 배너
 ! 온도툰 (https://23.ondotoon.com/) - 배너
