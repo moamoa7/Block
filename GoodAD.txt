@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261026
+! Version: 20261027
 !
 !
 !
@@ -717,6 +717,8 @@ sooplive.com##+js(no-fetch-if, check_new_ad)
 banner.js^
 ! - 챗창내 이 방송 마음에 드셨나요? 즐겨찾기하고 다음 방송도 놓치지 마세요! 즐겨찾기 추가
 sooplive.com##.on.chat_induce_layer
+! - 브라우저 권한 차단 안내  고화질 스트리머 연결이 차단되었습니다.  브라우저 설정에서 권한을 다시 허용해 주세요. 해제
+sooplive.com##.dimed._Modal_UI_Wrap
 !
 !
 ! 시네티 (https://cinety.sooplive.com/)
@@ -2038,6 +2040,9 @@ www.donga.com#@#[class*="ad_"] [style]
 !hankyung.com#@#[class*="top-banner" i]
 ! - 기타
 /tracking.js^$script
+! - 예외
+! - - - https://www.tokenpost.kr/ - 상단 메뉴 클릭시 메뉴 안나옴
+@@/tracking.js^$script,domain=tokenpost.kr
 !
 !
 ! 한국일보 (https://www.hankookilbo.com/)
@@ -2394,7 +2399,9 @@ enter.etoday.co.kr##[style*="height:200px"]
 !
 !
 ! 쿠팡 (https://www.coupang.com/)
-@@||coupang.com^$generichide,image,xhr
+@@||coupang.com^$generichide,domain=coupang.com
+||coupang.com^$image,xhr
+@@||coupang.com^$image,xhr,domain=coupang.com
 ! - 광고 도메인 차단 (DNS에서 차단하는지 확인 후 등록 필요 / Adguard DNS에서는 기등록)
 !||mercury.coupang.com^
 ! - 메인 배너
@@ -3945,6 +3952,13 @@ newneek.co##[aria-label*="구독"]
 ^adblock-
 !- 예외 - https://trand.co.kr/ - https://s2.googleusercontent.com/s2/favicons?domain=adblock-tester.com
 !@@||^adblock-$domain=trand.co.kr
+!
+!
+! 토큰포스트 (https://www.tokenpost.kr/)
+! - 기타
+! - - - https://www.tokenpost.kr/assets/js/v5/adClick.js?r=20261020r8
+^adclick.
+
 
 
 
@@ -8785,6 +8799,8 @@ lezhinsnack.com#@#[target]:has([src*="/banner/" i]):not([class*="logo" i]):not([
 ! https://pickscore119.com/
 ! 콕티비 (https://coktv1.com/) - 메인 오른쪽 최상단 작은 배너
 ##div[style*="banner" i]:not(body):not(html):not(main)
+! - 예외 - https://www.teescanner.com/
+teescanner.com#@#div[style*="banner" i]:not(body):not(html):not(main)
 !
 !
 !
@@ -8851,7 +8867,8 @@ t-browser.com#@#[class*="banner-" i]:not(body):not(html):not(main):not([class*="
 ! 거지맵 (https://거지맵.com/) (https://xn--v69ak0xskm.com/)
 ! https://www.hankyung.com/ - 모바일에서 안보임
 ! https://www.womaneconomy.co.kr/ - banner 잘못 지워짐 수정 (상단 검색 부분 지워짐 방지)
-womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
+! https://www.teescanner.com/
+teescanner.com,womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#[class*="-banner" i]:not(body):not(html):not(main):not([class*="-banners" i]):not([class*="-banner-" i]):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="/logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !  https://www.koreasite.live/
