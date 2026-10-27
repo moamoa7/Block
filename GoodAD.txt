@@ -3953,6 +3953,11 @@ newneek.co##[aria-label*="구독"]
 ! - 기타
 ! - - - https://www.tokenpost.kr/assets/js/v5/adClick.js?r=20261020r8
 ^adclick.
+!
+!
+! 엑셀코스피 공식 사이트 - 엑셀 보는 척 주식 시세 보기 (https://excelkospi.pages.dev/)
+! - 광고
+##[data-xk-label="광고"]
 
 
 
@@ -4761,7 +4766,7 @@ avsee.is#@#.tabs
 ||jwpltx.com^
 !
 !
-! https://k01.aving.tv/ - avsee를 가져오는 사이트로 보임 - https://02.avovo.net/ 로 통합됨
+! https://k01.aving.tv/ - avsee를 가져오는 사이트로 보임 - https://03.avovo.net/ 로 통합됨
 ! - 영상 하단 공백? (PC - Suggested Toppics 위 세로줄 공간 / 모바일 - BEST RECOMMEND 위 비어잇는 공간)
 !aving.tv##.gap-lg-5
 ! - 팝업(새창) 방지 (AdGuard – Ad)
@@ -7494,7 +7499,7 @@ rou.video##.max-md\:col-span-full
 !popkontv.com#@#[class*="img-box" i]
 !
 !
-! AVovo (https://t.me/s/avovo_url) (https://02.avovo.tv/) (https://02.avovo.net/)
+! AVovo (https://t.me/s/avovo_url) (https://02.avovo.tv/) (https://03.avovo.net/)
 ! - 영상 재생 가능하게
 @@||play.cdnvplay.com^$ehide
 ! - 상단 배너 공간 (별도의 이미지가 아직 없는 공간)
@@ -7504,6 +7509,8 @@ rou.video##.max-md\:col-span-full
 ![$domain=/avovo/]##.h-auto.w-full
 ! - 아래 규칙을 하면 본문 일부가 삭제됨
 ![$domain=/avovo/]##a[rel*="noopener\ noreferrer"]
+! - 배너 공간 일부 잔챙이 남는거
+/avovo/##[class*="grid-cols"]
 !
 !
 ! Up-4ever (https://www.up-4ever.net/)
@@ -8658,7 +8665,7 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! 네이트 - 뉴스 댓글 :not([src*="/Comment/"])
 ! https://javsubs91.uk/ - :not([src*="/hgem.php?"])
 ! ||streamable.com - :not([src*="/o/"])
-! https://k01.aving.tv/ - :not([src*="/v.php?"]) - https://02.avovo.net/ 통합됨
+! https://k01.aving.tv/ - :not([src*="/v.php?"]) - https://03.avovo.net/ 통합됨
 ! missav (https://missvod8.com/) - src="https://av1.wandoo1.com/stream/getPlayer/326458"
 ! missav (https://dk370.com/) - :not([src*="/play.html?"])
 ! 인스타 - id="captcha-recaptcha"
@@ -9032,7 +9039,7 @@ philgo.com##[alt*="배너"]
 ! 위플랩 WEFLAB (https://weflab.com/)
 ! 캐나다 한국일보 (https://koreatimes.net)
 ! 냥티비 (https://nortv95.com/)
-! https://02.avovo.net/
+! https://03.avovo.net/
 ! 툰코 (https://toonkor3.org/)
 /toonkor|yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv|mtoon|avovo/##[target*="blank"] img
 !
