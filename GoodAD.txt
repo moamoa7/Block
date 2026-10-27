@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261027
+! Version: 20261028
 !
 !
 !
@@ -3958,6 +3958,11 @@ newneek.co##[aria-label*="구독"]
 ! 엑셀코스피 공식 사이트 - 엑셀 보는 척 주식 시세 보기 (https://excelkospi.pages.dev/)
 ! - 광고
 ##[data-xk-label="광고"]
+!
+!
+! 한국 글롷벌 뉴스 (https://kgfnews.com/)
+! - 기사 내 공백
+kgfnews.com##div[style]:has(>[class="adsbygoogle"]):not([class*="box"])
 
 
 
