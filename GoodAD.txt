@@ -3960,7 +3960,7 @@ newneek.co##[aria-label*="구독"]
 ##[data-xk-label="광고"]
 !
 !
-! 한국 글롷벌 뉴스 (https://kgfnews.com/)
+! 한국 글로벌 뉴스 (https://kgfnews.com/)
 ! - 기사 내 공백
 kgfnews.com##div[style]:has(>[class="adsbygoogle"]):not([class*="box"])
 
