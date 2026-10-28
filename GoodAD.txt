@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261028
+! Version: 20261029
 !
 !
 !
@@ -3963,6 +3963,11 @@ newneek.co##[aria-label*="구독"]
 ! 한국 글로벌 뉴스 (https://kgfnews.com/)
 ! - 기사 내 공백
 kgfnews.com##div[style]:has(>[class="adsbygoogle"]):not([class*="box"])
+!
+!
+! 쿨엔조이 (https://coolenjoy.net/)
+! - 베너 빈공간
+coolenjoy.net##[id*="carousel"]
 
 
 
@@ -8347,7 +8352,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 !
 ! - 예외
 @@-ad-$css
-@@-ad-$domain=nate.com|www.twitch.tv|youtube.com|tiktok.com
+@@-ad-$domain=nate.com|www.twitch.tv|youtube.com|tiktok.com|github.com
 !
 !
 ! https://platinmods.com/
