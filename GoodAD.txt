@@ -7111,12 +7111,18 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 ! - 배너
 ![$domain=/^dobaklife\d+.com/]##.col-sm-8
 ![$domain=/^dobaklife\d+.com/]##.col-sm-4
+/dblife/##[data-banners="top"]
 ! - - - 주소핑 (https://jusoping7.com/)
 !/dobaklife/##[class*="bg-black"]:has([href])
 ! - 안생도박 보증업체 테이블 (이미지)
 ![$domain=/^dobaklife\d+.com/]##.at-main.at-col.pull-right.col-md-9 > .widget-box-side2
+! - 메인 보증업체
+/dblife/##.md\:col-span-2
 ! - 게시물내 광고글
-/dblife/##[class="list-col"]:has-text(/포인트|보증/)
+!/dblife/##[class="list-col"]:has-text(/포인트|보증/)
+/dblife/##[class*="-shadow"]:has-text(/포인트|보증/)
+! - 링크 광고글
+/dblife/##li:has-text(/포인트|보증|먹튀/)
 !
 !
 ! 야동티비 (https://야동티비주소.org/) (https://빨간비디오.online/야코레드/) (https://yadongtv109.com/)
