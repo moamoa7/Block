@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261029
+! Version: 20261030
 !
 !
 !
@@ -9218,7 +9218,8 @@ f4scdn.com#@#[class*="_ad"]:not(body):not(html):not(main):not([class*="_ads"]):n
 ! https://etoland.co.kr/ - class="sad-count 제외
 ! ##[class*="ad-placement"]  이 규칙은 별도로 있으므로 제외
 ! https://vlxxtv.net/ - bad- 제외
-##[class*="ad-" i]:not(body):not(html):not(main):not([class*="-ad-"]):not([class^="ad-"]):not([class*="head-"]):not([class*="load-"]):not([class*="read-"]):not([class*="ad-placement"]):not([class*="pad-"]):not([class*="sad-count"]):not([class*="bad-"])
+! https://www.fomos.kr/ - class="broad-pick-main-body"
+##[class*="ad-" i]:not(body):not(html):not(main):not([class*="-ad-"]):not([class^="ad-"]):not([class*="head-"]):not([class*="load-"]):not([class*="read-"]):not([class*="ad-placement"]):not([class*="pad-"]):not([class*="sad-count"]):not([class*="bad-"]):not([class*="broad-"])
 !
 !
 !
