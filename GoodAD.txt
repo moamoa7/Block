@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261030
+! Version: 20261031
 !
 !
 !
@@ -168,6 +168,9 @@ lineup11.net,cgv.co.kr##html, body:style(overflow: auto !important; overflow-y: 
 !/gen204/*
 !||google.com/log^
 !/browserinfo?f.sid=$xhr
+! - 기타
+! - 팬더티비 (https://www.pandalive.co.kr/)
+/log^$xhr,from=~meet.google.com|~sigstore.dev|~backloggd.com
 !
 !
 ! 구글 광고 차단
@@ -824,6 +827,7 @@ www.twitch.tv###twilight-sticky-footer-root
 ! - 확장 프로그램 차단
 twitch.tv##[class*="extensions" i]
 ! - 기타
+! - - - 팬더티비 (https://www.pandalive.co.kr/)
 ||player.stats.live-video.net^$xhr
 ! - 기타 (EasyPrivacy)
 ! - - - player.twitch.tv
@@ -4858,8 +4862,6 @@ sextb.net##[style]:has([src*="a.magsrv.com"])
 !turboplayers.xyz,masukestin.com,hanerix.com#@#[class*="floating" i]
 ! - - - DNS 차단 해제 및 VPN도 별도 등록 필요
 !@@||turboplays.click^
-! - 기타
-/log^$xhr,from=~meet.google.com|~sigstore.dev|~backloggd.com
 !
 !
 ! SEXTB (https://sextb.lol/)
@@ -7416,6 +7418,8 @@ litt.ly#@#[href*="link.coupang.com"]
 !tcafe21.com###migration-popup-overlay
 !##[id*="popup-overlay" i]
 !tcafe21.com#@#div[style*="z-index:99" i], div[style*="z-index: 99" i]
+! - 팝업
+/tcafe/##[id*="slot"]
 ! - 메인 하단 배너 공간
 ![$domain=/^tcafe\d+.com/]##.main-p10
 !/tcafe/##.main-p10
