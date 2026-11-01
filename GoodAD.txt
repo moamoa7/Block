@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261031
+! Version: 20261101
 !
 !
 !
@@ -2078,6 +2078,8 @@ joongang.co.kr##.ico_shortcut_plus
 joongang.co.kr##[class*="subscription" i]
 ! - 기사 스크롤시 갑작스럽게 하단에 나와서 따라다니는 배너
 joongang.co.kr##.snackbar
+! - 기사 스크롤시 갑작스럽게 하단에 나와서 따라다니는 배너 (모바일)
+joongang.co.kr###topicsnackbar
 ! - 영상 플레이어
 !joongang.co.kr##.player_area
 ! - 많이 본 기사
@@ -6493,7 +6495,7 @@ sexygirl.cc##div[class*="overflow-auto"]
 ![$domain=/^dogjoa\d+.net/]##.at-title
 !
 !
-! 야동투어 (https://야동투어.com/) (https://ydtour84.sbs/) - /p2p* 해제해야 영상재생 가능
+! 야동투어 (https://야동투어.com/) (https://ydtour86.sbs/) - /p2p* 해제해야 영상재생 가능
 ! - 팝업 이미지
 !##[id*="popup-ads-" i]
 !##[id*="-ads" i]
@@ -7432,7 +7434,7 @@ litt.ly#@#[href*="link.coupang.com"]
 ! - 팝업
 rou.video##div[role="dialog"]
 ! - 배너
-! - - - 야동투어 (https://ydtour84.sbs/) - 일부 배너 이미지
+! - - - 야동투어 (https://ydtour86.sbs/) - 일부 배너 이미지
 ! - - - 냥티비 (https://nortv95.com/) - 일부 배너 이미지
 ! - - - 엑스비비기 (https://42.xbbg.tv/) - 일부 배너 이미지
 ! - - - 온도티비 (https://23.ondotv.com/) - 일부 배너 이미지
