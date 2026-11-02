@@ -1760,7 +1760,7 @@ damoang.net##div[class*="hidden"]:has([class*="adsbygoogle"])
 ! - 차단 사이트
 !||fundingchoicesmessages.google.com^$3p
 ! - 차단사이트 안내 하단 팝업
-!damoang.net##.fc-dialoge
+!damoang.net##.fc-dialog
 ! - 차단 사이트
 !||fundingchoicesmessages.google.com^
 ! - 일부 필터로 하단 배너 팝업 나오는거 해결
