@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261101
+! Version: 20261102
 !
 !
 !
@@ -7223,7 +7223,8 @@ apkmody.com##.invisible-horizontal-scroll.flex-container-3
 ##[target]>div[class*="image"][style]
 ! - 예외 - https://search.naver.com/ - 클립 이미지 사라짐
 ! - 예외 - https://lec.co.kr/ - 일부 이미지 사라짐
-lec.co.kr,naver.com#@#[target]>div[class*="image"][style]
+! - 예외 - https://dak.gg/ - 일부 이미지 사라짐
+dak.gg,lec.co.kr,naver.com#@#[target]>div[class*="image"][style]
 ! - 배너 공간
 !/^(www\.)?bbtv/###pagetop > div > .el-row
 !/bbtv/###pagetop > div > .el-row
@@ -8849,7 +8850,7 @@ dailypharm.com,gamechosun.co.kr,search.naver.com,clien.net#@#[class*="_banner" i
 !
 !
 ! 픽팍 (https://mypikpak.com/)
-##[class*="banner_" i]:not(body):not(html):not(main):not([class*="_banner_" i])
+##[class*="banner_" i]:not(body):not(html):not(main):not([class*="_banner_" i]):not([class*="banner__" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! -  숲 (https://www.sooplive.com) - 개인 페이지 상단이 날라감
@@ -8859,7 +8860,7 @@ dailypharm.com,gamechosun.co.kr,search.naver.com,clien.net#@#[class*="_banner" i
 !
 !
 !
-##[class*="_banner_" i]:not(body):not(html):not(main):not([class*="news"])
+##[class*="_banner_" i]:not(body):not(html):not(main):not([class*="news"]):not([class*="__banner_"])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! 만개의 레시피 (https://m.10000recipe.com/]
@@ -9085,13 +9086,14 @@ mule.co.kr##[target] img
 ! 주소파티 (https://www.주소파티.com/) - 상단 배너
 ! https://brunch.co.kr/ - 글 하단 오늘만 무료 배너
 ! - - - 유튜브 / 숲/ 치지직 /왓챠피디아 (https://pedia.watcha.com/) 예외
-##[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"])
+##[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"]):not([href*="watcha.com"])
 !
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! Yandex (https://yandex.com/) - 메인 이미지
 ! https://www.tistory.com/
-tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"])
+! https://dak.gg/
+dak.gg,tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"]):not([href*="watcha.com"])
 
 !
 !
@@ -9099,7 +9101,7 @@ tistory.com,yandex.com#@#[href][target*="blank"]:has(div[style*="background-imag
 ! https://video.fc2.com/ - 개별 작품 하단 이미지 사라짐
 ! 좋은티비 (https://www.jountv01.in/) - 작품 이미지 사라짐
 ! 티비차차 (https://www.tvchacha04.live/) - 작품 이미지 사라짐
-/jountv|tvchacha/,video.fc2.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"])
+/jountv|tvchacha/,video.fc2.com#@#[href][target*="blank"]:has(div[style*="background-image"]):not([href*="youtu"]):not([href*="chzzk"]):not([href*="sooplive"]):not([href*="watcha.com"]):not([href*="watcha.com"])
 !
 !
 !
