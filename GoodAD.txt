@@ -897,6 +897,8 @@ aagag.com##.la.top.naver:style(width:0 !important; height:0 !important; min-widt
 aagag.com##[class$="naver"]
 ! - 양 옆 필요없는 배너공간 없애기 ( kr: List-KR Classic)
 !aagag.com##.la:style(height: 75px !important; width: 75px !important; visibility: hidden !important;)
+! - 최하단 빈공간
+aagag.com##div.cwarp2
 !
 !
 ! 이슈링크 (https://www.issuelink.co.kr/)
@@ -1747,15 +1749,18 @@ hungryapp.co.kr,hungapp.com##.right_top1
 !damoang.net##.d-block.lh-1.end-0.bottom-0.position-fixed
 ! - 게시물 하단 게시판 리스트 삭제 - 없애면 목록 클릭시 게시판 내용이 안나옴
 !damoang.net###bo_list_wrap
+! - 작성자 최근 활동 위 빈 공간 (모바일)
+! - - - PC모드에서 작성자 최근 활동이 전부 사라져서 보류
+!damoang.net##div[class*="-ad-"]:has([class*="adsbygoogle"])
 ! - 댓글 하단과 게시판 목록 사이 빈 공간
-damoang.net##[class*="hidden"]:has([class*="adsbygoogle"])
+damoang.net##div[class*="hidden"]:has([class*="adsbygoogle"])
 ! - 이미지 복구
 !@@||damoang.net//data/editor/*$image
 !@@||cdn.damoang.net/img/*$image
 ! - 차단 사이트
 !||fundingchoicesmessages.google.com^$3p
 ! - 차단사이트 안내 하단 팝업
-!damoang.net##.fc-dialog
+!damoang.net##.fc-dialoge
 ! - 차단 사이트
 !||fundingchoicesmessages.google.com^
 ! - 일부 필터로 하단 배너 팝업 나오는거 해결
