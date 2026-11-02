@@ -4,7 +4,7 @@
 ! Title: AdguardRule
 ! Description: Personal Adguard Bad List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261029
+! Version: 20261102
 !
 !
 !!! 애드가드 오류 및 앱 관련 내용만 작성
@@ -31,7 +31,7 @@
 @@/^https?:\/\/(?:[a-z]+\.)*ssg[a-z]*\.com(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/([a-z0-9-]+\.)*(inicis|kginicis|kcp|nicepay|nicepayments|tosspayments|toss|kakaopay|payco|danal|danalpay|mobilians|settlebank|hectofinancial|smartropay|eximbay|samsungpay|iamport|portone|niceid|checkplus|kmcert|mobile-ok|siren24|koscom|kftc|signgate|yessign|kisa|tsign|dcert|crosscert|cert|paypal|stripe|adyen|braintreegateway|checkout|squareup|klarna|alipay|alipayplus|unionpay|unionpayintl|visa|mastercard|jcb|cardinalcommerce|paddle)\.(com|net|io|co|kr|co\.kr|or\.kr|im|co\.jp)(:\d+)?(\/|\?|#|$)/$stealth=dpi
 @@||192.168.$stealth=dpi
-@@||adot.ai^stealth=dpi
+@@||adot.ai^$stealth=dpi
 @@||algumon.com^$stealth=push
 @@||arca.live^$stealth=push
 @@||cj*.$stealth=dpi
