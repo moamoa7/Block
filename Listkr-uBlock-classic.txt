@@ -1,10 +1,10 @@
 ! Title: List-KR filters list Classic for uBlock Origin
 ! Description: uBlock Origin용 List-KR 클래식 필터 리스트입니다. 한국어권 웹 페이지 및 앱에 있는 광고와 거부되지 않은 안티 애드블록을 차단합니다.
-! Version: 2026.20760.0
+! Version: 2026.20760.2
 ! Expires: 1 day (update frequency)
 ! Homepage: https://github.com/List-KR/List-KR
 ! Licence: https://github.com/List-KR/List-KR/blob/master/LICENSE
-! Updated: Tue Nov  3 13:41:21 UTC 2026
+! Updated: Tue Nov  3 22:56:09 UTC 2026
 
 ||mixtower.net^
 ||adflow.kr^
@@ -268,6 +268,7 @@
 !
 ! DOMAIN-REFRESHER: END
 
+||ads-api.daum.net^
 ||serv.ds.kakao.com^
 ||cafe-ads-api.daum.net^
 ||worker.gsr-ads.co.kr^
