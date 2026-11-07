@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261102
+! Version: 20261107
 !
 !
 !
@@ -4010,7 +4010,7 @@ coolenjoy.net##[id*="carousel"]
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_url) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki55.net/)
+! 티비위키 (https://t.me/s/tvwiki_link) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki57.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/) - 메인주소로 접속하면 구글로 이동됨 / https://tvhot2.com/drama 와 같이 디렉토리로 이동해야함
 ! - 팝업 제거
@@ -4108,7 +4108,8 @@ coolenjoy.net##[id*="carousel"]
 ! - 개발자 도구(DevTools) 감지 및 차단 기능을 담당하는 JavaScript
 */devtool-gate.js
 ! - 광고 차단 - 출처 : https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
-bunny-frame.online##+js(set-constant, TVP_CONFIG.banner, undefined)
+!bunny-frame.online##+js(set-constant, TVP_CONFIG.banner, undefined) - bunny-frame.online이 bunny-video.com으로 변경되어 아래로 재변경
+bunny-video.com##+js(set-constant, TVP_CONFIG.banner, undefined)
 !
 !
 !
@@ -4117,7 +4118,7 @@ bunny-frame.online##+js(set-constant, TVP_CONFIG.banner, undefined)
 ||hearheart.com^$popup
 !
 !
-! 야동코리아 (https://t.me/s/yadongkorea_url) (https://yadongkorea.store) (https://yadongkorea05.tv/) - 티비위키 메뉴에 신설
+! 야동코리아 (https://t.me/s/yadongkorea_url) (https://yadongkorea.store) (https://yadongkorea06.tv/) - 티비위키 메뉴에 신설
 ! - 팝업
 /yadongkorea/##.yako-telegram-modal
 ! - - - 아래 규칙으로 하면 뿌연 화면 나와서 주석처리
@@ -5403,17 +5404,23 @@ openload.mov,jav.direct,javfan.one##[style*="width: 300px"]
 !openload.mov##div:nth-of-type(4)
 !
 !
-! https://javtiful.com/
-! - 메인 배너 (프리미엄 가입)
-!javtiful.com##.front-home-premium-alert
-! - 영상 위 텍스트 배너
-javtiful.com##.front-watch-text-feature
+! Javtiful (https://javtiful.com/)
+! - 메인 안내 문구 (프리미엄 안내)
+javtiful.com##.site-announcement
+! - 메인 배너 (프리미엄 버튼)
+javtiful.com##.premium-link
+! - 영상페이지내 상단 안내 문구
+javtiful.com##.announcement-bar
+! - 영상 위 텍스트 배너 (수익 안내)
+javtiful.com##.front-player-earn-notice
 ! - - 영상 플레이내 버튼
 javtiful.com##.front-feature-placement-player
 ! -영상 옆 스폰 배너
-javtiful.com##.front-partner-card
+!javtiful.com##.front-partner-card
 ! - 영상 옆 빈 공간
 javtiful.com##.front-feature-placement-side
+! - 영상 목록 내 광고 빈 공간
+javtiful.com##.video-card--partner
 !
 !
 ! 야애니24 (https://www.aniya24.com/)
@@ -5486,7 +5493,7 @@ avdbs.com##.dbs-bnr-wrp
 ! 광고 영상
 ! - - - ##.group:has(> .relative.overflow-hidden.rounded-lg.bg-gray-900.cursor-pointer) (Adguard Base Optimized) 규칙
 ! - - - ##.grid > div.group:has(> div.relative.overflow-hidden.rounded-lg.bg-gray-900.cursor-pointer) (Adguard Base Optimized) 규칙
-##div[class*="group"]:has(iframe)
+/av01/##div[class*="group"]:has(iframe)
 ! - 팝업 방지
 !||apologiesoccursdepressed.com^$popup
 !
@@ -9066,7 +9073,7 @@ philgo.com##[alt*="배너"]
 ! 애니위크 (https://aniweek.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
-! 야동코리아 (https://yadongkorea05.tv/) - 별도 처리
+! 야동코리아 (https://yadongkorea06.tv/) - 별도 처리
 !  Manko (https://manko.fun/)
 ! 위플랩 WEFLAB (https://weflab.com/)
 ! 캐나다 한국일보 (https://koreatimes.net)
@@ -9449,7 +9456,7 @@ mmzone.co.kr#@#[class$="-slot" i]
 !
 !
 !
-! 야동코리아 (https://yadongkorea05.tv/) - 영상 하단 배너 
+! 야동코리아 (https://yadongkorea06.tv/) - 영상 하단 배너 
 ! https://www.javxxx.me/ - 상단 javHD 링크
 ! https://www.bestjavporn.com/ -  - 상단 javHD 링크
 ##a[rel*="sponsored"][onclick]
