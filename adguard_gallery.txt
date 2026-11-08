@@ -1,6 +1,6 @@
 ! Title: 애드가드 갤러리 필터
-! Version: 2026.11.07.1
-! TimeUpdated: 2026-11-07T12:48:38+00:00
+! Version: 2026.11.08.7
+! TimeUpdated: 2026-11-08T10:16:33+00:00
 ! Description: AdGuard, uBlock Origin, wBlock, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -60,7 +60,7 @@ wowtv.co.kr,cafe.naver.com##[class*='Banner']
 [$domain=/^darkg[a-z0-9]*\.com/]##+js(nano-stb, tick, 1000)
 [$domain=/^fxfx[0-9]*\.com/]##.top-banner
 [$domain=/^hoohootv[0-9]*\.[a-z]{2,}/]###img_row_container
-[$domain=/^mingky[0-9]*\.[a-z]{2,}/]##a.grid-asset[target="_blank"]:has(> img[alt])
+[$domain=/^mingky[0-9]*\.com/]##a.grid-asset[target="_blank"]:has(> img[alt])
 [$domain=/^sbxh[0-9]*\.com/]##.vw-swipe-hint, [data-pm-ov], [data-banner-id]
 [$domain=/^toki[0-9]*\.com/]##.vw-swipe-hint, [data-pm-ov], [data-banner-id]
 [$domain=/^toonkor[0-9]*\.org/]##[target="_blank"]:has(img[src^="/bann"]), div.bn, div.main_top_bann
@@ -92,7 +92,7 @@ bbs.ruliweb.com##tr:has(.nick[style^='display: inline-block'])
 biz.chosun.com##aside > div.flex-chain-wrapper:has(> section > div > .raw-html > iframe[width="300"])
 bobaedream.co.kr##div.content.community > div[style$="height:100px;"]:has([id^="div-gpt-ad"])
 boutique.chosun.com###bo_main_modalWrap
-bunny-frame.online##+js(set, TVP_CONFIG.banner, undefined)
+bunny-video.com##+js(set, TVP_CONFIG.banner, undefined)
 coinpan.com##li:has(> span.wgp_ad)
 coinpan.com##li:has(ins.adsbygoogle)
 coinpan.com##p > strong > span:has-text(AD):upward(p)
@@ -172,7 +172,7 @@ kyeongin.com##.horizon-ad
 lawtimes.co.kr###top-banner
 linkareer.com##[role="advertisement"]:not([class^="card-item"])
 linkareer.com##ins.adsbygoogle:upward(div[style*="min-height"])
-litomi.*##[data-juicy-ads-slot]
+litomi.cc##[data-juicy-ads-slot]
 loawa.com##[aria-label="광고 팝업"]
 loawa.com##[data-ad-placement]
 m.10000recipe.com##li:has(div.rcp_list2022_new_cont > div:has-text(AD))
@@ -183,6 +183,7 @@ m.dcinside.com##.layer-bottom-popup
 m.dcinside.com##.survey
 m.dcinside.com##.view-btm-con
 m.dcinside.com##li:not(.notice):has(> .detail-top-lnk)
+m.g-enews.com##[class^="clsgenews_tdn_moadd"]
 m.nate.com###myarea_ad
 m.nate.com##a[href^="https://cyad1.nate.com/click.kti/mnate/"]
 m.pann.nate.com##section > div[style^="width: 100%; min-height: 100px;"]:has(> iframe[title="광고"])
@@ -206,7 +207,8 @@ mimint.co.kr##.index-right-banner
 mimint.co.kr##.list_row:has(div[data-ad-mode])
 mk.co.kr##div[data-ad-render-container]
 mk.co.kr##li.native-ad-list-item
-mlbpark.donga.com##[class^='coupang'], [class*='naver_place']
+mlbpark.donga.com##[class^='coupang']
+mlbpark.donga.com##[class*='naver_place']
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 mule.co.kr##[class*='-ad-']
 munhwa.com###bottom-sticky
@@ -371,7 +373,9 @@ avsee.is##+js(json-prune, adsEnabled, adsEnabled)
 cola16.app##+js(acis, decodeURIComponent, ABCDEFGHIJKLMNOPQRSTUVWXYZ)
 damoang.net##+js(nostif, bait_hidden)
 gall.dcinside.com###gaejukimg
-litomi.*#%#(()=>{"use strict";let t=1;const e=new Map,n=new WeakSet;window.__REACT_DEVTOOLS_GLOBAL_HOOK__={supportsFiber:!0,renderers:e,inject:n=>{const o=t++;return e.set(o,n),o},onCommitFiberRoot:(t,e)=>{const o=t=>{if(!t)return;const e=t.memoizedProps;if(e&&!n.has(t)){if("function"==typeof e.onAdClick){n.add(t);try{e.onAdClick()}catch(t){}}if("function"==typeof e.onResult){n.add(t);try{e.onResult({success:!0,earned:10})}catch(t){}}}o(t.child),o(t.sibling)};e&&e.current&&o(e.current)},onCommitFiberUnmount:()=>{},onPostCommitFiberRoot:()=>{}}})();
+k-hentai.org##+js(no-fetch-if, /pagead2\.googlesyndication\.com/)
+k-hentai.org#%#(()=>{const d=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');Object.defineProperty(HTMLImageElement.prototype,'src',{...d,set(v){return d.set.call(this,/^https:\/\/googleads\.g\.doubleclick\.net\/favicon\.ico(?:\?|$)/.test(String(v))?'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAC0lEQVR42mNgQAcAABIAAeRVjecAAAAASUVORK5CYII=':v)}})})();
+litomi.cc#%#(()=>{"use strict";let t=1;const e=new Map,n=new WeakSet;window.__REACT_DEVTOOLS_GLOBAL_HOOK__={supportsFiber:!0,renderers:e,inject:n=>{const o=t++;return e.set(o,n),o},onCommitFiberRoot:(t,e)=>{const o=t=>{if(!t)return;const e=t.memoizedProps;if(e&&!n.has(t)){if("function"==typeof e.onAdClick){n.add(t);try{e.onAdClick()}catch(t){}}if("function"==typeof e.onResult){n.add(t);try{e.onResult({success:!0,earned:10})}catch(t){}}}o(t.child),o(t.sibling)};e&&e.current&&o(e.current)},onCommitFiberUnmount:()=>{},onPostCommitFiberRoot:()=>{}}})();
 m.dcinside.com###moveOverlay
 m.fmkorea.com##+js(set, _make_power_link_identifier, noopFunc)
 m.fmkorea.com##script ~ div.bd_mobile.bd:matches-css(margin: /[0-5]px [0-5]px/):matches-css(padding: /[0-5]px/):remove()
@@ -400,7 +404,7 @@ $@$link[rel="manifest"]
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:bank|stock|invest|coin|pay|mobile|card|post|logi|financ)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:hyu|ung|account|udi|busan|convert|tool|auth|login|screen)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:market|mart|han|insure|direct|soft|point|cash|time)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
-@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:pdf|phone|info|tech|monitor|office|text|style|issue)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
+@@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:pdf|phone|info|tech|monitor|office|text|style|issue|president)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:savings|cruit|event|talent|energy|test|check|scan)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:smart|vertif|cloud|remote|motor|mobility|think|fine|here)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
 @@/^https?:\/\/(?:[a-z]+\.)*[a-z]*(?:tele|news|pass|econom|biz|member|shop|mall|univ|mae)[a-z]*(?:\.[a-z]+)+(?:[\/?#]|$)/$stealth=dpi
@@ -507,14 +511,15 @@ www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 
 ! Malware & Spam
 *$websocket,domain=/anilife[0-9]+\.[a-z]+/
-*$websocket,domain=bunny-frame.online
+*$websocket,domain=bunny-video.com
+bunny-video.com##+js(set, p2pml, undefined)
 www.google.com##.MjjYud:has(a:matches-attr("href"="/^https?:\/\/[a-z]{12}\.(?!(?:ai|com|org|net|edu|dev|app)\b)[a-z]{2,7}\/[a-z]{20,}/")):has([data-snhf])
 www.google.com##.MjjYud:has(cite:contains(/(https?:\/\/)?([a-z]{12})\.(?!(?:ai|com|org|net|edu|dev|app)\b)[a-z]{2,7}[\s\/›]+[a-z]{20,}/)):has([data-snhf])
 www.google.com##.MjjYud:has(cite:has-text(/^https:\/\/[a-zA-Z0-9.-]+\.hu/)):has([data-snhf])
 www.google.com##.MjjYud:has(span[role="text"]:has-text(/^https:\/\/[a-zA-Z0-9.-]+\.hu/)):has([data-snhf])
 ||insightjs.com^$all
-||peertrk.com/api/live/report$domain=bunny-frame.online
-||player.bunny-frame.online/js/ad_fetcher.js
+||tracker.bunny-frame.online/c
+||bunny-video.com/js/ad_fetcher.js
 ||toss-eventmall.com^$all,reason=피싱링크임시
 ||toss-eventmall.com^$all
 ||tw.mfcc.co.kr^$all,reason=Android콜게이트제휴광고리다이렉트
@@ -541,4 +546,6 @@ m.dcinside.com#%#//scriptlet('trusted-create-element', 'section.grid > .gallview
 m.dcinside.com#%#//scriptlet('trusted-set-local-storage-item', 'imgSizeSetting', 'ori')
 m.youtube.com#%#setInterval(function(){for(var e=document.querySelectorAll(".slim-subscribe-button"),t=0;t<e.length;t++){var n=e[t];if(null!==n.offsetParent&&!n.parentElement.querySelector(".pip-btn")){var i=document.createElement("div");i.className="pip-btn",i.innerText="PiP",i.tabIndex=0,i.style.cssText="display:flex;align-items:center;justify-content:center;background-color:#f2f2f2;border-radius:16px;height:32px;padding:0 12px;margin-left:8px;font-family:Roboto,Arial,sans-serif;font-size:12px;font-weight:500;color:#0f0f0f;cursor:pointer;outline:none;user-select:none;transition:background-color 0.2s",i.onmouseover=function(){this.style.backgroundColor="#e5e5e5"},i.onmouseout=function(){this.style.backgroundColor="#f2f2f2"},i.onclick=function(e){e.preventDefault(),e.stopPropagation();var t=document.querySelector("video");t&&(t.removeAttribute("disablepictureinpicture"),document.pictureInPictureElement?document.exitPictureInPicture():t.requestPictureInPicture())},i.onfocus=i.onmouseenter=function(){if(!window._pipT){window._pipT=1;var e=document.createElement("div");e.innerText="By Gallery Filter",e.style.cssText="position:fixed;z-index:9999;padding:4px 8px;background:rgba(255,255,255,0.8);border:1px solid rgba(0,0,0,0.2);border-radius:4px;box-shadow:0 2px 5px rgba(0,0,0,0.1);backdrop-filter:blur(3px);font-size:11px;font-family:sans-serif;color:black;pointer-events:none;opacity:1;transition:opacity 0.5s ease-out;";var t=this.getBoundingClientRect();e.style.top=t.top-30+"px",e.style.left=t.left+t.width/2+"px",e.style.transform="translateX(-50%)",document.body.appendChild(e),setTimeout(function(){e.style.opacity="0",setTimeout(function(){e.remove()},500)},1500)}},n.style.display="flex",n.style.alignItems="center",n.appendChild(i)}}},1e3);
 
-!  =============== NO MORE THAN 500 (Maginot Line) =============== !
+
+
+!  =============== NO MORE THAN 550 (Maginot Line) =============== !
