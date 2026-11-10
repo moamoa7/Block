@@ -1124,8 +1124,10 @@ etoland.co.kr##[class="flex w-full justify-center"]
 ! - 게시물 하단 / 댓글 하단 공백 (모바일)
 ! - - - 핫딜 추천 상품 나오는 부분
 etoland.co.kr##[aria-label="토스 추천 상품"]
-! - - toss 베스트 (메인  왼쪽)
-etoland.co.kr##section:has([rel] img)
+! - - toss 베스트 (메인  왼쪽) : 핫딜 게시판 보이게 제외
+etoland.co.kr##section:has([rel] img):not([class*="my-4"])
+! - - toss 베스트 (메인  왼쪽) : 핫딜 게시판 보이게 제외 (List-KR 규칙으로 핫딜 게시판이 안보이므로 규칙 해제)
+etoland.co.kr#@#[data-inouts-click="true"]
 ! - 게시물내 광고글
 !etoland.co.kr##li[class*="amber-100"]
 !etoland.co.kr##li[class*="h-10"]
