@@ -4127,7 +4127,7 @@ bunny-video.com##+js(set-constant, TVP_CONFIG.banner, undefined)
 ||hearheart.com^$popup
 !
 !
-! 야동코리아 (https://t.me/s/yadongkorea_url) (https://yadongkorea.store) (https://yadongkorea07.tv/) - 티비위키 메뉴에 신설
+! 야동코리아 (https://t.me/s/yadongkorea_url) (https://yadongkorea.store) (https://yadongkorea08.tv/) - 티비위키 메뉴에 신설
 ! - 팝업
 /yadongkorea/##.yako-telegram-modal
 ! - - - 아래 규칙으로 하면 뿌연 화면 나와서 주석처리
@@ -5124,7 +5124,7 @@ sexkbj.com##.happy-inside-player
 topgirl.co,javgirl.co,ddal.xyz##[class*="custom-button" i]
 !
 !
-! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr89.sogirl.so/)
+! 쏘걸 (https://kr.av쏘걸.com/) (https://쏘걸.net/) (https://kr89.sogirl.so/) - 탑걸로 연결됨
 ! 4K Jav (https://kr1.4kjav.co/) (https://kr29.4kjav.co/) - 없어짐
 ! - 입장시 18세 물어보는 팝업
 !###dclm_modal_content
@@ -9099,7 +9099,7 @@ philgo.com##[alt*="배너"]
 ! 애니위크 (https://aniweek.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
-! 야동코리아 (https://yadongkorea07.tv/) - 별도 처리
+! 야동코리아 (https://yadongkorea08.tv/) - 별도 처리
 !  Manko (https://manko.fun/)
 ! 위플랩 WEFLAB (https://weflab.com/)
 ! 캐나다 한국일보 (https://koreatimes.net)
@@ -9477,7 +9477,7 @@ mmzone.co.kr#@#[class$="-slot" i]
 !
 !
 !
-! 야동코리아 (https://yadongkorea07.tv/) - 영상 하단 배너 
+! 야동코리아 (https://yadongkorea08.tv/) - 영상 하단 배너 
 ! https://www.javxxx.me/ - 상단 javHD 링크
 ! https://www.bestjavporn.com/ -  - 상단 javHD 링크
 ##a[rel*="sponsored"][onclick]
