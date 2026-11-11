@@ -1137,6 +1137,8 @@ etoland.co.kr#@#[data-inouts-click="true"]
 !etoland.co.kr##li.h-fit.min-h-14:has(> div.group.flex)
 ! - 모바일 하단 따라다니는 3개 버튼
 etoland.co.kr##.fixed-bottom
+! - 댓글 하단 빈 공백
+etoland.co.kr##[id*="-comment-"]
 ! =========================
 ! - - - PC
 !etoland.co.kr##li:has(img[src*="/ad"])
