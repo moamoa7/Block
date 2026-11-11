@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261110
+! Version: 20261111
 !
 !
 !
@@ -1058,7 +1058,7 @@ arca.live##[class*="row"]:has-text(광고)
 !v.daum.net#@#[class*="ad_"] [style]
 ! https://www.baidu.com/ - 검색바 X 사라짐
 !www.baidu.com#@#[class*="ad_"] [style]
-! 펀비 (https://funbe680.com/) - 이미지 목록 사라짐
+! 펀비 (https://005.funbe.org/) - 이미지 목록 사라짐
 ![$domain=/^funbe\d+.com/]#@#[class*="ad_"] [style]
 ! - https://platinmods.com/ - 본문 내용 일부 안보임
 !platinmods.com#@#[class*="ad_"] [style]
@@ -1321,7 +1321,7 @@ mlbpark.donga.com##.btn_top01
 !ruliweb.com##.adrr
 !ruliweb.com##.ti_wrapper
 ! 배너 (상단 메인 배너 / 왼쪽 배너 / 게시글 상단 오른쪽 배너 / 오른쪽 배너/ 게시글 하단 배너 / 하단 배너 / 멘 하단 배너)
-! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://funbe680.com/)
+! - - -  출처 : List-KR (광역으로 사용시 다른 사이트 일부 프레임 안보임) (예 : 펀비 https://005.funbe.org/)
 ! - - - 에펨코리아 ##[class*="ad_"] [style]도 같이 적용받으나 사라지지는 않음
 !ruliweb.com##[class*="ad_"][style] - ##[class*="ad_slot" i]로 변경
 ! - 루리웹 전체 배너 (게시판 내 AD글 포함)
@@ -3505,8 +3505,8 @@ tiendeo.co.kr##[class*="justify"]:has([data-testid*="ad_"])
 loawa.com##[alt*="후원"]
 ! - 예외 - 숲 - 별풍선 후원 이미지 복원
 ! - 예외 - 야동갤러리 - 게시물 제목 이미지
-! - 예외 - 툰코 (https://tkor153.com/) - 일부 게시물 제목에 의해 사라짐
-! - 예외 - 펀비 (https://funbe680.com/) - 일부 게시물 제목에 의해 사라짐
+! - 예외 - 툰코 (https://005.toonkor.net/) - 일부 게시물 제목에 의해 사라짐
+! - 예외 - 펀비 (https://005.funbe.org/) - 일부 게시물 제목에 의해 사라짐
 !play.sooplive.com#@#[alt*="후원"]
 !funbe|tkor|yagall/#@#[alt*="후원"]
 ! - 배너 빈 공간
@@ -4387,8 +4387,8 @@ fabulouslink.xyz##.widget
 ![$domain=/^www.hulk\d+.com/]##.right.floating_banner
 !
 !
-! 툰코 (https://t.me/s/toonkor_org) (https://toonkor3.org/) -- https://korsite.net/ 참고
-! 펀비 (https://t.me/s/funbe_next) (https://funbe680.com/)
+! 툰코 (https://t.me/s/toonkor_net) (https://005.toonkor.net/) -- https://korsite.net/ 참고
+! 펀비 (https://t.me/s/funbe_up) (https://005.funbe.org/)
 ! - 배너
 ![$domain=/^tkor\d+.com/],[$domain=/^funbe\d+.com/]##.mobile-banner.col-md-12
 ! - 개별 만화 배너
@@ -4407,9 +4407,6 @@ fabulouslink.xyz##.widget
 !##.clearfix
 ! - - - 예외 (https://kilho.net/) - 게시물 안보임
 !kilho.net#@#.clearfix
-!
-!
-! 툰코 (https://t.me/s/toonkorinfo) (https://툰코주소.com/) (https://툰코주소보기.com/) (https://toonkor404.com/)
 !
 !
 ! 나이스링크 (https://nicelink6.com/)
@@ -4541,7 +4538,7 @@ joatoon-oa.com##.bg-opacity-50
 ! 뉴토끼 (https://뉴토끼우회.com) (https://newtoki1.org/) -구버젼
 ! -팝업 차단으로 인한 뿌연 화면 해결
 ![$domain=/^newtoki\d*\./]##div:has(> .theme-popup-stack)
-! - 마루마루 (https://marumaru101.com/)
+! - 마루마루 (https://marumaru109.com/)
 ! - 툰코 (https://toonkor402.com/)
 ##div:has(> .theme-popup-stack)
 !
@@ -4635,7 +4632,7 @@ joatoon-oa.com##.bg-opacity-50
 !||bookto*.com/data/apms/*
 !
 !
-! 블랙툰 (https://blacktoon.cafe/) (http://blacktoon.cc) (https://blacktoonurl.net/) (https://www.blacktoonurl2.com/) (https://blacktoon423.com/)
+! 블랙툰 (https://blacktoon.cafe/) (https://notice.blacktoongo.com/) (https://blacktoongo.com/) (https://www.blacktoonurl2.com/) (https://blacktoon427.com/)
 ! - 최신주소 안내페이지 배너 공간 (https://www.blacktoonurl2.com/)
 ![$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 ![$domain=/blacktoonurl/]###comp-mon185d4 > div > div
@@ -4654,6 +4651,10 @@ joatoon-oa.com##.bg-opacity-50
 !/blacktoon/##li.nav-item:nth-of-type(5)
 !/blacktoon/##li.nav-item:nth-of-type(6)
 !
+!
+! 블랙툰 ((https://t.me/blacktoon_urls) (https://b9.blacktoon.black/)
+!
+!
 ! 블루TV (https://bluelive82.com/)
 ! - 필요업는거
 ![$domain=/^bluelive\d*\./]##.navbar-collapse
@@ -4663,7 +4664,7 @@ joatoon-oa.com##.bg-opacity-50
 !/bluelive/##.card-body
 !
 !
-! 마루마루 (https://marumaru101.com/)
+! 마루마루 (마루마루주소평생.com) (https://marumaru109.com/)
 ! 배너
 ! - - - 뉴토끼
 /marumaru/##[data-brs][data-br]
@@ -7397,12 +7398,12 @@ litt.ly#@#[href*="link.coupang.com"]
 ![$domain=/^dobakland\d+.org/]##[class*="cursor"]
 !
 !
-! 코티비씨 (https://korsite.net/)  (https://m194.kotbc2.com/)
+! 코티비씨 (https://korsite.net/) (https://k06.kotbc2.com/)
 ! - 기타
 ##script[src$="/ad-provider.js"] + ins
 !
 !
-! 코무비 (https://korsite.net/) (https://m333.kormovie.com/)
+! 코무비 (https://korsite.net/) (https://k06.kormovie.com/)
 ! - 배너 이미지
 !||*.kormovie.com/img/*.jpg
 ! - 배너 빈 공간
@@ -7414,7 +7415,7 @@ litt.ly#@#[href*="link.coupang.com"]
 !/watchakr|kowatcha|kormovie.com/###mnxo2
 !
 !
-! 코왓챠(https://korsite.net/)  (https://m282.kowatcha.com/)
+! 코왓챠(https://korsite.net/)  (https://m282.kowatcha.com/) - 사라짐
 ! - 배너 이미지
 !||*.kowatcha.com/img/*.jpg
 ! - 배너 빈공간
@@ -7423,7 +7424,7 @@ litt.ly#@#[href*="link.coupang.com"]
 !/watchakr|kowatcha/##.h20
 !/watchakr|kowatcha/##.h30
 !
-! 왓챠KR(https://korsite.net/)  (https://m282.watchakr.com/)
+! 왓챠KR(https://korsite.net/)  (https://m282.watchakr.com/) - 사라짐
 ! - 배너 이미지
 !||*.watchakr.com/img/*.jpg
 !
@@ -7782,7 +7783,7 @@ patreon.com##body:style(overflow: auto !important;)
 !  배너 공간 남는거 해결
 !/avflix/##[class*="py-6"]
 ! - 배너 공간
-##[class*="grid"]:has([data-banner-code])
+/avflix/##[class*="grid"]:has([data-banner-code])
 ! 기타
 ! - - - https://kr5.avflix.co/banners/partner?_rsc=1r34m
 ! - - - 야동허브 (https://ydhub16.net/) - 배너
@@ -8935,7 +8936,6 @@ teescanner.com,womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !  https://www.koreasite.live/
 ! https://toonkor3.org/ 
-! 펀비 (https://funbe680.com/)
 ! 주소월드 (https://wdwd14.com/)
 ! 주소핑 (https://jusoping7.com/)
 ! https://sextb.net/ - f4scdn.com - Ad blocker detected 나와서 해제
@@ -9092,10 +9092,10 @@ philgo.com##[alt*="배너"]
 ! 무료툰 하단 배너 (https://foc116.asia/)
 ! AV핫 (https://avhot1.com/)
 ! 야모아 (https://yamoa48.top/)
-! 코티비씨 (https://m194.kotbc2.com/)
-! 코무비 (https://m333.kormovie.com/)
-! 코왓챠 (https://m282.kowatcha.com/)
-! 왓챠KR (https://m282.watchakr.com/)
+! 코티비씨 (https://k06.kotbc2.com/)
+! 코무비 (https://k06.kormovie.com/)
+! 코왓챠 (https://m282.kowatcha.com/) - 사라짐
+! 왓챠KR (https://m282.watchakr.com/) - 사라짐
 ! 애니위크 (https://aniweek.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
@@ -9105,8 +9105,9 @@ philgo.com##[alt*="배너"]
 ! 캐나다 한국일보 (https://koreatimes.net)
 ! 냥티비 (https://nortv95.com/)
 ! https://03.avovo.net/
-! 툰코 (https://toonkor3.org/)
-/toonkor|yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|kowatcha|watchakr|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv|mtoon|avovo/##[target*="blank"] img
+! 툰코 (https://005.toonkor.net/)
+! 펀비 (https://005.funbe.org/)
+/toonkor|funbe|yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv|mtoon|avovo/##[target*="blank"] img
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
@@ -9380,9 +9381,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ! AVsee.tv (https://03.avsee.is/)
 ! 씨네스트 (https://cineaste.co.kr/)
 ! 뉴토끼 / 마나토끼 / 북토끼
-! 코무비 (https://m333.kormovie.com/)
-! 코왓챠 (https://m282.kowatcha.com/)
-! 왓챠KR (https://m282.watchakr.com/)
+! 코무비 (https://k06.kormovie.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
 ! 인생도박 (https://dblife01.com/)
@@ -9392,9 +9391,7 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ! AVsee.tv (https://03.avsee.is/)
 ! 씨네스트 (https://cineaste.co.kr/)
 ! 뉴토끼 / 마나토끼 / 북토끼
-!  코무비 (https://m333.kormovie.com/)
-! 코왓챠 (https://m282.kowatcha.com/)
-! 왓챠KR (https://m282.watchakr.com/)
+!  코무비 (https://k06.kormovie.com/)
 ! 애니위크 (https://aniweek.com/)
 ! 개조아 (https://dogjoa97.net/)
 ! 현자타임 (https://hjtime112.com/)
@@ -9405,8 +9402,6 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ! POOOO (https://poooo.ml/)
 ! 씨네스트 (https://cineaste.co.kr/)
 ! 뉴토끼 / 마나토끼 / 북토끼
-! 코왓챠 (https://m282.kowatcha.com/)
-! 왓챠KR (https://m282.watchakr.com/)
 ! 딸타임 (https://ddaltime188.com/)
 ! 개조아 (https://dogjoa97.net/)
 ! 인생도박 (https://dblife01.com/)
