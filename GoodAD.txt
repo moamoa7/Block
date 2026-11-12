@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261111
+! Version: 20261112
 !
 !
 !
@@ -8432,7 +8432,8 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 예외
 ! - - - 11번가 (https://www.11st.co.kr/) - AD광고표시 삭제됨
 ! - - - https://www.mmzone.co.kr/ - 일부 이미지 삭제됨
-@@_ad_$domain=11st.co.kr|mmzone.co.kr
+! - - - https://www.reddit.com/ - 페이지 일부 안열림
+@@_ad_$domain=11st.co.kr|mmzone.co.kr|reddit.com
 !
 !
 !
