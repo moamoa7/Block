@@ -3993,7 +3993,10 @@ coolenjoy.net##[id*="carousel"]
 ! 글로벌이코너믹 (https://m.g-enews.com/)
 ! -기사내 빈 공간
 g-enews.com##[class*="clsgenews"]
-
+!
+!
+! 밀리의 서재 (https://www.millie.co.kr/)
+@@||millie.co.kr^$generichide
 
 
 
@@ -8788,8 +8791,9 @@ sukebei.nyaa.si#@#iframe[style*="z-index"]
 ! https://www.coupangplay.com/
 ! AV플릭스 (https://kr5.avflix.co/) - https://kr5.avflix.co/banners/partner?_rsc=1r34m
 ! 티처라인 (https://teacherline.net/)
+! 밀리의 서재 (https://www.millie.co.kr/)
 !@@*/banners/*$domain=sooptore.sooplive.com|coupangplay.com|teacherline.net
-@@^banners^$domain=sooptore.sooplive.com|coupangplay.com|teacherline.net
+@@^banners^$domain=sooptore.sooplive.com|coupangplay.com|teacherline.net|millie.co.kr
 !
 !
 ! 짜딸파티 (https://jaddal42.top/) - 전체 배너 (왼쪽 배너 이미지 포함)
