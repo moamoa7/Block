@@ -48,6 +48,7 @@ https://ublockorigin.github.io/uAssets/filters/privacy-removeparam.txt
 https://cdn.jsdelivr.net/npm/@filteringdev/filterslists-ko@latest/dist/filterslist-uBlockOrigin-classic.txt
 https://filters.adtidy.org/extension/ublock/filters/7.txt
 https://filters.adtidy.org/extension/ublock/filters/251_optimized.txt
+https://raw.githubusercontent.com/BareBrowser/bare-browser/main/filters/BareFilter.txt
 ```
 <br/>
 <br/>
