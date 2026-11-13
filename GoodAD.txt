@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261113
+! Version: 20261114
 !
 !
 !
@@ -4010,7 +4010,6 @@ g-enews.com##[class*="clsgenews"]
 
 
 
-
 !=========================================================================
 
 !  / / / / /  일반 외 / / / / / 
@@ -4640,7 +4639,7 @@ joatoon-oa.com##.bg-opacity-50
 !||bookto*.com/data/apms/*
 !
 !
-! 블랙툰 (https://blacktoon.cafe/) (https://notice.blacktoongo.com/) (https://blacktoongo.com/) (https://www.blacktoonurl2.com/) (https://blacktoon427.com/)
+! 블랙툰 (https://blacktoon.cafe/) (https://notice.blacktoongo.com/) (https://blacktoongo.com/) (https://www.blacktoonurl2.com/) (https://blacktoon428.com/)
 ! - 최신주소 안내페이지 배너 공간 (https://www.blacktoonurl2.com/)
 ![$domain=/^www.blacktoonurl\d+.com/]###comp-mon185d4 > div > div
 ![$domain=/blacktoonurl/]###comp-mon185d4 > div > div
@@ -8319,6 +8318,15 @@ getav.net#%#//scriptlet('prevent-window-open')
 !
 !
 ! https://jav.sb/ - 영상 플레이어의 오른쪽 상단 버튼 클릭하면 재생이 활성화되지만 플레이가 안됨
+!
+!
+! 핫썰닷컴 (https://hotssul2.com/)
+! - 게시물 하단 텍스트 광고
+/hotssul/##[style*="margin:10px"]
+! - 게시물 하단 배너 광고
+/hotssul/##[class="row row-12"]
+! - 댓글 광고
+/hotssul/##[class*="media"]>:has-text("자세히")
 
 
 
