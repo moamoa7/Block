@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261112
+! Version: 20261113
 !
 !
 !
@@ -1365,6 +1365,9 @@ zoneid=
 humoruniv.com###place_div
 ! - 맨 하단 빈공간
 !humoruniv.com##div[style*="width:100%;height:20px"]
+! - 게시물 광고
+humoruniv.com##c:has(> div)
+humoruniv.com##div:has(> k)
 !
 !
 ! 딴지일보 (https://www.ddanzi.com/)
@@ -9409,6 +9412,11 @@ instiz.net,newduck.net##tr:has([class*="adsbygoogle"])
 ! 개조아 (https://dogjoa97.net/)
 ! 인생도박 (https://dblife01.com/)
 ##.h30
+!
+!
+!
+! https://www.imaeil.com/
+##.h70
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://cineaste.co.kr/ - 출첵 로그인 화면의 윗 공백이 사라져서 조금 짤려보임
