@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261114
+! Version: 20261115
 !
 !
 !
@@ -3999,6 +3999,13 @@ g-enews.com##[class*="clsgenews"]
 !
 ! 밀리의 서재 (https://www.millie.co.kr/)
 @@||millie.co.kr^$generichide
+!
+!
+! MK스포츠 (https://www.mksports.co.kr/)
+! - 메인 및 기사 빈 공간
+mksports.co.kr##.bk35
+! - 메인 오른쪽 빈 공간
+##div>[class]:has(>[class*="adsbygoogle"])
 
 
 
