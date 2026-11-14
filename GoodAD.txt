@@ -3965,8 +3965,10 @@ newneek.co##[aria-label*="구독"]
 ! - 기타
 ! - - - https://kkutugame.kr/js/adblock-gate.js?v=20261009-brand-restored-1  //  https://kkutugame.kr/css/adblock-gate.css?v=20261004-1
 ^adblock-
-!- 예외 - https://trand.co.kr/ - https://s2.googleusercontent.com/s2/favicons?domain=adblock-tester.com
+! - 예외 - https://trand.co.kr/ - https://s2.googleusercontent.com/s2/favicons?domain=adblock-tester.com
 !@@||^adblock-$domain=trand.co.kr
+! - 예외 - https://adblock-tester.com/
+@@||^adblock-test
 !
 !
 ! 토큰포스트 (https://www.tokenpost.kr/)
@@ -3997,7 +3999,6 @@ g-enews.com##[class*="clsgenews"]
 !
 ! 밀리의 서재 (https://www.millie.co.kr/)
 @@||millie.co.kr^$generichide
-
 
 
 
@@ -8528,8 +8529,9 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://ads.vk.com/
 ^ads.*
 !*/ads.*
+! - 예외
 ! - - - https://av-help.memo.wiki/ - https://static.seesaawiki.jp/css/usr/ads.css?0.8.6
-^ads.*$css
+@@||^ads.*$css
 !
 !
 ! - 이 규칙은 해보고 아닌 이유 달아놓을것 (너무 많을거 같음)
@@ -8605,6 +8607,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - - - - 다모앙 - 새로고침 유발 - https://static.damoang.net/releases/sha-c5a7c05-pdb58191/_app/immutable/assets/ad-slot.2BkAA2Ny.css
 @@^ad-$css
 @@^ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
+@@^ad-block
 !@@/ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
 !
 !
@@ -9505,13 +9508,6 @@ mmzone.co.kr#@#[class$="-slot" i]
 ! https://www.javxxx.me/ - 상단 javHD 링크
 ! https://www.bestjavporn.com/ -  - 상단 javHD 링크
 ##a[rel*="sponsored"][onclick]
-!
-!
-!
-! - 사용자의 이용 통계(어떤 버튼을 클릭했는지, 체류 시간, 시청 패턴 등)를 수집하고 분석하는 트래킹(추적) 및 텔레메트리
-! 숲 - https://static.sooplive.com/asset/service/common/common_analysis.js  / https://analysis.sooplive.com/_au.js (analysis.sooplive.com - dns에서 이미 차단 중)
-! 롯데홈숏핑 - https://analysis.adinsight.co.kr/emnet/trs_esc.js
-analysis.
 !
 !
 !
