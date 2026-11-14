@@ -7359,7 +7359,8 @@ javso.com###playera
 ! - 게시판내 광고
 ##[href*="link.coupang.com"]
 ! - 예외 - https://litt.ly/ - 인스타 광고인대 일반 사이트가 아니라 일단 풀어놓음
-litt.ly#@#[href*="link.coupang.com"]
+! - 예외 - https://www.inpock.co.kr/- 인스타 광고인대 일반 사이트가 아니라 일단 풀어놓음
+inpock.co.kr,litt.ly#@#[href*="link.coupang.com"]
 !!yoboyobo.kr##[class*="headline"]:has([class*="powered"])
 !
 !
