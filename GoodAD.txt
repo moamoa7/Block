@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261115
+! Version: 20261118
 !
 !
 !
@@ -1083,6 +1083,8 @@ m.fmkorea.com##.m_rd_nav_side
 m.fmkorea.com##div.bd.bd_mobile:has(> script:has-text(/window\["\d+"\] = function\(\) \{ return \d+; \};/)):remove()
 ! script 실행 자체 차단 (백업)
 m.fmkorea.com##script:has-text(/window\["\d+"\] = function\(\) \{ return \d+; \}/):remove()
+! - 하단 광고 배너 (모바일)
+m.fmkorea.com##div>[class]:has(>p)
 ! - 기타
 !||nhnace.com^
 !||loader.fmkorea.com^
