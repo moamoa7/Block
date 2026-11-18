@@ -1,7 +1,7 @@
 ! Title: 애드가드 갤러리 필터
 ! Description: AdGuard, uBlock Origin, wBlock, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결하는 실전압축 필터입니다.
-! Version: 2026.11.14.0
-! TimeUpdated: 2026-11-14T14:57:23+00:00
+! Version: 2026.11.18.5
+! TimeUpdated: 2026-11-18T08:11:25+00:00
 ! Expires: 6 hours (update frequency)
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -76,8 +76,8 @@ algumon.com##[data-virtual-row-id*='-ad']
 algumon.com##div:has([data-tip^='파트너스'], ins):is(.card, .deal-2col)
 arca.live##div.vrow.hybrid:has(.badge.category-badge)
 asiatoday.co.kr###ad-floating-wrapper
-asiatoday.co.kr##.ad_banner3
 asiatoday.co.kr##.ad_view_top
+asiatoday.co.kr##[class^="ad_banner"]
 asked.kr##div.bg-surface.relative.z-1.grid.place-items-center.overflow-hidden:style(display: none !important;)
 asked.kr##div.relative div.py-5:has(> div.bg-surface):remove()
 avdbs.com##.ad-btn[class*='tp']
@@ -99,6 +99,7 @@ coinpan.com##li:has(ins.adsbygoogle)
 coinpan.com##p > strong > span:has-text(AD):upward(p)
 community.rememberapp.co.kr##[alt="배너 광고 이미지"]
 crepe.cm##section.mx-auto.block:has(> a[href="https://takemm.com/?utm_source=web&utm_medium=display&utm_campaign=crepe_main"])
+cultureland.co.kr##.ad-login
 dailypharm.com##a:has(> [src*="vodcdn.dailypharm.com/new_dailypharm/banners"])
 dak.gg###venatus-container-top
 dak.gg##.ad[id="mobile-takeover"]
@@ -114,6 +115,7 @@ dcinside.com##li[id^='comment_']:has(p[class*='txt']:has-text(/^(https?:\/\/)[A-
 ddaily.co.kr##div.wcms_banner
 ddaltube.com##+js(remove-attr, data-a, #dtube-player)
 ddaltube.com##.dtube-banner-grid, .vjs-video-ad-click-overlay, .player-banner-overlay > a.block
+digimonmasters.com##div.login_ads_btn
 diningcode.com##li:has(.PoiAdsSpacerList)
 dispatch.co.kr##article.page-post-font.page-post-article > div:has(iframe)
 dispatch.co.kr##article.page-post-font.page-post-article > iframe
@@ -151,11 +153,14 @@ ibric.org##.top-banner-wrap
 ikbc.co.kr##.banner
 iloa.gg##div.justify-center[class*="min-h-"]:has(> div.items-center:empty):not(:has(a))
 imaeil.com##iframe[src*="//adguru.kr"]
+imbc.com##a[href^="https://sepay.org/"]:has(> img[alt$="광고AD"])
 inews24.com##.inews-www-ad
 instiz.net##.view_top
 instiz.net##div[class^='hot_u']
 insurance.pay.naver.com##div[class^="InsuranceHomeAdBanner"]
 inven.co.kr##div[style="width: 100%; height: 250px"]:has(.ad-right2)
+jejuair.net##div.button-wrap.advertise
+jinair.com##button.phone:has(> span.ad)
 jjtv.kr##div[style^="text-align: center"]:has(> iframe[src*="//ad.adnmore.co.kr/"])
 joongdo.co.kr##div.right_content > div[style^="text-align:center;padding-bottom:50px;min-height"]:has(> script[src])
 joongdo.co.kr##div.view-news-wrap div[style*="min-height:"]:has(> script[src])
@@ -171,6 +176,7 @@ kissjav.*##+js(nowoif, !kissjav)
 kitpa.org##div.h-70:has(> ins.adsbygoogle)
 kloa.gg##div[class*="min-h-"]:has(> div[id]:empty):not(:has(a))
 korea.com##div[class*="banner"]
+kshop.co.kr##div[class^="LoginPage_simpleLogin"]:has(> span[class^="LoginPage_advertising"])
 kyeongin.com##.horizon-ad
 lawtimes.co.kr###top-banner
 linkareer.com##[role="advertisement"]:not([class^="card-item"])
@@ -182,11 +188,12 @@ m.10000recipe.com##li:has(div.rcp_list2022_new_cont > div:has-text(AD))
 m.anewsa.com##div[style*="width:300px"]
 m.bobaedream.co.kr##div.cyber-ad-wrapper
 m.bobaedream.co.kr##div[style$='height:50px;']
-m.dcinside.com##.layer-bottom-popup
+m.dcinside.com##.layer-bottom-popup:not(.alarm-bundle-ly)
 m.dcinside.com##.survey
 m.dcinside.com##.view-btm-con
 m.dcinside.com##li:not(.notice):has(> .detail-top-lnk)
-m.fmkorea.com##div[style*='display:block !important;visibility:hidden;height']:style(min-height:0!important;max-height:0!important)
+m.fmkorea.com##div[style*='display:block !important;visibility:hidden;height']:style(min-height:0!important;max-height:0!important;)
+m.fmkorea.com##div[style*='display:inline-block !important;visibility:hidden']:style(min-height:0!important;max-height:0!important;)
 m.g-enews.com##[class^="clsgenews_tdn_moadd"]
 m.nate.com###myarea_ad
 m.nate.com##a[href^="https://cyad1.nate.com/click.kti/mnate/"]
@@ -259,6 +266,7 @@ snxbest.naver.com##li[class^="productCardResponsive_product_card_responsive__"]:
 soccerline.kr##[class*='Bann']
 soccerline.kr##div[style$="513px; position: absolute; text-align: center; top: 242px; width: 160px; height: 600px; background-color: transparent;"][class]
 ssalmuk.com##+js(json-prune, data.[-].popupCode)
+ssgdfs.com##div.easyLoginOption:has(> [data-param1="LOG_AD"])
 te31.com##table:has(td > script)
 teamblind.com##.coupang_gnb
 teamblind.com##.progtop-band:has(> div[id^="div-gpt-ad"]:empty:only-child)
@@ -276,6 +284,8 @@ uppity.co.kr##.adrop-outer
 veritas-a.com##article.grid.body > div.clearfix:has(.ad-template)
 wadiz.kr##[class^="MultiBoardAdBannerDisplay-"]
 welfarehello.com##[style^="--ad-frame-width-"]
+wellife.co.kr##button.btn_easy_login:has(img[src="https://cdn.wellife.co.kr/content/images/icon/ico_cellphone.svg"])
+wmpoplus.com##button.simple:has(> span.ad)
 wooriilbo.com##div[style$="width:360px;height:320px;"]
 xtoon365.com##[class$='-ad']
 yna.co.kr###container > div.aside-top-bnr01
@@ -546,5 +556,4 @@ m.youtube.com#%#setInterval(function(){for(var e=document.querySelectorAll(".sli
 
 
 
-
-!  =============== NO MORE THAN 550 (Maginot Line) =============== !
+!  =============== NO MORE THAN 600 (Maginot Line) =============== !
