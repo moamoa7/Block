@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261118
+! Version: 20261120
 !
 !
 !
@@ -1115,14 +1115,16 @@ m.fmkorea.com##div>[class]:has(>p)
 !##[id*="banner" i]
 ! - 게시물내 하단 배너 공백 (모바일)
 !etoland.co.kr##div.mt-2\.5.flex
-! - 게시물 하단 공백 - 추천 아이콘 하단 빈 공간
+! - 게시물내 하단 공백 - 추천 아이콘 하단 빈 공간
 !  -- - 메인 HIT 타이틀 사라짐으로 아래처럼 재변경
 !etoland.co.kr##.flex.mb-2\.5
 !etoland.co.kr##[class="mb-2.5 flex w-full justify-center"]
 ! - - - 광역으로 사용시 https://playland01.com/ 내용본문이 사라져서 개별 도메인으로 처리
 ! - - - 스포츠룰렛 이미지 사라짐으로 재변경
 !etoland.co.kr##div.flex.w-full.justify-center:has(> .flex)
-etoland.co.kr##[class="flex w-full justify-center"]
+!etoland.co.kr##[class="flex w-full justify-center"]
+!etoland.co.kr##[data-inouts-event-name="inouts-banner"]
+etoland.co.kr##[class="my-4 flex w-full justify-center"]
 ! - 게시물 하단 / 댓글 하단 공백 (모바일)
 ! - - - 핫딜 추천 상품 나오는 부분
 etoland.co.kr##[aria-label="토스 추천 상품"]
@@ -4008,6 +4010,21 @@ g-enews.com##[class*="clsgenews"]
 mksports.co.kr##.bk35
 ! - 메인 오른쪽 빈 공간
 ##div>[class]:has(>[class*="adsbygoogle"])
+!
+!
+! KT알파쇼핑 (https://www.kshop.co.kr/)
+@@||kshop.co.kr^$generichide
+!
+!
+! 신세계면세점 (https://www.ssgdfs.com/)
+@@||ssgdfs.com^$generichide
+!
+!
+! 대상웰라이프(https://www.wellife.co.kr/)
+@@||wellife.co.kr^$generichide
+
+
+
 
 
 
@@ -4036,7 +4053,7 @@ mksports.co.kr##.bk35
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_link) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki60.net/)
+! 티비위키 (https://t.me/s/tvwiki_link) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki64.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/) - 메인주소로 접속하면 구글로 이동됨 / https://tvhot2.com/drama 와 같이 디렉토리로 이동해야함
 ! - 팝업 제거
