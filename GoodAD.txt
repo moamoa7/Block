@@ -3662,8 +3662,8 @@ eanews.kr##[class*="box" i]:has([class*="banner" i])
 ! 이코노미스트 (https://economist.co.kr/)
 ! 메인 오른쪽 배너 빈 공간
 economist.co.kr##div.txt_park.on:has([class="banner" i])
-! 개벌 기사 모든 빈 공간
-!economist.co.kr##[class*="_ad" i]
+! 일부 개벌 기사내 빈 공간
+economist.co.kr##div[class*="_ad" i]
 !
 !
 ! 맨파워코리아 (https://manpower.co.kr/)
@@ -4011,7 +4011,8 @@ mksports.co.kr##.bk35
 ! - 메인 오른쪽 빈 공간
 ##div>[class]:has(>[class*="adsbygoogle"])
 ! - 예외 - https://tistory.com/ - 본문 안보임
-tistory.com#@#div>[class]:has(>[class*="adsbygoogle"])
+! - 예외 - https://socialvalue.kr/ - 기사 본문 안보임
+socialvalue.kr,tistory.com#@#div>[class]:has(>[class*="adsbygoogle"])
 !
 !
 ! KT알파쇼핑 (https://www.kshop.co.kr/)
@@ -4032,6 +4033,53 @@ tistory.com#@#div>[class]:has(>[class*="adsbygoogle"])
 !
 ! 트레이딩뷰 (https://kr.tradingview.com/)
 @@||tradingview.com^$generichide
+!
+!
+! 사이퍼즈 서포트 (https://cpsp.kr/)
+! - 빈 공간
+cpsp.kr##div[style]:has(> ins.adsbygoogle)
+!
+!
+! 에누리 (https://enuri.com/)
+@@||enuri.com^$generichide
+! - 메인 빈 공간
+enuri.com##[id$="-banner" i]
+enuri.com##[class*="-banner-" i]
+!
+!
+! EYEJOKER (https://eyejokerdb.com/)
+! - 메인 광고 배너
+eyejokerdb.com##div[aria-label$="광고"]
+!
+!
+! 채널A (https://ichannela.com/)
+! - 개별 뉴스내 빈 공간
+ichannela.com##div[class*="onair_" i]
+!
+!
+! 조이뉴스 (https://www.joynews24.com/)
+! - 개별 뉴스 빈 공간
+joynews24.com##[style*="height:280px"]
+!
+!
+! 한국일보 (https://www.koreatimes.com/)
+! - 광고 차단 팝업
+koreatimes.com##[class$="_layer" i]
+koreatimes.com##[class*="-popup-"]
+!
+!
+! 메디잡 (https://www.medijob.cc/)
+@@||medijob.cc^$generichide
+!
+!
+! 소셜벨류 (https://socialvalue.kr/)
+! - 하단 광고차단 안내
+##div[style*="box-shadow: rgb(136, 136, 136) 0px 0px 12px; color: "]
+!
+!
+! 알지롱 (https://te31.com/)
+! - 메인 빈 공간
+##div:has(>[href="//media.by.camp"])
 
 
 
@@ -9090,7 +9138,8 @@ conan-tv.com,linkareer.com,pedia.watcha.com##[class*="banner" i]
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.korea.com/ - 본문 안보임
 ! 헝그리앱 (https://hungryapp.co.kr/) (http://hungryapp.kr/)  (https://hungapp.com/) - 검색 폼에 입력 안됨 해결
-hungryapp.co.kr,hungapp.com,www.korea.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
+! https://app.pizzaalvolo.co.kr/
+pizzaalvolo.co.kr,hungryapp.co.kr,hungapp.com,www.korea.com#@#[id*="banner" i]:not(body):not(html):not(main):not([class*="logo" i]):not([alt*="logo" i]):not([alt*="로고"]):not([src*="logo" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 !
@@ -9159,12 +9208,11 @@ philgo.com##[alt*="배너"]
 ! 야동코리아 (https://yadongkorea09.tv/) - 별도 처리
 !  Manko (https://manko.fun/)
 ! 위플랩 WEFLAB (https://weflab.com/)
-! 캐나다 한국일보 (https://koreatimes.net)
 ! 냥티비 (https://nortv95.com/)
 ! https://03.avovo.net/
 ! 툰코 (https://005.toonkor.net/)
 ! 펀비 (https://005.funbe.org/)
-/toonkor|funbe|yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|aniweek|ddaltime|dogjoa|manko|weflab|koreatimes|nortv|mtoon|avovo/##[target*="blank"] img
+/toonkor|funbe|yamoa|avhot|foc|namee|19guide|missav|hanime|thisav|jogaeparty|kotbc|kormovie|aniweek|ddaltime|dogjoa|manko|weflab|nortv|mtoon|avovo/##[target*="blank"] img
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
