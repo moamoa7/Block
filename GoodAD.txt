@@ -4010,6 +4010,8 @@ g-enews.com##[class*="clsgenews"]
 mksports.co.kr##.bk35
 ! - 메인 오른쪽 빈 공간
 ##div>[class]:has(>[class*="adsbygoogle"])
+! - 예외 - https://tistory.com/ - 본문 안보임
+tistory.com#@#div>[class]:has(>[class*="adsbygoogle"])
 !
 !
 ! KT알파쇼핑 (https://www.kshop.co.kr/)
@@ -9325,7 +9327,9 @@ f4scdn.com#@#[class*="_ad"]:not(body):not(html):not(main):not([class*="_ads"]):n
 ! ##[class*="ad-placement"]  이 규칙은 별도로 있으므로 제외
 ! https://vlxxtv.net/ - bad- 제외
 ! https://www.fomos.kr/ - class="broad-pick-main-body"
-##[class*="ad-" i]:not(body):not(html):not(main):not([class*="-ad-"]):not([class^="ad-"]):not([class*="head-"]):not([class*="load-"]):not([class*="read-"]):not([class*="ad-placement"]):not([class*="pad-"]):not([class*="sad-count"]):not([class*="bad-"]):not([class*="broad-"])
+! https://www.시그널알리미.kr/  https://www.signalalarmy.kr/ - class="jXK9ad-SmKAyb"
+! - 일부 사이트에서 문제가 발생할 수 잇으므로 주의 필요
+##[class*="ad-" i]:not(body):not(html):not(main):not([class*="-ad-"]):not([class^="ad-"]):not([class*="head-"]):not([class*="load-"]):not([class*="read-"]):not([class*="ad-placement"]):not([class*="pad-"]):not([class*="sad-count"]):not([class*="bad-"]):not([class*="broad-"]):not([class="jXK9ad-SmKAyb"])
 !
 !
 !
