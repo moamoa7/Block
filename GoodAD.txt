@@ -8699,7 +8699,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 예외
 ! - - - - 다모앙 - 새로고침 유발 - https://static.damoang.net/releases/sha-c5a7c05-pdb58191/_app/immutable/assets/ad-slot.2BkAA2Ny.css
 @@^ad-$css
-@@^ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
+@@^ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com|youtube.com
 @@^ad-block
 !@@/ad-$domain=github.com|outstanding.kr|coupang.com|tiktok.com
 !
