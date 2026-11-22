@@ -3160,6 +3160,8 @@ mimint.co.kr##[id="rightevent" i]
 !
 !
 ! Claude (https://claude.ai/)
+! - 쿠키 팝업
+claude.ai##[data-testid="consent-banner"]
 ! - 기타
 !||browser-intake-us5-datadoghq.com^
 !||s-cdn.anthropic.com^
@@ -4090,6 +4092,15 @@ koreatimes.com##[class*="-popup-"]
 !
 ! 티플러스 모바일 (https://tplusmobile.com/)
 @@||tplusmobile.com^$generichide
+!
+!
+! 하겐다즈 (https://haagendazs-store.co.kr/)
+@@||haagendazs-store.co.kr^$generichide
+!
+!
+! Perplexity (https://www.perplexity.ai/)
+! - 쿠키 팝업
+perplexity.ai##[role="dialog"]
 
 
 
