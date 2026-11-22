@@ -1,7 +1,7 @@
 ! Title: 애드가드 갤러리 필터
 ! Description: AdGuard, uBlock Origin, wBlock, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
-! Version: 2026.11.22.1
-! TimeUpdated: 2026-11-21T20:09:17+00:00
+! Version: 2026.11.22.3
+! TimeUpdated: 2026-11-22T04:04:09+00:00
 ! Expires: 6 hours (update frequency)
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -80,7 +80,7 @@ asiatoday.co.kr##.ad_view_top
 asiatoday.co.kr##[class^="ad_banner"]
 asked.kr##div.bg-surface.relative.z-1.grid.place-items-center.overflow-hidden:style(display: none !important;)
 asked.kr##div.relative div.py-5:has(> div.bg-surface):remove()
-auth.myrealtrip.com##button[shape="rectangle"]:has(> div > span > div > svg > path[d="M7 23c-.55 0-1.02-.196-1.412-.587A1.926 1.926 0 0 1 5 21V3c0-.55.196-1.02.588-1.413A1.926 1.926 0 0 1 7 1h10c.55 0 1.02.196 1.413.587C18.803 1.98 19 2.45 19 3v18c0 .55-.196 1.02-.587 1.413A1.926 1.926 0 0 1 17 23H7Zm0-5h10V6H7v12Z"]
+auth.myrealtrip.com##button[shape="rectangle"]:has(> div > span > div > svg > path[d="M7 23c-.55 0-1.02-.196-1.412-.587A1.926 1.926 0 0 1 5 21V3c0-.55.196-1.02.588-1.413A1.926 1.926 0 0 1 7 1h10c.55 0 1.02.196 1.413.587C18.803 1.98 19 2.45 19 3v18c0 .55-.196 1.02-.587 1.413A1.926 1.926 0 0 1 17 23H7Zm0-5h10V6H7v12Z"])
 avdbs.com##.ad-btn[class*='tp']
 avsee.is###at-main > a[rel]
 avsee.is##+js(acis, decodeURI, split)
@@ -545,7 +545,7 @@ mlbpark.donga.com#@$#div[id^="SmartPhone_"][id$="_today"] .lists > li::before { 
 mule.co.kr#@#.ad-mobile
 soomgo.com#%#(()=>{const f=window.fetch;window.fetch=(u,...a)=>typeof u=='string'&&u.includes('cdn.segment.com/v1/projects/')&&u.includes('/settings')?Promise.resolve(new Response('{"integrations":{}}',{status:200})):f(u,...a);const o=XMLHttpRequest.prototype.open,s=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.open=function(m,u,...a){this._u=u;return o.call(this,m,u,...a)};XMLHttpRequest.prototype.send=function(...a){if(typeof this._u=='string'&&this._u.includes('cdn.segment.com/v1/projects/')&&this._u.includes('/settings')){Object.defineProperties(this,{status:{value:200},readyState:{value:4},responseText:{value:'{"integrations":{}}'},response:{value:'{"integrations":{}}'}});this.onload&&this.onload();this.onreadystatechange&&this.onreadystatechange();return}s.apply(this,a)}})();
 sooplive.com#@%#//scriptlet('json-prune-xhr-response', 'data.adballoon', '', 'station/video/a/view')
-tenbizt.com#@$#body { overflow: initial !important; position: initial !important; top: initial !important; } 
+tenbizt.com#@$#body { overflow: initial !important; position: initial !important; top: initial !important; }
 webtoon.kakao.com#@#div > a[href^="/event?event_id="][style]
 www.gmarket.co.kr#@#.section__main-inner > .box__promotion .box__item > *
 ||api-ao.adison.co^$badfilter
