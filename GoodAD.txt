@@ -9626,6 +9626,8 @@ szCheckType=adblock
 !
 !
 _ad^
+! - 예외
+@@_ad^$domain=instagram.com
 !
 !
 !
