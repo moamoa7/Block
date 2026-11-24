@@ -1,7 +1,7 @@
 ! Title: 애드가드 갤러리 필터
 ! Description: AdGuard, uBlock Origin, wBlock, Unicorn Pro, Brave Shields의 오차단 및 남은 광고와 안티 애드블록을 해결합니다.
-! Version: 2026.11.22.3
-! TimeUpdated: 2026-11-22T04:04:09+00:00
+! Version: 2026.11.24.1
+! TimeUpdated: 2026-11-24T05:43:29+00:00
 ! Expires: 6 hours (update frequency)
 ! Homepage: https://m.dcinside.com/gallog/cent8649
 
@@ -117,6 +117,7 @@ daum.net##div.inner_article div.ad_sch
 daum.net##slot-ad-sa
 dcinside.com##li:has(> [href*='https://ads.dcinside.com/'])
 dcinside.com##li[id^='comment_']:has(p[class*='txt']:has-text(/^(https?:\/\/)[A-Za-z0-9]{2,10}(\.[a-z]{2,7}|\.co\.kr)(\/(?=.*[a-z])(?=.*[0-9])[A-Za-z0-9_]{5,9})$/):not(:has-text(/git|g2sh|img|tebin|sendanywhe|twitter|rentry|x\.com|youtu|ibb\.co|archive\.md|t\.me|streamable|dev/i))):style(opacity: 0.5 !important;)
+ddaily.co.kr##div.art_mid_ad
 ddaily.co.kr##div.wcms_banner
 ddaltube.com##+js(remove-attr, data-a, #dtube-player)
 ddaltube.com##.dtube-banner-grid, .vjs-video-ad-click-overlay, .player-banner-overlay > a.block
@@ -269,6 +270,8 @@ pizzaalvolo.co.kr##div[style="width: 100%; max-width: 340px; height: 55px; min-h
 postshare.co.kr##div:has(> a > img[src*="/images/banner/"])
 postype.com##div.MuiBox-root:has(> [data-sentry-component="RecommendFeedGoogleAd"])
 postype.com##div[data-sentry-component="FeedGoogleAd"]
+pping.kr##div.curation_box > div.adv
+pping.kr##div:has(> iframe[src^="https://ad.pping.kr/"]:only-child)
 ppomppu.co.kr##.bottom > div[style]
 ppomppu.co.kr##.js-main-bbs-list-ad
 ppomppu.co.kr##tr[id*="_list_ad_"]
@@ -292,7 +295,6 @@ ssalmuk.com##+js(json-prune, data.[-].popupCode)
 ssgdfs.com##div.easyLoginOption:has(> [data-param1="LOG_AD"])
 te31.com##div:has(> link[rel="dns-prefetch"][href="//media.by.camp"])
 te31.com##div[style*="aspect-ratio: 300"]:has(> ins.adsbygoogle)
-te31.com##table:has(td > script)
 teamblind.com##.coupang_gnb
 teamblind.com##.progtop-band:has(> div[id^="div-gpt-ad"]:empty:only-child)
 teamblind.com##.top_banner
