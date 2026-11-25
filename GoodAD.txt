@@ -9357,13 +9357,14 @@ player.bunny-frame.online,video.fc2.com#@#[class$="-ad"]:not(body):not(html):not
 ! https://aagag.com/ - 하단 협오광고신고 버튼 Request 제외 - :not([class$="hate_ad"])
 ! https://mlbpark.donga.com/ - AD버튼 제외 - .icon_ad
 ! https://www.goodgag.net/
+! https://www.naver.com/ - 네이버 검색 하단 메뉴 사라짐 방지 - type_ad
 ! 네이트판 - 젤 하단의 오늘의 판 사라지는대 그냥 둘 것
-##[class$="_ad"]:not([class$="hate_ad"]):not(body):not(html):not(main):not([class$="icon_ad"])
+##[class$="_ad"]:not([class$="hate_ad"]):not(body):not(html):not(main):not([class$="icon_ad"]):not([class$="type_ad"])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://www.teamblind.com/ - 젤 상단 사라짐
 ! 헤이코리안 (https://heykorean.com/) - 젤 상단 사라짐
-heykorean.com,teamblind.com#@#[class$="_ad"]:not([class$="hate_ad"]):not(body):not(html):not(main):not([class$="icon_ad"])
+heykorean.com,teamblind.com#@#[class$="_ad"]:not([class$="hate_ad"]):not(body):not(html):not(main):not([class$="icon_ad"]):not([class$="type_ad"])
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
