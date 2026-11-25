@@ -723,7 +723,8 @@ banner.js^
 ! - 챗창내 이 방송 마음에 드셨나요? 즐겨찾기하고 다음 방송도 놓치지 마세요! 즐겨찾기 추가
 sooplive.com##.on.chat_induce_layer
 ! - 브라우저 권한 차단 안내  고화질 스트리머 연결이 차단되었습니다.  브라우저 설정에서 권한을 다시 허용해 주세요. 해제
-sooplive.com##.dimed._Modal_UI_Wrap
+! - - - 투표결과 클릭시 팝업이 안보여서 해제
+!sooplive.com##.dimed._Modal_UI_Wrap
 !
 !
 ! 시네티 (https://cinety.sooplive.com/)
