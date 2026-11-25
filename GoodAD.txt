@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261124
+! Version: 20261125
 !
 !
 !
@@ -1967,6 +1967,8 @@ poooo.ml#@#.ad
 !
 !
 ! 연합뉴스 (https://www.yna.co.kr/)
+! - 메인 구독 팝업
+yna.co.kr##[class*="popup-" i]
 ! - 메인 상단 배너
 yna.co.kr##.header01
 !  - 배너
@@ -8436,6 +8438,11 @@ getav.net#%#//scriptlet('prevent-window-open')
 /hotssul/##[class="row row-12"]
 ! - 댓글 광고
 /hotssul/##[class*="media"]>:has-text("자세히")
+!
+!
+! https://njavtv.com/
+! - 팝업 방지 (모바일)
+||tsyndicate.com^$popup
 
 
 
