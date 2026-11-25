@@ -434,6 +434,8 @@ m.naver.com##[data-nlog-area="homefeed.single_normal"]
 m.naver.com##[data-nlog-area="homefeed.clip"]
 m.naver.com##[data-nlog-area="homefeed.webtoon"]
 m.naver.com##[data-nlog-area="homefeed.today_n"]
+m.naver.com##[data-nlog-area="homefeed.shortents_now"]
+
 ! 빈껍데기 안보이게
 m.naver.com##.comp_home_feed
 ! - 기타
