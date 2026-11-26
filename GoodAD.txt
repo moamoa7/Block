@@ -9427,15 +9427,6 @@ f4scdn.com#@#[class*="_ad"]:not(body):not(html):not(main):not([class*="_ads"]):n
 !
 !
 !
-! https://damoang.net/ - row 제외 -> 모바일에서 일부 빈공간이 발생하나 이걸 안하면 PC에서는 작성자 최근활동이 안보여서 그냥 두기로 함
-! 일무 사이트에서 오류 발생으로 주석 처리 : 예 - https://x01.19feed.com/ - class="py-4 [.nav-ad-strip+&]:pt-0"
-!##[class*="-ad-"]:not(body):not(html):not(main):not([class*="-ad-row"]):not([class*="-ad-banner"]):not([class*="-ad-banners"])
-!
-! - 주소 변경이나 사라질  가능성이 낮은 도메인들
-! - https://supjav.com/ - luminscdn.xyz - Disable Adblock and Click Allow Pop-up Always to watch this video ! 로 인해 해제
-!luminscdn.xyz,player.bunny-frame.online#@#[class*="-ad-"]:not(body):not(html):not(main):not([class*="-ad-row"]):not([class*="-ad-banner"]):not([class*="-ad-banners"])
-!
-!
 ##[class*="_ad_"]:not(body):not(html):not(main):not([class*="_ad"]):not([class*="ad_"])
 !
 !
