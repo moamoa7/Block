@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261126
+! Version: 20261127
 !
 !
 !
@@ -1127,7 +1127,8 @@ m.fmkorea.com##div>[class]:has(>p)
 !etoland.co.kr##div.flex.w-full.justify-center:has(> .flex)
 !etoland.co.kr##[class="flex w-full justify-center"]
 !etoland.co.kr##[data-inouts-event-name="inouts-banner"]
-etoland.co.kr##[class="my-4 flex w-full justify-center"]
+!etoland.co.kr##[class="my-4 flex w-full justify-center"]
+etoland.co.kr##[class="flex justify-center"]
 ! - 게시물 하단 / 댓글 하단 공백 (모바일)
 ! - - - 핫딜 추천 상품 나오는 부분
 etoland.co.kr##[aria-label="토스 추천 상품"]
@@ -9092,7 +9093,8 @@ teescanner.com,womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#
 ! https://javsubs91.uk/ - 영상 하단 배너
 ! FapHouse (https://ko.fhcontent.com/)
 ! 쿠팡 (https://www.coupang.com/)
-##[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner--" i])
+! https://www.vigloo.com/ - :not([class*="-banner-background" i]) 예외 추가
+##[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner--" i]):not([class*="-banner-background" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://atlantak.com/ - 본문 일부 사라짐
