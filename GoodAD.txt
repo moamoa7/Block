@@ -4140,7 +4140,7 @@ perplexity.ai##[role="dialog"]
 *$document,csp=worker-src 'none',domain=fullxh.com|hamsterix.*|megaxh.com|unlockxh4.com|xhadult2.com|xhadult3.com|xhadult4.com|xhadult5.com|xhamster.*|xhamster10.*|xhamster11.*|xhamster12.*|xhamster13.*|xhamster14.*|xhamster15.*|xhamster16.*|xhamster17.*|xhamster18.*|xhamster19.*|xhamster2.*|xhamster20.*|xhamster3.*|xhamster4.*|xhamster46.com|xhamster5.*|xhamster7.*|xhamster8.*|xhday.com|xhday1.com|xhmoon5.com|xhplanet1.com|xhplanet2.com|xhreal2.com|xhreal3.com|xhtab2.com|xhvictory.com|xhwebsite.com|xhwebsite2.com|xhwide1.com|xhwide8.com
 !
 !
-! 티비위키 (https://t.me/s/tvwiki_link) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki66.net/)
+! 티비위키 (https://t.me/s/tvwiki_link) (https://tvwikiurl.net/) (https://tvwiki.store/) (https://티비위키접속.com) (https://tvwiki67.net/)
 ! 티비몬 (https://t.me/s/tvmon_noti) (https://tvmon1.com/) - 텔레그램 없어짐
 ! 티비핫 (https://tvhot2.com/) - 메인주소로 접속하면 구글로 이동됨 / https://tvhot2.com/drama 와 같이 디렉토리로 이동해야함
 ! - 팝업 제거
@@ -4664,7 +4664,7 @@ joatoon-oa.com##.bg-opacity-50
 ##div:has(> .theme-popup-stack)
 !
 !
-! 뉴토끼 (https://뉴토끼우회.com)  (https://뉴토주소.com) (https://toki36.com/) (https://sbxh9.com)
+! 뉴토끼 (https://뉴토끼우회.com)  (https://뉴토주소.com) (https://toki37.com/) (https://sbxh9.com)
 ! ===== sbxh 광고 트래픽 허용 =====
 !@@||sbxh*.com^$generichide,xhr,script
 !@@||toki*.com^$generichide,xhr,script
@@ -4683,7 +4683,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - 굳이 추가하지 않아도 기능엔 문제가 없음
 ! - - - 외부 anti-adblock 추적 서버 차단 (DNS에 등록 필요)
 ! ////////////////////
-! - https://toki36.com/ List-KR 미등록으로 개별 추가
+! - https://toki37.com/ List-KR 미등록으로 개별 추가
 !/toki/##[data-brs][data-br]
 ! - 차단 도메인
 ||whoas.xyz^
@@ -4729,7 +4729,7 @@ joatoon-oa.com##.bg-opacity-50
 ! - - - adguard
 !@@/ad/*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
 !
-! - https://toki36.com/wasm/ad-guard/ad_guard.js 차단으로 소설 안나옴
+! - https://toki37.com/wasm/ad-guard/ad_guard.js 차단으로 소설 안나옴
 ! - - - ublock
 !@@/ad-*$domain=/^toki\d+\.[a-z.]+$/|/^sbxh\d+\.[a-z.]+$/|/^newtoki\d+\.[a-z.]+$/
 ! - - - adguard
@@ -8716,7 +8716,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! https://loawa.com/
 ! https://www.tiktok.com/
 ! https://fc2db.net/ - https://fc2db.net/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=2.0.0
-! 뉴토끼 - https://toki36.com/wasm/ad-guard/ad_guard.js?v=b1787955762841-wasm-1787955762844
+! 뉴토끼 - https://toki37.com/wasm/ad-guard/ad_guard.js?v=b1787955762841-wasm-1787955762844
 ! javclick.com / manko.fun - https://a.pemsrv.com/ad-provider.js
 ! www.twidouga.net - https://a.pemsrv.com/ad-provider.js
 ! https://dmm.ppvdb.com/ - https://dmm.ppvdb.com/wp-content/themes/media-catalog-theme/js/ad-tracker.js?ver=1.0.0
