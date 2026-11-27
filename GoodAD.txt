@@ -1188,6 +1188,7 @@ etoland.co.kr#%#//scriptlet('prevent-window-open')
 !||openxcdn.net^
 ! 팝업 차단
 ||coupang.com^$popup,domain=etoland.co.kr
+||etoland.co.kr/b/hotdeal/list^$popup,domain=etoland.co.kr
 !
 !
 !
