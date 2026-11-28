@@ -8263,11 +8263,11 @@ jable.tv##[class*="video"]:has([href*="banner"])
 ##div.mb-sm-4.mb-3
 !
 !
-! https://manko.fun/
+! https://manko.fun/ (= https://javcall.com/)
 ! - 팝업 차단
 ||attacheatableoverlabor.com^$popup
 ! - 영상 하단 출연작 앞 빈칸
-manko.fun##.mt-4 > div
+javcall.com,manko.fun##.mt-4 > div
 ! - 기타
 !/pop-under.
 !/^https?:\/\/[a-z0-9]{7,40}\.com\/([^\s]{350,400}|[a-z0-9]{8,10}(\?[a-z]{3,5}=.*)?|[a-z?]{13,}=[^\s]+)[?&]key=[a-f0-9]{32}/$important,popunder,popup
