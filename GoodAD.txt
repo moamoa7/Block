@@ -7317,6 +7317,8 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 ##.x-popup
 ! - (쿠키)팝업차단으로 스크롤 차단 해제 (모바일)
 xfree.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+! - 온리팬스 넘어가는 (visit page) 영상 지우기 (모바일)
+xfree.com##[class="of-ov"]
 ! - 영상 상단 오른쪽 광고 문구
 xfree.com##div[class*="badge"]:has-text(광고)
 ! - 영상 상단 오른쪽 사라지는 텍스트
