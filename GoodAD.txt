@@ -4,7 +4,7 @@
 ! Title: GoodAD
 ! Description: Personal AdBlock List
 ! Homepage: https://github.com/moamoa7/Block
-! Version: 20261127
+! Version: 20261128
 !
 !
 !
@@ -7899,8 +7899,8 @@ patreon.com##body:style(overflow: auto !important;)
 !
 !
 ! https://uploadrar.com/
-! - 하단 쿠키 안내
-!uploadrar.com###gdpr-cookie-notice
+! - 하단 쿠키 안내 (PC)
+uploadrar.com###gdpr-cookie-notice
 !
 !
 ! AV플릭스 (https://av플릭스평생도메인.com) (https://kr5.avflix.co/)
@@ -8456,6 +8456,11 @@ getav.net#%#//scriptlet('prevent-window-open')
 ! https://njavtv.com/
 ! - 팝업 방지 (모바일)
 ||tsyndicate.com^$popup
+!
+!
+! Platinmods (https://platinmods.com/)
+! - 개별 화면내 오른쪽 필요없는 공지
+platinmods.com##.notices
 
 
 
