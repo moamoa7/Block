@@ -7317,6 +7317,10 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 ##.x-popup
 ! - (쿠키)팝업차단으로 스크롤 차단 해제 (모바일)
 xfree.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+! - 영상 상단 오른쪽 광고 문구
+xfree.com##div[class*="badge"]:has-text(광고)
+! - 영상 상단 오른쪽 사라지는 텍스트
+xfree.com##.lock-slide
 ! - 더 보기 버튼 없애기 (PC)
 xfree.com##.button-full-video
 ! - 더 보기 버튼 없애기 (모바일) - 사이트 팝업
