@@ -4119,12 +4119,75 @@ perplexity.ai##[role="dialog"]
 !
 ! 행복 쇼핑 (https://www.pping.kr/)
 @@||pping.kr^$generichide
-
-
-
-
-
-
+!
+!
+! 한국금거래소 (https://koreagoldx.co.kr/)
+@@||koreagoldx.co.kr^$generichide
+@@||exgold.co.kr^$generichide
+!
+!
+! 국민은행 (https://www.kbstar.com/)
+@@||kbstar.com^$generichide,xhr
+!
+!
+! 국민카드 (https://card.kbcard.com/)
+@@||card.kbcard.com^$generichide
+!
+!
+! KB부동산 (https://kbland.kr/)
+@@||kbland.kr^$generichide,script,xhr
+!
+!
+! KB증권 (https://www.kbsec.com/)
+@@||kbsec.com^$generichide,script,xhr
+!
+!
+! 하나은행 (https://www.kebhana.com/)
+@@||kebhana.com^$generichide,xhr
+!
+!
+! 하나카드 (https://www.hanacard.co.kr/)
+@@||hanacard.co.kr^$generichide
+!
+!
+! 하나증권 (https://www.hanaw.com/)
+@@||hanaw.com^$generichide
+!
+!
+! 우리은행 (https://www.wooribank.com/)
+@@||wooribank.com^$generichide,xhr
+!
+!
+! 우리투자증권 (https://fundsupermarket.wooriib.com/)
+@@||wooriib.com^$generichide,xhr
+!
+!
+! 우리저축은행 (https://www.wooleebank.co.kr/)
+@@||wooleebank.co.kr^$generichide
+!
+!
+! 우리카드 (https://pc.wooricard.com/)
+@@||wooricard.com^$generichide
+!
+!
+! 농협 (https://banking.nonghyup.com/)
+@@||nonghyup.com^$generichide
+!
+!
+! 신한은행 (https://www.shinhan.com/)
+@@||shinhan.com^$generichide
+!
+!
+! 신한카드 (https://www.shinhancard.com/)
+@@||shinhancard.com^$generichide
+!
+!
+! 신한투자증권 (https://www.shinhansec.com/)
+@@||shinhansec.com^$generichide
+!
+!
+! 온통대전 (https://ontongdaejeoncard.kr/)
+@@||ontongdaejeoncard.kr^$generichide
 
 
 
@@ -8923,7 +8986,7 @@ max.mynamuh.com,nhsec.com,fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:no
 !
 !
 !
-! - iframe 중 div>iframe이 아닌것
+! - iframe 중 div>iframe이 아닌것 - ^ads^ 이 규칙이 대신해줄 수 없는 ads-같은것도 처리하므로 유지
 ! Javhub.me (https://www3.javfun.me/) - ##iframe[width="728"][height="90"]
 ##iframe[src*="ads"]:not([src*="loads"])
 !
@@ -9112,16 +9175,16 @@ teescanner.com,womaneconomy.co.kr,hankyung.com,xn--v69ak0xskm.com,vexfile.com#@#
 ! FapHouse (https://ko.fhcontent.com/)
 ! 쿠팡 (https://www.coupang.com/)
 ! https://www.vigloo.com/ - :not([class*="-banner-background" i]) 예외 추가
-##[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner--" i]):not([class*="-banner-background" i])
+##[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner" i]):not([class*="banner-" i]):not([class*="-banner--" i]):not([class*="-banner-background" i])
 !
 ! - 주소 변경이나 사라질  가능성이 낮은 도메인들
 ! https://atlantak.com/ - 본문 일부 사라짐
 ! 거지맵 - 상단 스토어 받는거 사라지는거 방지
-xn--v69ak0xskm.com,atlantak.com#@#[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner--" i])
+xn--v69ak0xskm.com,atlantak.com#@#[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner" i]):not([class*="banner-" i]):not([class*="-banner--" i]):not([class*="-banner-background" i])
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
 ! 밍키넷 - https://mingky22.com/ - 텔레그램 삭제 방지
-/mingky/#@#[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner--" i])
+/mingky/#@#[class*="-banner-" i]:not(body):not(html):not(main):not([class*="-banner" i]):not([class*="banner-" i]):not([class*="-banner--" i]):not([class*="-banner-background" i])
 !
 !
 ! - 주소 변경이나 사라질  가능성이 높은 도메인들
