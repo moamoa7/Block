@@ -7901,6 +7901,8 @@ patreon.com##body:style(overflow: auto !important;)
 ! https://uploadrar.com/
 ! - 하단 쿠키 안내 (PC)
 uploadrar.com###gdpr-cookie-notice
+! - 하단 필요없는 부분
+uploadrar.com##.mb-lg-5.mb-4.text-center
 !
 !
 ! AV플릭스 (https://av플릭스평생도메인.com) (https://kr5.avflix.co/)
