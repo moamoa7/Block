@@ -3898,6 +3898,11 @@ linkbio.co##.lnk-prom-placement
 @@||tossinvest.com^$generichide,script,xhr
 !
 !
+! 나무증권 (https://max.mynamuh.com/)
+@@||mynamuhbegin.com^$generichide
+@@||max.mynamuh.com^$generichide,script
+!
+!
 ! 네이버 페이 증권 (https://stock.naver.com/)
 @@||stock.naver.com^$generichide,xhr
 !
@@ -8516,7 +8521,7 @@ trand.co.kr - https://ads-partners.coupang.com/g.js
 ! - 티빙 - https://event.hackle.io/api/v2/w/n4lZZO5UDASZFT4QicpEgfjwSCaiJWu4/events
 ||event.
 ! - 예외 - https://esports.sooplive.com/
-@@||event.$domain=esports.sooplive.com|jejuair.net
+@@||event.$domain=esports.sooplive.com|jejuair.net|mynamuhbegin.com
 !
 !
 *-ad*:not(-ad-)
@@ -8903,6 +8908,7 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! 밍키넷 (https://mingky22.com/) - /v1/
 ! https://jav.guru/ - jav.guru
 ! https://javopen.co/ - 4번 영상 :not([src*="n1mwq.org"])
+! https://max.mynamuh.com/ - about:srcdoc
 ! - 네이버 뉴스 기사 오른쪽 다른 언론사 보기 팝업 사라지는거 그냥 둘 것
 ##div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="/embed/"]):not([src*="/embed?isAfreeca="]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"]):not([src*="onet.php"]):not([src*="avatar"]):not([src*="/board/"]):not([src*="sign"]):not([src*="media.fmkorea.com"]):not([src*="/wpsview?"]):not([src*="/v3"]):not([src*="extension"]):not([src*="/hls/"]):not([src*="review"]):not([src*="/v1/Yl/player/"]):not([src*="/?v="]):not([src*="/player.html?src="]):not([src*="moviesapi.to/"]):not([src*="/v1/"]):not([src*="jav.guru"]):not([src*="n1mwq.org"])
 !
@@ -8911,7 +8917,9 @@ shopping.nate.com#@#[href*="link.coupang.com"]
 ! https://fd2ppv.cc/ - src 없음
 ! https://mail3.nate.com/ - class="_nmContent" - :not([src*="content"])로 하면 일부 프레임이 해제되서 예외로 별도 처리
 ! https://safe.sur.ly/
-fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="/embed/"]):not([src*="/embed?isAfreeca="]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"]):not([src*="onet.php"]):not([src*="avatar"]):not([src*="/board/"]):not([src*="sign"]):not([src*="media.fmkorea.com"]):not([src*="/wpsview?"]):not([src*="/v3"]):not([src*="extension"]):not([src*="/hls/"]):not([src*="review"]):not([src*="/v1/Yl/player/"]):not([src*="/?v="]):not([src*="/player.html?src="]):not([src*="moviesapi.to/"]):not([src*="/v1/"]):not([src*="jav.guru"]):not([src*="n1mwq.org"])
+! nhsec.com 	 - www.mynamuhbegin.com 관련
+! https://max.mynamuh.com/
+max.mynamuh.com,nhsec.com,fd2ppv.cc,safe.sur.ly,mail3.nate.com#@#div > iframe:not([src*="about:blank"]):not([src*="/recaptcha/"]):not([src*="/player.php?"]):not([src*="/play/"]):not([src*="/embed/"]):not([src*="/embed?isAfreeca="]):not([src*="/t/"]):not([src*="/e/"]):not([src*="/v/"]):not([src*="supremejav.com"]):not([src*="7tv"]):not([src*="player.upn.one"]):not([src*="mypikpak.com"]):not([src*="goststream.com"]):not([src*="/content/"]):not([src*="/live"]):not([id*="broadcast"]):not([src*="map"]):not([id="webmediaFrame"]):not([src*="bestjavporn"]):not([class*="edit"]):not([src*="/my.html"]):not([src*="upnstreamlive.shop"]):not([data-lazy-src*="/embed/"]):not([src*="stb.strp2p.com"]):not([src*="blob:"]):not([src="/attendance/"]):not([src*="/Comment/"]):not([src*="/hgem.php?"]):not([src*="/o/"]):not([src*="/v.php?"]):not([src*="/stream/getPlayer/"]):not([src*="/play.html?"]):not([id="captcha-recaptcha"]):not([src*="cafe.naver.com"]):not([src*="/dkaptcha/"]):not([src*="/vv/"]):not([src*="/captcha/"]):not([src*="follow"]):not([src*="onet.php"]):not([src*="avatar"]):not([src*="/board/"]):not([src*="sign"]):not([src*="media.fmkorea.com"]):not([src*="/wpsview?"]):not([src*="/v3"]):not([src*="extension"]):not([src*="/hls/"]):not([src*="review"]):not([src*="/v1/Yl/player/"]):not([src*="/?v="]):not([src*="/player.html?src="]):not([src*="moviesapi.to/"]):not([src*="/v1/"]):not([src*="jav.guru"]):not([src*="n1mwq.org"])
 !
 !
 !
