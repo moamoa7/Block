@@ -7317,8 +7317,14 @@ hotword.site#@#div[class^="col-md-"] div:is([style^="width:"], [style^="min-widt
 ##.x-popup
 ! - (쿠키)팝업차단으로 스크롤 차단 해제 (모바일)
 xfree.com##body:style(pointer-events: auto !important; overflow: auto !important;)
+! - 더 보기 버튼 없애기 (PC)
+xfree.com##.button-full-video
 ! - 더 보기 버튼 없애기 (모바일) - 사이트 팝업
 xfree.com##.see-more__button
+! - 영상 하단 메타데이터 태그 지우기 (모바일)
+xfree.com##.feeditem__metadata
+! - 영상 하단 팝업 (모바일)
+xfree.com##.x-slideup
 !  - 팝업 해제
 !xfree.com#@#[class^="ad" i]
 !
